@@ -30,6 +30,10 @@ license:
 unit-test:
 	@scripts/check_unit.sh
 
+.PHONY: bdd-test
+bdd-test: clean kms-rest-docker generate-test-keys
+	@scripts/check_integration.sh
+
 .PHONY: kms-rest
 kms-rest:
 	@echo "Building kms-rest"
@@ -43,9 +47,19 @@ kms-rest-docker:
 	--build-arg GO_VER=$(GO_VER) \
 	--build-arg ALPINE_VER=$(ALPINE_VER) .
 
+.PHONY: generate-test-keys
+generate-test-keys: clean
+	@mkdir -p -p test/bdd/fixtures/keys/tls
+	@docker run -i --rm \
+		-v $(abspath .):/opt/workspace/hub-kms \
+		--entrypoint "/opt/workspace/hub-kms/scripts/generate_test_keys.sh" \
+		frapsoft/openssl
+
 .PHONY: clean
 clean: clean-build
 
 .PHONY: clean-build
 clean-build:
 	@rm -Rf ./.build
+	@rm -Rf ./test/bdd/fixtures/keys/tls
+	@rm -Rf ./test/bdd/docker-compose.log
