@@ -2,7 +2,7 @@
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://raw.githubusercontent.com/trustbloc/hub-kms/master/LICENSE)
 [![Godocs](https://img.shields.io/badge/godoc-reference-blue.svg)](https://godoc.org/github.com/trustbloc/hub-kms)
 
-[![Build Status](https://dev.azure.com/trustbloc/edge/_apis/build/status/trustbloc.hub-kms?branchName=master)](https://dev.azure.com/trustbloc/edge/_build/latest?definitionId=27&branchName=master)
+[![Build Status](https://dev.azure.com/trustbloc/edge/_apis/build/status/trustbloc.hub-kms?branchName=master)](https://dev.azure.com/trustbloc/edge/_build/latest?definitionId=43&branchName=master)
 [![codecov](https://codecov.io/gh/trustbloc/hub-kms/branch/master/graph/badge.svg)](https://codecov.io/gh/trustbloc/hub-kms)
 [![Go Report Card](https://goreportcard.com/badge/github.com/trustbloc/hub-kms)](https://goreportcard.com/report/github.com/trustbloc/hub-kms)
 

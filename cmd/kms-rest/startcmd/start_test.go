@@ -21,6 +21,13 @@ func (s *mockServer) ListenAndServe(host string, handler http.Handler) error {
 	return nil
 }
 
+func TestListenAndServe(t *testing.T) {
+	var w HTTPServer
+	err := w.ListenAndServe("wronghost", nil)
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "address wronghost: missing port in address")
+}
+
 func TestStartCmdContents(t *testing.T) {
 	startCmd := GetStartCmd(&mockServer{})
 

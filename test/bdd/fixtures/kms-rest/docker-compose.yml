@@ -1,0 +1,22 @@
+#
+# Copyright SecureKey Technologies Inc. All Rights Reserved.
+#
+# SPDX-License-Identifier: Apache-2.0
+#
+version: '2'
+
+services:
+
+  kms.rest.example.com:
+    container_name: kms.rest.example.com
+    image: ${KMS_REST_IMAGE}:latest
+    environment:
+      - KMS_REST_HOST_URL=0.0.0.0:8070
+      - KMS_REST_TLS_CACERTS=/etc/tls/ec-cacert.pem
+      - KMS_REST_TLS_SYSTEMCERTPOOL=true
+    ports:
+      - 8070:8070
+    entrypoint: ""
+    command:  /bin/sh -c "kms-rest start"
+    volumes:
+      - ../keys/tls:/etc/tls
