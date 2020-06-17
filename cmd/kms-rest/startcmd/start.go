@@ -1,5 +1,6 @@
 /*
 Copyright SecureKey Technologies Inc. All Rights Reserved.
+
 SPDX-License-Identifier: Apache-2.0
 */
 
@@ -15,8 +16,11 @@ import (
 	"github.com/rs/cors"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
+	"github.com/trustbloc/edge-core/pkg/storage/memstore"
 	cmdutils "github.com/trustbloc/edge-core/pkg/utils/cmd"
 	tlsutils "github.com/trustbloc/edge-core/pkg/utils/tls"
+
+	"github.com/trustbloc/hub-kms/pkg/restapi"
 )
 
 const (
@@ -149,6 +153,14 @@ func startKmsService(parameters *kmsRestParameters, srv server) error {
 
 	// health check
 	router.HandleFunc(healthCheckEndpoint, healthCheckHandler).Methods(http.MethodGet)
+
+	// key management operations
+	kmsService := restapi.New(memstore.NewProvider())
+	handlers := kmsService.GetOperations()
+
+	for _, handler := range handlers {
+		router.HandleFunc(handler.Path(), handler.Handle()).Methods(handler.Method())
+	}
 
 	log.Infof("starting kms rest server on host %s", parameters.hostURL)
 
