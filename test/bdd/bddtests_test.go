@@ -8,7 +8,6 @@ package bdd
 import (
 	"flag"
 	"fmt"
-	"github.com/cucumber/messages-go/v10"
 	"os"
 	"strconv"
 	"strings"
@@ -16,10 +15,12 @@ import (
 	"time"
 
 	"github.com/cucumber/godog"
+	"github.com/cucumber/messages-go/v10"
 
 	"github.com/trustbloc/hub-kms/test/bdd/dockerutil"
 	bddctx "github.com/trustbloc/hub-kms/test/bdd/pkg/context"
 	"github.com/trustbloc/hub-kms/test/bdd/pkg/healthcheck"
+	"github.com/trustbloc/hub-kms/test/bdd/pkg/kmsoperations"
 )
 
 var composition []*dockerutil.Composition
@@ -150,5 +151,6 @@ func FeatureContext(s *godog.Suite) {
 func features() []feature {
 	return []feature{
 		healthcheck.NewSteps(),
+		kmsoperations.NewSteps(),
 	}
 }
