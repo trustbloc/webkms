@@ -8,16 +8,16 @@ package operation
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io/ioutil"
 	"net/http"
 	"net/url"
 
-	"github.com/google/uuid"
+	"github.com/trustbloc/edge-core/pkg/storage"
 
 	support "github.com/trustbloc/hub-kms/pkg/internal/common"
 	"github.com/trustbloc/hub-kms/pkg/keystore"
-	"github.com/trustbloc/hub-kms/pkg/restapi/models"
 )
 
 const (
@@ -25,16 +25,14 @@ const (
 	keystoreEndpoint       = kmsBasePath + "/keystore"
 	createKeystoreEndpoint = kmsBasePath + "/createKeystore"
 
-	keystoreIDFormat = "urn:uuid:%s"
-
 	readRequestFailure           = "Failed to read the request body: %s"
 	createKeystoreFailure        = "Failed to create a keystore: %s"
 	receivedInvalidConfiguration = "Received invalid keystore configuration: %s"
 )
 
-// Operation defines handler logic for the KMS service.
+// Operation defines handler logic for Key Server.
 type Operation struct {
-	keystore keystore.Provider
+	keystore *keystore.Keystore
 }
 
 // Handler defines an HTTP handler for the API endpoint.
@@ -45,9 +43,9 @@ type Handler interface {
 }
 
 // New returns a new Operation instance.
-func New(keystore keystore.Provider) *Operation {
+func New(provider storage.Provider) *Operation {
 	return &Operation{
-		keystore: keystore,
+		keystore: keystore.New(provider),
 	}
 }
 
@@ -65,16 +63,15 @@ func (o *Operation) createKeystoreHandler(rw http.ResponseWriter, req *http.Requ
 		return
 	}
 
-	var config models.KeystoreConfiguration
+	var config keystore.Config
 	err = json.Unmarshal(requestBody, &config)
 	if err != nil {
 		writeErrorResponse(rw, http.StatusBadRequest, fmt.Sprintf(receivedInvalidConfiguration, err))
 		return
 	}
 
-	keystoreID, err := o.createKeystore()
-	if err != nil {
-		writeErrorResponse(rw, http.StatusInternalServerError, fmt.Sprintf(createKeystoreFailure, err))
+	keystoreID, err := o.keystore.Create(config)
+	if createKeystoreFailed(err, rw) {
 		return
 	}
 
@@ -83,16 +80,28 @@ func (o *Operation) createKeystoreHandler(rw http.ResponseWriter, req *http.Requ
 	rw.WriteHeader(http.StatusCreated)
 }
 
-func (o *Operation) createKeystore() (string, error) {
-	guid := uuid.New()
-	keystoreID := fmt.Sprintf(keystoreIDFormat, guid)
-
-	err := o.keystore.CreateStore(keystoreID)
-	if err != nil {
-		return "", err
+func createKeystoreFailed(err error, rw http.ResponseWriter) bool {
+	if isConfigurationError(err) {
+		writeErrorResponse(rw, http.StatusBadRequest, fmt.Sprintf(receivedInvalidConfiguration, err))
+		return true
 	}
 
-	return keystoreID, nil
+	if errors.Is(err, keystore.ErrDuplicateKeystore) {
+		writeErrorResponse(rw, http.StatusConflict, fmt.Sprintf(createKeystoreFailure, err))
+		return true
+	}
+
+	if err != nil {
+		writeErrorResponse(rw, http.StatusInternalServerError, fmt.Sprintf(createKeystoreFailure, err))
+		return true
+	}
+
+	return false
+}
+
+func isConfigurationError(err error) bool {
+	return errors.Is(err, keystore.ErrMissingController) ||
+		errors.Is(err, keystore.ErrInvalidStartingSequence)
 }
 
 func writeErrorResponse(rw http.ResponseWriter, status int, msg string) {

@@ -11,17 +11,16 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
-
-	"github.com/trustbloc/hub-kms/pkg/mock/keystore"
+	"github.com/trustbloc/edge-core/pkg/storage/mockstore"
 )
 
 func TestController_New(t *testing.T) {
-	controller := New(keystore.NewMockProvider())
+	controller := New(mockstore.NewMockStoreProvider())
 	require.NotNil(t, controller)
 }
 
 func TestController_GetOperations(t *testing.T) {
-	controller := New(keystore.NewMockProvider())
+	controller := New(mockstore.NewMockStoreProvider())
 	require.NotNil(t, controller)
 
 	ops := controller.GetOperations()
