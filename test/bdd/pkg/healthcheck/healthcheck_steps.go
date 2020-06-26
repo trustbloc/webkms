@@ -80,7 +80,7 @@ func (s *Steps) httpGet(url string) error {
 func (s *Steps) validateJSONResField(path, expected string) error {
 	r := gjson.Get(s.queryValue, path)
 
-	logger.Infof("Path [%s] of JSON %s resolves to %s", path, s.queryValue, r.Str)
+	logger.Debugf("Path [%s] of JSON %s resolves to %s", path, s.queryValue, r.Str)
 
 	if r.Str == expected {
 		return nil
