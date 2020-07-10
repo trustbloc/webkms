@@ -12,103 +12,143 @@ import (
 	"fmt"
 	"testing"
 
+	"github.com/hyperledger/aries-framework-go/pkg/kms"
 	"github.com/stretchr/testify/require"
 	"github.com/trustbloc/edge-core/pkg/storage"
-	"github.com/trustbloc/edge-core/pkg/storage/mockstore"
+
+	"github.com/trustbloc/hub-kms/pkg/keystore/mock"
 )
 
 var (
-	validConfig = Config{
+	testKeystoreID = "urn:uuid:85149342-7f26-4dc1-a77a-345f4a1102d5"
+
+	validConfig = Configuration{
 		Controller: "did:example:123456789",
 	}
 
-	missingControllerConfig = Config{
+	missingControllerConfig = Configuration{
 		Sequence: 0,
 	}
 
-	invalidStartingSequenceConfig = Config{
+	invalidStartingSequenceConfig = Configuration{
 		Controller: "did:example:123456789",
 		Sequence:   1,
 	}
 )
 
 func TestNew(t *testing.T) {
-	k := New(mockstore.NewMockStoreProvider())
-	require.NotNil(t, k)
+	t.Run("Success", func(t *testing.T) {
+		k, err := New(testKeystoreID, mock.NewProvider())
+
+		require.NotNil(t, k)
+		require.NoError(t, err)
+	})
+	t.Run("Error: invalid keystore", func(t *testing.T) {
+		provider := mock.NewProvider()
+		provider.MockStorage.ErrOpenStoreHandle = ErrInvalidKeystore
+
+		k, err := New(testKeystoreID, provider)
+
+		require.Nil(t, k)
+		require.EqualError(t, err, fmt.Errorf(openStoreErr, ErrInvalidKeystore).Error())
+	})
 }
 
-func TestKeystore_Create(t *testing.T) {
+func TestCreateKeystore(t *testing.T) {
 	t.Run("Success", func(t *testing.T) {
-		provider := mockstore.NewMockStoreProvider()
-		k := New(provider)
-		require.NotNil(t, k)
+		storageProvider := mock.NewProvider().MockStorage
 
-		ID, err := k.Create(validConfig)
+		kID, err := CreateKeystore(validConfig, storageProvider)
 
-		require.NotEmpty(t, ID)
+		require.NotEmpty(t, kID)
 		require.NoError(t, err)
-		assertStoredConfiguration(t, provider.Store.Store[configStoreKey])
+		assertStoredConfiguration(t, storageProvider.Store.Store[configStoreKey])
 	})
 	t.Run("Config error: missing controller", func(t *testing.T) {
-		k := New(mockstore.NewMockStoreProvider())
-		require.NotNil(t, k)
+		kID, err := CreateKeystore(missingControllerConfig, mock.NewProvider().MockStorage)
 
-		ID, err := k.Create(missingControllerConfig)
-
-		require.Empty(t, ID)
-		require.EqualError(t, err, fmt.Errorf(checkConfigErr, ErrMissingController).Error())
+		require.Empty(t, kID)
+		require.EqualError(t, err, fmt.Errorf(validateConfigErr, ErrMissingController).Error())
 	})
 	t.Run("Config error: invalid starting sequence", func(t *testing.T) {
-		k := New(mockstore.NewMockStoreProvider())
-		require.NotNil(t, k)
+		kID, err := CreateKeystore(invalidStartingSequenceConfig, mock.NewProvider().MockStorage)
 
-		ID, err := k.Create(invalidStartingSequenceConfig)
-
-		require.Empty(t, ID)
-		require.EqualError(t, err, fmt.Errorf(checkConfigErr, ErrInvalidStartingSequence).Error())
+		require.Empty(t, kID)
+		require.EqualError(t, err, fmt.Errorf(validateConfigErr, ErrInvalidStartingSequence).Error())
 	})
 	t.Run("CreateStore error: duplicate keystore", func(t *testing.T) {
-		provider := mockstore.NewMockStoreProvider()
-		provider.ErrCreateStore = storage.ErrDuplicateStore
-		k := New(provider)
-		require.NotNil(t, k)
+		storageProvider := mock.NewProvider().MockStorage
+		storageProvider.ErrCreateStore = storage.ErrDuplicateStore
 
-		ID, err := k.Create(validConfig)
+		kID, err := CreateKeystore(validConfig, storageProvider)
 
-		require.Empty(t, ID)
+		require.Empty(t, kID)
 		require.EqualError(t, err, fmt.Errorf(createStoreErr, ErrDuplicateKeystore).Error())
 	})
 	t.Run("CreateStore error: other", func(t *testing.T) {
-		provider := mockstore.NewMockStoreProvider()
-		provider.ErrCreateStore = errors.New("create store error")
-		k := New(provider)
-		require.NotNil(t, k)
+		storageProvider := mock.NewProvider().MockStorage
+		storageProvider.ErrCreateStore = errors.New("create store error")
 
-		ID, err := k.Create(validConfig)
+		kID, err := CreateKeystore(validConfig, storageProvider)
 
-		require.Empty(t, ID)
+		require.Empty(t, kID)
 		require.Error(t, err)
 	})
 	t.Run("OpenStore error", func(t *testing.T) {
-		provider := mockstore.NewMockStoreProvider()
-		provider.ErrOpenStoreHandle = errors.New("open store error")
-		k := New(provider)
-		require.NotNil(t, k)
+		storageProvider := mock.NewProvider().MockStorage
+		storageProvider.ErrOpenStoreHandle = errors.New("open store error")
 
-		ID, err := k.Create(validConfig)
+		kID, err := CreateKeystore(validConfig, storageProvider)
 
-		require.Empty(t, ID)
+		require.Empty(t, kID)
 		require.Error(t, err)
 	})
 	t.Run("Put store error", func(t *testing.T) {
-		provider := mockstore.NewMockStoreProvider()
-		provider.Store.ErrPut = errors.New("put error")
-		k := New(provider)
+		storageProvider := mock.NewProvider().MockStorage
+		storageProvider.Store.ErrPut = errors.New("put error")
+
+		kID, err := CreateKeystore(validConfig, storageProvider)
+
+		require.Empty(t, kID)
+		require.Error(t, err)
+	})
+}
+
+func TestCreateKey(t *testing.T) {
+	t.Run("Success", func(t *testing.T) {
+		provider := mock.NewProvider()
+		provider.MockKMS.CreateKeyID = testKeystoreID
+		k, err := New(testKeystoreID, provider)
 		require.NotNil(t, k)
+		require.NoError(t, err)
 
-		ID, err := k.Create(validConfig)
+		keyID, err := k.CreateKey(kms.ED25519Type)
 
-		require.Empty(t, ID)
+		require.NotEmpty(t, keyID)
+		require.NoError(t, err)
+	})
+	t.Run("Create key error", func(t *testing.T) {
+		provider := mock.NewProvider()
+		provider.MockKMS.CreateKeyErr = errors.New("create key error")
+		k, err := New(testKeystoreID, provider)
+		require.NotNil(t, k)
+		require.NoError(t, err)
+
+		keyID, err := k.CreateKey(kms.ED25519Type)
+
+		require.Empty(t, keyID)
+		require.Error(t, err)
+	})
+	t.Run("Put store error", func(t *testing.T) {
+		provider := mock.NewProvider()
+		provider.MockStorage.Store.ErrPut = errors.New("put error")
+		k, err := New(testKeystoreID, provider)
+		require.NotNil(t, k)
+		require.NoError(t, err)
+
+		keyID, err := k.CreateKey(kms.ED25519Type)
+
+		require.Empty(t, keyID)
 		require.Error(t, err)
 	})
 }
@@ -116,7 +156,7 @@ func TestKeystore_Create(t *testing.T) {
 func assertStoredConfiguration(t *testing.T, b []byte) {
 	t.Helper()
 
-	var config Config
+	var config Configuration
 	err := json.Unmarshal(b, &config)
 
 	require.NoError(t, err)
