@@ -7,8 +7,7 @@ SPDX-License-Identifier: Apache-2.0
 package restapi
 
 import (
-	"github.com/trustbloc/edge-core/pkg/storage"
-
+	"github.com/trustbloc/hub-kms/pkg/keystore"
 	"github.com/trustbloc/hub-kms/pkg/restapi/operation"
 )
 
@@ -18,7 +17,7 @@ type Controller struct {
 }
 
 // New returns a new controller instance.
-func New(provider storage.Provider) *Controller {
+func New(provider keystore.Provider) *Controller {
 	op := operation.New(provider)
 	handlers := op.GetRESTHandlers()
 

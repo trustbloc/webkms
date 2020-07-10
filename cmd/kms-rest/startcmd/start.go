@@ -16,10 +16,10 @@ import (
 	"github.com/rs/cors"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
-	"github.com/trustbloc/edge-core/pkg/storage/memstore"
 	cmdutils "github.com/trustbloc/edge-core/pkg/utils/cmd"
 	tlsutils "github.com/trustbloc/edge-core/pkg/utils/tls"
 
+	"github.com/trustbloc/hub-kms/pkg/keystore/mock"
 	"github.com/trustbloc/hub-kms/pkg/restapi"
 )
 
@@ -154,9 +154,10 @@ func startKmsService(parameters *kmsRestParameters, srv server) error {
 	// health check
 	router.HandleFunc(healthCheckEndpoint, healthCheckHandler).Methods(http.MethodGet)
 
-	// key management operations
-	kmsService := restapi.New(memstore.NewProvider())
-	handlers := kmsService.GetOperations()
+	// key server
+	// TODO: Replace mock with real implementation (https://github.com/trustbloc/hub-kms/issues/12)
+	keyServer := restapi.New(mock.NewProvider())
+	handlers := keyServer.GetOperations()
 
 	for _, handler := range handlers {
 		router.HandleFunc(handler.Path(), handler.Handle()).Methods(handler.Method())
