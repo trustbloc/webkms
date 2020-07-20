@@ -7,20 +7,33 @@ SPDX-License-Identifier: Apache-2.0
 package startcmd
 
 import (
-	"encoding/json"
+	"bytes"
+	"crypto/rand"
+	"crypto/sha256"
+	"encoding/base64"
+	"errors"
+	"fmt"
 	"net/http"
-	"strconv"
-	"time"
 
 	"github.com/gorilla/mux"
+	"github.com/hyperledger/aries-framework-go/pkg/crypto"
+	"github.com/hyperledger/aries-framework-go/pkg/crypto/tinkcrypto"
+	"github.com/hyperledger/aries-framework-go/pkg/kms"
+	"github.com/hyperledger/aries-framework-go/pkg/kms/localkms"
+	"github.com/hyperledger/aries-framework-go/pkg/secretlock"
+	"github.com/hyperledger/aries-framework-go/pkg/secretlock/local"
+	ariesstorage "github.com/hyperledger/aries-framework-go/pkg/storage"
+	ariesmemstorage "github.com/hyperledger/aries-framework-go/pkg/storage/mem"
 	"github.com/rs/cors"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
+	"github.com/trustbloc/edge-core/pkg/storage"
+	"github.com/trustbloc/edge-core/pkg/storage/memstore"
 	cmdutils "github.com/trustbloc/edge-core/pkg/utils/cmd"
-	tlsutils "github.com/trustbloc/edge-core/pkg/utils/tls"
 
-	"github.com/trustbloc/hub-kms/pkg/keystore/mock"
-	"github.com/trustbloc/hub-kms/pkg/restapi"
+	"github.com/trustbloc/hub-kms/pkg/provider"
+	"github.com/trustbloc/hub-kms/pkg/restapi/healthcheck"
+	kmsrest "github.com/trustbloc/hub-kms/pkg/restapi/kms"
 )
 
 const (
@@ -29,33 +42,12 @@ const (
 	hostURLFlagUsage     = "URL to run the kms-rest instance on. Format: HostName:Port."
 	hostURLEnvKey        = "KMS_REST_HOST_URL"
 
-	tlsSystemCertPoolFlagName  = "tls-systemcertpool"
-	tlsSystemCertPoolFlagUsage = "Use system certificate pool." +
-		" Possible values [true] [false]. Defaults to false if not set." +
-		" Alternatively, this can be set with the following environment variable: " + tlsSystemCertPoolEnvKey
-	tlsSystemCertPoolEnvKey = "KMS_REST_TLS_SYSTEMCERTPOOL"
+	masterKeyURI       = "local-lock://%s"
+	masterKeyStoreName = "masterkey"
+	masterKeyDBKeyName = masterKeyStoreName
 
-	tlsCACertsFlagName  = "tls-cacerts"
-	tlsCACertsFlagUsage = "Comma-Separated list of ca certs path." +
-		" Alternatively, this can be set with the following environment variable: " + tlsCACertsEnvKey
-	tlsCACertsEnvKey = "KMS_REST_TLS_CACERTS"
+	keySize = sha256.Size
 )
-
-const (
-	// api
-	healthCheckEndpoint = "/healthcheck"
-)
-
-type kmsRestParameters struct {
-	hostURL           string
-	tlsSystemCertPool bool
-	tlsCACerts        []string
-}
-
-type healthCheckResp struct {
-	Status      string    `json:"status"`
-	CurrentTime time.Time `json:"currentTime"`
-}
 
 type server interface {
 	ListenAndServe(host string, router http.Handler) error
@@ -67,6 +59,41 @@ type HTTPServer struct{}
 // ListenAndServe starts the server using the standard Go HTTP server implementation.
 func (s *HTTPServer) ListenAndServe(host string, router http.Handler) error {
 	return http.ListenAndServe(host, router)
+}
+
+type kmsRestParameters struct {
+	hostURL string
+}
+
+type keystoreProvider struct {
+	storageProvider storage.Provider
+	kmsCreator      provider.KMSCreator
+	crypto          crypto.Crypto
+}
+
+func (k keystoreProvider) StorageProvider() storage.Provider {
+	return k.storageProvider
+}
+
+func (k keystoreProvider) KMSCreator() provider.KMSCreator {
+	return k.kmsCreator
+}
+
+func (k keystoreProvider) Crypto() crypto.Crypto {
+	return k.crypto
+}
+
+type kmsProvider struct {
+	storageProvider ariesstorage.Provider
+	secretLock      secretlock.Service
+}
+
+func (k kmsProvider) StorageProvider() ariesstorage.Provider {
+	return k.storageProvider
+}
+
+func (k kmsProvider) SecretLock() secretlock.Service {
+	return k.secretLock
 }
 
 // GetStartCmd returns the Cobra start command.
@@ -94,78 +121,128 @@ func createStartCmd(srv server) *cobra.Command {
 	}
 }
 
+func createFlags(startCmd *cobra.Command) {
+	startCmd.Flags().StringP(hostURLFlagName, hostURLFlagShorthand, "", hostURLFlagUsage)
+}
+
 func getKmsRestParameters(cmd *cobra.Command) (*kmsRestParameters, error) {
 	hostURL, err := cmdutils.GetUserSetVarFromString(cmd, hostURLFlagName, hostURLEnvKey, false)
 	if err != nil {
 		return nil, err
 	}
 
-	tlsSystemCertPool, tlsCACerts, err := getTLS(cmd)
+	return &kmsRestParameters{
+		hostURL: hostURL,
+	}, nil
+}
+
+func startKmsService(parameters *kmsRestParameters, srv server) error {
+	router := mux.NewRouter()
+
+	// add health check service API handlers
+	healthCheckService := healthcheck.New()
+
+	for _, handler := range healthCheckService.GetOperations() {
+		router.HandleFunc(handler.Path(), handler.Handle()).Methods(handler.Method())
+	}
+
+	// add KMS service API handlers
+	keystoreProv, err := createKeystoreProvider()
+	if err != nil {
+		return nil
+	}
+
+	kmsService := kmsrest.New(keystoreProv)
+
+	for _, handler := range kmsService.GetOperations() {
+		router.HandleFunc(handler.Path(), handler.Handle()).Methods(handler.Method())
+	}
+
+	log.Infof("starting KMS service on host %s", parameters.hostURL)
+
+	return srv.ListenAndServe(parameters.hostURL, constructCORSHandler(router))
+}
+
+func createKeystoreProvider() (provider.Provider, error) {
+	c, err := tinkcrypto.New()
 	if err != nil {
 		return nil, err
 	}
 
-	return &kmsRestParameters{
-		hostURL:           hostURL,
-		tlsSystemCertPool: tlsSystemCertPool,
-		tlsCACerts:        tlsCACerts,
+	// keystore storage is used for storing metadata about keystore and associated keys
+	keystoreStorageProvider := memstore.NewProvider()
+	// kms storage is used for storing keys in a secure manner
+	kmsStorageProvider := ariesmemstorage.NewProvider()
+
+	return keystoreProvider{
+		storageProvider: keystoreStorageProvider,
+		kmsCreator:      prepareKMSCreator(kmsStorageProvider),
+		crypto:          c,
 	}, nil
 }
 
-func getTLS(cmd *cobra.Command) (bool, []string, error) {
-	tlsSystemCertPoolString, err := cmdutils.GetUserSetVarFromString(cmd, tlsSystemCertPoolFlagName,
-		tlsSystemCertPoolEnvKey, true)
+func prepareKMSCreator(kmsStorageProvider ariesstorage.Provider) provider.KMSCreator {
+	return func(keystoreID string) (kms.KeyManager, error) {
+		masterKeyReader, err := prepareMasterKeyReader(kmsStorageProvider)
+		if err != nil {
+			return nil, err
+		}
+
+		// TODO: Implement support for masterkey lock (https://github.com/trustbloc/hub-kms/issues/17)
+		secretLockService, err := local.NewService(masterKeyReader, nil)
+		if err != nil {
+			return nil, err
+		}
+
+		kmsProv := kmsProvider{
+			storageProvider: kmsStorageProvider,
+			secretLock:      secretLockService,
+		}
+
+		keyURI := fmt.Sprintf(masterKeyURI, keystoreID)
+
+		localKMS, err := localkms.New(keyURI, kmsProv)
+		if err != nil {
+			return nil, err
+		}
+
+		return localKMS, nil
+	}
+}
+
+func prepareMasterKeyReader(kmsStorageProv ariesstorage.Provider) (*bytes.Reader, error) {
+	masterKeyStore, err := kmsStorageProv.OpenStore(masterKeyStoreName)
 	if err != nil {
-		return false, nil, err
+		return nil, err
 	}
 
-	tlsSystemCertPool := false
-	if tlsSystemCertPoolString != "" {
-		tlsSystemCertPool, err = strconv.ParseBool(tlsSystemCertPoolString)
-		if err != nil {
-			return false, nil, err
+	masterKey, err := masterKeyStore.Get(masterKeyDBKeyName)
+	if err != nil {
+		if errors.Is(err, ariesstorage.ErrDataNotFound) {
+			masterKeyContent := randomBytes(keySize)
+			masterKey = []byte(base64.URLEncoding.EncodeToString(masterKeyContent))
+
+			putErr := masterKeyStore.Put(masterKeyDBKeyName, masterKey)
+			if putErr != nil {
+				return nil, putErr
+			}
+		} else {
+			return nil, err
 		}
 	}
 
-	tlsCACerts, err := cmdutils.GetUserSetVarFromArrayString(cmd, tlsCACertsFlagName, tlsCACertsEnvKey, true)
-	if err != nil {
-		return false, nil, err
-	}
-
-	return tlsSystemCertPool, tlsCACerts, nil
+	return bytes.NewReader(masterKey), nil
 }
 
-func createFlags(startCmd *cobra.Command) {
-	startCmd.Flags().StringP(hostURLFlagName, hostURLFlagShorthand, "", hostURLFlagUsage)
-	startCmd.Flags().StringP(tlsSystemCertPoolFlagName, "", "", tlsSystemCertPoolFlagUsage)
-	startCmd.Flags().StringArrayP(tlsCACertsFlagName, "", []string{}, tlsCACertsFlagUsage)
-}
+func randomBytes(keySize uint32) []byte {
+	buf := make([]byte, keySize)
 
-func startKmsService(parameters *kmsRestParameters, srv server) error {
-	rootCAs, err := tlsutils.GetCertPool(parameters.tlsSystemCertPool, parameters.tlsCACerts)
+	_, err := rand.Read(buf)
 	if err != nil {
-		return err
+		panic(err) // out of randomness, should never happen :-)
 	}
 
-	log.Debugf("root ca's %v", rootCAs)
-
-	router := mux.NewRouter()
-
-	// health check
-	router.HandleFunc(healthCheckEndpoint, healthCheckHandler).Methods(http.MethodGet)
-
-	// key server
-	// TODO: Replace mock with real implementation (https://github.com/trustbloc/hub-kms/issues/12)
-	keyServer := restapi.New(mock.NewProvider())
-	handlers := keyServer.GetOperations()
-
-	for _, handler := range handlers {
-		router.HandleFunc(handler.Path(), handler.Handle()).Methods(handler.Method())
-	}
-
-	log.Infof("starting kms rest server on host %s", parameters.hostURL)
-
-	return srv.ListenAndServe(parameters.hostURL, constructCORSHandler(router))
+	return buf
 }
 
 func constructCORSHandler(handler http.Handler) http.Handler {
@@ -175,16 +252,4 @@ func constructCORSHandler(handler http.Handler) http.Handler {
 			AllowedHeaders: []string{"Origin", "Accept", "Content-Type", "X-Requested-With", "Authorization"},
 		},
 	).Handler(handler)
-}
-
-func healthCheckHandler(rw http.ResponseWriter, r *http.Request) {
-	rw.WriteHeader(http.StatusOK)
-
-	err := json.NewEncoder(rw).Encode(&healthCheckResp{
-		Status:      "success",
-		CurrentTime: time.Now(),
-	})
-	if err != nil {
-		log.Errorf("healthcheck response failure, %s", err)
-	}
 }

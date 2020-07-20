@@ -15,6 +15,8 @@ import (
 	"github.com/hyperledger/aries-framework-go/pkg/crypto"
 	"github.com/hyperledger/aries-framework-go/pkg/kms"
 	"github.com/trustbloc/edge-core/pkg/storage"
+
+	"github.com/trustbloc/hub-kms/pkg/provider"
 )
 
 const (
@@ -28,6 +30,7 @@ const (
 	marshalConfigErr  = "marshal configuration: %w"
 	validateConfigErr = "validate configuration: %w"
 
+	createKMSErr = "create kms: %w"
 	createKeyErr = "create key: %w"
 )
 
@@ -50,15 +53,20 @@ type Keystore struct {
 }
 
 // New returns a new instance of keystore.
-func New(keystoreID string, provider Provider) (*Keystore, error) {
+func New(keystoreID string, provider provider.Provider) (*Keystore, error) {
 	store, err := provider.StorageProvider().OpenStore(keystoreID)
 	if err != nil {
 		return nil, fmt.Errorf(openStoreErr, ErrInvalidKeystore)
 	}
 
+	kms, err := provider.KMSCreator()(keystoreID)
+	if err != nil {
+		return nil, fmt.Errorf(createKMSErr, err)
+	}
+
 	return &Keystore{
 		store:  store,
-		kms:    provider.KMS(),
+		kms:    kms,
 		crypto: provider.Crypto(),
 	}, nil
 }

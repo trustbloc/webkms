@@ -19,6 +19,7 @@ import (
 
 	support "github.com/trustbloc/hub-kms/pkg/internal/common"
 	"github.com/trustbloc/hub-kms/pkg/keystore"
+	"github.com/trustbloc/hub-kms/pkg/provider"
 )
 
 const (
@@ -38,7 +39,7 @@ const (
 // Operation defines handlers logic for Key Server.
 type Operation struct {
 	handlers []Handler
-	provider keystore.Provider
+	provider provider.Provider
 }
 
 // Handler defines an HTTP handler for the API endpoint.
@@ -49,7 +50,7 @@ type Handler interface {
 }
 
 // New returns a new Key Server Operation instance.
-func New(provider keystore.Provider) *Operation {
+func New(provider provider.Provider) *Operation {
 	op := &Operation{provider: provider}
 	op.registerHandlers()
 
@@ -133,7 +134,7 @@ func (o *Operation) createKeyHandler(rw http.ResponseWriter, req *http.Request) 
 	rw.WriteHeader(http.StatusCreated)
 }
 
-func createKeystore(req createKeystoreReq, provider keystore.Provider) (string, error) {
+func createKeystore(req createKeystoreReq, provider provider.Provider) (string, error) {
 	config := keystore.Configuration{
 		Sequence:   req.Sequence,
 		Controller: req.Controller,
@@ -142,7 +143,7 @@ func createKeystore(req createKeystoreReq, provider keystore.Provider) (string, 
 	return keystore.CreateKeystore(config, provider.StorageProvider())
 }
 
-func createKey(req createKeyReq, provider keystore.Provider) (string, error) {
+func createKey(req createKeyReq, provider provider.Provider) (string, error) {
 	k, err := keystore.New(req.KeystoreID, provider)
 	if err != nil {
 		return "", err
