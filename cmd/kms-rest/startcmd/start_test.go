@@ -7,13 +7,19 @@ SPDX-License-Identifier: Apache-2.0
 package startcmd
 
 import (
+	"errors"
 	"net/http"
-	"net/http/httptest"
 	"os"
 	"testing"
 
+	ariesmockstorage "github.com/hyperledger/aries-framework-go/pkg/mock/storage"
+	"github.com/hyperledger/aries-framework-go/pkg/storage"
 	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/require"
+)
+
+const (
+	testKeystoreID = "keystoreID"
 )
 
 type mockServer struct{}
@@ -89,13 +95,6 @@ func TestStartCmdValidArgs(t *testing.T) {
 	require.Nil(t, err)
 }
 
-func TestHealthCheck(t *testing.T) {
-	b := &httptest.ResponseRecorder{}
-	healthCheckHandler(b, nil)
-
-	require.Equal(t, http.StatusOK, b.Code)
-}
-
 func TestStartCmdValidArgsEnvVar(t *testing.T) {
 	startCmd := GetStartCmd(&mockServer{})
 
@@ -107,17 +106,69 @@ func TestStartCmdValidArgsEnvVar(t *testing.T) {
 	require.NoError(t, err)
 }
 
-func TestTLSSystemCertPoolInvalidArgsEnvVar(t *testing.T) {
-	startCmd := GetStartCmd(&mockServer{})
+func TestCreateKeystoreProvider(t *testing.T) {
+	t.Run("Success", func(t *testing.T) {
+		p, err := createKeystoreProvider()
 
-	setEnvVars(t)
+		require.NotNil(t, p)
+		require.NotNil(t, p.StorageProvider())
+		require.NotNil(t, p.KMSCreator())
+		require.NotNil(t, p.Crypto())
+		require.NoError(t, err)
+	})
+}
 
-	defer unsetEnvVars(t)
-	require.NoError(t, os.Setenv(tlsSystemCertPoolEnvKey, "wrongvalue"))
+func TestPrepareKMSCreator(t *testing.T) {
+	t.Run("Success", func(t *testing.T) {
+		kmsCreator := prepareKMSCreator(ariesmockstorage.NewMockStoreProvider())
+		kms, err := kmsCreator(testKeystoreID)
 
-	err := startCmd.Execute()
-	require.Error(t, err)
-	require.Contains(t, err.Error(), "invalid syntax")
+		require.NotNil(t, kms)
+		require.NoError(t, err)
+	})
+
+	t.Run("Error prepare master key reader", func(t *testing.T) {
+		kmsCreator := prepareKMSCreator(
+			&ariesmockstorage.MockStoreProvider{
+				ErrOpenStoreHandle: errors.New("open store error")})
+
+		kms, err := kmsCreator(testKeystoreID)
+
+		require.Nil(t, kms)
+		require.Error(t, err)
+	})
+}
+
+func TestPrepareMasterKeyReader(t *testing.T) {
+	t.Run("Error open store", func(t *testing.T) {
+		reader, err := prepareMasterKeyReader(
+			&ariesmockstorage.MockStoreProvider{
+				ErrOpenStoreHandle: errors.New("open store error")})
+
+		require.Nil(t, reader)
+		require.Equal(t, errors.New("open store error"), err)
+	})
+
+	t.Run("Error retrieve master key from store", func(t *testing.T) {
+		reader, err := prepareMasterKeyReader(
+			&ariesmockstorage.MockStoreProvider{
+				Store: &ariesmockstorage.MockStore{
+					ErrGet: errors.New("get error")}})
+
+		require.Nil(t, reader)
+		require.Equal(t, errors.New("get error"), err)
+	})
+
+	t.Run("Error put newly generated master key into store", func(t *testing.T) {
+		reader, err := prepareMasterKeyReader(
+			&ariesmockstorage.MockStoreProvider{
+				Store: &ariesmockstorage.MockStore{
+					ErrGet: storage.ErrDataNotFound,
+					ErrPut: errors.New("put error")}})
+
+		require.Nil(t, reader)
+		require.Equal(t, errors.New("put error"), err)
+	})
 }
 
 func setEnvVars(t *testing.T) {

@@ -16,7 +16,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/trustbloc/edge-core/pkg/storage"
 
-	"github.com/trustbloc/hub-kms/pkg/keystore/mock"
+	"github.com/trustbloc/hub-kms/pkg/internal/mock/provider"
 )
 
 var (
@@ -38,13 +38,13 @@ var (
 
 func TestNew(t *testing.T) {
 	t.Run("Success", func(t *testing.T) {
-		k, err := New(testKeystoreID, mock.NewProvider())
+		k, err := New(testKeystoreID, provider.NewMockProvider())
 
 		require.NotNil(t, k)
 		require.NoError(t, err)
 	})
 	t.Run("Error: invalid keystore", func(t *testing.T) {
-		provider := mock.NewProvider()
+		provider := provider.NewMockProvider()
 		provider.MockStorage.ErrOpenStoreHandle = ErrInvalidKeystore
 
 		k, err := New(testKeystoreID, provider)
@@ -52,11 +52,20 @@ func TestNew(t *testing.T) {
 		require.Nil(t, k)
 		require.EqualError(t, err, fmt.Errorf(openStoreErr, ErrInvalidKeystore).Error())
 	})
+	t.Run("Error: create kms", func(t *testing.T) {
+		provider := provider.NewMockProvider()
+		provider.KMSCreatorErr = errors.New("create kms error")
+
+		k, err := New(testKeystoreID, provider)
+
+		require.Nil(t, k)
+		require.Error(t, err)
+	})
 }
 
 func TestCreateKeystore(t *testing.T) {
 	t.Run("Success", func(t *testing.T) {
-		storageProvider := mock.NewProvider().MockStorage
+		storageProvider := provider.NewMockProvider().MockStorage
 
 		kID, err := CreateKeystore(validConfig, storageProvider)
 
@@ -65,19 +74,19 @@ func TestCreateKeystore(t *testing.T) {
 		assertStoredConfiguration(t, storageProvider.Store.Store[configStoreKey])
 	})
 	t.Run("Config error: missing controller", func(t *testing.T) {
-		kID, err := CreateKeystore(missingControllerConfig, mock.NewProvider().MockStorage)
+		kID, err := CreateKeystore(missingControllerConfig, provider.NewMockProvider().MockStorage)
 
 		require.Empty(t, kID)
 		require.EqualError(t, err, fmt.Errorf(validateConfigErr, ErrMissingController).Error())
 	})
 	t.Run("Config error: invalid starting sequence", func(t *testing.T) {
-		kID, err := CreateKeystore(invalidStartingSequenceConfig, mock.NewProvider().MockStorage)
+		kID, err := CreateKeystore(invalidStartingSequenceConfig, provider.NewMockProvider().MockStorage)
 
 		require.Empty(t, kID)
 		require.EqualError(t, err, fmt.Errorf(validateConfigErr, ErrInvalidStartingSequence).Error())
 	})
 	t.Run("CreateStore error: duplicate keystore", func(t *testing.T) {
-		storageProvider := mock.NewProvider().MockStorage
+		storageProvider := provider.NewMockProvider().MockStorage
 		storageProvider.ErrCreateStore = storage.ErrDuplicateStore
 
 		kID, err := CreateKeystore(validConfig, storageProvider)
@@ -86,7 +95,7 @@ func TestCreateKeystore(t *testing.T) {
 		require.EqualError(t, err, fmt.Errorf(createStoreErr, ErrDuplicateKeystore).Error())
 	})
 	t.Run("CreateStore error: other", func(t *testing.T) {
-		storageProvider := mock.NewProvider().MockStorage
+		storageProvider := provider.NewMockProvider().MockStorage
 		storageProvider.ErrCreateStore = errors.New("create store error")
 
 		kID, err := CreateKeystore(validConfig, storageProvider)
@@ -95,7 +104,7 @@ func TestCreateKeystore(t *testing.T) {
 		require.Error(t, err)
 	})
 	t.Run("OpenStore error", func(t *testing.T) {
-		storageProvider := mock.NewProvider().MockStorage
+		storageProvider := provider.NewMockProvider().MockStorage
 		storageProvider.ErrOpenStoreHandle = errors.New("open store error")
 
 		kID, err := CreateKeystore(validConfig, storageProvider)
@@ -104,7 +113,7 @@ func TestCreateKeystore(t *testing.T) {
 		require.Error(t, err)
 	})
 	t.Run("Put store error", func(t *testing.T) {
-		storageProvider := mock.NewProvider().MockStorage
+		storageProvider := provider.NewMockProvider().MockStorage
 		storageProvider.Store.ErrPut = errors.New("put error")
 
 		kID, err := CreateKeystore(validConfig, storageProvider)
@@ -116,7 +125,7 @@ func TestCreateKeystore(t *testing.T) {
 
 func TestCreateKey(t *testing.T) {
 	t.Run("Success", func(t *testing.T) {
-		provider := mock.NewProvider()
+		provider := provider.NewMockProvider()
 		provider.MockKMS.CreateKeyID = testKeystoreID
 		k, err := New(testKeystoreID, provider)
 		require.NotNil(t, k)
@@ -128,7 +137,7 @@ func TestCreateKey(t *testing.T) {
 		require.NoError(t, err)
 	})
 	t.Run("Create key error", func(t *testing.T) {
-		provider := mock.NewProvider()
+		provider := provider.NewMockProvider()
 		provider.MockKMS.CreateKeyErr = errors.New("create key error")
 		k, err := New(testKeystoreID, provider)
 		require.NotNil(t, k)
@@ -140,7 +149,7 @@ func TestCreateKey(t *testing.T) {
 		require.Error(t, err)
 	})
 	t.Run("Put store error", func(t *testing.T) {
-		provider := mock.NewProvider()
+		provider := provider.NewMockProvider()
 		provider.MockStorage.Store.ErrPut = errors.New("put error")
 		k, err := New(testKeystoreID, provider)
 		require.NotNil(t, k)
