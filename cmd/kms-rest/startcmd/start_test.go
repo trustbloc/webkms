@@ -12,14 +12,19 @@ import (
 	"os"
 	"testing"
 
+	"github.com/hyperledger/aries-framework-go/pkg/mock/secretlock"
 	ariesmockstorage "github.com/hyperledger/aries-framework-go/pkg/mock/storage"
 	"github.com/hyperledger/aries-framework-go/pkg/storage"
 	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/require"
+
+	"github.com/trustbloc/hub-kms/pkg/restapi/kms/operation"
 )
 
 const (
 	testKeystoreID = "keystoreID"
+	testPassphrase = "p@ssphrase"
+	testKeyURI     = "local://test"
 )
 
 type mockServer struct{}
@@ -91,7 +96,6 @@ func TestStartCmdValidArgs(t *testing.T) {
 	startCmd.SetArgs(args)
 
 	err := startCmd.Execute()
-
 	require.Nil(t, err)
 }
 
@@ -99,16 +103,15 @@ func TestStartCmdValidArgsEnvVar(t *testing.T) {
 	startCmd := GetStartCmd(&mockServer{})
 
 	setEnvVars(t)
-
 	defer unsetEnvVars(t)
 
 	err := startCmd.Execute()
 	require.NoError(t, err)
 }
 
-func TestCreateKeystoreProvider(t *testing.T) {
+func TestCreateOperationProvider(t *testing.T) {
 	t.Run("Success", func(t *testing.T) {
-		p, err := createKeystoreProvider()
+		p, err := createOperationProvider()
 
 		require.NotNil(t, p)
 		require.NotNil(t, p.StorageProvider())
@@ -121,7 +124,11 @@ func TestCreateKeystoreProvider(t *testing.T) {
 func TestPrepareKMSCreator(t *testing.T) {
 	t.Run("Success", func(t *testing.T) {
 		kmsCreator := prepareKMSCreator(ariesmockstorage.NewMockStoreProvider())
-		kms, err := kmsCreator(testKeystoreID)
+
+		kms, err := kmsCreator(operation.KMSCreatorContext{
+			KeystoreID: testKeystoreID,
+			Passphrase: testPassphrase,
+		})
 
 		require.NotNil(t, kms)
 		require.NoError(t, err)
@@ -132,7 +139,10 @@ func TestPrepareKMSCreator(t *testing.T) {
 			&ariesmockstorage.MockStoreProvider{
 				ErrOpenStoreHandle: errors.New("open store error")})
 
-		kms, err := kmsCreator(testKeystoreID)
+		kms, err := kmsCreator(operation.KMSCreatorContext{
+			KeystoreID: testKeystoreID,
+			Passphrase: testPassphrase,
+		})
 
 		require.Nil(t, kms)
 		require.Error(t, err)
@@ -143,7 +153,7 @@ func TestPrepareMasterKeyReader(t *testing.T) {
 	t.Run("Error open store", func(t *testing.T) {
 		reader, err := prepareMasterKeyReader(
 			&ariesmockstorage.MockStoreProvider{
-				ErrOpenStoreHandle: errors.New("open store error")})
+				ErrOpenStoreHandle: errors.New("open store error")}, &secretlock.MockSecretLock{}, testKeyURI)
 
 		require.Nil(t, reader)
 		require.Equal(t, errors.New("open store error"), err)
@@ -153,7 +163,7 @@ func TestPrepareMasterKeyReader(t *testing.T) {
 		reader, err := prepareMasterKeyReader(
 			&ariesmockstorage.MockStoreProvider{
 				Store: &ariesmockstorage.MockStore{
-					ErrGet: errors.New("get error")}})
+					ErrGet: errors.New("get error")}}, &secretlock.MockSecretLock{}, testKeyURI)
 
 		require.Nil(t, reader)
 		require.Equal(t, errors.New("get error"), err)
@@ -164,7 +174,7 @@ func TestPrepareMasterKeyReader(t *testing.T) {
 			&ariesmockstorage.MockStoreProvider{
 				Store: &ariesmockstorage.MockStore{
 					ErrGet: storage.ErrDataNotFound,
-					ErrPut: errors.New("put error")}})
+					ErrPut: errors.New("put error")}}, &secretlock.MockSecretLock{}, testKeyURI)
 
 		require.Nil(t, reader)
 		require.Equal(t, errors.New("put error"), err)

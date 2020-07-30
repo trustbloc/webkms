@@ -8,18 +8,19 @@ package operation
 
 import (
 	"encoding/json"
-	"errors"
 	"fmt"
 	"io/ioutil"
 	"net/http"
 	"net/url"
 	"strings"
 
+	"github.com/hyperledger/aries-framework-go/pkg/crypto"
 	"github.com/hyperledger/aries-framework-go/pkg/kms"
+	"github.com/trustbloc/edge-core/pkg/storage"
 
 	support "github.com/trustbloc/hub-kms/pkg/internal/common"
 	"github.com/trustbloc/hub-kms/pkg/keystore"
-	"github.com/trustbloc/hub-kms/pkg/provider"
+	kmsservice "github.com/trustbloc/hub-kms/pkg/kms"
 )
 
 const (
@@ -29,17 +30,17 @@ const (
 	keysEndpoint      = keystoreEndpoint + "/keys"
 	keyEndpoint       = keysEndpoint + "/{keyID}"
 
-	readRequestFailure           = "Failed to read the request body: %s"
-	createKeystoreFailure        = "Failed to create a keystore: %s"
-	createKeyFailure             = "Failed to create a key: %s"
-	receivedInvalidConfiguration = "Received invalid keystore configuration: %s"
-	receivedBadRequest           = "Received bad request: %s"
+	readRequestFailure            = "Failed to read the request body: %s"
+	createKeystoreFailure         = "Failed to create a keystore: %s"
+	createKeystoreProviderFailure = "Failed to create a keystore provider: %s"
+	createKeyFailure              = "Failed to create a key: %s"
+	receivedBadRequest            = "Received bad request: %s"
 )
 
 // Operation defines handlers logic for Key Server.
 type Operation struct {
 	handlers []Handler
-	provider provider.Provider
+	provider Provider
 }
 
 // Handler defines an HTTP handler for the API endpoint.
@@ -49,8 +50,24 @@ type Handler interface {
 	Handle() http.HandlerFunc
 }
 
-// New returns a new Key Server Operation instance.
-func New(provider provider.Provider) *Operation {
+// Provider contains dependencies for Operation.
+type Provider interface {
+	StorageProvider() storage.Provider
+	KMSCreator() KMSCreator
+	Crypto() crypto.Crypto
+}
+
+// KMSCreatorContext provides a context to the KMSCreator method.
+type KMSCreatorContext struct {
+	KeystoreID string
+	Passphrase string
+}
+
+// KMSCreator provides a method for creating a new key manager for the KMS service.
+type KMSCreator func(ctx KMSCreatorContext) (kms.KeyManager, error)
+
+// New returns a new Operation instance.
+func New(provider Provider) *Operation {
 	op := &Operation{provider: provider}
 	op.registerHandlers()
 
@@ -83,18 +100,7 @@ func (o *Operation) createKeystoreHandler(rw http.ResponseWriter, req *http.Requ
 		return
 	}
 
-	keystoreID, err := createKeystore(request, o.provider)
-
-	if isConfigurationError(err) {
-		writeErrorResponse(rw, http.StatusBadRequest, fmt.Sprintf(receivedInvalidConfiguration, err))
-		return
-	}
-
-	if errors.Is(err, keystore.ErrDuplicateKeystore) {
-		writeErrorResponse(rw, http.StatusConflict, fmt.Sprintf(createKeystoreFailure, err))
-		return
-	}
-
+	keystoreID, err := createKeystore(request, o.provider.StorageProvider())
 	if err != nil {
 		writeErrorResponse(rw, http.StatusInternalServerError, fmt.Sprintf(createKeystoreFailure, err))
 		return
@@ -102,6 +108,41 @@ func (o *Operation) createKeystoreHandler(rw http.ResponseWriter, req *http.Requ
 
 	rw.Header().Set("Location", keystoreLocation(req.Host, keystoreID))
 	rw.WriteHeader(http.StatusCreated)
+}
+
+func createKeystore(req createKeystoreReq, storage storage.Provider) (string, error) {
+	repo, err := keystore.NewRepository(storage)
+	if err != nil {
+		return "", err
+	}
+
+	// TODO: Pass keystore.Service as a dependency (https://github.com/trustbloc/hub-kms/issues/29)
+	srv := keystore.NewService(repo)
+
+	keystoreID, err := srv.Create(req.Controller)
+	if err != nil {
+		return "", err
+	}
+
+	return keystoreID, nil
+}
+
+type kmsProvider struct {
+	keystore keystore.Repository
+	kms      kms.KeyManager
+	crypto   crypto.Crypto
+}
+
+func (k kmsProvider) Keystore() keystore.Repository {
+	return k.keystore
+}
+
+func (k kmsProvider) KMS() kms.KeyManager {
+	return k.kms
+}
+
+func (k kmsProvider) Crypto() crypto.Crypto {
+	return k.crypto
 }
 
 func (o *Operation) createKeyHandler(rw http.ResponseWriter, req *http.Request) {
@@ -118,13 +159,18 @@ func (o *Operation) createKeyHandler(rw http.ResponseWriter, req *http.Request) 
 		return
 	}
 
-	keyID, err := createKey(request, o.provider)
+	ctx := KMSCreatorContext{
+		KeystoreID: request.KeystoreID,
+		Passphrase: request.Passphrase,
+	}
 
-	if errors.Is(err, keystore.ErrInvalidKeystore) {
-		writeErrorResponse(rw, http.StatusBadRequest, fmt.Sprintf(createKeyFailure, err))
+	provider, err := prepareKMSProvider(o.provider, ctx)
+	if err != nil {
+		writeErrorResponse(rw, http.StatusInternalServerError, fmt.Sprintf(createKeystoreProviderFailure, err))
 		return
 	}
 
+	keyID, err := createKey(request, provider)
 	if err != nil {
 		writeErrorResponse(rw, http.StatusInternalServerError, fmt.Sprintf(createKeyFailure, err))
 		return
@@ -134,32 +180,34 @@ func (o *Operation) createKeyHandler(rw http.ResponseWriter, req *http.Request) 
 	rw.WriteHeader(http.StatusCreated)
 }
 
-func createKeystore(req createKeystoreReq, provider provider.Provider) (string, error) {
-	config := keystore.Configuration{
-		Sequence:   req.Sequence,
-		Controller: req.Controller,
+func prepareKMSProvider(provider Provider, ctx KMSCreatorContext) (*kmsProvider, error) {
+	keystoreRepo, err := keystore.NewRepository(provider.StorageProvider())
+	if err != nil {
+		return nil, err
 	}
 
-	return keystore.CreateKeystore(config, provider.StorageProvider())
+	keyManager, err := provider.KMSCreator()(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	return &kmsProvider{
+		keystore: keystoreRepo,
+		kms:      keyManager,
+		crypto:   provider.Crypto(),
+	}, nil
 }
 
-func createKey(req createKeyReq, provider provider.Provider) (string, error) {
-	k, err := keystore.New(req.KeystoreID, provider)
-	if err != nil {
-		return "", err
-	}
+func createKey(req createKeyReq, provider *kmsProvider) (string, error) {
+	// TODO: Pass kms.Service as a dependency (https://github.com/trustbloc/hub-kms/issues/29)
+	srv := kmsservice.NewService(provider)
 
-	keyID, err := k.CreateKey(kms.KeyType(req.KeyType))
+	keyID, err := srv.CreateKey(req.KeystoreID, kms.KeyType(req.KeyType))
 	if err != nil {
 		return "", err
 	}
 
 	return keyID, nil
-}
-
-func isConfigurationError(err error) bool {
-	return errors.Is(err, keystore.ErrMissingController) ||
-		errors.Is(err, keystore.ErrInvalidStartingSequence)
 }
 
 func writeErrorResponse(rw http.ResponseWriter, status int, msg string) {

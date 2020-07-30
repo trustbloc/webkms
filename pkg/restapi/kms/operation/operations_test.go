@@ -8,6 +8,7 @@ package operation
 
 import (
 	"bytes"
+	"encoding/json"
 	"errors"
 	"net/http"
 	"net/http/httptest"
@@ -15,32 +16,24 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
-	"github.com/trustbloc/edge-core/pkg/storage"
 
-	"github.com/trustbloc/hub-kms/pkg/internal/mock/provider"
 	"github.com/trustbloc/hub-kms/pkg/keystore"
 )
 
 const (
-	testKeyID = "urn:uuid:8fe855ec-bd83-4faa-98e4-d667a8dc1899"
-
-	validConfiguration = `{
+	validCreateKeystoreReq = `{
 	  "controller": "did:example:123456789"
-	}`
-
-	missingControllerConfiguration = `{
-	  "sequence": 0
-	}`
-
-	invalidStartingSequenceConfiguration = `{
-	  "controller": "did:example:123456789",
-	  "sequence": 1
 	}`
 
 	validCreateKeyReq = `{
 	  "keystoreID": "urn:uuid:85149342-7f26-4dc1-a77a-345f4a1102d5",
-	  "keyType": "ED25519"
+	  "keyType": "ED25519",
+	  "passphrase": "p@ssphrase"
 	}`
+
+	testKeyID      = "urn:uuid:8fe855ec-bd83-4faa-98e4-d667a8dc1899"
+	testKeystoreID = "urn:uuid:85149342-7f26-4dc1-a77a-345f4a1102d5"
+	testController = "did:example:123456789"
 )
 
 // errReader returns an error when reading its body
@@ -51,16 +44,17 @@ func (errReader) Read(_ []byte) (n int, err error) {
 }
 
 func TestNew(t *testing.T) {
-	srv := New(provider.NewMockProvider())
+	srv := New(NewMockProvider())
 	require.NotNil(t, srv)
+	require.NotEmpty(t, srv.handlers)
 }
 
 func TestCreateKeystoreHandler(t *testing.T) {
 	t.Run("Success", func(t *testing.T) {
-		req, err := http.NewRequest(http.MethodPost, "", bytes.NewBuffer([]byte(validConfiguration)))
+		req, err := http.NewRequest(http.MethodPost, "", bytes.NewBuffer([]byte(validCreateKeystoreReq)))
 		require.NoError(t, err)
 
-		provider := provider.NewMockProvider()
+		provider := NewMockProvider()
 		op := New(provider)
 		handler := getHandler(t, op, keystoresEndpoint, http.MethodPost)
 
@@ -70,10 +64,11 @@ func TestCreateKeystoreHandler(t *testing.T) {
 		require.Equal(t, http.StatusCreated, rr.Code)
 		require.NotEmpty(t, rr.Header().Get("Location"))
 	})
+
 	t.Run("Failed to read the request body", func(t *testing.T) {
 		req := httptest.NewRequest(http.MethodPost, keystoresEndpoint, errReader(0))
 
-		op := New(provider.NewMockProvider())
+		op := New(NewMockProvider())
 		handler := getHandler(t, op, keystoresEndpoint, http.MethodPost)
 
 		rr := httptest.NewRecorder()
@@ -82,11 +77,12 @@ func TestCreateKeystoreHandler(t *testing.T) {
 		require.Equal(t, http.StatusInternalServerError, rr.Code)
 		require.Contains(t, rr.Body.String(), strings.TrimSuffix(readRequestFailure, "%s"))
 	})
+
 	t.Run("Received bad request", func(t *testing.T) {
 		req, err := http.NewRequest(http.MethodPost, "", bytes.NewBuffer([]byte("")))
 		require.NoError(t, err)
 
-		op := New(provider.NewMockProvider())
+		op := New(NewMockProvider())
 		handler := getHandler(t, op, keystoresEndpoint, http.MethodPost)
 
 		rr := httptest.NewRecorder()
@@ -95,86 +91,31 @@ func TestCreateKeystoreHandler(t *testing.T) {
 		require.Equal(t, http.StatusBadRequest, rr.Code)
 		require.Contains(t, rr.Body.String(), strings.TrimSuffix(receivedBadRequest, "%s"))
 	})
-	t.Run("Received invalid keystore configuration: invalid starting sequence", func(t *testing.T) {
-		req, err := http.NewRequest(http.MethodPost, "", bytes.NewBuffer([]byte(invalidStartingSequenceConfiguration)))
+
+	t.Run("Failed to create storage for a keystore", func(t *testing.T) {
+		req, err := http.NewRequest(http.MethodPost, "", bytes.NewBuffer([]byte(validCreateKeystoreReq)))
 		require.NoError(t, err)
 
-		op := New(provider.NewMockProvider())
+		provider := NewMockProvider()
+		provider.MockStorage.ErrCreateStore = errors.New("create keystore error")
+
+		op := New(provider)
 		handler := getHandler(t, op, keystoresEndpoint, http.MethodPost)
 
 		rr := httptest.NewRecorder()
 		handler.Handle().ServeHTTP(rr, req)
 
-		require.Equal(t, http.StatusBadRequest, rr.Code)
-		require.Contains(t, rr.Body.String(), strings.TrimSuffix(receivedInvalidConfiguration, "%s"))
+		require.Equal(t, http.StatusInternalServerError, rr.Code)
+		require.Contains(t, rr.Body.String(), strings.TrimSuffix(createKeystoreFailure, "%s"))
 	})
-	t.Run("Received invalid keystore configuration: missing controller", func(t *testing.T) {
-		req, err := http.NewRequest(http.MethodPost, "", bytes.NewBuffer([]byte(missingControllerConfiguration)))
-		require.NoError(t, err)
 
-		op := New(provider.NewMockProvider())
-		handler := getHandler(t, op, keystoresEndpoint, http.MethodPost)
-
-		rr := httptest.NewRecorder()
-		handler.Handle().ServeHTTP(rr, req)
-
-		require.Equal(t, http.StatusBadRequest, rr.Code)
-		require.Contains(t, rr.Body.String(), strings.TrimSuffix(receivedInvalidConfiguration, "%s"))
-	})
 	t.Run("Failed to create a keystore", func(t *testing.T) {
-		req, err := http.NewRequest(http.MethodPost, "", bytes.NewBuffer([]byte(validConfiguration)))
+		req, err := http.NewRequest(http.MethodPost, "", bytes.NewBuffer([]byte(validCreateKeystoreReq)))
 		require.NoError(t, err)
 
-		provider := provider.NewMockProvider()
-		provider.MockStorage.ErrCreateStore = errors.New("create keystore failed")
-
-		op := New(provider)
-		handler := getHandler(t, op, keystoresEndpoint, http.MethodPost)
-
-		rr := httptest.NewRecorder()
-		handler.Handle().ServeHTTP(rr, req)
-
-		require.Equal(t, http.StatusInternalServerError, rr.Code)
-		require.Contains(t, rr.Body.String(), strings.TrimSuffix(createKeystoreFailure, "%s"))
-	})
-	t.Run("Failed to create a keystore: duplicate keystore", func(t *testing.T) {
-		req, err := http.NewRequest(http.MethodPost, "", bytes.NewBuffer([]byte(validConfiguration)))
-		require.NoError(t, err)
-
-		provider := provider.NewMockProvider()
-		provider.MockStorage.ErrCreateStore = storage.ErrDuplicateStore
-
-		op := New(provider)
-		handler := getHandler(t, op, keystoresEndpoint, http.MethodPost)
-
-		rr := httptest.NewRecorder()
-		handler.Handle().ServeHTTP(rr, req)
-
-		require.Equal(t, http.StatusConflict, rr.Code)
-		require.Contains(t, rr.Body.String(), strings.TrimSuffix(createKeystoreFailure, "%s"))
-	})
-	t.Run("Failed to create a keystore: open store", func(t *testing.T) {
-		req, err := http.NewRequest(http.MethodPost, "", bytes.NewBuffer([]byte(validConfiguration)))
-		require.NoError(t, err)
-
-		provider := provider.NewMockProvider()
-		provider.MockStorage.ErrOpenStoreHandle = errors.New("open store")
-
-		op := New(provider)
-		handler := getHandler(t, op, keystoresEndpoint, http.MethodPost)
-
-		rr := httptest.NewRecorder()
-		handler.Handle().ServeHTTP(rr, req)
-
-		require.Equal(t, http.StatusInternalServerError, rr.Code)
-		require.Contains(t, rr.Body.String(), strings.TrimSuffix(createKeystoreFailure, "%s"))
-	})
-	t.Run("Failed to create a keystore: store put", func(t *testing.T) {
-		req, err := http.NewRequest(http.MethodPost, "", bytes.NewBuffer([]byte(validConfiguration)))
-		require.NoError(t, err)
-
-		provider := provider.NewMockProvider()
-		provider.MockStorage.Store.ErrPut = errors.New("store put")
+		provider := NewMockProvider()
+		// TODO: Use keystore.Service mock to set an error (part of https://github.com/trustbloc/hub-kms/issues/29)
+		provider.MockStorage.Store.ErrPut = errors.New("store put error")
 
 		op := New(provider)
 		handler := getHandler(t, op, keystoresEndpoint, http.MethodPost)
@@ -192,8 +133,10 @@ func TestCreateKeyHandler(t *testing.T) {
 		req, err := http.NewRequest(http.MethodPost, "", bytes.NewBuffer([]byte(validCreateKeyReq)))
 		require.NoError(t, err)
 
-		provider := provider.NewMockProvider()
+		provider := NewMockProvider()
 		provider.MockKMS.CreateKeyID = testKeyID
+		provider.MockStorage.Store.Store[testKeystoreID] = keystoreBytes(t)
+
 		op := New(provider)
 		handler := getHandler(t, op, keysEndpoint, http.MethodPost)
 
@@ -203,10 +146,11 @@ func TestCreateKeyHandler(t *testing.T) {
 		require.Equal(t, http.StatusCreated, rr.Code)
 		require.NotEmpty(t, rr.Header().Get("Location"))
 	})
+
 	t.Run("Failed to read the request body", func(t *testing.T) {
 		req := httptest.NewRequest(http.MethodPost, keysEndpoint, errReader(0))
 
-		op := New(provider.NewMockProvider())
+		op := New(NewMockProvider())
 		handler := getHandler(t, op, keysEndpoint, http.MethodPost)
 
 		rr := httptest.NewRecorder()
@@ -215,11 +159,12 @@ func TestCreateKeyHandler(t *testing.T) {
 		require.Equal(t, http.StatusInternalServerError, rr.Code)
 		require.Contains(t, rr.Body.String(), strings.TrimSuffix(readRequestFailure, "%s"))
 	})
+
 	t.Run("Received bad request", func(t *testing.T) {
 		req, err := http.NewRequest(http.MethodPost, "", bytes.NewBuffer([]byte("")))
 		require.NoError(t, err)
 
-		op := New(provider.NewMockProvider())
+		op := New(NewMockProvider())
 		handler := getHandler(t, op, keysEndpoint, http.MethodPost)
 
 		rr := httptest.NewRecorder()
@@ -228,26 +173,44 @@ func TestCreateKeyHandler(t *testing.T) {
 		require.Equal(t, http.StatusBadRequest, rr.Code)
 		require.Contains(t, rr.Body.String(), strings.TrimSuffix(receivedBadRequest, "%s"))
 	})
-	t.Run("Failed to create a key: invalid keystore", func(t *testing.T) {
+
+	t.Run("Failed to create a keystore provider: open store", func(t *testing.T) {
 		req, err := http.NewRequest(http.MethodPost, "", bytes.NewBuffer([]byte(validCreateKeyReq)))
 		require.NoError(t, err)
 
-		provider := provider.NewMockProvider()
-		provider.MockStorage.ErrOpenStoreHandle = keystore.ErrInvalidKeystore
+		provider := NewMockProvider()
+		provider.MockStorage.ErrOpenStoreHandle = errors.New("open store error")
 		op := New(provider)
 		handler := getHandler(t, op, keysEndpoint, http.MethodPost)
 
 		rr := httptest.NewRecorder()
 		handler.Handle().ServeHTTP(rr, req)
 
-		require.Equal(t, http.StatusBadRequest, rr.Code)
-		require.Contains(t, rr.Body.String(), strings.TrimSuffix(createKeyFailure, "%s"))
+		require.Equal(t, http.StatusInternalServerError, rr.Code)
+		require.Contains(t, rr.Body.String(), strings.TrimSuffix(createKeystoreProviderFailure, "%s"))
 	})
-	t.Run("Failed to create a key: create key error", func(t *testing.T) {
+
+	t.Run("Failed to create a keystore provider: kms creator error", func(t *testing.T) {
 		req, err := http.NewRequest(http.MethodPost, "", bytes.NewBuffer([]byte(validCreateKeyReq)))
 		require.NoError(t, err)
 
-		provider := provider.NewMockProvider()
+		provider := NewMockProvider()
+		provider.KMSCreatorErr = errors.New("kms creator error")
+		op := New(provider)
+		handler := getHandler(t, op, keysEndpoint, http.MethodPost)
+
+		rr := httptest.NewRecorder()
+		handler.Handle().ServeHTTP(rr, req)
+
+		require.Equal(t, http.StatusInternalServerError, rr.Code)
+		require.Contains(t, rr.Body.String(), strings.TrimSuffix(createKeystoreProviderFailure, "%s"))
+	})
+
+	t.Run("Failed to create a key: kms creator error", func(t *testing.T) {
+		req, err := http.NewRequest(http.MethodPost, "", bytes.NewBuffer([]byte(validCreateKeyReq)))
+		require.NoError(t, err)
+
+		provider := NewMockProvider()
 		provider.MockKMS.CreateKeyErr = errors.New("create key error")
 		op := New(provider)
 		handler := getHandler(t, op, keysEndpoint, http.MethodPost)
@@ -281,4 +244,18 @@ func handlerLookup(t *testing.T, op *Operation, pathToLookup, methodToLookup str
 	require.Fail(t, "unable to find handler")
 
 	return nil
+}
+
+func keystoreBytes(t *testing.T) []byte {
+	t.Helper()
+
+	testKeystore := keystore.Keystore{
+		ID:         testKeystoreID,
+		Controller: testController,
+	}
+
+	bytes, err := json.Marshal(testKeystore)
+	require.NoError(t, err)
+
+	return bytes
 }

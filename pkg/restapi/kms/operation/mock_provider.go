@@ -4,7 +4,7 @@ Copyright SecureKey Technologies Inc. All Rights Reserved.
 SPDX-License-Identifier: Apache-2.0
 */
 
-package provider
+package operation
 
 import (
 	"github.com/hyperledger/aries-framework-go/pkg/crypto"
@@ -13,14 +13,12 @@ import (
 	mockkms "github.com/hyperledger/aries-framework-go/pkg/mock/kms"
 	"github.com/trustbloc/edge-core/pkg/storage"
 	"github.com/trustbloc/edge-core/pkg/storage/mockstore"
-
-	"github.com/trustbloc/hub-kms/pkg/provider"
 )
 
 type MockProvider struct {
 	MockStorage   *mockstore.Provider
 	MockKMS       *mockkms.KeyManager
-	MockCrypto    crypto.Crypto
+	MockCrypto    *mockcrypto.Crypto
 	KMSCreatorErr error
 }
 
@@ -36,8 +34,8 @@ func (p MockProvider) StorageProvider() storage.Provider {
 	return p.MockStorage
 }
 
-func (p MockProvider) KMSCreator() provider.KMSCreator {
-	return func(keystoreID string) (kms.KeyManager, error) {
+func (p MockProvider) KMSCreator() KMSCreator {
+	return func(ctx KMSCreatorContext) (kms.KeyManager, error) {
 		if p.KMSCreatorErr != nil {
 			return nil, p.KMSCreatorErr
 		}
