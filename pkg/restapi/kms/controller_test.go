@@ -11,16 +11,16 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	"github.com/trustbloc/hub-kms/pkg/internal/mock/provider"
+	"github.com/trustbloc/hub-kms/pkg/restapi/kms/operation"
 )
 
 func TestNew(t *testing.T) {
-	controller := New(provider.NewMockProvider())
+	controller := New(operation.NewMockProvider())
 	require.NotNil(t, controller)
 }
 
 func TestGetOperations(t *testing.T) {
-	controller := New(provider.NewMockProvider())
+	controller := New(operation.NewMockProvider())
 	require.NotNil(t, controller)
 
 	ops := controller.GetOperations()

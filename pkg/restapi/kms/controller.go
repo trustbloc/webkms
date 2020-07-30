@@ -7,7 +7,6 @@ SPDX-License-Identifier: Apache-2.0
 package kms
 
 import (
-	"github.com/trustbloc/hub-kms/pkg/provider"
 	"github.com/trustbloc/hub-kms/pkg/restapi/kms/operation"
 )
 
@@ -17,7 +16,7 @@ type Controller struct {
 }
 
 // New returns a new controller instance.
-func New(provider provider.Provider) *Controller {
+func New(provider operation.Provider) *Controller {
 	op := operation.New(provider)
 	handlers := op.GetRESTHandlers()
 
