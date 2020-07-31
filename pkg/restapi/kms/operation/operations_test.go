@@ -26,13 +26,13 @@ const (
 	}`
 
 	validCreateKeyReq = `{
-	  "keystoreID": "urn:uuid:85149342-7f26-4dc1-a77a-345f4a1102d5",
+	  "keystoreID": "bsi5ct08vcqmquc0fn5g",
 	  "keyType": "ED25519",
 	  "passphrase": "p@ssphrase"
 	}`
 
-	testKeyID      = "urn:uuid:8fe855ec-bd83-4faa-98e4-d667a8dc1899"
-	testKeystoreID = "urn:uuid:85149342-7f26-4dc1-a77a-345f4a1102d5"
+	testKeyID      = "Fm4r2iwjYnswLRZKl38W"
+	testKeystoreID = "bsi5ct08vcqmquc0fn5g"
 	testController = "did:example:123456789"
 )
 

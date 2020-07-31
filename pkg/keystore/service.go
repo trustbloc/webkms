@@ -7,14 +7,9 @@ SPDX-License-Identifier: Apache-2.0
 package keystore
 
 import (
-	"fmt"
 	"time"
 
-	"github.com/google/uuid"
-)
-
-const (
-	keystoreIDFormat = "urn:uuid:%s"
+	"github.com/rs/xid"
 )
 
 // Service provides functionality for working with a keystore.
@@ -41,7 +36,7 @@ func NewService(repo Repository) Service {
 
 // Create creates a new keystore for the given controller (user).
 func (s *service) Create(controller string) (string, error) {
-	id := fmt.Sprintf(keystoreIDFormat, uuid.New())
+	id := xid.New().String()
 	created := time.Now().UTC()
 
 	k := &Keystore{

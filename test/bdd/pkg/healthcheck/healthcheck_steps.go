@@ -1,5 +1,6 @@
 /*
 Copyright SecureKey Technologies Inc. All Rights Reserved.
+
 SPDX-License-Identifier: Apache-2.0
 */
 
@@ -18,29 +19,28 @@ import (
 	"github.com/trustbloc/hub-kms/test/bdd/pkg/context"
 )
 
-// Steps defines steps for health check
+// Steps defines steps for health check.
 type Steps struct {
 	bddContext *context.BDDContext
 	queryValue string
 }
 
-// NewSteps creates steps for health check
+// NewSteps creates steps for health check.
 func NewSteps() *Steps {
 	return &Steps{}
 }
 
-// RegisterSteps registers agent steps
+// RegisterSteps registers agent steps.
 func (s *Steps) RegisterSteps(gs *godog.Suite) {
 	gs.Step(`^HTTP GET is sent to "([^"]*)"$`, s.httpGet)
 	gs.Step(`^The "([^"]*)" field in the response has the value "([^"]*)"$`, s.validateJSONResField)
 }
 
-// SetContext is called before every scenario is run with a fresh new context
+// SetContext is called before every scenario is run with a fresh new context.
 func (s *Steps) SetContext(ctx *context.BDDContext) {
 	s.bddContext = ctx
 }
 
-// httpGet sends a GET request to the given URL.
 func (s *Steps) httpGet(url string) error {
 	s.queryValue = ""
 

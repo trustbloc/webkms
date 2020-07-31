@@ -1,5 +1,6 @@
 /*
 Copyright SecureKey Technologies Inc. All Rights Reserved.
+
 SPDX-License-Identifier: Apache-2.0
 */
 
@@ -18,18 +19,20 @@ import (
 	"github.com/cucumber/messages-go/v10"
 
 	"github.com/trustbloc/hub-kms/test/bdd/dockerutil"
-	bddctx "github.com/trustbloc/hub-kms/test/bdd/pkg/context"
+	"github.com/trustbloc/hub-kms/test/bdd/pkg/common"
+	"github.com/trustbloc/hub-kms/test/bdd/pkg/context"
 	"github.com/trustbloc/hub-kms/test/bdd/pkg/healthcheck"
-	"github.com/trustbloc/hub-kms/test/bdd/pkg/kmsoperations"
+	"github.com/trustbloc/hub-kms/test/bdd/pkg/keystore"
+	"github.com/trustbloc/hub-kms/test/bdd/pkg/kms"
 )
 
 var composition []*dockerutil.Composition
 var composeFiles = []string{"./fixtures/kms-rest"}
 
-// Feature of the system under test
+// Feature of the system under test.
 type feature interface {
 	// SetContext is called before every scenario is run with a fresh new context
-	SetContext(*bddctx.BDDContext)
+	SetContext(*context.BDDContext)
 	// RegisterSteps is invoked once to register the steps on the suite
 	RegisterSteps(*godog.Suite)
 }
@@ -137,7 +140,7 @@ func FeatureContext(s *godog.Suite) {
 	}
 
 	s.BeforeScenario(func(pickle *messages.Pickle) {
-		bddContext, err := bddctx.NewBDDContext("fixtures/keys/tls/ec-cacert.pem")
+		bddContext, err := context.NewBDDContext("fixtures/keys/tls/ec-cacert.pem")
 		if err != nil {
 			panic(fmt.Sprintf("Error returned from NewBDDContext: %s", err))
 		}
@@ -150,7 +153,9 @@ func FeatureContext(s *godog.Suite) {
 
 func features() []feature {
 	return []feature{
+		common.NewSteps(),
 		healthcheck.NewSteps(),
-		kmsoperations.NewSteps(),
+		keystore.NewSteps(),
+		kms.NewSteps(),
 	}
 }

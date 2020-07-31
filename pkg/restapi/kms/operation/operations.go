@@ -11,7 +11,6 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
-	"net/url"
 	"strings"
 
 	"github.com/hyperledger/aries-framework-go/pkg/crypto"
@@ -217,14 +216,15 @@ func writeErrorResponse(rw http.ResponseWriter, status int, msg string) {
 
 func keystoreLocation(hostURL, keystoreID string) string {
 	// {hostURL}/kms/keystores/{keystoreID}
-	return fmt.Sprintf("%s/%s/%s", hostURL, keystoreEndpoint, url.PathEscape(keystoreID))
+	return fmt.Sprintf("%s%s", hostURL,
+		strings.ReplaceAll(keystoreEndpoint, "{keystoreID}", keystoreID))
 }
 
 func keyLocation(hostURL, keystoreID, keyID string) string {
 	// {hostURL}/kms/keystores/{keystoreID}/keys/{keyID}
 	r := strings.NewReplacer(
-		"{keystoreID}", url.PathEscape(keystoreID),
-		"{keyID}", url.PathEscape(keyID))
+		"{keystoreID}", keystoreID,
+		"{keyID}", keyID)
 
-	return fmt.Sprintf("%s/%s", hostURL, r.Replace(keyEndpoint))
+	return fmt.Sprintf("%s%s", hostURL, r.Replace(keyEndpoint))
 }
