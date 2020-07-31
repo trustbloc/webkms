@@ -1,5 +1,6 @@
 /*
 Copyright SecureKey Technologies Inc. All Rights Reserved.
+
 SPDX-License-Identifier: Apache-2.0
 */
 
@@ -11,12 +12,13 @@ import (
 	tlsutils "github.com/trustbloc/edge-core/pkg/utils/tls"
 )
 
-// BDDContext is a global context shared between different test suites in bddtests.
+// BDDContext is a global context shared between different test suites in bdd tests.
 type BDDContext struct {
-	tlsConfig *tls.Config
+	tlsConfig      *tls.Config
+	ServerEndpoint string
 }
 
-// NewBDDContext create new BDDContext.
+// NewBDDContext creates a new BDDContext.
 func NewBDDContext(caCertPath string) (*BDDContext, error) {
 	rootCAs, err := tlsutils.GetCertPool(false, []string{caCertPath})
 	if err != nil {
@@ -26,7 +28,7 @@ func NewBDDContext(caCertPath string) (*BDDContext, error) {
 	return &BDDContext{tlsConfig: &tls.Config{RootCAs: rootCAs}}, nil
 }
 
-// TLSConfig return tls config.
-func (b *BDDContext) TLSConfig() *tls.Config {
-	return b.tlsConfig
+// TLSConfig returns a TLS config that BDD context was initialized with.
+func (ctx *BDDContext) TLSConfig() *tls.Config {
+	return ctx.tlsConfig
 }
