@@ -16,6 +16,7 @@ import (
 	logger "github.com/sirupsen/logrus"
 	"github.com/tidwall/gjson"
 
+	"github.com/trustbloc/hub-kms/test/bdd/pkg/bddutil"
 	"github.com/trustbloc/hub-kms/test/bdd/pkg/context"
 )
 
@@ -44,15 +45,7 @@ func (s *Steps) SetContext(ctx *context.BDDContext) {
 func (s *Steps) httpGet(url string) error {
 	s.queryValue = ""
 
-	client := &http.Client{Transport: &http.Transport{TLSClientConfig: s.bddContext.TLSConfig()}}
-	defer client.CloseIdleConnections()
-
-	httpReq, err := http.NewRequest(http.MethodGet, url, nil)
-	if err != nil {
-		return err
-	}
-
-	resp, err := client.Do(httpReq)
+	resp, err := bddutil.HTTPDo(http.MethodGet, url, "", nil, s.bddContext.TLSConfig())
 	if err != nil {
 		return err
 	}

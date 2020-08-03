@@ -42,6 +42,16 @@ const (
 	hostURLFlagUsage     = "URL to run the kms-rest instance on. Format: HostName:Port."
 	hostURLEnvKey        = "KMS_REST_HOST_URL"
 
+	tlsServeCertPathFlagName  = "tls-serve-cert"
+	tlsServeCertPathFlagUsage = "Path to the server certificate to use when serving HTTPS." +
+		" Alternatively, this can be set with the following environment variable: " + tlsServeCertPathEnvKey
+	tlsServeCertPathEnvKey = "KMS_REST_TLS_SERVE_CERT"
+
+	tlsServeKeyPathFlagName  = "tls-serve-key"
+	tlsServeKeyPathFlagUsage = "Path to the private key to use when serving HTTPS." +
+		" Alternatively, this can be set with the following environment variable: " + tlsServeKeyPathFlagEnvKey
+	tlsServeKeyPathFlagEnvKey = "KMS_REST_TLS_SERVE_KEY"
+
 	masterKeyURI       = "local-lock://%s"
 	masterKeyStoreName = "masterkey"
 	masterKeyDBKeyName = masterKeyStoreName
@@ -50,15 +60,15 @@ const (
 )
 
 type server interface {
-	ListenAndServe(host string, router http.Handler) error
+	ListenAndServeTLS(host, certFile, keyFile string, router http.Handler) error
 }
 
 // HTTPServer represents an actual HTTP server implementation.
 type HTTPServer struct{}
 
-// ListenAndServe starts the server using the standard Go HTTP server implementation.
-func (s *HTTPServer) ListenAndServe(host string, router http.Handler) error {
-	return http.ListenAndServe(host, router)
+// ListenAndServeTLS starts the server using the standard Go HTTPS implementation.
+func (s *HTTPServer) ListenAndServeTLS(host, certFile, keyFile string, router http.Handler) error {
+	return http.ListenAndServeTLS(host, certFile, keyFile, router)
 }
 
 // GetStartCmd returns the Cobra start command.
@@ -88,10 +98,18 @@ func createStartCmd(srv server) *cobra.Command {
 
 func createFlags(startCmd *cobra.Command) {
 	startCmd.Flags().StringP(hostURLFlagName, hostURLFlagShorthand, "", hostURLFlagUsage)
+	startCmd.Flags().StringP(tlsServeCertPathFlagName, "", "", tlsServeCertPathFlagUsage)
+	startCmd.Flags().StringP(tlsServeKeyPathFlagName, "", "", tlsServeKeyPathFlagUsage)
+}
+
+type tlsParameters struct {
+	serveCertPath string
+	serveKeyPath  string
 }
 
 type kmsRestParameters struct {
-	hostURL string
+	hostURL   string
+	tlsParams *tlsParameters
 }
 
 func getKmsRestParameters(cmd *cobra.Command) (*kmsRestParameters, error) {
@@ -100,8 +118,33 @@ func getKmsRestParameters(cmd *cobra.Command) (*kmsRestParameters, error) {
 		return nil, err
 	}
 
+	tlsParams, err := getTLS(cmd)
+	if err != nil {
+		return nil, err
+	}
+
 	return &kmsRestParameters{
-		hostURL: hostURL,
+		hostURL:   hostURL,
+		tlsParams: tlsParams,
+	}, nil
+}
+
+func getTLS(cmd *cobra.Command) (*tlsParameters, error) {
+	tlsServeCertPath, err := cmdutils.GetUserSetVarFromString(cmd, tlsServeCertPathFlagName,
+		tlsServeCertPathEnvKey, true)
+	if err != nil {
+		return nil, err
+	}
+
+	tlsServeKeyPath, err := cmdutils.GetUserSetVarFromString(cmd, tlsServeKeyPathFlagName,
+		tlsServeKeyPathFlagEnvKey, true)
+	if err != nil {
+		return nil, err
+	}
+
+	return &tlsParameters{
+		serveCertPath: tlsServeCertPath,
+		serveKeyPath:  tlsServeKeyPath,
 	}, nil
 }
 
@@ -129,7 +172,11 @@ func startKmsService(parameters *kmsRestParameters, srv server) error {
 
 	log.Infof("starting KMS service on host %s", parameters.hostURL)
 
-	return srv.ListenAndServe(parameters.hostURL, constructCORSHandler(router))
+	return srv.ListenAndServeTLS(
+		parameters.hostURL,
+		parameters.tlsParams.serveCertPath,
+		parameters.tlsParams.serveKeyPath,
+		constructCORSHandler(router))
 }
 
 type operationProvider struct {

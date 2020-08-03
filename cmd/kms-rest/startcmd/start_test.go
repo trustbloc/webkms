@@ -8,6 +8,7 @@ package startcmd
 
 import (
 	"errors"
+	"fmt"
 	"net/http"
 	"os"
 	"testing"
@@ -29,13 +30,13 @@ const (
 
 type mockServer struct{}
 
-func (s *mockServer) ListenAndServe(host string, handler http.Handler) error {
+func (s *mockServer) ListenAndServeTLS(host, certFile, keyFile string, router http.Handler) error {
 	return nil
 }
 
-func TestListenAndServe(t *testing.T) {
+func TestListenAndServeTLS(t *testing.T) {
 	var w HTTPServer
-	err := w.ListenAndServe("wronghost", nil)
+	err := w.ListenAndServeTLS("wronghost", "", "", nil)
 	require.Error(t, err)
 	require.Contains(t, err.Error(), "address wronghost: missing port in address")
 }
@@ -50,7 +51,7 @@ func TestStartCmdContents(t *testing.T) {
 	checkFlagPropertiesCorrect(t, startCmd, hostURLFlagName, hostURLFlagShorthand, hostURLFlagUsage)
 }
 
-func TestStartCmdWithBlankArg(t *testing.T) {
+func TestStartCmdWithBlankHostArg(t *testing.T) {
 	t.Run("test blank host url arg", func(t *testing.T) {
 		startCmd := GetStartCmd(&mockServer{})
 
@@ -63,7 +64,7 @@ func TestStartCmdWithBlankArg(t *testing.T) {
 	})
 }
 
-func TestStartCmdWithMissingArg(t *testing.T) {
+func TestStartCmdWithMissingHostArg(t *testing.T) {
 	t.Run("test missing host url arg", func(t *testing.T) {
 		startCmd := GetStartCmd(&mockServer{})
 
@@ -76,7 +77,7 @@ func TestStartCmdWithMissingArg(t *testing.T) {
 	})
 }
 
-func TestStartCmdWithBlankEnvVar(t *testing.T) {
+func TestStartCmdWithBlankHostEnvVar(t *testing.T) {
 	t.Run("test blank host env var", func(t *testing.T) {
 		startCmd := GetStartCmd(&mockServer{})
 
@@ -86,6 +87,30 @@ func TestStartCmdWithBlankEnvVar(t *testing.T) {
 		err = startCmd.Execute()
 		require.Error(t, err)
 		require.Equal(t, "KMS_REST_HOST_URL value is empty", err.Error())
+	})
+}
+
+func TestStartCmdWithBlankTLSArgs(t *testing.T) {
+	t.Run("test blank tlsServeCertPath arg", func(t *testing.T) {
+		startCmd := GetStartCmd(&mockServer{})
+
+		args := []string{"--" + hostURLFlagName, "localhost:8080",
+			"--" + tlsServeCertPathFlagName, ""}
+		startCmd.SetArgs(args)
+
+		err := startCmd.Execute()
+		require.EqualError(t, err, fmt.Sprintf("%s value is empty", tlsServeCertPathFlagName))
+	})
+
+	t.Run("test blank tlsServeKeyPath arg", func(t *testing.T) {
+		startCmd := GetStartCmd(&mockServer{})
+
+		args := []string{"--" + hostURLFlagName, "localhost:8080",
+			"--" + tlsServeKeyPathFlagName, ""}
+		startCmd.SetArgs(args)
+
+		err := startCmd.Execute()
+		require.EqualError(t, err, fmt.Sprintf("%s value is empty", tlsServeKeyPathFlagName))
 	})
 }
 

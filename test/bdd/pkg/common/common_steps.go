@@ -13,11 +13,12 @@ import (
 	"github.com/cucumber/godog"
 	logger "github.com/sirupsen/logrus"
 
+	"github.com/trustbloc/hub-kms/test/bdd/pkg/bddutil"
 	"github.com/trustbloc/hub-kms/test/bdd/pkg/context"
 )
 
 const (
-	serverEndpoint = "http://%s:%d"
+	serverEndpoint = "https://%s:%d"
 )
 
 // Steps defines context for BDD test steps.
@@ -41,7 +42,8 @@ func (s *Steps) RegisterSteps(gs *godog.Suite) {
 }
 
 func (s *Steps) checkServerIsRun(host string, port int) error {
-	resp, err := http.Get(fmt.Sprintf("http://%s:%d/healthcheck", host, port))
+	url := fmt.Sprintf(serverEndpoint+"/healthcheck", host, port)
+	resp, err := bddutil.HTTPDo(http.MethodGet, url, "", nil, s.bddContext.TLSConfig())
 	if err != nil {
 		return err
 	}
