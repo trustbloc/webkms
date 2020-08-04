@@ -16,6 +16,7 @@ import (
 
 	"github.com/cucumber/godog"
 
+	"github.com/trustbloc/hub-kms/test/bdd/pkg/bddutil"
 	"github.com/trustbloc/hub-kms/test/bdd/pkg/context"
 )
 
@@ -65,7 +66,8 @@ func (s *Steps) RegisterSteps(gs *godog.Suite) {
 func (s *Steps) createKeystore() error {
 	postURL := strings.ReplaceAll(createKeystoreEndpoint, "{serverEndpoint}", s.bddContext.ServerEndpoint)
 
-	resp, err := http.Post(postURL, contentType, bytes.NewBuffer([]byte(createKeystoreReq)))
+	body := bytes.NewBuffer([]byte(createKeystoreReq))
+	resp, err := bddutil.HTTPDo(http.MethodPost, postURL, contentType, body, s.bddContext.TLSConfig())
 	if err != nil {
 		return err
 	}
@@ -78,12 +80,13 @@ func (s *Steps) createKeystore() error {
 }
 
 func (s *Steps) sendCreateKeyReq(endpoint, keyType string) error {
-	keystoreID := path.Base(s.keystoreEndpoint)
-	req := fmt.Sprintf(createKeyReq, keystoreID, keyType)
-
 	postURL := strings.ReplaceAll(endpoint, "{keystoreEndpoint}", s.keystoreEndpoint)
 
-	resp, err := http.Post(postURL, contentType, bytes.NewBuffer([]byte(req)))
+	keystoreID := path.Base(s.keystoreEndpoint)
+	req := fmt.Sprintf(createKeyReq, keystoreID, keyType)
+	body := bytes.NewBuffer([]byte(req))
+
+	resp, err := bddutil.HTTPDo(http.MethodPost, postURL, contentType, body, s.bddContext.TLSConfig())
 	if err != nil {
 		return err
 	}

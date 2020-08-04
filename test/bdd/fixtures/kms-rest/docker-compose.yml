@@ -12,8 +12,8 @@ services:
     image: ${KMS_REST_IMAGE}:latest
     environment:
       - KMS_REST_HOST_URL=0.0.0.0:8070
-      - KMS_REST_TLS_CACERTS=/etc/tls/ec-cacert.pem
-      - KMS_REST_TLS_SYSTEMCERTPOOL=true
+      - KMS_REST_TLS_SERVE_CERT=/etc/tls/ec-pubCert.pem
+      - KMS_REST_TLS_SERVE_KEY=/etc/tls/ec-key.pem
     ports:
       - 8070:8070
     entrypoint: ""
