@@ -36,6 +36,12 @@ const (
 	  "passphrase": "p@ssphrase"
 	}`
 
+	verifySignatureReq = `{
+	  "signature": "%s",
+	  "message": "%s",
+	  "passphrase": "p@ssphrase"
+	}`
+
 	createKeystoreEndpoint = "{serverEndpoint}/kms/keystores"
 	keysEndpoint           = "https://{keystoreEndpoint}/keys"
 
@@ -47,6 +53,8 @@ const (
 type Steps struct {
 	bddContext       *context.BDDContext
 	keystoreEndpoint string
+	message          string
+	signature        string
 	responseStatus   int
 	responseLocation string
 	responseBody     []byte
@@ -72,7 +80,10 @@ func (s *Steps) RegisterSteps(gs *godog.Suite) {
 	// sign message steps
 	gs.Step(`^User has created a keystore with a key of "([^"]*)" type on the server$`, s.createKeystoreAndKey)
 	gs.Step(`^User sends an HTTP POST to "([^"]*)" to sign a message "([^"]*)"$`, s.sendSignMessageReq)
-	gs.Step(`^User gets a response with HTTP 200 OK and a signed message in the body$`, s.checkSignMessageResp)
+	gs.Step(`^User gets a response with HTTP 200 OK and a signature in the body$`, s.checkSignMessageResp)
+	// verify signature steps
+	gs.Step(`^User sends an HTTP POST to "([^"]*)" to verify a signature from the body$`, s.sendVerifySignatureReq)
+	gs.Step(`^User gets a response with HTTP 200 OK and no error in the body$`, s.checkVerifySignatureResp)
 }
 
 func (s *Steps) createKeystore() error {
@@ -158,6 +169,9 @@ func (s *Steps) sendSignMessageReq(endpoint, message string) error {
 	}
 	s.responseBody = respBody
 
+	s.message = message
+	s.signature = string(respBody)
+
 	return nil
 }
 
@@ -168,6 +182,42 @@ func (s *Steps) checkSignMessageResp() error {
 
 	if len(s.responseBody) == 0 {
 		return errors.New("expected non-empty response body")
+	}
+
+	return nil
+}
+
+func (s *Steps) sendVerifySignatureReq(endpoint string) error {
+	postURL := strings.ReplaceAll(endpoint, "{keyEndpoint}", s.responseLocation)
+
+	req := fmt.Sprintf(verifySignatureReq, s.signature, s.message)
+	body := bytes.NewBuffer([]byte(req))
+
+	resp, err := bddutil.HTTPDo(http.MethodPost, postURL, contentType, body, s.bddContext.TLSConfig())
+	if err != nil {
+		return err
+	}
+
+	defer resp.Body.Close()
+
+	s.responseStatus = resp.StatusCode
+
+	respBody, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		return err
+	}
+	s.responseBody = respBody
+
+	return nil
+}
+
+func (s *Steps) checkVerifySignatureResp() error {
+	if s.responseStatus != http.StatusOK {
+		return fmt.Errorf("expected HTTP 200 OK, got: %d", s.responseStatus)
+	}
+
+	if len(s.responseBody) != 0 {
+		return fmt.Errorf("expected no error in the body, got: %q", string(s.responseBody))
 	}
 
 	return nil

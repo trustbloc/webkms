@@ -9,7 +9,9 @@ package kms
 import (
 	"errors"
 	"fmt"
+	"strings"
 
+	"github.com/google/tink/go/keyset"
 	"github.com/hyperledger/aries-framework-go/pkg/crypto"
 	"github.com/hyperledger/aries-framework-go/pkg/kms"
 
@@ -25,10 +27,13 @@ const (
 	saveKeystoreErr = "save keystore: %w"
 )
 
+var ErrInvalidSignature = errors.New("invalid signature")
+
 // Service provides kms/crypto functions on keys.
 type Service interface {
 	CreateKey(keystoreID string, kt kms.KeyType) (string, error)
 	Sign(keystoreID, keyID string, msg []byte) ([]byte, error)
+	Verify(keystoreID, keyID string, sig, msg []byte) error
 }
 
 // Provider contains dependencies for the KMS service constructor.
@@ -77,6 +82,35 @@ func (s *service) CreateKey(keystoreID string, kt kms.KeyType) (string, error) {
 
 // Sign signs a message using the key identified by keyID.
 func (s *service) Sign(keystoreID, keyID string, msg []byte) ([]byte, error) {
+	kh, err := s.getKeyHandle(keystoreID, keyID)
+	if err != nil {
+		return nil, err
+	}
+
+	return s.crypto.Sign(msg, kh)
+}
+
+// Verify verifies a signature for the given message using the key identified by keyID.
+func (s *service) Verify(keystoreID, keyID string, sig, msg []byte) error {
+	kh, err := s.getKeyHandle(keystoreID, keyID)
+	if err != nil {
+		return err
+	}
+
+	pub, err := kh.(*keyset.Handle).Public()
+	if err != nil {
+		return err
+	}
+
+	err = s.crypto.Verify(sig, msg, pub)
+	if err != nil && strings.Contains(err.Error(), "verify msg:") {
+		return ErrInvalidSignature
+	}
+
+	return err
+}
+
+func (s *service) getKeyHandle(keystoreID, keyID string) (interface{}, error) {
 	k, err := s.keystore.Get(keystoreID)
 	if err != nil {
 		return nil, fmt.Errorf(getKeystoreErr, err)
@@ -103,5 +137,5 @@ func (s *service) Sign(keystoreID, keyID string, msg []byte) ([]byte, error) {
 		return nil, fmt.Errorf(getKeyErr, err)
 	}
 
-	return s.crypto.Sign(msg, kh)
+	return kh, nil
 }

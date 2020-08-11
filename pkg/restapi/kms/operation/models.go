@@ -20,6 +20,12 @@ type signReq struct {
 	lockArg
 }
 
+type verifyReq struct {
+	Signature string `json:"signature"`
+	Message   string `json:"message"`
+	lockArg
+}
+
 type lockArg struct {
 	Passphrase string `json:"passphrase"`
 }

@@ -7,6 +7,7 @@ module github.com/trustbloc/hub-kms
 go 1.14
 
 require (
+	github.com/google/tink/go v0.0.0-20200403150819-3a14bf4b3380
 	github.com/gorilla/mux v1.7.3
 	github.com/hyperledger/aries-framework-go v0.1.3
 	github.com/rs/xid v1.2.1
