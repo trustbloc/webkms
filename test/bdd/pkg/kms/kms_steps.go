@@ -8,10 +8,11 @@ package kms
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
+	"io/ioutil"
 	"net/http"
 	"net/url"
-	"path"
 	"strings"
 
 	"github.com/cucumber/godog"
@@ -26,12 +27,17 @@ const (
 	}`
 
 	createKeyReq = `{
-	  "keystoreID": "%s",
 	  "keyType": "%s",
 	  "passphrase": "p@ssphrase"
 	}`
 
+	signMessageReq = `{
+	  "message": "%s",
+	  "passphrase": "p@ssphrase"
+	}`
+
 	createKeystoreEndpoint = "{serverEndpoint}/kms/keystores"
+	keysEndpoint           = "https://{keystoreEndpoint}/keys"
 
 	contentType    = "application/json"
 	locationHeader = "Location"
@@ -43,6 +49,7 @@ type Steps struct {
 	keystoreEndpoint string
 	responseStatus   int
 	responseLocation string
+	responseBody     []byte
 }
 
 // NewSteps creates steps context for the KMS operations.
@@ -57,10 +64,15 @@ func (s *Steps) SetContext(ctx *context.BDDContext) {
 
 // RegisterSteps defines scenario steps.
 func (s *Steps) RegisterSteps(gs *godog.Suite) {
-	gs.Step(`^User has created a keystore on the server$`, s.createKeystore)
+	// create key steps
+	gs.Step(`^User has created an empty keystore on the server$`, s.createKeystore)
 	gs.Step(`^User sends an HTTP POST to "([^"]*)" to create a key of "([^"]*)" type$`, s.sendCreateKeyReq)
 	gs.Step("^User gets a response with HTTP 201 Created and "+
-		"Location with a valid URL for the newly created key$", s.checkResponse)
+		"Location with a valid URL for the newly created key$", s.checkCreateKeyResp)
+	// sign message steps
+	gs.Step(`^User has created a keystore with a key of "([^"]*)" type on the server$`, s.createKeystoreAndKey)
+	gs.Step(`^User sends an HTTP POST to "([^"]*)" to sign a message "([^"]*)"$`, s.sendSignMessageReq)
+	gs.Step(`^User gets a response with HTTP 200 OK and a signed message in the body$`, s.checkSignMessageResp)
 }
 
 func (s *Steps) createKeystore() error {
@@ -82,8 +94,7 @@ func (s *Steps) createKeystore() error {
 func (s *Steps) sendCreateKeyReq(endpoint, keyType string) error {
 	postURL := strings.ReplaceAll(endpoint, "{keystoreEndpoint}", s.keystoreEndpoint)
 
-	keystoreID := path.Base(s.keystoreEndpoint)
-	req := fmt.Sprintf(createKeyReq, keystoreID, keyType)
+	req := fmt.Sprintf(createKeyReq, keyType)
 	body := bytes.NewBuffer([]byte(req))
 
 	resp, err := bddutil.HTTPDo(http.MethodPost, postURL, contentType, body, s.bddContext.TLSConfig())
@@ -99,7 +110,7 @@ func (s *Steps) sendCreateKeyReq(endpoint, keyType string) error {
 	return nil
 }
 
-func (s *Steps) checkResponse() error {
+func (s *Steps) checkCreateKeyResp() error {
 	if s.responseStatus != http.StatusCreated {
 		return fmt.Errorf("expected HTTP 201 Created, got: %d", s.responseStatus)
 	}
@@ -107,6 +118,56 @@ func (s *Steps) checkResponse() error {
 	_, err := url.ParseRequestURI(s.responseLocation)
 	if err != nil {
 		return fmt.Errorf("expected Location to be a valid URL, got: %s", err)
+	}
+
+	return nil
+}
+
+func (s *Steps) createKeystoreAndKey(keyType string) error {
+	err := s.createKeystore()
+	if err != nil {
+		return err
+	}
+
+	err = s.sendCreateKeyReq(keysEndpoint, keyType)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (s *Steps) sendSignMessageReq(endpoint, message string) error {
+	postURL := strings.ReplaceAll(endpoint, "{keyEndpoint}", s.responseLocation)
+
+	req := fmt.Sprintf(signMessageReq, message)
+	body := bytes.NewBuffer([]byte(req))
+
+	resp, err := bddutil.HTTPDo(http.MethodPost, postURL, contentType, body, s.bddContext.TLSConfig())
+	if err != nil {
+		return err
+	}
+
+	defer resp.Body.Close()
+
+	s.responseStatus = resp.StatusCode
+
+	respBody, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		return err
+	}
+	s.responseBody = respBody
+
+	return nil
+}
+
+func (s *Steps) checkSignMessageResp() error {
+	if s.responseStatus != http.StatusOK {
+		return fmt.Errorf("expected HTTP 200 OK, got: %d", s.responseStatus)
+	}
+
+	if len(s.responseBody) == 0 {
+		return errors.New("expected non-empty response body")
 	}
 
 	return nil

@@ -11,7 +11,15 @@ type createKeystoreReq struct {
 }
 
 type createKeyReq struct {
-	KeystoreID string `json:"keystoreID"`
-	KeyType    string `json:"keyType"`
+	KeyType string `json:"keyType"`
+	lockArg
+}
+
+type signReq struct {
+	Message string `json:"message"`
+	lockArg
+}
+
+type lockArg struct {
 	Passphrase string `json:"passphrase"`
 }

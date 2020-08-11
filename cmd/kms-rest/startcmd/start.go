@@ -263,8 +263,7 @@ func prepareKMSCreator(kmsStorageProvider ariesstorage.Provider) operation.KMSCr
 }
 
 func prepareSecretLock(passphrase string) (secretlock.Service, error) {
-	salt := randomBytes(keySize)
-	return hkdf.NewMasterLock(passphrase, sha256.New, salt)
+	return hkdf.NewMasterLock(passphrase, sha256.New, nil)
 }
 
 func prepareMasterKeyReader(kmsStorageProv ariesstorage.Provider, secLock secretlock.Service,
