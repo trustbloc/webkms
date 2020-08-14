@@ -11,15 +11,19 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"strings"
 	"testing"
 
+	"github.com/google/tink/go/keyset"
+	"github.com/google/tink/go/signature"
 	"github.com/gorilla/mux"
 	"github.com/stretchr/testify/require"
 
 	"github.com/trustbloc/hub-kms/pkg/keystore"
+	"github.com/trustbloc/hub-kms/pkg/kms"
 )
 
 const (
@@ -32,6 +36,16 @@ const (
 	}`
 
 	validSignReq = `{
+	  "message": "message to sign"
+	}`
+
+	validVerifyReq = `{
+	  "signature": "c2lnbmF0dXJl",
+	  "message": "message to sign"
+	}`
+
+	badEncodedSignatureVerifyReq = `{
+	  "signature": "!",
 	  "message": "message to sign"
 	}`
 
@@ -69,7 +83,7 @@ func TestCreateKeystoreHandler(t *testing.T) {
 		require.NotEmpty(t, rr.Header().Get("Location"))
 	})
 
-	t.Run("Received bad request", func(t *testing.T) {
+	t.Run("Received bad request: EOF", func(t *testing.T) {
 		req, err := http.NewRequest(http.MethodPost, "", bytes.NewBuffer([]byte("")))
 		require.NoError(t, err)
 
@@ -80,7 +94,7 @@ func TestCreateKeystoreHandler(t *testing.T) {
 		handler.Handle().ServeHTTP(rr, req)
 
 		require.Equal(t, http.StatusBadRequest, rr.Code)
-		require.Contains(t, rr.Body.String(), strings.TrimSuffix(receivedBadRequest, "%s"))
+		require.Contains(t, rr.Body.String(), fmt.Sprintf(receivedBadRequest, "EOF"))
 	})
 
 	t.Run("Failed to create storage for a keystore", func(t *testing.T) {
@@ -142,7 +156,7 @@ func TestCreateKeyHandler(t *testing.T) {
 		require.NotEmpty(t, rr.Header().Get("Location"))
 	})
 
-	t.Run("Received bad request", func(t *testing.T) {
+	t.Run("Received bad request: EOF", func(t *testing.T) {
 		req, err := http.NewRequest(http.MethodPost, "", bytes.NewBuffer([]byte("")))
 		require.NoError(t, err)
 
@@ -153,7 +167,7 @@ func TestCreateKeyHandler(t *testing.T) {
 		handler.Handle().ServeHTTP(rr, req)
 
 		require.Equal(t, http.StatusBadRequest, rr.Code)
-		require.Contains(t, rr.Body.String(), strings.TrimSuffix(receivedBadRequest, "%s"))
+		require.Contains(t, rr.Body.String(), fmt.Sprintf(receivedBadRequest, "EOF"))
 	})
 
 	t.Run("Failed to create a kms provider: open store", func(t *testing.T) {
@@ -229,7 +243,7 @@ func TestSignHandler(t *testing.T) {
 		require.Equal(t, base64.URLEncoding.EncodeToString([]byte("signature")), rr.Body.String())
 	})
 
-	t.Run("Received bad request", func(t *testing.T) {
+	t.Run("Received bad request: EOF", func(t *testing.T) {
 		req, err := http.NewRequest(http.MethodPost, "", bytes.NewBuffer([]byte("")))
 		require.NoError(t, err)
 
@@ -240,7 +254,7 @@ func TestSignHandler(t *testing.T) {
 		handler.Handle().ServeHTTP(rr, req)
 
 		require.Equal(t, http.StatusBadRequest, rr.Code)
-		require.Contains(t, rr.Body.String(), strings.TrimSuffix(receivedBadRequest, "%s"))
+		require.Contains(t, rr.Body.String(), fmt.Sprintf(receivedBadRequest, "EOF"))
 	})
 
 	t.Run("Failed to create a kms provider: open store", func(t *testing.T) {
@@ -295,6 +309,147 @@ func TestSignHandler(t *testing.T) {
 
 		require.Equal(t, http.StatusInternalServerError, rr.Code)
 		require.Contains(t, rr.Body.String(), strings.TrimSuffix(signMessageFailure, "%s"))
+	})
+}
+
+func TestVerifyHandler(t *testing.T) {
+	t.Run("Success", func(t *testing.T) {
+		req, err := http.NewRequest(http.MethodPost, "", bytes.NewBuffer([]byte(validVerifyReq)))
+		require.NoError(t, err)
+
+		req = mux.SetURLVars(req, map[string]string{
+			"keystoreID": testKeystoreID,
+			"keyID":      testKeyID,
+		})
+
+		kh, err := keyset.NewHandle(signature.ED25519KeyTemplate())
+		require.NoError(t, err)
+
+		provider := NewMockProvider()
+		provider.MockStorage.Store.Store[testKeystoreID] = keystoreBytes(t)
+		provider.MockKMS.GetKeyValue = kh
+
+		op := New(provider)
+		handler := getHandler(t, op, verifyEndpoint, http.MethodPost)
+
+		rr := httptest.NewRecorder()
+		handler.Handle().ServeHTTP(rr, req)
+
+		require.Equal(t, http.StatusOK, rr.Code)
+	})
+
+	t.Run("Success: invalid signature", func(t *testing.T) {
+		req, err := http.NewRequest(http.MethodPost, "", bytes.NewBuffer([]byte(validVerifyReq)))
+		require.NoError(t, err)
+
+		req = mux.SetURLVars(req, map[string]string{
+			"keystoreID": testKeystoreID,
+			"keyID":      testKeyID,
+		})
+
+		kh, err := keyset.NewHandle(signature.ED25519KeyTemplate())
+		require.NoError(t, err)
+
+		provider := NewMockProvider()
+		provider.MockStorage.Store.Store[testKeystoreID] = keystoreBytes(t)
+		provider.MockKMS.GetKeyValue = kh
+		provider.MockCrypto.VerifyErr = errors.New("verify msg: invalid signature")
+
+		op := New(provider)
+		handler := getHandler(t, op, verifyEndpoint, http.MethodPost)
+
+		rr := httptest.NewRecorder()
+		handler.Handle().ServeHTTP(rr, req)
+
+		require.Equal(t, http.StatusOK, rr.Code)
+		require.Equal(t, rr.Body.String(), kms.ErrInvalidSignature.Error())
+	})
+
+	t.Run("Received bad request: EOF", func(t *testing.T) {
+		req, err := http.NewRequest(http.MethodPost, "", bytes.NewBuffer([]byte("")))
+		require.NoError(t, err)
+
+		op := New(NewMockProvider())
+		handler := getHandler(t, op, verifyEndpoint, http.MethodPost)
+
+		rr := httptest.NewRecorder()
+		handler.Handle().ServeHTTP(rr, req)
+
+		require.Equal(t, http.StatusBadRequest, rr.Code)
+		require.Contains(t, rr.Body.String(), fmt.Sprintf(receivedBadRequest, "EOF"))
+	})
+
+	t.Run("Received bad request: bad encoded signature", func(t *testing.T) {
+		req, err := http.NewRequest(http.MethodPost, "", bytes.NewBuffer([]byte(badEncodedSignatureVerifyReq)))
+		require.NoError(t, err)
+
+		op := New(NewMockProvider())
+		handler := getHandler(t, op, verifyEndpoint, http.MethodPost)
+
+		rr := httptest.NewRecorder()
+		handler.Handle().ServeHTTP(rr, req)
+
+		require.Equal(t, http.StatusBadRequest, rr.Code)
+		require.Contains(t, rr.Body.String(), strings.TrimSuffix(receivedBadRequest, "%s"))
+	})
+
+	t.Run("Failed to create a kms provider: open store", func(t *testing.T) {
+		req, err := http.NewRequest(http.MethodPost, "", bytes.NewBuffer([]byte(validVerifyReq)))
+		require.NoError(t, err)
+
+		provider := NewMockProvider()
+		provider.MockStorage.ErrOpenStoreHandle = errors.New("open store error")
+		op := New(provider)
+		handler := getHandler(t, op, verifyEndpoint, http.MethodPost)
+
+		rr := httptest.NewRecorder()
+		handler.Handle().ServeHTTP(rr, req)
+
+		require.Equal(t, http.StatusInternalServerError, rr.Code)
+		require.Contains(t, rr.Body.String(), strings.TrimSuffix(createKMSProviderFailure, "%s"))
+	})
+
+	t.Run("Failed to create a kms provider: kms creator error", func(t *testing.T) {
+		req, err := http.NewRequest(http.MethodPost, "", bytes.NewBuffer([]byte(validVerifyReq)))
+		require.NoError(t, err)
+
+		provider := NewMockProvider()
+		provider.KMSCreatorErr = errors.New("kms creator error")
+		op := New(provider)
+		handler := getHandler(t, op, verifyEndpoint, http.MethodPost)
+
+		rr := httptest.NewRecorder()
+		handler.Handle().ServeHTTP(rr, req)
+
+		require.Equal(t, http.StatusInternalServerError, rr.Code)
+		require.Contains(t, rr.Body.String(), strings.TrimSuffix(createKMSProviderFailure, "%s"))
+	})
+
+	t.Run("Failed to verify a message: verify error", func(t *testing.T) {
+		req, err := http.NewRequest(http.MethodPost, "", bytes.NewBuffer([]byte(validVerifyReq)))
+		require.NoError(t, err)
+
+		req = mux.SetURLVars(req, map[string]string{
+			"keystoreID": testKeystoreID,
+			"keyID":      testKeyID,
+		})
+
+		kh, err := keyset.NewHandle(signature.ED25519KeyTemplate())
+		require.NoError(t, err)
+
+		provider := NewMockProvider()
+		provider.MockStorage.Store.Store[testKeystoreID] = keystoreBytes(t)
+		provider.MockKMS.GetKeyValue = kh
+		provider.MockCrypto.VerifyErr = errors.New("verify error")
+
+		op := New(provider)
+		handler := getHandler(t, op, verifyEndpoint, http.MethodPost)
+
+		rr := httptest.NewRecorder()
+		handler.Handle().ServeHTTP(rr, req)
+
+		require.Equal(t, http.StatusInternalServerError, rr.Code)
+		require.Contains(t, rr.Body.String(), strings.TrimSuffix(verifyMessageFailure, "%s"))
 	})
 }
 

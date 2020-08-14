@@ -23,7 +23,7 @@ if [ "$agentNumber" -eq 0 ]; then agentNumber=1; fi
 
 if [ "$totalAgents" -eq 0 ]; then
   echo "Running hub-kms integration tests..."
-  go test -count=1 -v -cover . -p 1 -timeout=40m
+  go test -count=1 -v -cover . -p 1 -timeout=10m
 else
   if [ "$agentNumber" -gt $totalAgents ]; then
     echo "No more tests to run"
@@ -31,7 +31,7 @@ else
     for ((i = "$agentNumber"; i <= "$testCount"; )); do
       testToRun=("${tests[$i - 1]}")
       echo "***** Running the following test: $testToRun"
-      go test -count=1 -v -cover . -p 1 -timeout=30m -run $testToRun
+      go test -count=1 -v -cover . -p 1 -timeout=10m -run $testToRun
       i=$((${i} + ${totalAgents}))
     done
     mv ./docker-compose.log "./docker-compose-$agentNumber.log"

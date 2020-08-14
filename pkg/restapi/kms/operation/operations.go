@@ -9,6 +9,7 @@ package operation
 import (
 	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"strings"
@@ -30,11 +31,13 @@ const (
 	keysEndpoint      = keystoreEndpoint + "/keys"
 	keyEndpoint       = keysEndpoint + "/{keyID}"
 	signEndpoint      = keyEndpoint + "/sign"
+	verifyEndpoint    = keyEndpoint + "/verify"
 
 	createKeystoreFailure    = "Failed to create a keystore: %s"
 	createKMSProviderFailure = "Failed to create a kms provider: %s"
 	createKeyFailure         = "Failed to create a key: %s"
 	signMessageFailure       = "Failed to sign a message: %s"
+	verifyMessageFailure     = "Failed to verify a message: %s"
 	receivedBadRequest       = "Received bad request: %s"
 )
 
@@ -85,6 +88,7 @@ func (o *Operation) registerHandlers() {
 		support.NewHTTPHandler(keystoresEndpoint, http.MethodPost, o.createKeystoreHandler),
 		support.NewHTTPHandler(keysEndpoint, http.MethodPost, o.createKeyHandler),
 		support.NewHTTPHandler(signEndpoint, http.MethodPost, o.signHandler),
+		support.NewHTTPHandler(verifyEndpoint, http.MethodPost, o.verifyHandler),
 	}
 }
 
@@ -217,6 +221,57 @@ func sign(provider *kmsProvider, keystoreID, keyID, message string) ([]byte, err
 	}
 
 	return signature, nil
+}
+
+func (o *Operation) verifyHandler(rw http.ResponseWriter, req *http.Request) {
+	var request verifyReq
+	if err := json.NewDecoder(req.Body).Decode(&request); err != nil {
+		writeErrorResponse(rw, http.StatusBadRequest, fmt.Sprintf(receivedBadRequest, err))
+		return
+	}
+
+	sig, err := base64.URLEncoding.DecodeString(request.Signature)
+	if err != nil {
+		writeErrorResponse(rw, http.StatusBadRequest, fmt.Sprintf(receivedBadRequest, err))
+		return
+	}
+
+	keystoreID := mux.Vars(req)["keystoreID"]
+	keyID := mux.Vars(req)["keyID"]
+
+	provider, err := prepareKMSProvider(o.provider, KMSCreatorContext{
+		KeystoreID: keystoreID,
+		Passphrase: request.Passphrase,
+	})
+	if err != nil {
+		writeErrorResponse(rw, http.StatusInternalServerError, fmt.Sprintf(createKMSProviderFailure, err))
+		return
+	}
+
+	err = verify(provider, keystoreID, keyID, sig, request.Message)
+	if err != nil {
+		if errors.Is(err, kmsservice.ErrInvalidSignature) {
+			rw.WriteHeader(http.StatusOK)
+			rw.Write([]byte(err.Error()))
+			return
+		}
+
+		writeErrorResponse(rw, http.StatusInternalServerError, fmt.Sprintf(verifyMessageFailure, err))
+		return
+	}
+
+	rw.WriteHeader(http.StatusOK)
+}
+
+func verify(provider *kmsProvider, keystoreID, keyID string, sig []byte, message string) error {
+	srv := kmsservice.NewService(provider)
+
+	err := srv.Verify(keystoreID, keyID, sig, []byte(message))
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
 
 func prepareKMSProvider(provider Provider, ctx KMSCreatorContext) (*kmsProvider, error) {
