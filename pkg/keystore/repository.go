@@ -8,6 +8,7 @@ package keystore
 
 import (
 	"encoding/json"
+	"errors"
 
 	"github.com/trustbloc/edge-core/pkg/storage"
 )
@@ -29,7 +30,7 @@ type repository struct {
 // NewRepository returns a new Repository instance backed by the specified storage.
 func NewRepository(provider storage.Provider) (Repository, error) {
 	err := provider.CreateStore(storeName)
-	if err != nil && err != storage.ErrDuplicateStore {
+	if err != nil && !errors.Is(err,storage.ErrDuplicateStore) {
 		return nil, err
 	}
 
