@@ -8,8 +8,10 @@ package kms
 
 import (
 	"bytes"
+	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"net/http"
 	"net/url"
@@ -42,6 +44,19 @@ const (
 	  "passphrase": "p@ssphrase"
 	}`
 
+	encryptMessageReq = `{
+	  "message": "%s",
+	  "aad": "%s",
+	  "passphrase": "p@ssphrase"
+	}`
+
+	decryptCipherReq = `{
+	  "cipherText": "%s",
+	  "aad": "%s",
+	  "nonce": "%s",
+	  "passphrase": "p@ssphrase"
+	}`
+
 	createKeystoreEndpoint = "{serverEndpoint}/kms/keystores"
 	keysEndpoint           = "https://{keystoreEndpoint}/keys"
 
@@ -55,9 +70,13 @@ type Steps struct {
 	keystoreEndpoint string
 	message          string
 	signature        string
+	cipherText       string
+	nonce            string
+	plainText        string
+	errorMessage     string
 	responseStatus   int
 	responseLocation string
-	responseBody     []byte
+	responseError    string
 }
 
 // NewSteps creates steps context for the KMS operations.
@@ -80,10 +99,16 @@ func (s *Steps) RegisterSteps(gs *godog.Suite) {
 	// sign message steps
 	gs.Step(`^User has created a keystore with a key of "([^"]*)" type on the server$`, s.createKeystoreAndKey)
 	gs.Step(`^User sends an HTTP POST to "([^"]*)" to sign a message "([^"]*)"$`, s.sendSignMessageReq)
-	gs.Step(`^User gets a response with HTTP 200 OK and a signature in the body$`, s.checkSignMessageResp)
+	gs.Step(`^User gets a response with HTTP 200 OK and a signature in the JSON body$`, s.checkSignMessageResp)
 	// verify signature steps
 	gs.Step(`^User sends an HTTP POST to "([^"]*)" to verify a signature from the body$`, s.sendVerifySignatureReq)
 	gs.Step(`^User gets a response with HTTP 200 OK and no error in the body$`, s.checkVerifySignatureResp)
+	// encrypt message steps
+	gs.Step(`^User sends an HTTP POST to "([^"]*)" to encrypt a message "([^"]*)"$`, s.sendEncryptMessageReq)
+	gs.Step(`^User gets a response with HTTP 200 OK and a cipher text in the JSON body$`, s.checkEncryptMessageResp)
+	// decrypt cipher steps
+	gs.Step(`^User sends an HTTP POST to "([^"]*)" to decrypt a cipher text from the body$`, s.sendDecryptCipherReq)
+	gs.Step(`^User gets a response with HTTP 200 OK and a plain text "([^"]*)" in the JSON body$`, s.checkDecryptCipherResp)
 }
 
 func (s *Steps) createKeystore() error {
@@ -145,6 +170,11 @@ func (s *Steps) createKeystoreAndKey(keyType string) error {
 		return err
 	}
 
+	err = s.checkCreateKeyResp()
+	if err != nil {
+		return err
+	}
+
 	return nil
 }
 
@@ -161,16 +191,17 @@ func (s *Steps) sendSignMessageReq(endpoint, message string) error {
 
 	defer resp.Body.Close()
 
+	s.message = message
 	s.responseStatus = resp.StatusCode
 
-	respBody, err := ioutil.ReadAll(resp.Body)
-	if err != nil {
+	var signResp struct {
+		Signature string `json:"signature"`
+	}
+	if err = json.NewDecoder(resp.Body).Decode(&signResp); err != nil {
 		return err
 	}
-	s.responseBody = respBody
 
-	s.message = message
-	s.signature = string(respBody)
+	s.signature = signResp.Signature
 
 	return nil
 }
@@ -180,8 +211,8 @@ func (s *Steps) checkSignMessageResp() error {
 		return fmt.Errorf("expected HTTP 200 OK, got: %d", s.responseStatus)
 	}
 
-	if len(s.responseBody) == 0 {
-		return errors.New("expected non-empty response body")
+	if len(s.signature) == 0 {
+		return errors.New("expected non-empty signature")
 	}
 
 	return nil
@@ -202,11 +233,11 @@ func (s *Steps) sendVerifySignatureReq(endpoint string) error {
 
 	s.responseStatus = resp.StatusCode
 
-	respBody, err := ioutil.ReadAll(resp.Body)
+	errMsg, err := readErrorMessage(resp.Body)
 	if err != nil {
 		return err
 	}
-	s.responseBody = respBody
+	s.errorMessage = errMsg
 
 	return nil
 }
@@ -216,9 +247,109 @@ func (s *Steps) checkVerifySignatureResp() error {
 		return fmt.Errorf("expected HTTP 200 OK, got: %d", s.responseStatus)
 	}
 
-	if len(s.responseBody) != 0 {
-		return fmt.Errorf("expected no error in the body, got: %q", string(s.responseBody))
+	if len(s.errorMessage) != 0 {
+		return fmt.Errorf("expected no error in the body, got: %s", s.errorMessage)
 	}
 
 	return nil
+}
+
+func (s *Steps) sendEncryptMessageReq(endpoint, message string) error {
+	postURL := strings.ReplaceAll(endpoint, "{keyEndpoint}", s.responseLocation)
+
+	req := fmt.Sprintf(encryptMessageReq, message, "additional data")
+	body := bytes.NewBuffer([]byte(req))
+
+	resp, err := bddutil.HTTPDo(http.MethodPost, postURL, contentType, body, s.bddContext.TLSConfig())
+	if err != nil {
+		return err
+	}
+
+	defer resp.Body.Close()
+
+	s.responseStatus = resp.StatusCode
+
+	var encryptResp struct {
+		CipherText string `json:"cipherText"`
+		Nonce      string `json:"nonce"`
+	}
+	if err = json.NewDecoder(resp.Body).Decode(&encryptResp); err != nil {
+		return err
+	}
+
+	s.cipherText = encryptResp.CipherText
+	s.nonce = encryptResp.Nonce
+
+	return nil
+}
+
+func (s *Steps) checkEncryptMessageResp() error {
+	if s.responseStatus != http.StatusOK {
+		return fmt.Errorf("expected HTTP 200 OK, got: %d", s.responseStatus)
+	}
+
+	if len(s.cipherText) == 0 {
+		return errors.New("expected non-empty cipher text")
+	}
+
+	return nil
+}
+
+func (s *Steps) sendDecryptCipherReq(endpoint string) error {
+	postURL := strings.ReplaceAll(endpoint, "{keyEndpoint}", s.responseLocation)
+
+	req := fmt.Sprintf(decryptCipherReq, s.cipherText, "additional data", s.nonce)
+	body := bytes.NewBuffer([]byte(req))
+
+	resp, err := bddutil.HTTPDo(http.MethodPost, postURL, contentType, body, s.bddContext.TLSConfig())
+	if err != nil {
+		return err
+	}
+
+	defer resp.Body.Close()
+
+	s.responseStatus = resp.StatusCode
+
+	var decryptResp struct {
+		PlainText string `json:"plainText"`
+	}
+	if err = json.NewDecoder(resp.Body).Decode(&decryptResp); err != nil {
+		return err
+	}
+
+	s.plainText = decryptResp.PlainText
+
+	return nil
+}
+
+func (s *Steps) checkDecryptCipherResp(expectedPlainText string) error {
+	if s.responseStatus != http.StatusOK {
+		return fmt.Errorf("expected HTTP 200 OK, got: %d", s.responseStatus)
+	}
+
+	if s.plainText != expectedPlainText {
+		return fmt.Errorf("expected plain text to be: %s, got: %s", expectedPlainText, s.plainText)
+	}
+
+	return nil
+}
+
+func readErrorMessage(r io.Reader) (string, error) {
+	respBody, err := ioutil.ReadAll(r)
+	if err != nil {
+		return "", err
+	}
+
+	if len(respBody) > 0 {
+		var errorResp struct {
+			ErrorMessage string `json:"errMsg,omitempty"`
+		}
+		if err = json.Unmarshal(respBody, &errorResp); err != nil {
+			return "", err
+		}
+
+		return errorResp.ErrorMessage, nil
+	}
+
+	return "", nil
 }

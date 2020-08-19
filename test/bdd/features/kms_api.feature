@@ -19,8 +19,17 @@ Feature: KMS operations
       And User has created a keystore with a key of "ED25519" type on the server
 
     When  User sends an HTTP POST to "https://{keyEndpoint}/sign" to sign a message "test message"
-    Then  User gets a response with HTTP 200 OK and a signature in the body
+    Then  User gets a response with HTTP 200 OK and a signature in the JSON body
 
     When  User sends an HTTP POST to "https://{keyEndpoint}/verify" to verify a signature from the body
     Then  User gets a response with HTTP 200 OK and no error in the body
 
+  Scenario: User encrypts a message and then decrypts it
+    Given Key Server is running on "localhost" port "8070"
+      And User has created a keystore with a key of "AES256GCM" type on the server
+
+    When  User sends an HTTP POST to "https://{keyEndpoint}/encrypt" to encrypt a message "test message"
+    Then  User gets a response with HTTP 200 OK and a cipher text in the JSON body
+
+    When  User sends an HTTP POST to "https://{keyEndpoint}/decrypt" to decrypt a cipher text from the body
+    Then  User gets a response with HTTP 200 OK and a plain text "test message" in the JSON body

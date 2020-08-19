@@ -34,6 +34,8 @@ type Service interface {
 	CreateKey(keystoreID string, kt kms.KeyType) (string, error)
 	Sign(keystoreID, keyID string, msg []byte) ([]byte, error)
 	Verify(keystoreID, keyID string, sig, msg []byte) error
+	Encrypt(keystoreID, keyID string, msg, aad []byte) ([]byte, []byte, error)
+	Decrypt(keystoreID, keyID string, cipher, aad, nonce []byte) ([]byte, error)
 }
 
 // Provider contains dependencies for the KMS service constructor.
@@ -80,7 +82,7 @@ func (s *service) CreateKey(keystoreID string, kt kms.KeyType) (string, error) {
 	return keyID, nil
 }
 
-// Sign signs a message using the key identified by keyID.
+// Sign signs a message.
 func (s *service) Sign(keystoreID, keyID string, msg []byte) ([]byte, error) {
 	kh, err := s.getKeyHandle(keystoreID, keyID)
 	if err != nil {
@@ -90,7 +92,7 @@ func (s *service) Sign(keystoreID, keyID string, msg []byte) ([]byte, error) {
 	return s.crypto.Sign(msg, kh)
 }
 
-// Verify verifies a signature for the given message using the key identified by keyID.
+// Verify verifies a signature for the given message.
 func (s *service) Verify(keystoreID, keyID string, sig, msg []byte) error {
 	kh, err := s.getKeyHandle(keystoreID, keyID)
 	if err != nil {
@@ -108,6 +110,26 @@ func (s *service) Verify(keystoreID, keyID string, sig, msg []byte) error {
 	}
 
 	return err
+}
+
+// Encrypt encrypts a message and aad.
+func (s *service) Encrypt(keystoreID, keyID string, msg, aad []byte) ([]byte, []byte, error) {
+	kh, err := s.getKeyHandle(keystoreID, keyID)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	return s.crypto.Encrypt(msg, aad, kh)
+}
+
+// Decrypt decrypts a cipher with aad and given nonce.
+func (s *service) Decrypt(keystoreID, keyID string, cipher, aad, nonce []byte) ([]byte, error) {
+	kh, err := s.getKeyHandle(keystoreID, keyID)
+	if err != nil {
+		return nil, err
+	}
+
+	return s.crypto.Decrypt(cipher, aad, nonce, kh)
 }
 
 func (s *service) getKeyHandle(keystoreID, keyID string) (interface{}, error) {

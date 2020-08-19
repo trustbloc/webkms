@@ -12,20 +12,46 @@ type createKeystoreReq struct {
 
 type createKeyReq struct {
 	KeyType string `json:"keyType"`
-	lockArg
+	lockParam
 }
 
 type signReq struct {
 	Message string `json:"message"`
-	lockArg
+	lockParam
+}
+
+type signResp struct {
+	Signature string `json:"signature"`
 }
 
 type verifyReq struct {
 	Signature string `json:"signature"`
 	Message   string `json:"message"`
-	lockArg
+	lockParam
 }
 
-type lockArg struct {
+type encryptReq struct {
+	Message        string `json:"message"`
+	AdditionalData string `json:"aad"`
+	lockParam
+}
+
+type encryptResp struct {
+	CipherText string `json:"cipherText"`
+	Nonce      string `json:"nonce"`
+}
+
+type decryptReq struct {
+	CipherText     string `json:"cipherText"`
+	AdditionalData string `json:"aad"`
+	Nonce          string `json:"nonce"`
+	lockParam
+}
+
+type decryptResp struct {
+	PlainText string `json:"plainText"`
+}
+
+type lockParam struct {
 	Passphrase string `json:"passphrase"`
 }
