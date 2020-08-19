@@ -25,8 +25,8 @@ import (
 	ariesstorage "github.com/hyperledger/aries-framework-go/pkg/storage"
 	ariesmemstorage "github.com/hyperledger/aries-framework-go/pkg/storage/mem"
 	"github.com/rs/cors"
-	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
+	"github.com/trustbloc/edge-core/pkg/log"
 	"github.com/trustbloc/edge-core/pkg/storage"
 	"github.com/trustbloc/edge-core/pkg/storage/memstore"
 	cmdutils "github.com/trustbloc/edge-core/pkg/utils/cmd"
@@ -164,13 +164,14 @@ func startKmsService(parameters *kmsRestParameters, srv server) error {
 		return nil
 	}
 
+	logger := log.New("hub-kms/restapi")
 	kmsService := kmsrest.New(opProv)
 
 	for _, handler := range kmsService.GetOperations() {
 		router.HandleFunc(handler.Path(), handler.Handle()).Methods(handler.Method())
 	}
 
-	log.Infof("starting KMS service on host %s", parameters.hostURL)
+	logger.Infof("starting KMS service on host %s", parameters.hostURL)
 
 	return srv.ListenAndServeTLS(
 		parameters.hostURL,

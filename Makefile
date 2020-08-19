@@ -9,8 +9,8 @@ DOCKER_OUTPUT_NS   ?= docker.pkg.github.com
 KMS_REST_IMAGE_NAME   ?= trustbloc/hub-kms/kms-rest
 
 # Tool commands (overridable)
-ALPINE_VER ?= 3.11
-GO_VER ?= 1.14
+ALPINE_VER ?= 3.12
+GO_VER ?= 1.15
 
 .PHONY: all
 all: checks unit-test

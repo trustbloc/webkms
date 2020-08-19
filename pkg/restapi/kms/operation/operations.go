@@ -11,12 +11,14 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"net/http"
 	"strings"
 
 	"github.com/gorilla/mux"
 	"github.com/hyperledger/aries-framework-go/pkg/crypto"
 	"github.com/hyperledger/aries-framework-go/pkg/kms"
+	"github.com/trustbloc/edge-core/pkg/log"
 	"github.com/trustbloc/edge-core/pkg/storage"
 
 	support "github.com/trustbloc/hub-kms/pkg/internal/common"
@@ -25,26 +27,39 @@ import (
 )
 
 const (
+	// http params
+	keystoreIDQueryParam = "keystoreID"
+	keyIDQueryParam      = "keyID"
+
+	// API endpoints
 	kmsBasePath       = "/kms"
 	keystoresEndpoint = kmsBasePath + "/keystores"
-	keystoreEndpoint  = keystoresEndpoint + "/{keystoreID}"
+	keystoreEndpoint  = keystoresEndpoint + "/{" + keystoreIDQueryParam + "}"
 	keysEndpoint      = keystoreEndpoint + "/keys"
-	keyEndpoint       = keysEndpoint + "/{keyID}"
+	keyEndpoint       = keysEndpoint + "/{" + keyIDQueryParam + "}"
 	signEndpoint      = keyEndpoint + "/sign"
 	verifyEndpoint    = keyEndpoint + "/verify"
+	encryptEndpoint   = keyEndpoint + "/encrypt"
+	decryptEndpoint   = keyEndpoint + "/decrypt"
 
+	// error messages
+	receivedBadRequest       = "Received bad request: %s"
 	createKeystoreFailure    = "Failed to create a keystore: %s"
 	createKMSProviderFailure = "Failed to create a kms provider: %s"
 	createKeyFailure         = "Failed to create a key: %s"
 	signMessageFailure       = "Failed to sign a message: %s"
 	verifyMessageFailure     = "Failed to verify a message: %s"
-	receivedBadRequest       = "Received bad request: %s"
+	encryptMessageFailure    = "Failed to encrypt a message: %s"
+	decryptMessageFailure    = "Failed to decrypt a message: %s"
 )
+
+var logger = log.New("hub-kms/ops")
 
 // Operation defines handlers logic for Key Server.
 type Operation struct {
 	handlers []Handler
 	provider Provider
+	logger   log.Logger
 }
 
 // Handler defines an HTTP handler for the API endpoint.
@@ -72,7 +87,10 @@ type KMSCreator func(ctx KMSCreatorContext) (kms.KeyManager, error)
 
 // New returns a new Operation instance.
 func New(provider Provider) *Operation {
-	op := &Operation{provider: provider}
+	op := &Operation{
+		provider: provider,
+	}
+
 	op.registerHandlers()
 
 	return op
@@ -89,17 +107,26 @@ func (o *Operation) registerHandlers() {
 		support.NewHTTPHandler(keysEndpoint, http.MethodPost, o.createKeyHandler),
 		support.NewHTTPHandler(signEndpoint, http.MethodPost, o.signHandler),
 		support.NewHTTPHandler(verifyEndpoint, http.MethodPost, o.verifyHandler),
+		support.NewHTTPHandler(encryptEndpoint, http.MethodPost, o.encryptHandler),
+		support.NewHTTPHandler(decryptEndpoint, http.MethodPost, o.decryptHandler),
 	}
 }
 
 func (o *Operation) createKeystoreHandler(rw http.ResponseWriter, req *http.Request) {
 	var request createKeystoreReq
-	if err := json.NewDecoder(req.Body).Decode(&request); err != nil {
-		writeErrorResponse(rw, http.StatusBadRequest, fmt.Sprintf(receivedBadRequest, err))
+	if ok := parseRequest(&request, rw, req); !ok {
 		return
 	}
 
-	keystoreID, err := createKeystore(request, o.provider.StorageProvider())
+	repo, err := keystore.NewRepository(o.provider.StorageProvider())
+	if err != nil {
+		writeErrorResponse(rw, http.StatusInternalServerError, fmt.Sprintf(createKeystoreFailure, err))
+		return
+	}
+
+	// TODO: Pass keystore.Service as a dependency (https://github.com/trustbloc/hub-kms/issues/29)
+	srv := keystore.NewService(repo)
+	keystoreID, err := srv.Create(request.Controller)
 	if err != nil {
 		writeErrorResponse(rw, http.StatusInternalServerError, fmt.Sprintf(createKeystoreFailure, err))
 		return
@@ -107,23 +134,6 @@ func (o *Operation) createKeystoreHandler(rw http.ResponseWriter, req *http.Requ
 
 	rw.Header().Set("Location", keystoreLocation(req.Host, keystoreID))
 	rw.WriteHeader(http.StatusCreated)
-}
-
-func createKeystore(req createKeystoreReq, storage storage.Provider) (string, error) {
-	repo, err := keystore.NewRepository(storage)
-	if err != nil {
-		return "", err
-	}
-
-	// TODO: Pass keystore.Service as a dependency (https://github.com/trustbloc/hub-kms/issues/29)
-	srv := keystore.NewService(repo)
-
-	keystoreID, err := srv.Create(req.Controller)
-	if err != nil {
-		return "", err
-	}
-
-	return keystoreID, nil
 }
 
 type kmsProvider struct {
@@ -146,23 +156,19 @@ func (k kmsProvider) Crypto() crypto.Crypto {
 
 func (o *Operation) createKeyHandler(rw http.ResponseWriter, req *http.Request) {
 	var request createKeyReq
-	if err := json.NewDecoder(req.Body).Decode(&request); err != nil {
-		writeErrorResponse(rw, http.StatusBadRequest, fmt.Sprintf(receivedBadRequest, err))
+	if ok := parseRequest(&request, rw, req); !ok {
 		return
 	}
 
-	keystoreID := mux.Vars(req)["keystoreID"]
+	keystoreID := mux.Vars(req)[keystoreIDQueryParam]
 
-	provider, err := prepareKMSProvider(o.provider, KMSCreatorContext{
-		KeystoreID: keystoreID,
-		Passphrase: request.Passphrase,
-	})
-	if err != nil {
-		writeErrorResponse(rw, http.StatusInternalServerError, fmt.Sprintf(createKMSProviderFailure, err))
+	kmsProvider := prepareKMSProvider(rw, o.provider, keystoreID, request.Passphrase)
+	if kmsProvider == nil {
 		return
 	}
 
-	keyID, err := createKey(provider, keystoreID, request.KeyType)
+	srv := kmsservice.NewService(kmsProvider)
+	keyID, err := srv.CreateKey(keystoreID, kms.KeyType(request.KeyType))
 	if err != nil {
 		writeErrorResponse(rw, http.StatusInternalServerError, fmt.Sprintf(createKeyFailure, err))
 		return
@@ -172,129 +178,185 @@ func (o *Operation) createKeyHandler(rw http.ResponseWriter, req *http.Request) 
 	rw.WriteHeader(http.StatusCreated)
 }
 
-func createKey(provider *kmsProvider, keystoreID, keyType string) (string, error) {
-	// TODO: Pass kms.Service as a dependency (https://github.com/trustbloc/hub-kms/issues/29)
-	srv := kmsservice.NewService(provider)
-
-	keyID, err := srv.CreateKey(keystoreID, kms.KeyType(keyType))
-	if err != nil {
-		return "", err
-	}
-
-	return keyID, nil
-}
-
 func (o *Operation) signHandler(rw http.ResponseWriter, req *http.Request) {
 	var request signReq
-	if err := json.NewDecoder(req.Body).Decode(&request); err != nil {
-		writeErrorResponse(rw, http.StatusBadRequest, fmt.Sprintf(receivedBadRequest, err))
+	if ok := parseRequest(&request, rw, req); !ok {
 		return
 	}
 
-	keystoreID := mux.Vars(req)["keystoreID"]
-	keyID := mux.Vars(req)["keyID"]
+	keystoreID := mux.Vars(req)[keystoreIDQueryParam]
+	keyID := mux.Vars(req)[keyIDQueryParam]
 
-	provider, err := prepareKMSProvider(o.provider, KMSCreatorContext{
-		KeystoreID: keystoreID,
-		Passphrase: request.Passphrase,
-	})
-	if err != nil {
-		writeErrorResponse(rw, http.StatusInternalServerError, fmt.Sprintf(createKMSProviderFailure, err))
+	provider := prepareKMSProvider(rw, o.provider, keystoreID, request.Passphrase)
+	if provider == nil {
 		return
 	}
 
-	signature, err := sign(provider, keystoreID, keyID, request.Message)
+	srv := kmsservice.NewService(provider)
+	signature, err := srv.Sign(keystoreID, keyID, []byte(request.Message))
 	if err != nil {
 		writeErrorResponse(rw, http.StatusInternalServerError, fmt.Sprintf(signMessageFailure, err))
 		return
 	}
 
-	rw.Write([]byte(base64.URLEncoding.EncodeToString(signature)))
-}
-
-func sign(provider *kmsProvider, keystoreID, keyID, message string) ([]byte, error) {
-	srv := kmsservice.NewService(provider)
-
-	signature, err := srv.Sign(keystoreID, keyID, []byte(message))
-	if err != nil {
-		return nil, err
-	}
-
-	return signature, nil
+	writeResponse(rw, signResp{
+		Signature: base64.URLEncoding.EncodeToString(signature),
+	})
 }
 
 func (o *Operation) verifyHandler(rw http.ResponseWriter, req *http.Request) {
 	var request verifyReq
-	if err := json.NewDecoder(req.Body).Decode(&request); err != nil {
-		writeErrorResponse(rw, http.StatusBadRequest, fmt.Sprintf(receivedBadRequest, err))
+	if ok := parseRequest(&request, rw, req); !ok {
 		return
 	}
 
-	sig, err := base64.URLEncoding.DecodeString(request.Signature)
+	keystoreID := mux.Vars(req)[keystoreIDQueryParam]
+	keyID := mux.Vars(req)[keyIDQueryParam]
+
+	provider := prepareKMSProvider(rw, o.provider, keystoreID, request.Passphrase)
+	if provider == nil {
+		return
+	}
+
+	signature, err := base64.URLEncoding.DecodeString(request.Signature)
 	if err != nil {
 		writeErrorResponse(rw, http.StatusBadRequest, fmt.Sprintf(receivedBadRequest, err))
 		return
 	}
 
-	keystoreID := mux.Vars(req)["keystoreID"]
-	keyID := mux.Vars(req)["keyID"]
-
-	provider, err := prepareKMSProvider(o.provider, KMSCreatorContext{
-		KeystoreID: keystoreID,
-		Passphrase: request.Passphrase,
-	})
+	srv := kmsservice.NewService(provider)
+	err = srv.Verify(keystoreID, keyID, signature, []byte(request.Message))
 	if err != nil {
-		writeErrorResponse(rw, http.StatusInternalServerError, fmt.Sprintf(createKMSProviderFailure, err))
-		return
-	}
-
-	err = verify(provider, keystoreID, keyID, sig, request.Message)
-	if err != nil {
+		status := http.StatusInternalServerError
 		if errors.Is(err, kmsservice.ErrInvalidSignature) {
-			rw.WriteHeader(http.StatusOK)
-			rw.Write([]byte(err.Error()))
-			return
+			status = http.StatusOK
 		}
 
-		writeErrorResponse(rw, http.StatusInternalServerError, fmt.Sprintf(verifyMessageFailure, err))
+		writeErrorResponse(rw, status, fmt.Sprintf(verifyMessageFailure, err))
 		return
 	}
 
 	rw.WriteHeader(http.StatusOK)
 }
 
-func verify(provider *kmsProvider, keystoreID, keyID string, sig []byte, message string) error {
-	srv := kmsservice.NewService(provider)
-
-	err := srv.Verify(keystoreID, keyID, sig, []byte(message))
-	if err != nil {
-		return err
+func (o *Operation) encryptHandler(rw http.ResponseWriter, req *http.Request) {
+	var request encryptReq
+	if ok := parseRequest(&request, rw, req); !ok {
+		return
 	}
 
-	return nil
+	keystoreID := mux.Vars(req)[keystoreIDQueryParam]
+	keyID := mux.Vars(req)[keyIDQueryParam]
+
+	provider := prepareKMSProvider(rw, o.provider, keystoreID, request.Passphrase)
+	if provider == nil {
+		return
+	}
+
+	srv := kmsservice.NewService(provider)
+	cipherText, nonce, err := srv.Encrypt(keystoreID, keyID, []byte(request.Message), []byte(request.AdditionalData))
+	if err != nil {
+		writeErrorResponse(rw, http.StatusInternalServerError, fmt.Sprintf(encryptMessageFailure, err))
+		return
+	}
+
+	writeResponse(rw, encryptResp{
+		CipherText: base64.URLEncoding.EncodeToString(cipherText),
+		Nonce:      base64.URLEncoding.EncodeToString(nonce),
+	})
 }
 
-func prepareKMSProvider(provider Provider, ctx KMSCreatorContext) (*kmsProvider, error) {
-	keystoreRepo, err := keystore.NewRepository(provider.StorageProvider())
-	if err != nil {
-		return nil, err
+func (o *Operation) decryptHandler(rw http.ResponseWriter, req *http.Request) {
+	var request decryptReq
+	if ok := parseRequest(&request, rw, req); !ok {
+		return
 	}
 
-	keyManager, err := provider.KMSCreator()(ctx)
+	keystoreID := mux.Vars(req)[keystoreIDQueryParam]
+	keyID := mux.Vars(req)[keyIDQueryParam]
+
+	provider := prepareKMSProvider(rw, o.provider, keystoreID, request.Passphrase)
+	if provider == nil {
+		return
+	}
+
+	cipherText, err := base64.URLEncoding.DecodeString(request.CipherText)
 	if err != nil {
-		return nil, err
+		writeErrorResponse(rw, http.StatusBadRequest, fmt.Sprintf(receivedBadRequest, err))
+		return
+	}
+
+	nonce, err := base64.URLEncoding.DecodeString(request.Nonce)
+	if err != nil {
+		writeErrorResponse(rw, http.StatusBadRequest, fmt.Sprintf(receivedBadRequest, err))
+		return
+	}
+
+	srv := kmsservice.NewService(provider)
+	plainText, err := srv.Decrypt(keystoreID, keyID, cipherText, []byte(request.AdditionalData), nonce)
+	if err != nil {
+		writeErrorResponse(rw, http.StatusInternalServerError, fmt.Sprintf(decryptMessageFailure, err))
+		return
+	}
+
+	writeResponse(rw, decryptResp{
+		PlainText: string(plainText),
+	})
+}
+
+func parseRequest(parsedReq interface{}, rw http.ResponseWriter, req *http.Request) bool {
+	if err := json.NewDecoder(req.Body).Decode(&parsedReq); err != nil {
+		writeErrorResponse(rw, http.StatusBadRequest, fmt.Sprintf(receivedBadRequest, err))
+		return false
+	}
+
+	return true
+}
+
+func prepareKMSProvider(rw http.ResponseWriter, provider Provider, keystoreID, passphrase string) *kmsProvider {
+	keystoreRepo, err := keystore.NewRepository(provider.StorageProvider())
+	if err != nil {
+		writeErrorResponse(rw, http.StatusInternalServerError, fmt.Sprintf(createKMSProviderFailure, err))
+		return nil
+	}
+
+	keyManager, err := provider.KMSCreator()(KMSCreatorContext{
+		KeystoreID: keystoreID,
+		Passphrase: passphrase,
+	})
+	if err != nil {
+		writeErrorResponse(rw, http.StatusInternalServerError, fmt.Sprintf(createKMSProviderFailure, err))
+		return nil
 	}
 
 	return &kmsProvider{
 		keystore: keystoreRepo,
 		kms:      keyManager,
 		crypto:   provider.Crypto(),
-	}, nil
+	}
+}
+
+type errorResponse struct {
+	Message string `json:"errMessage,omitempty"`
 }
 
 func writeErrorResponse(rw http.ResponseWriter, status int, msg string) {
 	rw.WriteHeader(status)
-	rw.Write([]byte(msg))
+
+	err := json.NewEncoder(rw).Encode(errorResponse{
+		Message: msg,
+	})
+
+	if err != nil {
+		logger.Errorf("Unable to send an error message, %s", err)
+	}
+}
+
+func writeResponse(rw io.Writer, v interface{}) {
+	err := json.NewEncoder(rw).Encode(v)
+	if err != nil {
+		logger.Errorf("Unable to send a response, %s", err)
+	}
 }
 
 func keystoreLocation(hostURL, keystoreID string) string {
