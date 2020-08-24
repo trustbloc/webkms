@@ -8,7 +8,7 @@ go 1.15
 
 require (
 	github.com/gorilla/mux v1.7.4
-	github.com/hyperledger/aries-framework-go v0.1.4-0.20200818185843-75be0abd6eb6
+	github.com/hyperledger/aries-framework-go v0.1.4-0.20200822070826-7f17683c8023
 	github.com/rs/cors v1.7.0
 	github.com/spf13/cobra v0.0.6
 	github.com/stretchr/testify v1.6.1

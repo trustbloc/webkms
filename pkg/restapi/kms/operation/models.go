@@ -52,6 +52,21 @@ type decryptResp struct {
 	PlainText string `json:"plainText"`
 }
 
+type computeMACReq struct {
+	Data string `json:"data"`
+	lockParam
+}
+
+type computeMACResp struct {
+	MAC string `json:"mac"`
+}
+
+type verifyMACReq struct {
+	MAC  string `json:"mac"`
+	Data string `json:"data"`
+	lockParam
+}
+
 type lockParam struct {
 	Passphrase string `json:"passphrase"`
 }

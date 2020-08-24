@@ -36,6 +36,8 @@ type Service interface {
 	Verify(keystoreID, keyID string, sig, msg []byte) error
 	Encrypt(keystoreID, keyID string, msg, aad []byte) ([]byte, []byte, error)
 	Decrypt(keystoreID, keyID string, cipher, aad, nonce []byte) ([]byte, error)
+	ComputeMAC(keystoreID, keyID string, data []byte) ([]byte, error)
+	VerifyMAC(keystoreID, keyID string, mac, data []byte) error
 }
 
 // Provider contains dependencies for the KMS service constructor.
@@ -112,7 +114,7 @@ func (s *service) Verify(keystoreID, keyID string, sig, msg []byte) error {
 	return err
 }
 
-// Encrypt encrypts a message and aad.
+// Encrypt encrypts a message with aad.
 func (s *service) Encrypt(keystoreID, keyID string, msg, aad []byte) ([]byte, []byte, error) {
 	kh, err := s.getKeyHandle(keystoreID, keyID)
 	if err != nil {
@@ -130,6 +132,26 @@ func (s *service) Decrypt(keystoreID, keyID string, cipher, aad, nonce []byte) (
 	}
 
 	return s.crypto.Decrypt(cipher, aad, nonce, kh)
+}
+
+// ComputeMAC computes message authentication code (MAC) for data.
+func (s *service) ComputeMAC(keystoreID, keyID string, data []byte) ([]byte, error) {
+	kh, err := s.getKeyHandle(keystoreID, keyID)
+	if err != nil {
+		return nil, err
+	}
+
+	return s.crypto.ComputeMAC(data, kh)
+}
+
+// VerifyMAC determines if mac is a correct authentication code (MAC) for data.
+func (s *service) VerifyMAC(keystoreID, keyID string, mac, data []byte) error {
+	kh, err := s.getKeyHandle(keystoreID, keyID)
+	if err != nil {
+		return err
+	}
+
+	return s.crypto.VerifyMAC(mac, data, kh)
 }
 
 func (s *service) getKeyHandle(keystoreID, keyID string) (interface{}, error) {

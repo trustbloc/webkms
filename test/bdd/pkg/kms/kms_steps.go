@@ -57,6 +57,17 @@ const (
 	  "passphrase": "p@ssphrase"
 	}`
 
+	computeMACReq = `{
+	  "data": "%s",
+	  "passphrase": "p@ssphrase"
+	}`
+
+	verifyMACReq = `{
+	  "mac": "%s",
+	  "data": "%s",
+	  "passphrase": "p@ssphrase"
+	}`
+
 	createKeystoreEndpoint = "{serverEndpoint}/kms/keystores"
 	keysEndpoint           = "https://{keystoreEndpoint}/keys"
 
@@ -73,6 +84,8 @@ type Steps struct {
 	cipherText       string
 	nonce            string
 	plainText        string
+	data             string
+	mac              string
 	errorMessage     string
 	responseStatus   int
 	responseLocation string
@@ -91,24 +104,42 @@ func (s *Steps) SetContext(ctx *context.BDDContext) {
 
 // RegisterSteps defines scenario steps.
 func (s *Steps) RegisterSteps(gs *godog.Suite) {
+	// common steps
+	gs.Step(`^User has created a keystore with a key of "([^"]*)" type on the server$`, s.createKeystoreAndKey)
+	gs.Step(`^User gets a response with HTTP 200 OK and no error in the body$`, s.checkSuccessfulResp)
 	// create key steps
 	gs.Step(`^User has created an empty keystore on the server$`, s.createKeystore)
 	gs.Step(`^User sends an HTTP POST to "([^"]*)" to create a key of "([^"]*)" type$`, s.sendCreateKeyReq)
 	gs.Step("^User gets a response with HTTP 201 Created and "+
 		"Location with a valid URL for the newly created key$", s.checkCreateKeyResp)
 	// sign message steps
-	gs.Step(`^User has created a keystore with a key of "([^"]*)" type on the server$`, s.createKeystoreAndKey)
 	gs.Step(`^User sends an HTTP POST to "([^"]*)" to sign a message "([^"]*)"$`, s.sendSignMessageReq)
 	gs.Step(`^User gets a response with HTTP 200 OK and a signature in the JSON body$`, s.checkSignMessageResp)
 	// verify signature steps
 	gs.Step(`^User sends an HTTP POST to "([^"]*)" to verify a signature from the body$`, s.sendVerifySignatureReq)
-	gs.Step(`^User gets a response with HTTP 200 OK and no error in the body$`, s.checkVerifySignatureResp)
 	// encrypt message steps
 	gs.Step(`^User sends an HTTP POST to "([^"]*)" to encrypt a message "([^"]*)"$`, s.sendEncryptMessageReq)
 	gs.Step(`^User gets a response with HTTP 200 OK and a cipher text in the JSON body$`, s.checkEncryptMessageResp)
 	// decrypt cipher steps
 	gs.Step(`^User sends an HTTP POST to "([^"]*)" to decrypt a cipher text from the body$`, s.sendDecryptCipherReq)
 	gs.Step(`^User gets a response with HTTP 200 OK and a plain text "([^"]*)" in the JSON body$`, s.checkDecryptCipherResp)
+	// compute MAC steps
+	gs.Step(`^User sends an HTTP POST to "([^"]*)" to compute MAC for data "([^"]*)"$`, s.sendComputeMACReq)
+	gs.Step(`^User gets a response with HTTP 200 OK and MAC in the JSON body$`, s.checkComputeMACResp)
+	// verify MAC steps
+	gs.Step(`^User sends an HTTP POST to "([^"]*)" to verify MAC for data$`, s.sendVerifyMACReq)
+}
+
+func (s *Steps) checkSuccessfulResp() error {
+	if s.responseStatus != http.StatusOK {
+		return fmt.Errorf("expected HTTP 200 OK, got: %d", s.responseStatus)
+	}
+
+	if len(s.errorMessage) != 0 {
+		return fmt.Errorf("expected no error in the body, got: %s", s.errorMessage)
+	}
+
+	return nil
 }
 
 func (s *Steps) createKeystore() error {
@@ -242,18 +273,6 @@ func (s *Steps) sendVerifySignatureReq(endpoint string) error {
 	return nil
 }
 
-func (s *Steps) checkVerifySignatureResp() error {
-	if s.responseStatus != http.StatusOK {
-		return fmt.Errorf("expected HTTP 200 OK, got: %d", s.responseStatus)
-	}
-
-	if len(s.errorMessage) != 0 {
-		return fmt.Errorf("expected no error in the body, got: %s", s.errorMessage)
-	}
-
-	return nil
-}
-
 func (s *Steps) sendEncryptMessageReq(endpoint, message string) error {
 	postURL := strings.ReplaceAll(endpoint, "{keyEndpoint}", s.responseLocation)
 
@@ -330,6 +349,70 @@ func (s *Steps) checkDecryptCipherResp(expectedPlainText string) error {
 	if s.plainText != expectedPlainText {
 		return fmt.Errorf("expected plain text to be: %s, got: %s", expectedPlainText, s.plainText)
 	}
+
+	return nil
+}
+
+func (s *Steps) sendComputeMACReq(endpoint, data string) error {
+	postURL := strings.ReplaceAll(endpoint, "{keyEndpoint}", s.responseLocation)
+
+	req := fmt.Sprintf(computeMACReq, data)
+	body := bytes.NewBuffer([]byte(req))
+
+	resp, err := bddutil.HTTPDo(http.MethodPost, postURL, contentType, body, s.bddContext.TLSConfig())
+	if err != nil {
+		return err
+	}
+
+	defer resp.Body.Close()
+
+	s.data = data
+	s.responseStatus = resp.StatusCode
+
+	var computeMACResp struct {
+		MAC string `json:"mac"`
+	}
+	if err = json.NewDecoder(resp.Body).Decode(&computeMACResp); err != nil {
+		return err
+	}
+
+	s.mac = computeMACResp.MAC
+
+	return nil
+}
+
+func (s *Steps) checkComputeMACResp() error {
+	if s.responseStatus != http.StatusOK {
+		return fmt.Errorf("expected HTTP 200 OK, got: %d", s.responseStatus)
+	}
+
+	if len(s.mac) == 0 {
+		return errors.New("expected non-empty MAC")
+	}
+
+	return nil
+}
+
+func (s *Steps) sendVerifyMACReq(endpoint string) error {
+	postURL := strings.ReplaceAll(endpoint, "{keyEndpoint}", s.responseLocation)
+
+	req := fmt.Sprintf(verifyMACReq, s.mac, s.data)
+	body := bytes.NewBuffer([]byte(req))
+
+	resp, err := bddutil.HTTPDo(http.MethodPost, postURL, contentType, body, s.bddContext.TLSConfig())
+	if err != nil {
+		return err
+	}
+
+	defer resp.Body.Close()
+
+	s.responseStatus = resp.StatusCode
+
+	errMsg, err := readErrorMessage(resp.Body)
+	if err != nil {
+		return err
+	}
+	s.errorMessage = errMsg
 
 	return nil
 }

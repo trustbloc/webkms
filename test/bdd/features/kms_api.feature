@@ -33,3 +33,13 @@ Feature: KMS operations
 
     When  User sends an HTTP POST to "https://{keyEndpoint}/decrypt" to decrypt a cipher text from the body
     Then  User gets a response with HTTP 200 OK and a plain text "test message" in the JSON body
+
+  Scenario: User computes MAC for data and then verifies it
+    Given Key Server is running on "localhost" port "8070"
+      And User has created a keystore with a key of "HMACSHA256Tag256" type on the server
+
+    When  User sends an HTTP POST to "https://{keyEndpoint}/computemac" to compute MAC for data "test data"
+    Then  User gets a response with HTTP 200 OK and MAC in the JSON body
+
+    When  User sends an HTTP POST to "https://{keyEndpoint}/verifymac" to verify MAC for data
+    Then  User gets a response with HTTP 200 OK and no error in the body
