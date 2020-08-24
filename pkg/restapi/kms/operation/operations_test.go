@@ -55,6 +55,15 @@ const (
 	  "nonce": "%s"
 	}`
 
+	computeMACReqFormat = `{
+	  "data": "%s"
+	}`
+
+	verifyMACReqFormat = `{
+	  "mac": "%s",
+	  "data": "%s"
+	}`
+
 	testKeyID      = "Fm4r2iwjYnswLRZKl38W"
 	testKeystoreID = "bsi5ct08vcqmquc0fn5g"
 	testController = "did:example:123456789"
@@ -65,6 +74,8 @@ const (
 	testAAD        = "additional data"
 	testCipherText = "cipher text"
 	testNonce      = "nonce"
+	testData       = "data"
+	testMAC        = "mac"
 )
 
 type failingResponseWriter struct {
@@ -623,6 +634,170 @@ func TestDecryptHandler(t *testing.T) {
 	})
 }
 
+func TestComputeMACHandler(t *testing.T) {
+	t.Run("Success", func(t *testing.T) {
+		provider := NewMockProvider()
+		provider.MockStorage.Store.Store[testKeystoreID] = keystoreBytes(t)
+		provider.MockCrypto.ComputeMACValue = []byte("mac")
+
+		op := New(provider)
+		handler := getHandler(t, op, computeMACEndpoint, http.MethodPost)
+
+		rr := httptest.NewRecorder()
+		handler.Handle().ServeHTTP(rr, buildComputeMACReq(t, testData))
+
+		require.Equal(t, http.StatusOK, rr.Code)
+		require.Contains(t, rr.Body.String(), base64.URLEncoding.EncodeToString([]byte("mac")))
+	})
+
+	t.Run("Received bad request: EOF", func(t *testing.T) {
+		req, err := http.NewRequest(http.MethodPost, "", bytes.NewBuffer([]byte("")))
+		require.NoError(t, err)
+
+		op := New(NewMockProvider())
+		handler := getHandler(t, op, computeMACEndpoint, http.MethodPost)
+
+		rr := httptest.NewRecorder()
+		handler.Handle().ServeHTTP(rr, req)
+
+		require.Equal(t, http.StatusBadRequest, rr.Code)
+		require.Contains(t, rr.Body.String(), fmt.Sprintf(receivedBadRequest, "EOF"))
+	})
+
+	t.Run("Failed to create a kms provider: open store", func(t *testing.T) {
+		provider := NewMockProvider()
+		provider.MockStorage.ErrOpenStoreHandle = errors.New("open store error")
+		op := New(provider)
+		handler := getHandler(t, op, computeMACEndpoint, http.MethodPost)
+
+		rr := httptest.NewRecorder()
+		handler.Handle().ServeHTTP(rr, buildComputeMACReq(t, testData))
+
+		require.Equal(t, http.StatusInternalServerError, rr.Code)
+		require.Contains(t, rr.Body.String(), strings.TrimSuffix(createKMSProviderFailure, "%s"))
+	})
+
+	t.Run("Failed to create a kms provider: kms creator error", func(t *testing.T) {
+		provider := NewMockProvider()
+		provider.KMSCreatorErr = errors.New("kms creator error")
+		op := New(provider)
+		handler := getHandler(t, op, computeMACEndpoint, http.MethodPost)
+
+		rr := httptest.NewRecorder()
+		handler.Handle().ServeHTTP(rr, buildComputeMACReq(t, testData))
+
+		require.Equal(t, http.StatusInternalServerError, rr.Code)
+		require.Contains(t, rr.Body.String(), strings.TrimSuffix(createKMSProviderFailure, "%s"))
+	})
+
+	t.Run("Failed to sign a message: sign error", func(t *testing.T) {
+		provider := NewMockProvider()
+		provider.MockStorage.Store.Store[testKeystoreID] = keystoreBytes(t)
+		provider.MockCrypto.ComputeMACErr = errors.New("compute mac error")
+		op := New(provider)
+		handler := getHandler(t, op, computeMACEndpoint, http.MethodPost)
+
+		rr := httptest.NewRecorder()
+		handler.Handle().ServeHTTP(rr, buildComputeMACReq(t, testData))
+
+		require.Equal(t, http.StatusInternalServerError, rr.Code)
+		require.Contains(t, rr.Body.String(), strings.TrimSuffix(computeMACFailure, "%s"))
+	})
+}
+
+func TestVerifyMACHandler(t *testing.T) {
+	t.Run("Success", func(t *testing.T) {
+		provider := NewMockProvider()
+		provider.MockStorage.Store.Store[testKeystoreID] = keystoreBytes(t)
+		provider.MockCrypto.ComputeMACValue = []byte("mac")
+
+		op := New(provider)
+		handler := getHandler(t, op, verifyMACEndpoint, http.MethodPost)
+
+		mac := base64.URLEncoding.EncodeToString([]byte(testMAC))
+		req := buildVerifyMACReq(t, mac, testData)
+
+		rr := httptest.NewRecorder()
+		handler.Handle().ServeHTTP(rr, req)
+
+		require.Equal(t, http.StatusOK, rr.Code)
+	})
+
+	t.Run("Received bad request: EOF", func(t *testing.T) {
+		req, err := http.NewRequest(http.MethodPost, "", bytes.NewBuffer([]byte("")))
+		require.NoError(t, err)
+
+		op := New(NewMockProvider())
+		handler := getHandler(t, op, verifyMACEndpoint, http.MethodPost)
+
+		rr := httptest.NewRecorder()
+		handler.Handle().ServeHTTP(rr, req)
+
+		require.Equal(t, http.StatusBadRequest, rr.Code)
+		require.Contains(t, rr.Body.String(), fmt.Sprintf(receivedBadRequest, "EOF"))
+	})
+
+	t.Run("Received bad request: bad encoded mac", func(t *testing.T) {
+		op := New(NewMockProvider())
+		handler := getHandler(t, op, verifyMACEndpoint, http.MethodPost)
+
+		rr := httptest.NewRecorder()
+		handler.Handle().ServeHTTP(rr, buildVerifyMACReq(t, "!mac", testData))
+
+		require.Equal(t, http.StatusBadRequest, rr.Code)
+		require.Contains(t, rr.Body.String(), strings.TrimSuffix(receivedBadRequest, "%s"))
+	})
+
+	t.Run("Failed to create a kms provider: open store", func(t *testing.T) {
+		provider := NewMockProvider()
+		provider.MockStorage.ErrOpenStoreHandle = errors.New("open store error")
+		op := New(provider)
+		handler := getHandler(t, op, verifyMACEndpoint, http.MethodPost)
+
+		mac := base64.URLEncoding.EncodeToString([]byte(testMAC))
+		req := buildVerifyMACReq(t, mac, testData)
+
+		rr := httptest.NewRecorder()
+		handler.Handle().ServeHTTP(rr, req)
+
+		require.Equal(t, http.StatusInternalServerError, rr.Code)
+		require.Contains(t, rr.Body.String(), strings.TrimSuffix(createKMSProviderFailure, "%s"))
+	})
+
+	t.Run("Failed to create a kms provider: kms creator error", func(t *testing.T) {
+		provider := NewMockProvider()
+		provider.KMSCreatorErr = errors.New("kms creator error")
+		op := New(provider)
+		handler := getHandler(t, op, verifyMACEndpoint, http.MethodPost)
+
+		mac := base64.URLEncoding.EncodeToString([]byte(testMAC))
+		req := buildVerifyMACReq(t, mac, testData)
+
+		rr := httptest.NewRecorder()
+		handler.Handle().ServeHTTP(rr, req)
+
+		require.Equal(t, http.StatusInternalServerError, rr.Code)
+		require.Contains(t, rr.Body.String(), strings.TrimSuffix(createKMSProviderFailure, "%s"))
+	})
+
+	t.Run("Failed to verify mac: verify mac error", func(t *testing.T) {
+		provider := NewMockProvider()
+		provider.MockStorage.Store.Store[testKeystoreID] = keystoreBytes(t)
+		provider.MockCrypto.VerifyMACErr = errors.New("verify mac error")
+		op := New(provider)
+		handler := getHandler(t, op, verifyMACEndpoint, http.MethodPost)
+
+		mac := base64.URLEncoding.EncodeToString([]byte(testMAC))
+		req := buildVerifyMACReq(t, mac, testData)
+
+		rr := httptest.NewRecorder()
+		handler.Handle().ServeHTTP(rr, req)
+
+		require.Equal(t, http.StatusInternalServerError, rr.Code)
+		require.Contains(t, rr.Body.String(), strings.TrimSuffix(verifyMACFailure, "%s"))
+	})
+}
+
 func getHandler(t *testing.T, op *Operation, pathToLookup, methodToLookup string) Handler {
 	return getHandlerWithError(t, op, pathToLookup, methodToLookup)
 }
@@ -736,6 +911,36 @@ func buildDecryptReq(t *testing.T, cipherText, nonce string) *http.Request {
 	t.Helper()
 
 	payload := fmt.Sprintf(decryptReqFormat, cipherText, testAAD, nonce)
+	req, err := http.NewRequest(http.MethodPost, "", bytes.NewBuffer([]byte(payload)))
+	require.NoError(t, err)
+
+	req = mux.SetURLVars(req, map[string]string{
+		"keystoreID": testKeystoreID,
+		"keyID":      testKeyID,
+	})
+
+	return req
+}
+
+func buildComputeMACReq(t *testing.T, data string) *http.Request {
+	t.Helper()
+
+	payload := fmt.Sprintf(computeMACReqFormat, data)
+	req, err := http.NewRequest(http.MethodPost, "", bytes.NewBuffer([]byte(payload)))
+	require.NoError(t, err)
+
+	req = mux.SetURLVars(req, map[string]string{
+		"keystoreID": testKeystoreID,
+		"keyID":      testKeyID,
+	})
+
+	return req
+}
+
+func buildVerifyMACReq(t *testing.T, mac, data string) *http.Request {
+	t.Helper()
+
+	payload := fmt.Sprintf(verifyMACReqFormat, mac, data)
 	req, err := http.NewRequest(http.MethodPost, "", bytes.NewBuffer([]byte(payload)))
 	require.NoError(t, err)
 

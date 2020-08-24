@@ -32,15 +32,17 @@ const (
 	keyIDQueryParam      = "keyID"
 
 	// API endpoints
-	kmsBasePath       = "/kms"
-	keystoresEndpoint = kmsBasePath + "/keystores"
-	keystoreEndpoint  = keystoresEndpoint + "/{" + keystoreIDQueryParam + "}"
-	keysEndpoint      = keystoreEndpoint + "/keys"
-	keyEndpoint       = keysEndpoint + "/{" + keyIDQueryParam + "}"
-	signEndpoint      = keyEndpoint + "/sign"
-	verifyEndpoint    = keyEndpoint + "/verify"
-	encryptEndpoint   = keyEndpoint + "/encrypt"
-	decryptEndpoint   = keyEndpoint + "/decrypt"
+	kmsBasePath        = "/kms"
+	keystoresEndpoint  = kmsBasePath + "/keystores"
+	keystoreEndpoint   = keystoresEndpoint + "/{" + keystoreIDQueryParam + "}"
+	keysEndpoint       = keystoreEndpoint + "/keys"
+	keyEndpoint        = keysEndpoint + "/{" + keyIDQueryParam + "}"
+	signEndpoint       = keyEndpoint + "/sign"
+	verifyEndpoint     = keyEndpoint + "/verify"
+	encryptEndpoint    = keyEndpoint + "/encrypt"
+	decryptEndpoint    = keyEndpoint + "/decrypt"
+	computeMACEndpoint = keyEndpoint + "/computemac"
+	verifyMACEndpoint  = keyEndpoint + "/verifymac"
 
 	// error messages
 	receivedBadRequest       = "Received bad request: %s"
@@ -51,6 +53,8 @@ const (
 	verifyMessageFailure     = "Failed to verify a message: %s"
 	encryptMessageFailure    = "Failed to encrypt a message: %s"
 	decryptMessageFailure    = "Failed to decrypt a message: %s"
+	computeMACFailure        = "Failed to compute MAC for data: %s"
+	verifyMACFailure         = "Failed to verify MAC for data: %s"
 )
 
 var logger = log.New("hub-kms/ops")
@@ -109,6 +113,8 @@ func (o *Operation) registerHandlers() {
 		support.NewHTTPHandler(verifyEndpoint, http.MethodPost, o.verifyHandler),
 		support.NewHTTPHandler(encryptEndpoint, http.MethodPost, o.encryptHandler),
 		support.NewHTTPHandler(decryptEndpoint, http.MethodPost, o.decryptHandler),
+		support.NewHTTPHandler(computeMACEndpoint, http.MethodPost, o.computeMACHandler),
+		support.NewHTTPHandler(verifyMACEndpoint, http.MethodPost, o.verifyMACHandler),
 	}
 }
 
@@ -302,6 +308,62 @@ func (o *Operation) decryptHandler(rw http.ResponseWriter, req *http.Request) {
 	writeResponse(rw, decryptResp{
 		PlainText: string(plainText),
 	})
+}
+
+func (o *Operation) computeMACHandler(rw http.ResponseWriter, req *http.Request) {
+	var request computeMACReq
+	if ok := parseRequest(&request, rw, req); !ok {
+		return
+	}
+
+	keystoreID := mux.Vars(req)[keystoreIDQueryParam]
+	keyID := mux.Vars(req)[keyIDQueryParam]
+
+	provider := prepareKMSProvider(rw, o.provider, keystoreID, request.Passphrase)
+	if provider == nil {
+		return
+	}
+
+	srv := kmsservice.NewService(provider)
+	mac, err := srv.ComputeMAC(keystoreID, keyID, []byte(request.Data))
+	if err != nil {
+		writeErrorResponse(rw, http.StatusInternalServerError, fmt.Sprintf(computeMACFailure, err))
+		return
+	}
+
+	writeResponse(rw, computeMACResp{
+		MAC: base64.URLEncoding.EncodeToString(mac),
+	})
+}
+
+func (o *Operation) verifyMACHandler(rw http.ResponseWriter, req *http.Request) {
+	var request verifyMACReq
+	if ok := parseRequest(&request, rw, req); !ok {
+		return
+	}
+
+	keystoreID := mux.Vars(req)[keystoreIDQueryParam]
+	keyID := mux.Vars(req)[keyIDQueryParam]
+
+	provider := prepareKMSProvider(rw, o.provider, keystoreID, request.Passphrase)
+	if provider == nil {
+		return
+	}
+
+	mac, err := base64.URLEncoding.DecodeString(request.MAC)
+	if err != nil {
+		writeErrorResponse(rw, http.StatusBadRequest, fmt.Sprintf(receivedBadRequest, err))
+		return
+	}
+
+	srv := kmsservice.NewService(provider)
+	err = srv.VerifyMAC(keystoreID, keyID, mac, []byte(request.Data))
+	if err != nil {
+		writeErrorResponse(rw, http.StatusInternalServerError, fmt.Sprintf(verifyMACFailure, err))
+		return
+	}
+
+	rw.WriteHeader(http.StatusOK)
 }
 
 func parseRequest(parsedReq interface{}, rw http.ResponseWriter, req *http.Request) bool {
