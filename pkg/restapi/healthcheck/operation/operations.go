@@ -11,7 +11,7 @@ import (
 	"net/http"
 	"time"
 
-	log "github.com/sirupsen/logrus"
+	"github.com/trustbloc/edge-core/pkg/log"
 
 	support "github.com/trustbloc/hub-kms/pkg/internal/common"
 )
@@ -29,11 +29,12 @@ type Handler interface {
 
 // Operation defines handlers for healthcheck operations.
 type Operation struct {
+	logger log.Logger
 }
 
 // New returns a new Operation instance.
-func New() *Operation {
-	return &Operation{}
+func New(logger log.Logger) *Operation {
+	return &Operation{logger: logger}
 }
 
 // GetRESTHandlers gets controller API handlers available for healthcheck service.
@@ -52,6 +53,6 @@ func (o *Operation) healthCheckHandler(rw http.ResponseWriter, _ *http.Request) 
 	})
 
 	if err != nil {
-		log.Errorf("healthcheck response failure, %s", err)
+		o.logger.Errorf("healthcheck response failure: %s", err)
 	}
 }

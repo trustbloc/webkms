@@ -9,13 +9,13 @@
 Feature: KMS operations
 
   Scenario: User creates a key
-    Given Key Server is running on "localhost" port "8070"
+    Given Key Server is running on "localhost" port "8076"
       And User has created an empty keystore on the server
     When  User sends an HTTP POST to "https://{keystoreEndpoint}/keys" to create a key of "ED25519" type
     Then  User gets a response with HTTP 201 Created and Location with a valid URL for the newly created key
 
   Scenario: User signs a message and then verifies it
-    Given Key Server is running on "localhost" port "8070"
+    Given Key Server is running on "localhost" port "8076"
       And User has created a keystore with a key of "ED25519" type on the server
 
     When  User sends an HTTP POST to "https://{keyEndpoint}/sign" to sign a message "test message"
@@ -25,7 +25,7 @@ Feature: KMS operations
     Then  User gets a response with HTTP 200 OK and no error in the body
 
   Scenario: User encrypts a message and then decrypts it
-    Given Key Server is running on "localhost" port "8070"
+    Given Key Server is running on "localhost" port "8076"
       And User has created a keystore with a key of "AES256GCM" type on the server
 
     When  User sends an HTTP POST to "https://{keyEndpoint}/encrypt" to encrypt a message "test message"
@@ -35,7 +35,7 @@ Feature: KMS operations
     Then  User gets a response with HTTP 200 OK and a plain text "test message" in the JSON body
 
   Scenario: User computes MAC for data and then verifies it
-    Given Key Server is running on "localhost" port "8070"
+    Given Key Server is running on "localhost" port "8076"
       And User has created a keystore with a key of "HMACSHA256Tag256" type on the server
 
     When  User sends an HTTP POST to "https://{keyEndpoint}/computemac" to compute MAC for data "test data"

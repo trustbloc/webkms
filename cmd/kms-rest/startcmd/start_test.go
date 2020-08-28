@@ -51,33 +51,76 @@ func TestStartCmdContents(t *testing.T) {
 	checkFlagPropertiesCorrect(t, startCmd, hostURLFlagName, hostURLFlagShorthand, hostURLFlagUsage)
 }
 
-func TestStartCmdWithBlankHostArg(t *testing.T) {
-	t.Run("test blank host url arg", func(t *testing.T) {
+func TestStartCmdWithBlankArg(t *testing.T) {
+	flags := []string{hostURLFlagName,
+		databaseTypeFlagName, databaseURLFlagName, databasePrefixFlagName,
+		kmsDatabaseTypeFlagName, kmsDatabaseURLFlagName, kmsDatabasePrefixFlagName,
+		tlsServeCertPathFlagName, tlsServeKeyPathFlagName}
+
+	t.Parallel()
+
+	for _, f := range flags {
+		flag := f
+		t.Run(fmt.Sprintf("test blank %s arg", flag), func(t *testing.T) {
+			startCmd := GetStartCmd(&mockServer{})
+
+			args := buildAllArgsWithOneBlank(flags, flag)
+			startCmd.SetArgs(args)
+
+			err := startCmd.Execute()
+			require.Error(t, err)
+			require.EqualError(t, err, fmt.Sprintf("%s value is empty", flag))
+		})
+	}
+}
+
+func TestStartCmdWithMissingArg(t *testing.T) {
+	t.Run("test missing host-url arg", func(t *testing.T) {
 		startCmd := GetStartCmd(&mockServer{})
 
-		args := []string{"--" + hostURLFlagName, ""}
+		args := []string{"--" + databaseTypeFlagName, databaseTypeMemOption,
+			"--" + kmsDatabaseTypeFlagName, databaseTypeMemOption}
+		startCmd.SetArgs(args)
+
+		err := startCmd.Execute()
+
+		require.Error(t, err)
+		require.Equal(t, "Neither host-url (command line flag) nor "+
+			"KMS_REST_HOST_URL (environment variable) have been set.",
+			err.Error())
+	})
+
+	t.Run("test missing database-type arg", func(t *testing.T) {
+		startCmd := GetStartCmd(&mockServer{})
+
+		args := []string{"--" + hostURLFlagName, "hostname",
+			"--" + kmsDatabaseTypeFlagName, databaseTypeMemOption}
 		startCmd.SetArgs(args)
 
 		err := startCmd.Execute()
 		require.Error(t, err)
-		require.Equal(t, "host-url value is empty", err.Error())
+		require.Equal(t, "Neither database-type (command line flag) nor "+
+			"DATABASE_TYPE (environment variable) have been set.",
+			err.Error())
 	})
-}
 
-func TestStartCmdWithMissingHostArg(t *testing.T) {
-	t.Run("test missing host url arg", func(t *testing.T) {
+	t.Run("test missing kms-secrets-database-type arg", func(t *testing.T) {
 		startCmd := GetStartCmd(&mockServer{})
+
+		args := []string{"--" + hostURLFlagName, "hostname",
+			"--" + databaseTypeFlagName, databaseTypeMemOption}
+		startCmd.SetArgs(args)
 
 		err := startCmd.Execute()
 
 		require.Error(t, err)
-		require.Equal(t,
-			"Neither host-url (command line flag) nor KMS_REST_HOST_URL (environment variable) have been set.",
+		require.Equal(t, "Neither kms-secrets-database-type (command line flag) nor "+
+			"KMS_SECRETS_DATABASE_TYPE (environment variable) have been set.",
 			err.Error())
 	})
 }
 
-func TestStartCmdWithBlankHostEnvVar(t *testing.T) {
+func TestStartCmdWithBlankEnvVar(t *testing.T) {
 	t.Run("test blank host env var", func(t *testing.T) {
 		startCmd := GetStartCmd(&mockServer{})
 
@@ -90,34 +133,12 @@ func TestStartCmdWithBlankHostEnvVar(t *testing.T) {
 	})
 }
 
-func TestStartCmdWithBlankTLSArgs(t *testing.T) {
-	t.Run("test blank tlsServeCertPath arg", func(t *testing.T) {
-		startCmd := GetStartCmd(&mockServer{})
-
-		args := []string{"--" + hostURLFlagName, "localhost:8080",
-			"--" + tlsServeCertPathFlagName, ""}
-		startCmd.SetArgs(args)
-
-		err := startCmd.Execute()
-		require.EqualError(t, err, fmt.Sprintf("%s value is empty", tlsServeCertPathFlagName))
-	})
-
-	t.Run("test blank tlsServeKeyPath arg", func(t *testing.T) {
-		startCmd := GetStartCmd(&mockServer{})
-
-		args := []string{"--" + hostURLFlagName, "localhost:8080",
-			"--" + tlsServeKeyPathFlagName, ""}
-		startCmd.SetArgs(args)
-
-		err := startCmd.Execute()
-		require.EqualError(t, err, fmt.Sprintf("%s value is empty", tlsServeKeyPathFlagName))
-	})
-}
-
 func TestStartCmdValidArgs(t *testing.T) {
 	startCmd := GetStartCmd(&mockServer{})
 
-	args := []string{"--" + hostURLFlagName, "localhost:8080"}
+	args := []string{"--" + hostURLFlagName, "localhost:8080",
+		"--" + databaseTypeFlagName, databaseTypeMemOption,
+		"--" + kmsDatabaseTypeFlagName, databaseTypeMemOption}
 	startCmd.SetArgs(args)
 
 	err := startCmd.Execute()
@@ -135,14 +156,50 @@ func TestStartCmdValidArgsEnvVar(t *testing.T) {
 }
 
 func TestCreateOperationProvider(t *testing.T) {
-	t.Run("Success", func(t *testing.T) {
-		p, err := createOperationProvider()
+	t.Run("Success with in-memory db option", func(t *testing.T) {
+		p, err := createOperationProvider(&kmsRestParameters{
+			dbParams:           &dbParameters{databaseType: databaseTypeMemOption},
+			kmsSecretsDBParams: &dbParameters{databaseType: databaseTypeMemOption},
+		})
 
 		require.NotNil(t, p)
 		require.NotNil(t, p.StorageProvider())
 		require.NotNil(t, p.KMSCreator())
 		require.NotNil(t, p.Crypto())
 		require.NoError(t, err)
+	})
+
+	t.Run("Success with CouchDB option", func(t *testing.T) {
+		p, err := createOperationProvider(&kmsRestParameters{
+			dbParams:           &dbParameters{databaseType: databaseTypeCouchDBOption, databaseURL: "url"},
+			kmsSecretsDBParams: &dbParameters{databaseType: databaseTypeCouchDBOption, databaseURL: "url"},
+		})
+
+		require.NotNil(t, p)
+		require.NotNil(t, p.StorageProvider())
+		require.NotNil(t, p.KMSCreator())
+		require.NotNil(t, p.Crypto())
+		require.NoError(t, err)
+	})
+
+	t.Run("Fail with invalid db option", func(t *testing.T) {
+		p, err := createOperationProvider(&kmsRestParameters{
+			dbParams:           &dbParameters{databaseType: "invalid"},
+			kmsSecretsDBParams: &dbParameters{databaseType: databaseTypeMemOption},
+		})
+
+		require.Nil(t, p)
+		require.Error(t, err)
+	})
+
+	t.Run("Fail with invalid kms secrets db option", func(t *testing.T) {
+		p, err := createOperationProvider(&kmsRestParameters{
+			dbParams:           &dbParameters{databaseType: databaseTypeMemOption},
+			kmsSecretsDBParams: &dbParameters{databaseType: "invalid"},
+		})
+
+		require.Nil(t, p)
+		require.Error(t, err)
 	})
 }
 
@@ -206,13 +263,40 @@ func TestPrepareMasterKeyReader(t *testing.T) {
 	})
 }
 
+func buildAllArgsWithOneBlank(flags []string, blankArg string) []string {
+	var args []string
+
+	for _, f := range flags {
+		if f == blankArg {
+			args = append(args, "--"+f, "")
+			continue
+		}
+
+		args = append(args, "--"+f, "value")
+	}
+
+	return args
+}
+
 func setEnvVars(t *testing.T) {
 	err := os.Setenv(hostURLEnvKey, "localhost:8080")
+	require.NoError(t, err)
+
+	err = os.Setenv(databaseTypeEnvKey, databaseTypeMemOption)
+	require.NoError(t, err)
+
+	err = os.Setenv(kmsDatabaseTypeEnvKey, databaseTypeMemOption)
 	require.NoError(t, err)
 }
 
 func unsetEnvVars(t *testing.T) {
 	err := os.Unsetenv(hostURLEnvKey)
+	require.NoError(t, err)
+
+	err = os.Unsetenv(databaseTypeEnvKey)
+	require.NoError(t, err)
+
+	err = os.Unsetenv(kmsDatabaseTypeEnvKey)
 	require.NoError(t, err)
 }
 

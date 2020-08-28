@@ -10,15 +10,17 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
+
+	"github.com/trustbloc/hub-kms/pkg/internal/mock/log"
 )
 
 func TestNew(t *testing.T) {
-	controller := New()
+	controller := New(&log.MockLogger{})
 	require.NotNil(t, controller)
 }
 
 func TestGetOperations(t *testing.T) {
-	controller := New()
+	controller := New(&log.MockLogger{})
 	require.NotNil(t, controller)
 
 	ops := controller.GetOperations()
