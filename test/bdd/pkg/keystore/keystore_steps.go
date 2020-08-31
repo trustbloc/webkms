@@ -45,9 +45,9 @@ func (s *Steps) SetContext(ctx *context.BDDContext) {
 }
 
 // RegisterSteps defines scenario steps.
-func (s *Steps) RegisterSteps(gs *godog.Suite) {
-	gs.Step(`^User sends an HTTP POST to "([^"]*)" to create a keystore$`, s.sendCreateKeystoreReq)
-	gs.Step("^User gets a response with HTTP 201 Created and "+
+func (s *Steps) RegisterSteps(ctx *godog.ScenarioContext) {
+	ctx.Step(`^User sends an HTTP POST to "([^"]*)" to create a keystore$`, s.sendCreateKeystoreReq)
+	ctx.Step("^User gets a response with HTTP 201 Created and "+
 		"Location with a valid URL for the newly created keystore$", s.checkResponse)
 }
 

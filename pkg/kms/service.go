@@ -12,6 +12,7 @@ import (
 	"strings"
 
 	"github.com/google/tink/go/keyset"
+
 	"github.com/hyperledger/aries-framework-go/pkg/crypto"
 	"github.com/hyperledger/aries-framework-go/pkg/kms"
 

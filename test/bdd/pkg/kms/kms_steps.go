@@ -103,31 +103,31 @@ func (s *Steps) SetContext(ctx *context.BDDContext) {
 }
 
 // RegisterSteps defines scenario steps.
-func (s *Steps) RegisterSteps(gs *godog.Suite) {
+func (s *Steps) RegisterSteps(ctx *godog.ScenarioContext) {
 	// common steps
-	gs.Step(`^User has created a keystore with a key of "([^"]*)" type on the server$`, s.createKeystoreAndKey)
-	gs.Step(`^User gets a response with HTTP 200 OK and no error in the body$`, s.checkSuccessfulResp)
+	ctx.Step(`^User has created a keystore with a key of "([^"]*)" type on the server$`, s.createKeystoreAndKey)
+	ctx.Step(`^User gets a response with HTTP 200 OK and no error in the body$`, s.checkSuccessfulResp)
 	// create key steps
-	gs.Step(`^User has created an empty keystore on the server$`, s.createKeystore)
-	gs.Step(`^User sends an HTTP POST to "([^"]*)" to create a key of "([^"]*)" type$`, s.sendCreateKeyReq)
-	gs.Step("^User gets a response with HTTP 201 Created and "+
+	ctx.Step(`^User has created an empty keystore on the server$`, s.createKeystore)
+	ctx.Step(`^User sends an HTTP POST to "([^"]*)" to create a key of "([^"]*)" type$`, s.sendCreateKeyReq)
+	ctx.Step("^User gets a response with HTTP 201 Created and "+
 		"Location with a valid URL for the newly created key$", s.checkCreateKeyResp)
 	// sign message steps
-	gs.Step(`^User sends an HTTP POST to "([^"]*)" to sign a message "([^"]*)"$`, s.sendSignMessageReq)
-	gs.Step(`^User gets a response with HTTP 200 OK and a signature in the JSON body$`, s.checkSignMessageResp)
+	ctx.Step(`^User sends an HTTP POST to "([^"]*)" to sign a message "([^"]*)"$`, s.sendSignMessageReq)
+	ctx.Step(`^User gets a response with HTTP 200 OK and a signature in the JSON body$`, s.checkSignMessageResp)
 	// verify signature steps
-	gs.Step(`^User sends an HTTP POST to "([^"]*)" to verify a signature from the body$`, s.sendVerifySignatureReq)
+	ctx.Step(`^User sends an HTTP POST to "([^"]*)" to verify a signature from the body$`, s.sendVerifySignatureReq)
 	// encrypt message steps
-	gs.Step(`^User sends an HTTP POST to "([^"]*)" to encrypt a message "([^"]*)"$`, s.sendEncryptMessageReq)
-	gs.Step(`^User gets a response with HTTP 200 OK and a cipher text in the JSON body$`, s.checkEncryptMessageResp)
+	ctx.Step(`^User sends an HTTP POST to "([^"]*)" to encrypt a message "([^"]*)"$`, s.sendEncryptMessageReq)
+	ctx.Step(`^User gets a response with HTTP 200 OK and a cipher text in the JSON body$`, s.checkEncryptMessageResp)
 	// decrypt cipher steps
-	gs.Step(`^User sends an HTTP POST to "([^"]*)" to decrypt a cipher text from the body$`, s.sendDecryptCipherReq)
-	gs.Step(`^User gets a response with HTTP 200 OK and a plain text "([^"]*)" in the JSON body$`, s.checkDecryptCipherResp)
+	ctx.Step(`^User sends an HTTP POST to "([^"]*)" to decrypt a cipher text from the body$`, s.sendDecryptCipherReq)
+	ctx.Step(`^User gets a response with HTTP 200 OK and a plain text "([^"]*)" in the JSON body$`, s.checkDecryptCipherResp)
 	// compute MAC steps
-	gs.Step(`^User sends an HTTP POST to "([^"]*)" to compute MAC for data "([^"]*)"$`, s.sendComputeMACReq)
-	gs.Step(`^User gets a response with HTTP 200 OK and MAC in the JSON body$`, s.checkComputeMACResp)
+	ctx.Step(`^User sends an HTTP POST to "([^"]*)" to compute MAC for data "([^"]*)"$`, s.sendComputeMACReq)
+	ctx.Step(`^User gets a response with HTTP 200 OK and MAC in the JSON body$`, s.checkComputeMACResp)
 	// verify MAC steps
-	gs.Step(`^User sends an HTTP POST to "([^"]*)" to verify MAC for data$`, s.sendVerifyMACReq)
+	ctx.Step(`^User sends an HTTP POST to "([^"]*)" to verify MAC for data$`, s.sendVerifyMACReq)
 }
 
 func (s *Steps) checkSuccessfulResp() error {

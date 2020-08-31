@@ -6,7 +6,11 @@ SPDX-License-Identifier: Apache-2.0
 
 package healthcheck
 
-import "github.com/trustbloc/hub-kms/pkg/restapi/healthcheck/operation"
+import (
+	"github.com/trustbloc/edge-core/pkg/log"
+
+	"github.com/trustbloc/hub-kms/pkg/restapi/healthcheck/operation"
+)
 
 // Controller contains handlers for controller.
 type Controller struct {
@@ -14,8 +18,8 @@ type Controller struct {
 }
 
 // New returns new controller instance.
-func New() *Controller {
-	op := operation.New()
+func New(logger log.Logger) *Controller {
+	op := operation.New(logger)
 
 	return &Controller{
 		handlers: op.GetRESTHandlers(),
