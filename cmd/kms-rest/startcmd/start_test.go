@@ -30,15 +30,24 @@ const (
 
 type mockServer struct{}
 
-func (s *mockServer) ListenAndServeTLS(host, certFile, keyFile string, router http.Handler) error {
+func (s *mockServer) ListenAndServe(host, certFile, keyFile string, router http.Handler) error {
 	return nil
 }
 
-func TestListenAndServeTLS(t *testing.T) {
-	var w HTTPServer
-	err := w.ListenAndServeTLS("wronghost", "", "", nil)
-	require.Error(t, err)
-	require.Contains(t, err.Error(), "address wronghost: missing port in address")
+func TestListenAndServe(t *testing.T) {
+	t.Run("test wrong host", func(t *testing.T) {
+		var w HTTPServer
+		err := w.ListenAndServe("wronghost", "", "", nil)
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "address wronghost: missing port in address")
+	})
+
+	t.Run("test invalid key file", func(t *testing.T) {
+		var w HTTPServer
+		err := w.ListenAndServe("localhost:8080", "test.key", "test.cert", nil)
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "open test.key: no such file or directory")
+	})
 }
 
 func TestStartCmdContents(t *testing.T) {

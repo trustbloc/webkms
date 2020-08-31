@@ -106,15 +106,19 @@ const (
 var logger = log.New("hub-kms/startcmd")
 
 type server interface {
-	ListenAndServeTLS(host, certFile, keyFile string, router http.Handler) error
+	ListenAndServe(host, certFile, keyFile string, router http.Handler) error
 }
 
 // HTTPServer represents an actual HTTP server implementation.
 type HTTPServer struct{}
 
-// ListenAndServeTLS starts the server using the standard Go HTTPS implementation.
-func (s *HTTPServer) ListenAndServeTLS(host, certFile, keyFile string, router http.Handler) error {
-	return http.ListenAndServeTLS(host, certFile, keyFile, router)
+// ListenAndServe starts the server using the standard Go HTTP/HTTPS implementation.
+func (s *HTTPServer) ListenAndServe(host, certFile, keyFile string, router http.Handler) error {
+	if certFile != "" && keyFile != "" {
+		return http.ListenAndServeTLS(host, certFile, keyFile, router)
+	}
+
+	return http.ListenAndServe(host, router)
 }
 
 // GetStartCmd returns the Cobra start command.
@@ -293,7 +297,7 @@ func startKmsService(parameters *kmsRestParameters, srv server) error {
 
 	logger.Infof("starting KMS service on host %s", parameters.hostURL)
 
-	return srv.ListenAndServeTLS(
+	return srv.ListenAndServe(
 		parameters.hostURL,
 		parameters.tlsParams.serveCertPath,
 		parameters.tlsParams.serveKeyPath,
