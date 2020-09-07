@@ -22,6 +22,8 @@ Parameters can be set by command line arguments or environment variables:
 -k, --kms-secrets-database-type string    The type of database to use for storing KMS secrets. Supported options: mem, couchdb. Alternatively, this can be set with the following environment variable: KMS_SECRETS_DATABASE_TYPE
 -s, --kms-secrets-database-url string     The URL of the database for KMS secrets. Not needed if using in-memory storage. For CouchDB, include the username:password@ text if required. Alternatively, this can be set with the following environment variable: KMS_SECRETS_DATABASE_URL
     --kms-secrets-database-prefix string  An optional prefix to be used when creating and retrieving the underlying KMS secrets database. Alternatively, this can be set with the following environment variable: KMS_SECRETS_DATABASE_PREFIX
+
+-l, --log-level string                    Logging level to set. Supported options: critical, error, warning, info, debug. Defaults to "info". Alternatively, this can be set with the following environment variable: KMS_REST_LOG_LEVEL
 ```
 
 ## Example

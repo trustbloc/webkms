@@ -18,6 +18,7 @@ import (
 	"github.com/hyperledger/aries-framework-go/pkg/storage"
 	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/require"
+	"github.com/trustbloc/edge-core/pkg/log"
 
 	"github.com/trustbloc/hub-kms/pkg/restapi/kms/operation"
 )
@@ -64,7 +65,7 @@ func TestStartCmdWithBlankArg(t *testing.T) {
 	flags := []string{hostURLFlagName,
 		databaseTypeFlagName, databaseURLFlagName, databasePrefixFlagName,
 		kmsDatabaseTypeFlagName, kmsDatabaseURLFlagName, kmsDatabasePrefixFlagName,
-		tlsServeCertPathFlagName, tlsServeKeyPathFlagName}
+		tlsServeCertPathFlagName, tlsServeKeyPathFlagName, logLevelFlagName}
 
 	t.Parallel()
 
@@ -162,6 +163,51 @@ func TestStartCmdValidArgsEnvVar(t *testing.T) {
 
 	err := startCmd.Execute()
 	require.NoError(t, err)
+}
+
+func TestStartCmdLogLevels(t *testing.T) {
+	tests := []struct {
+		desc string
+		in   string
+		out  log.Level
+	}{
+		{`Log level not specified - defaults to "info"`, "", log.INFO},
+		{"Log level: critical", logLevelCritical, log.CRITICAL},
+		{"Log level: error", logLevelError, log.ERROR},
+		{"Log level: warn", logLevelWarn, log.WARNING},
+		{"Log level: info", logLevelInfo, log.INFO},
+		{"Log level: debug", logLevelDebug, log.DEBUG},
+		{"Invalid log level - defaults to info", "invalid log level", log.INFO},
+	}
+
+	for _, tt := range tests {
+		startCmd := GetStartCmd(&mockServer{})
+
+		args := []string{"--" + hostURLFlagName, "localhost:8080",
+			"--" + databaseTypeFlagName, databaseTypeMemOption,
+			"--" + kmsDatabaseTypeFlagName, databaseTypeMemOption}
+
+		if tt.in != "" {
+			args = append(args, "--"+logLevelFlagName, tt.in)
+		}
+
+		startCmd.SetArgs(args)
+		err := startCmd.Execute()
+
+		require.Nil(t, err)
+		require.Equal(t, tt.out, log.GetLevel(""))
+	}
+}
+
+func TestStartKMSService(t *testing.T) {
+	t.Run("Fail to create operation provider", func(t *testing.T) {
+		err := startKmsService(&kmsRestParameters{
+			dbParams:           &dbParameters{databaseType: "invalid"},
+			kmsSecretsDBParams: &dbParameters{databaseType: databaseTypeMemOption},
+		}, &mockServer{})
+
+		require.Error(t, err)
+	})
 }
 
 func TestCreateOperationProvider(t *testing.T) {

@@ -14,6 +14,6 @@ require (
 	github.com/onsi/gomega v1.7.0 // indirect
 	github.com/rs/xid v1.2.1
 	github.com/stretchr/testify v1.6.1
-	github.com/trustbloc/edge-core v0.1.4
+	github.com/trustbloc/edge-core v0.1.5-0.20200902222811-9a73214c780d
 	golang.org/x/net v0.0.0-20200625001655-4c5254603344 // indirect
 )

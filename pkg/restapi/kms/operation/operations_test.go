@@ -78,14 +78,6 @@ const (
 	testMAC        = "mac"
 )
 
-type failingResponseWriter struct {
-	*httptest.ResponseRecorder
-}
-
-func (failingResponseWriter) Write(_ []byte) (int, error) {
-	return 0, errors.New("write error")
-}
-
 func TestNew(t *testing.T) {
 	srv := New(NewMockProvider())
 	require.NotNil(t, srv)
@@ -484,6 +476,14 @@ func TestEncryptHandler(t *testing.T) {
 	})
 }
 
+type failingResponseWriter struct {
+	*httptest.ResponseRecorder
+}
+
+func (failingResponseWriter) Write(_ []byte) (int, error) {
+	return 0, errors.New("write error")
+}
+
 func TestDecryptHandler(t *testing.T) {
 	t.Run("Success", func(t *testing.T) {
 		provider := NewMockProvider()
@@ -795,6 +795,41 @@ func TestVerifyMACHandler(t *testing.T) {
 
 		require.Equal(t, http.StatusInternalServerError, rr.Code)
 		require.Contains(t, rr.Body.String(), strings.TrimSuffix(verifyMACFailure, "%s"))
+	})
+}
+
+type failingMarshalReq struct {
+	err error
+}
+
+func (r failingMarshalReq) MarshalJSON() ([]byte, error) {
+	if r.err != nil {
+		return nil, r.err
+	}
+
+	return []byte(""), nil
+}
+
+func TestBuildDebugOutputForRequest(t *testing.T) {
+	t.Run("Failed to marshal request for debug output", func(t *testing.T) {
+		req := failingMarshalReq{err: errors.New("marshal error")}
+		require.Empty(t, buildDebugOutputForRequest(req))
+	})
+}
+
+func TestStripPassphrase(t *testing.T) {
+	t.Run("Success: no passphrase", func(t *testing.T) {
+		msg := `{"key":"value"}`
+		require.Equal(t, stripPassphrase([]byte(msg)), msg)
+	})
+
+	t.Run("Success: strip passphrase", func(t *testing.T) {
+		msg := `{"key":"value","passphrase":"p@ssphrase"}`
+		require.NotContains(t, stripPassphrase([]byte(msg)), "p@ssphrase")
+	})
+
+	t.Run("Invalid input JSON", func(t *testing.T) {
+		require.Empty(t, stripPassphrase([]byte("")))
 	})
 }
 

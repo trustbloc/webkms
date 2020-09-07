@@ -7,12 +7,13 @@ SPDX-License-Identifier: Apache-2.0
 package main
 
 import (
-	"log"
-
 	"github.com/spf13/cobra"
+	"github.com/trustbloc/edge-core/pkg/log"
 
 	"github.com/trustbloc/hub-kms/cmd/kms-rest/startcmd"
 )
+
+var logger = log.New("kms-rest")
 
 func main() {
 	rootCmd := &cobra.Command{
@@ -25,6 +26,6 @@ func main() {
 	rootCmd.AddCommand(startcmd.GetStartCmd(&startcmd.HTTPServer{}))
 
 	if err := rootCmd.Execute(); err != nil {
-		log.Fatalf("failed to run kms-rest: %s", err.Error())
+		logger.Fatalf("Failed to run kms-rest: %s", err.Error())
 	}
 }
