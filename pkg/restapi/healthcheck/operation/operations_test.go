@@ -13,8 +13,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
-
-	"github.com/trustbloc/hub-kms/pkg/internal/mock/log"
+	"github.com/trustbloc/edge-core/pkg/log/mocklogger"
 )
 
 type failingResponseWriter struct {
@@ -26,13 +25,13 @@ func (failingResponseWriter) Write(_ []byte) (int, error) {
 }
 
 func TestGetRESTHandlers(t *testing.T) {
-	op := New(&log.MockLogger{})
+	op := New(&mocklogger.MockLogger{})
 	require.Equal(t, 1, len(op.GetRESTHandlers()))
 }
 
 func TestHealthCheckHandler(t *testing.T) {
 	t.Run("Success", func(t *testing.T) {
-		op := New(&log.MockLogger{})
+		op := New(&mocklogger.MockLogger{})
 
 		r := &httptest.ResponseRecorder{}
 		op.healthCheckHandler(r, nil)
@@ -41,12 +40,12 @@ func TestHealthCheckHandler(t *testing.T) {
 	})
 
 	t.Run("Fail to write response", func(t *testing.T) {
-		logger := &log.MockLogger{}
+		logger := &mocklogger.MockLogger{}
 		op := New(logger)
 
 		r := failingResponseWriter{httptest.NewRecorder()}
 		op.healthCheckHandler(r, nil)
 
-		require.Equal(t, "healthcheck response failure: write error", logger.ErrorText)
+		require.Equal(t, "healthcheck response failure: write error\n", logger.ErrorLogContents)
 	})
 }

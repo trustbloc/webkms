@@ -6,6 +6,10 @@ SPDX-License-Identifier: Apache-2.0
 
 package operation
 
+const (
+	passphraseTag = "passphrase"
+)
+
 type createKeystoreReq struct {
 	Controller string `json:"controller"`
 }

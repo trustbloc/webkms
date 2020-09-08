@@ -29,6 +29,7 @@ import (
 	"github.com/rs/cors"
 	"github.com/spf13/cobra"
 	"github.com/trustbloc/edge-core/pkg/log"
+	"github.com/trustbloc/edge-core/pkg/restapi/logspec"
 	"github.com/trustbloc/edge-core/pkg/storage"
 	couchdbstore "github.com/trustbloc/edge-core/pkg/storage/couchdb"
 	"github.com/trustbloc/edge-core/pkg/storage/memstore"
@@ -90,11 +91,23 @@ const (
 	tlsServeKeyPathFlagUsage = "Path to the private key to use when serving HTTPS. " +
 		commonEnvVarUsageText + tlsServeKeyPathFlagEnvKey
 	tlsServeKeyPathFlagEnvKey = "KMS_REST_TLS_SERVE_KEY"
+
+	logLevelFlagName        = "log-level"
+	logLevelEnvKey          = "KMS_REST_LOG_LEVEL"
+	logLevelFlagShorthand   = "l"
+	logLevelPrefixFlagUsage = "Logging level to set. Supported options: critical, error, warning, info, debug. " +
+		`Defaults to "info". ` + commonEnvVarUsageText + logLevelEnvKey
 )
 
 const (
 	databaseTypeMemOption     = "mem"
 	databaseTypeCouchDBOption = "couchdb"
+
+	logLevelCritical = "critical"
+	logLevelError    = "error"
+	logLevelWarn     = "warning"
+	logLevelInfo     = "info"
+	logLevelDebug    = "debug"
 
 	masterKeyURI       = "local-lock://%s"
 	masterKeyStoreName = "masterkey"
@@ -103,7 +116,7 @@ const (
 	keySize = sha256.Size
 )
 
-var logger = log.New("hub-kms/startcmd")
+var logger = log.New("kms-rest")
 
 type server interface {
 	ListenAndServe(host, certFile, keyFile string, router http.Handler) error
@@ -159,6 +172,8 @@ func createFlags(startCmd *cobra.Command) {
 
 	startCmd.Flags().StringP(tlsServeCertPathFlagName, "", "", tlsServeCertPathFlagUsage)
 	startCmd.Flags().StringP(tlsServeKeyPathFlagName, "", "", tlsServeKeyPathFlagUsage)
+
+	startCmd.Flags().StringP(logLevelFlagName, logLevelFlagShorthand, "", logLevelPrefixFlagUsage)
 }
 
 type kmsRestParameters struct {
@@ -166,6 +181,7 @@ type kmsRestParameters struct {
 	tlsParams          *tlsParameters
 	dbParams           *dbParameters
 	kmsSecretsDBParams *dbParameters
+	logLevel           string
 }
 
 type tlsParameters struct {
@@ -200,11 +216,17 @@ func getKmsRestParameters(cmd *cobra.Command) (*kmsRestParameters, error) {
 		return nil, err
 	}
 
+	logLevel, err := cmdutils.GetUserSetVarFromString(cmd, logLevelFlagName, logLevelEnvKey, true)
+	if err != nil {
+		return nil, err
+	}
+
 	return &kmsRestParameters{
 		hostURL:            hostURL,
 		tlsParams:          tlsParams,
 		dbParams:           dbParams,
 		kmsSecretsDBParams: kmsSecretsDBParams,
+		logLevel:           logLevel,
 	}, nil
 }
 
@@ -274,10 +296,14 @@ func getKMSSecretsDBParameters(cmd *cobra.Command) (*dbParameters, error) {
 }
 
 func startKmsService(parameters *kmsRestParameters, srv server) error {
+	if parameters.logLevel != "" {
+		setLogLevel(parameters.logLevel)
+	}
+
 	router := mux.NewRouter()
 
 	// add health check service API handlers
-	healthCheckService := healthcheck.New(log.New("hub-kms/healthcheck"))
+	healthCheckService := healthcheck.New(log.New("hub-kms-healthcheck"))
 
 	for _, handler := range healthCheckService.GetOperations() {
 		router.HandleFunc(handler.Path(), handler.Handle()).Methods(handler.Method())
@@ -286,7 +312,7 @@ func startKmsService(parameters *kmsRestParameters, srv server) error {
 	// add KMS service API handlers
 	opProv, err := createOperationProvider(parameters)
 	if err != nil {
-		return nil
+		return err
 	}
 
 	kmsService := kmsrest.New(opProv)
@@ -295,7 +321,12 @@ func startKmsService(parameters *kmsRestParameters, srv server) error {
 		router.HandleFunc(handler.Path(), handler.Handle()).Methods(handler.Method())
 	}
 
-	logger.Infof("starting KMS service on host %s", parameters.hostURL)
+	// add logspec API handlers
+	for _, handler := range logspec.New().GetOperations() {
+		router.HandleFunc(handler.Path(), handler.Handle()).Methods(handler.Method())
+	}
+
+	logger.Infof("Starting KMS service on host %s", parameters.hostURL)
 
 	return srv.ListenAndServe(
 		parameters.hostURL,
@@ -320,6 +351,18 @@ func (k operationProvider) KMSCreator() operation.KMSCreator {
 
 func (k operationProvider) Crypto() crypto.Crypto {
 	return k.crypto
+}
+
+func setLogLevel(level string) {
+	logLevel, err := log.ParseLevel(level)
+	if err != nil {
+		logger.Warnf("%s is not a valid logging level. It must be one of the following: "+
+			"critical, error, warning, info, debug. Defaulting to info.", level)
+
+		logLevel = log.INFO
+	}
+
+	log.SetLevel("", logLevel)
 }
 
 func createOperationProvider(parameters *kmsRestParameters) (operation.Provider, error) {
@@ -352,8 +395,7 @@ func getStorageProvider(params *dbParameters) (storage.Provider, error) {
 	case strings.EqualFold(params.databaseType, databaseTypeCouchDBOption):
 		return couchdbstore.NewProvider(params.databaseURL, couchdbstore.WithDBPrefix(params.databasePrefix))
 	default:
-		return nil, fmt.Errorf("database type not set to a valid type." +
-			" run start --help to see the available options")
+		return nil, errors.New("database not set to a valid type")
 	}
 }
 
@@ -365,8 +407,7 @@ func getKMSSecretsStorageProvider(params *dbParameters) (ariesstorage.Provider, 
 		return ariescouchdbstorage.NewProvider(
 			params.databaseURL, ariescouchdbstorage.WithDBPrefix(params.databasePrefix))
 	default:
-		return nil, fmt.Errorf("database type not set to a valid type." +
-			" run start --help to see the available options")
+		return nil, errors.New("kms secrets database not set to a valid type")
 	}
 }
 
