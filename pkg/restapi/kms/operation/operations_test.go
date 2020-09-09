@@ -23,7 +23,6 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/trustbloc/hub-kms/pkg/keystore"
-	"github.com/trustbloc/hub-kms/pkg/kms"
 )
 
 const (
@@ -301,28 +300,6 @@ func TestVerifyHandler(t *testing.T) {
 		handler.Handle().ServeHTTP(rr, req)
 
 		require.Equal(t, http.StatusOK, rr.Code)
-	})
-
-	t.Run("Success: invalid signature", func(t *testing.T) {
-		kh, err := keyset.NewHandle(signature.ED25519KeyTemplate())
-		require.NoError(t, err)
-
-		provider := NewMockProvider()
-		provider.MockStorage.Store.Store[testKeystoreID] = keystoreBytes(t)
-		provider.MockKMS.GetKeyValue = kh
-		provider.MockCrypto.VerifyErr = errors.New("verify msg: invalid signature")
-
-		op := New(provider)
-		handler := getHandler(t, op, verifyEndpoint, http.MethodPost)
-
-		sig := base64.URLEncoding.EncodeToString([]byte(testSignature))
-		req := buildVerifyReq(t, sig)
-
-		rr := httptest.NewRecorder()
-		handler.Handle().ServeHTTP(rr, req)
-
-		require.Equal(t, http.StatusOK, rr.Code)
-		require.Contains(t, rr.Body.String(), kms.ErrInvalidSignature.Error())
 	})
 
 	t.Run("Received bad request: EOF", func(t *testing.T) {
