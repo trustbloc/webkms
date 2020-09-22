@@ -62,10 +62,12 @@ func TestStartCmdContents(t *testing.T) {
 }
 
 func TestStartCmdWithBlankArg(t *testing.T) {
-	flags := []string{hostURLFlagName,
+	flags := []string{
+		hostURLFlagName,
 		databaseTypeFlagName, databaseURLFlagName, databasePrefixFlagName,
 		kmsDatabaseTypeFlagName, kmsDatabaseURLFlagName, kmsDatabasePrefixFlagName,
-		tlsServeCertPathFlagName, tlsServeKeyPathFlagName, logLevelFlagName}
+		tlsServeCertPathFlagName, tlsServeKeyPathFlagName, logLevelFlagName,
+	}
 
 	t.Parallel()
 
@@ -88,8 +90,10 @@ func TestStartCmdWithMissingArg(t *testing.T) {
 	t.Run("test missing host-url arg", func(t *testing.T) {
 		startCmd := GetStartCmd(&mockServer{})
 
-		args := []string{"--" + databaseTypeFlagName, databaseTypeMemOption,
-			"--" + kmsDatabaseTypeFlagName, databaseTypeMemOption}
+		args := []string{
+			"--" + databaseTypeFlagName, databaseTypeMemOption,
+			"--" + kmsDatabaseTypeFlagName, databaseTypeMemOption,
+		}
 		startCmd.SetArgs(args)
 
 		err := startCmd.Execute()
@@ -103,8 +107,10 @@ func TestStartCmdWithMissingArg(t *testing.T) {
 	t.Run("test missing database-type arg", func(t *testing.T) {
 		startCmd := GetStartCmd(&mockServer{})
 
-		args := []string{"--" + hostURLFlagName, "hostname",
-			"--" + kmsDatabaseTypeFlagName, databaseTypeMemOption}
+		args := []string{
+			"--" + hostURLFlagName, "hostname",
+			"--" + kmsDatabaseTypeFlagName, databaseTypeMemOption,
+		}
 		startCmd.SetArgs(args)
 
 		err := startCmd.Execute()
@@ -117,8 +123,10 @@ func TestStartCmdWithMissingArg(t *testing.T) {
 	t.Run("test missing kms-secrets-database-type arg", func(t *testing.T) {
 		startCmd := GetStartCmd(&mockServer{})
 
-		args := []string{"--" + hostURLFlagName, "hostname",
-			"--" + databaseTypeFlagName, databaseTypeMemOption}
+		args := []string{
+			"--" + hostURLFlagName, "hostname",
+			"--" + databaseTypeFlagName, databaseTypeMemOption,
+		}
 		startCmd.SetArgs(args)
 
 		err := startCmd.Execute()
@@ -146,9 +154,11 @@ func TestStartCmdWithBlankEnvVar(t *testing.T) {
 func TestStartCmdValidArgs(t *testing.T) {
 	startCmd := GetStartCmd(&mockServer{})
 
-	args := []string{"--" + hostURLFlagName, "localhost:8080",
+	args := []string{
+		"--" + hostURLFlagName, "localhost:8080",
 		"--" + databaseTypeFlagName, databaseTypeMemOption,
-		"--" + kmsDatabaseTypeFlagName, databaseTypeMemOption}
+		"--" + kmsDatabaseTypeFlagName, databaseTypeMemOption,
+	}
 	startCmd.SetArgs(args)
 
 	err := startCmd.Execute()
@@ -183,9 +193,11 @@ func TestStartCmdLogLevels(t *testing.T) {
 	for _, tt := range tests {
 		startCmd := GetStartCmd(&mockServer{})
 
-		args := []string{"--" + hostURLFlagName, "localhost:8080",
+		args := []string{
+			"--" + hostURLFlagName, "localhost:8080",
 			"--" + databaseTypeFlagName, databaseTypeMemOption,
-			"--" + kmsDatabaseTypeFlagName, databaseTypeMemOption}
+			"--" + kmsDatabaseTypeFlagName, databaseTypeMemOption,
+		}
 
 		if tt.in != "" {
 			args = append(args, "--"+logLevelFlagName, tt.in)
@@ -274,7 +286,8 @@ func TestPrepareKMSCreator(t *testing.T) {
 	t.Run("Error prepare master key reader", func(t *testing.T) {
 		kmsCreator := prepareKMSCreator(
 			&ariesmockstorage.MockStoreProvider{
-				ErrOpenStoreHandle: errors.New("open store error")})
+				ErrOpenStoreHandle: errors.New("open store error"),
+			})
 
 		kms, err := kmsCreator(operation.KMSCreatorContext{
 			KeystoreID: testKeystoreID,
@@ -290,7 +303,8 @@ func TestPrepareMasterKeyReader(t *testing.T) {
 	t.Run("Error open store", func(t *testing.T) {
 		reader, err := prepareMasterKeyReader(
 			&ariesmockstorage.MockStoreProvider{
-				ErrOpenStoreHandle: errors.New("open store error")}, &secretlock.MockSecretLock{}, testKeyURI)
+				ErrOpenStoreHandle: errors.New("open store error"),
+			}, &secretlock.MockSecretLock{}, testKeyURI)
 
 		require.Nil(t, reader)
 		require.Equal(t, errors.New("open store error"), err)
@@ -300,7 +314,9 @@ func TestPrepareMasterKeyReader(t *testing.T) {
 		reader, err := prepareMasterKeyReader(
 			&ariesmockstorage.MockStoreProvider{
 				Store: &ariesmockstorage.MockStore{
-					ErrGet: errors.New("get error")}}, &secretlock.MockSecretLock{}, testKeyURI)
+					ErrGet: errors.New("get error"),
+				},
+			}, &secretlock.MockSecretLock{}, testKeyURI)
 
 		require.Nil(t, reader)
 		require.Equal(t, errors.New("get error"), err)
@@ -311,10 +327,23 @@ func TestPrepareMasterKeyReader(t *testing.T) {
 			&ariesmockstorage.MockStoreProvider{
 				Store: &ariesmockstorage.MockStore{
 					ErrGet: storage.ErrDataNotFound,
-					ErrPut: errors.New("put error")}}, &secretlock.MockSecretLock{}, testKeyURI)
+					ErrPut: errors.New("put error"),
+				},
+			}, &secretlock.MockSecretLock{}, testKeyURI)
 
 		require.Nil(t, reader)
 		require.Equal(t, errors.New("put error"), err)
+	})
+
+	t.Run("Error secret lock encrypt", func(t *testing.T) {
+		reader, err := prepareMasterKeyReader(
+			&ariesmockstorage.MockStoreProvider{Store: &ariesmockstorage.MockStore{}},
+			&secretlock.MockSecretLock{
+				ErrEncrypt: errors.New("encrypt error"),
+			}, testKeyURI)
+
+		require.Nil(t, reader)
+		require.Equal(t, errors.New("encrypt error"), err)
 	})
 }
 
@@ -324,6 +353,7 @@ func buildAllArgsWithOneBlank(flags []string, blankArg string) []string {
 	for _, f := range flags {
 		if f == blankArg {
 			args = append(args, "--"+f, "")
+
 			continue
 		}
 
