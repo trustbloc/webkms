@@ -489,7 +489,6 @@ func prepareNewMasterKey(masterKeyStore ariesstorage.Store, secLock secretlock.S
 	masterKeyEnc, err := secLock.Encrypt(keyURI, &secretlock.EncryptRequest{
 		Plaintext: string(masterKeyContent),
 	})
-
 	if err != nil {
 		return nil, err
 	}

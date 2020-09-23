@@ -53,12 +53,13 @@ func (s *Steps) RegisterSteps(ctx *godog.ScenarioContext) {
 
 func (s *Steps) sendCreateKeystoreReq(endpoint string) error {
 	body := bytes.NewBuffer([]byte(createKeystoreReq))
-	resp, err := bddutil.HTTPDo(http.MethodPost, endpoint, contentType, body, s.bddContext.TLSConfig())
+
+	resp, err := bddutil.HTTPDo(http.MethodPost, endpoint, contentType, body, s.bddContext.TLSConfig()) //nolint: bodyclose
 	if err != nil {
 		return err
 	}
 
-	defer resp.Body.Close()
+	defer bddutil.CloseResponseBody(resp.Body)
 
 	s.responseStatus = resp.StatusCode
 	s.responseLocation = resp.Header.Get(locationHeader)

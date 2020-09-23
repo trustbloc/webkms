@@ -25,7 +25,7 @@ func NewBDDContext(caCertPath string) (*BDDContext, error) {
 		return nil, err
 	}
 
-	return &BDDContext{tlsConfig: &tls.Config{RootCAs: rootCAs}}, nil
+	return &BDDContext{tlsConfig: &tls.Config{RootCAs: rootCAs}}, nil //nolint: gosec
 }
 
 // TLSConfig returns a TLS config that BDD context was initialized with.

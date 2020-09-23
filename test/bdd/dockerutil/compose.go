@@ -87,7 +87,8 @@ func (c *Composition) refreshContainerList() (err error) {
 	if thisProjectsContainers, err = c.DockerClient.ListContainers(
 		docker.ListContainersOptions{
 			All:     true,
-			Filters: map[string][]string{"name": {c.ProjectName}}}); err != nil {
+			Filters: map[string][]string{"name": {c.ProjectName}},
+		}); err != nil {
 		return fmt.Errorf("error refreshing container list for project '%s':  %s", c.ProjectName, err)
 	}
 
@@ -152,7 +153,7 @@ func (c *Composition) GenerateLogs(dir, logName string) error {
 		return err
 	}
 
-	f, err := os.OpenFile(logName, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0600)
+	f, err := os.OpenFile(logName, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0o600) //nolint: gosec
 	if err != nil {
 		return err
 	}

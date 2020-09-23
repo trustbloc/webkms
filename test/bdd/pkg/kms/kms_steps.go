@@ -89,7 +89,6 @@ type Steps struct {
 	errorMessage     string
 	responseStatus   int
 	responseLocation string
-	responseError    string
 }
 
 // NewSteps creates steps context for the KMS operations.
@@ -122,7 +121,8 @@ func (s *Steps) RegisterSteps(ctx *godog.ScenarioContext) {
 	ctx.Step(`^User gets a response with HTTP 200 OK and a cipher text in the JSON body$`, s.checkEncryptMessageResp)
 	// decrypt cipher steps
 	ctx.Step(`^User sends an HTTP POST to "([^"]*)" to decrypt a cipher text from the body$`, s.sendDecryptCipherReq)
-	ctx.Step(`^User gets a response with HTTP 200 OK and a plain text "([^"]*)" in the JSON body$`, s.checkDecryptCipherResp)
+	ctx.Step(`^User gets a response with HTTP 200 OK and a plain text "([^"]*)" in the JSON body$`,
+		s.checkDecryptCipherResp)
 	// compute MAC steps
 	ctx.Step(`^User sends an HTTP POST to "([^"]*)" to compute MAC for data "([^"]*)"$`, s.sendComputeMACReq)
 	ctx.Step(`^User gets a response with HTTP 200 OK and MAC in the JSON body$`, s.checkComputeMACResp)
@@ -135,7 +135,7 @@ func (s *Steps) checkSuccessfulResp() error {
 		return fmt.Errorf("expected HTTP 200 OK, got: %d", s.responseStatus)
 	}
 
-	if len(s.errorMessage) != 0 {
+	if s.errorMessage != "" {
 		return fmt.Errorf("expected no error in the body, got: %s", s.errorMessage)
 	}
 
@@ -146,12 +146,13 @@ func (s *Steps) createKeystore() error {
 	postURL := strings.ReplaceAll(createKeystoreEndpoint, "{serverEndpoint}", s.bddContext.ServerEndpoint)
 
 	body := bytes.NewBuffer([]byte(createKeystoreReq))
-	resp, err := bddutil.HTTPDo(http.MethodPost, postURL, contentType, body, s.bddContext.TLSConfig())
+
+	resp, err := bddutil.HTTPDo(http.MethodPost, postURL, contentType, body, s.bddContext.TLSConfig()) //nolint: bodyclose
 	if err != nil {
 		return err
 	}
 
-	defer resp.Body.Close()
+	defer bddutil.CloseResponseBody(resp.Body)
 
 	s.keystoreEndpoint = resp.Header.Get(locationHeader)
 
@@ -164,12 +165,12 @@ func (s *Steps) sendCreateKeyReq(endpoint, keyType string) error {
 	req := fmt.Sprintf(createKeyReq, keyType)
 	body := bytes.NewBuffer([]byte(req))
 
-	resp, err := bddutil.HTTPDo(http.MethodPost, postURL, contentType, body, s.bddContext.TLSConfig())
+	resp, err := bddutil.HTTPDo(http.MethodPost, postURL, contentType, body, s.bddContext.TLSConfig()) //nolint: bodyclose
 	if err != nil {
 		return err
 	}
 
-	defer resp.Body.Close()
+	defer bddutil.CloseResponseBody(resp.Body)
 
 	s.responseStatus = resp.StatusCode
 	s.responseLocation = resp.Header.Get(locationHeader)
@@ -209,18 +210,19 @@ func (s *Steps) createKeystoreAndKey(keyType string) error {
 	return nil
 }
 
+//nolint: dupl
 func (s *Steps) sendSignMessageReq(endpoint, message string) error {
 	postURL := strings.ReplaceAll(endpoint, "{keyEndpoint}", s.responseLocation)
 
 	req := fmt.Sprintf(signMessageReq, message)
 	body := bytes.NewBuffer([]byte(req))
 
-	resp, err := bddutil.HTTPDo(http.MethodPost, postURL, contentType, body, s.bddContext.TLSConfig())
+	resp, err := bddutil.HTTPDo(http.MethodPost, postURL, contentType, body, s.bddContext.TLSConfig()) //nolint: bodyclose
 	if err != nil {
 		return err
 	}
 
-	defer resp.Body.Close()
+	defer bddutil.CloseResponseBody(resp.Body)
 
 	s.message = message
 	s.responseStatus = resp.StatusCode
@@ -228,7 +230,8 @@ func (s *Steps) sendSignMessageReq(endpoint, message string) error {
 	var signResp struct {
 		Signature string `json:"signature"`
 	}
-	if err = json.NewDecoder(resp.Body).Decode(&signResp); err != nil {
+
+	if err := json.NewDecoder(resp.Body).Decode(&signResp); err != nil {
 		return err
 	}
 
@@ -242,7 +245,7 @@ func (s *Steps) checkSignMessageResp() error {
 		return fmt.Errorf("expected HTTP 200 OK, got: %d", s.responseStatus)
 	}
 
-	if len(s.signature) == 0 {
+	if s.signature == "" {
 		return errors.New("expected non-empty signature")
 	}
 
@@ -250,27 +253,7 @@ func (s *Steps) checkSignMessageResp() error {
 }
 
 func (s *Steps) sendVerifySignatureReq(endpoint string) error {
-	postURL := strings.ReplaceAll(endpoint, "{keyEndpoint}", s.responseLocation)
-
-	req := fmt.Sprintf(verifySignatureReq, s.signature, s.message)
-	body := bytes.NewBuffer([]byte(req))
-
-	resp, err := bddutil.HTTPDo(http.MethodPost, postURL, contentType, body, s.bddContext.TLSConfig())
-	if err != nil {
-		return err
-	}
-
-	defer resp.Body.Close()
-
-	s.responseStatus = resp.StatusCode
-
-	errMsg, err := readErrorMessage(resp.Body)
-	if err != nil {
-		return err
-	}
-	s.errorMessage = errMsg
-
-	return nil
+	return s.sendVerifyReq(endpoint, fmt.Sprintf(verifySignatureReq, s.signature, s.message))
 }
 
 func (s *Steps) sendEncryptMessageReq(endpoint, message string) error {
@@ -279,12 +262,12 @@ func (s *Steps) sendEncryptMessageReq(endpoint, message string) error {
 	req := fmt.Sprintf(encryptMessageReq, message, "additional data")
 	body := bytes.NewBuffer([]byte(req))
 
-	resp, err := bddutil.HTTPDo(http.MethodPost, postURL, contentType, body, s.bddContext.TLSConfig())
+	resp, err := bddutil.HTTPDo(http.MethodPost, postURL, contentType, body, s.bddContext.TLSConfig()) //nolint: bodyclose
 	if err != nil {
 		return err
 	}
 
-	defer resp.Body.Close()
+	defer bddutil.CloseResponseBody(resp.Body)
 
 	s.responseStatus = resp.StatusCode
 
@@ -292,7 +275,8 @@ func (s *Steps) sendEncryptMessageReq(endpoint, message string) error {
 		CipherText string `json:"cipherText"`
 		Nonce      string `json:"nonce"`
 	}
-	if err = json.NewDecoder(resp.Body).Decode(&encryptResp); err != nil {
+
+	if err := json.NewDecoder(resp.Body).Decode(&encryptResp); err != nil {
 		return err
 	}
 
@@ -307,7 +291,7 @@ func (s *Steps) checkEncryptMessageResp() error {
 		return fmt.Errorf("expected HTTP 200 OK, got: %d", s.responseStatus)
 	}
 
-	if len(s.cipherText) == 0 {
+	if s.cipherText == "" {
 		return errors.New("expected non-empty cipher text")
 	}
 
@@ -320,19 +304,20 @@ func (s *Steps) sendDecryptCipherReq(endpoint string) error {
 	req := fmt.Sprintf(decryptCipherReq, s.cipherText, "additional data", s.nonce)
 	body := bytes.NewBuffer([]byte(req))
 
-	resp, err := bddutil.HTTPDo(http.MethodPost, postURL, contentType, body, s.bddContext.TLSConfig())
+	resp, err := bddutil.HTTPDo(http.MethodPost, postURL, contentType, body, s.bddContext.TLSConfig()) //nolint: bodyclose
 	if err != nil {
 		return err
 	}
 
-	defer resp.Body.Close()
+	defer bddutil.CloseResponseBody(resp.Body)
 
 	s.responseStatus = resp.StatusCode
 
 	var decryptResp struct {
 		PlainText string `json:"plainText"`
 	}
-	if err = json.NewDecoder(resp.Body).Decode(&decryptResp); err != nil {
+
+	if err := json.NewDecoder(resp.Body).Decode(&decryptResp); err != nil {
 		return err
 	}
 
@@ -353,18 +338,19 @@ func (s *Steps) checkDecryptCipherResp(expectedPlainText string) error {
 	return nil
 }
 
+//nolint: dupl
 func (s *Steps) sendComputeMACReq(endpoint, data string) error {
 	postURL := strings.ReplaceAll(endpoint, "{keyEndpoint}", s.responseLocation)
 
 	req := fmt.Sprintf(computeMACReq, data)
 	body := bytes.NewBuffer([]byte(req))
 
-	resp, err := bddutil.HTTPDo(http.MethodPost, postURL, contentType, body, s.bddContext.TLSConfig())
+	resp, err := bddutil.HTTPDo(http.MethodPost, postURL, contentType, body, s.bddContext.TLSConfig()) //nolint: bodyclose
 	if err != nil {
 		return err
 	}
 
-	defer resp.Body.Close()
+	defer bddutil.CloseResponseBody(resp.Body)
 
 	s.data = data
 	s.responseStatus = resp.StatusCode
@@ -372,7 +358,8 @@ func (s *Steps) sendComputeMACReq(endpoint, data string) error {
 	var computeMACResp struct {
 		MAC string `json:"mac"`
 	}
-	if err = json.NewDecoder(resp.Body).Decode(&computeMACResp); err != nil {
+
+	if err := json.NewDecoder(resp.Body).Decode(&computeMACResp); err != nil {
 		return err
 	}
 
@@ -386,7 +373,7 @@ func (s *Steps) checkComputeMACResp() error {
 		return fmt.Errorf("expected HTTP 200 OK, got: %d", s.responseStatus)
 	}
 
-	if len(s.mac) == 0 {
+	if s.mac == "" {
 		return errors.New("expected non-empty MAC")
 	}
 
@@ -394,17 +381,19 @@ func (s *Steps) checkComputeMACResp() error {
 }
 
 func (s *Steps) sendVerifyMACReq(endpoint string) error {
-	postURL := strings.ReplaceAll(endpoint, "{keyEndpoint}", s.responseLocation)
+	return s.sendVerifyReq(endpoint, fmt.Sprintf(verifyMACReq, s.mac, s.data))
+}
 
-	req := fmt.Sprintf(verifyMACReq, s.mac, s.data)
+func (s *Steps) sendVerifyReq(endpoint, req string) error {
+	postURL := strings.ReplaceAll(endpoint, "{keyEndpoint}", s.responseLocation)
 	body := bytes.NewBuffer([]byte(req))
 
-	resp, err := bddutil.HTTPDo(http.MethodPost, postURL, contentType, body, s.bddContext.TLSConfig())
+	resp, err := bddutil.HTTPDo(http.MethodPost, postURL, contentType, body, s.bddContext.TLSConfig()) //nolint: bodyclose
 	if err != nil {
 		return err
 	}
 
-	defer resp.Body.Close()
+	defer bddutil.CloseResponseBody(resp.Body)
 
 	s.responseStatus = resp.StatusCode
 
@@ -412,6 +401,7 @@ func (s *Steps) sendVerifyMACReq(endpoint string) error {
 	if err != nil {
 		return err
 	}
+
 	s.errorMessage = errMsg
 
 	return nil
@@ -427,7 +417,8 @@ func readErrorMessage(r io.Reader) (string, error) {
 		var errorResp struct {
 			ErrorMessage string `json:"errMsg,omitempty"`
 		}
-		if err = json.Unmarshal(respBody, &errorResp); err != nil {
+
+		if err := json.Unmarshal(respBody, &errorResp); err != nil {
 			return "", err
 		}
 

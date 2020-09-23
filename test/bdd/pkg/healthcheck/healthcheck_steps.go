@@ -71,6 +71,7 @@ func (s *Steps) validateResponse(expected string) error {
 	var healthCheckResp struct {
 		Status string `json:"status"`
 	}
+
 	if err := json.Unmarshal(s.response, &healthCheckResp); err != nil {
 		return err
 	}

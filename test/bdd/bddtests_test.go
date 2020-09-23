@@ -32,9 +32,6 @@ const (
 	couchDBComposeFilePath = "./fixtures/couchdb"
 )
 
-var composition []*dockerutil.Composition
-var composeFiles = []string{couchDBComposeFilePath, kmsRestComposeFilePath}
-
 // Feature of the system under test.
 type feature interface {
 	// SetContext is called before every scenario is run with a fresh new context
@@ -81,6 +78,10 @@ func runBDDTests(tags, format string) int {
 }
 
 func initializeTestSuite(ctx *godog.TestSuiteContext) {
+	composeFiles := []string{couchDBComposeFilePath, kmsRestComposeFilePath}
+
+	var composition []*dockerutil.Composition
+
 	ctx.BeforeSuite(func() {
 		if os.Getenv("DISABLE_COMPOSITION") == "true" {
 			return
@@ -171,6 +172,7 @@ func getCmdArg(argName string) string {
 // generateUUID returns a UUID based on RFC 4122.
 func generateUUID() string {
 	id := dockerutil.GenerateBytesUUID()
+
 	return fmt.Sprintf("%x-%x-%x-%x-%x", id[0:4], id[4:6], id[6:8], id[8:10], id[10:])
 }
 
