@@ -15,6 +15,7 @@ import (
 	"github.com/trustbloc/edge-core/pkg/storage/mockstore"
 )
 
+// MockProvider is a mock Operation Provider.
 type MockProvider struct {
 	MockStorage   *mockstore.Provider
 	MockKMS       *mockkms.KeyManager
@@ -22,6 +23,7 @@ type MockProvider struct {
 	KMSCreatorErr error
 }
 
+// NewMockProvider returns a new mock Operation Provider.
 func NewMockProvider() *MockProvider {
 	return &MockProvider{
 		MockStorage: mockstore.NewMockStoreProvider(),
@@ -30,19 +32,23 @@ func NewMockProvider() *MockProvider {
 	}
 }
 
+// StorageProvider gets the Storage Provider instance.
 func (p MockProvider) StorageProvider() storage.Provider {
 	return p.MockStorage
 }
 
+// KMSCreator gets the KMS Creator instance.
 func (p MockProvider) KMSCreator() KMSCreator {
 	return func(ctx KMSCreatorContext) (kms.KeyManager, error) {
 		if p.KMSCreatorErr != nil {
 			return nil, p.KMSCreatorErr
 		}
+
 		return p.MockKMS, nil
 	}
 }
 
+// Crypto gets the Crypto instance.
 func (p MockProvider) Crypto() crypto.Crypto {
 	return p.MockCrypto
 }

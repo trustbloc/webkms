@@ -175,9 +175,11 @@ func (s *service) getKeyHandle(keystoreID, keyID string) (interface{}, error) {
 	}
 
 	found := false
+
 	for _, id := range k.KeyIDs {
 		if id == keyID {
 			found = true
+
 			break
 		}
 	}

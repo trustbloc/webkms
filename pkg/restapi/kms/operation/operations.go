@@ -26,11 +26,11 @@ import (
 )
 
 const (
-	// http params
+	// HTTP params.
 	keystoreIDQueryParam = "keystoreID"
 	keyIDQueryParam      = "keyID"
 
-	// API endpoints
+	// API endpoints.
 	kmsBasePath        = "/kms"
 	keystoresEndpoint  = kmsBasePath + "/keystores"
 	keystoreEndpoint   = keystoresEndpoint + "/{" + keystoreIDQueryParam + "}"
@@ -43,7 +43,7 @@ const (
 	computeMACEndpoint = keyEndpoint + "/computemac"
 	verifyMACEndpoint  = keyEndpoint + "/verifymac"
 
-	// error messages
+	// Error messages.
 	receivedBadRequest       = "Received bad request: %s"
 	createKeystoreFailure    = "Failed to create a keystore: %s"
 	createKMSProviderFailure = "Failed to create a kms provider: %s"
@@ -125,14 +125,17 @@ func (o *Operation) createKeystoreHandler(rw http.ResponseWriter, req *http.Requ
 	repo, err := keystore.NewRepository(o.provider.StorageProvider())
 	if err != nil {
 		writeErrorResponse(rw, http.StatusInternalServerError, createKeystoreFailure, err)
+
 		return
 	}
 
 	// TODO: Pass keystore.Service as a dependency (https://github.com/trustbloc/hub-kms/issues/29)
 	srv := keystore.NewService(repo)
+
 	keystoreID, err := srv.Create(request.Controller)
 	if err != nil {
 		writeErrorResponse(rw, http.StatusInternalServerError, createKeystoreFailure, err)
+
 		return
 	}
 
@@ -172,9 +175,11 @@ func (o *Operation) createKeyHandler(rw http.ResponseWriter, req *http.Request) 
 	}
 
 	srv := kmsservice.NewService(kmsProvider)
+
 	keyID, err := srv.CreateKey(keystoreID, kms.KeyType(request.KeyType))
 	if err != nil {
 		writeErrorResponse(rw, http.StatusInternalServerError, createKeyFailure, err)
+
 		return
 	}
 
@@ -182,6 +187,7 @@ func (o *Operation) createKeyHandler(rw http.ResponseWriter, req *http.Request) 
 	rw.WriteHeader(http.StatusCreated)
 }
 
+//nolint: dupl
 func (o *Operation) signHandler(rw http.ResponseWriter, req *http.Request) {
 	var request signReq
 	if ok := parseRequest(&request, rw, req); !ok {
@@ -197,9 +203,11 @@ func (o *Operation) signHandler(rw http.ResponseWriter, req *http.Request) {
 	}
 
 	srv := kmsservice.NewService(provider)
+
 	signature, err := srv.Sign(keystoreID, keyID, []byte(request.Message))
 	if err != nil {
 		writeErrorResponse(rw, http.StatusInternalServerError, signMessageFailure, err)
+
 		return
 	}
 
@@ -225,13 +233,16 @@ func (o *Operation) verifyHandler(rw http.ResponseWriter, req *http.Request) {
 	signature, err := base64.URLEncoding.DecodeString(request.Signature)
 	if err != nil {
 		writeErrorResponse(rw, http.StatusBadRequest, receivedBadRequest, err)
+
 		return
 	}
 
 	srv := kmsservice.NewService(provider)
+
 	err = srv.Verify(keystoreID, keyID, signature, []byte(request.Message))
 	if err != nil {
 		writeErrorResponse(rw, http.StatusInternalServerError, verifyMessageFailure, err)
+
 		return
 	}
 
@@ -253,9 +264,11 @@ func (o *Operation) encryptHandler(rw http.ResponseWriter, req *http.Request) {
 	}
 
 	srv := kmsservice.NewService(provider)
+
 	cipherText, nonce, err := srv.Encrypt(keystoreID, keyID, []byte(request.Message), []byte(request.AdditionalData))
 	if err != nil {
 		writeErrorResponse(rw, http.StatusInternalServerError, encryptMessageFailure, err)
+
 		return
 	}
 
@@ -282,19 +295,23 @@ func (o *Operation) decryptHandler(rw http.ResponseWriter, req *http.Request) {
 	cipherText, err := base64.URLEncoding.DecodeString(request.CipherText)
 	if err != nil {
 		writeErrorResponse(rw, http.StatusBadRequest, receivedBadRequest, err)
+
 		return
 	}
 
 	nonce, err := base64.URLEncoding.DecodeString(request.Nonce)
 	if err != nil {
 		writeErrorResponse(rw, http.StatusBadRequest, receivedBadRequest, err)
+
 		return
 	}
 
 	srv := kmsservice.NewService(provider)
+
 	plainText, err := srv.Decrypt(keystoreID, keyID, cipherText, []byte(request.AdditionalData), nonce)
 	if err != nil {
 		writeErrorResponse(rw, http.StatusInternalServerError, decryptMessageFailure, err)
+
 		return
 	}
 
@@ -303,6 +320,7 @@ func (o *Operation) decryptHandler(rw http.ResponseWriter, req *http.Request) {
 	})
 }
 
+//nolint: dupl
 func (o *Operation) computeMACHandler(rw http.ResponseWriter, req *http.Request) {
 	var request computeMACReq
 	if ok := parseRequest(&request, rw, req); !ok {
@@ -318,9 +336,11 @@ func (o *Operation) computeMACHandler(rw http.ResponseWriter, req *http.Request)
 	}
 
 	srv := kmsservice.NewService(provider)
+
 	mac, err := srv.ComputeMAC(keystoreID, keyID, []byte(request.Data))
 	if err != nil {
 		writeErrorResponse(rw, http.StatusInternalServerError, computeMACFailure, err)
+
 		return
 	}
 
@@ -346,13 +366,16 @@ func (o *Operation) verifyMACHandler(rw http.ResponseWriter, req *http.Request) 
 	mac, err := base64.URLEncoding.DecodeString(request.MAC)
 	if err != nil {
 		writeErrorResponse(rw, http.StatusBadRequest, receivedBadRequest, err)
+
 		return
 	}
 
 	srv := kmsservice.NewService(provider)
+
 	err = srv.VerifyMAC(keystoreID, keyID, mac, []byte(request.Data))
 	if err != nil {
 		writeErrorResponse(rw, http.StatusInternalServerError, verifyMACFailure, err)
+
 		return
 	}
 
@@ -362,6 +385,7 @@ func (o *Operation) verifyMACHandler(rw http.ResponseWriter, req *http.Request) 
 func parseRequest(parsedReq interface{}, rw http.ResponseWriter, req *http.Request) bool {
 	if err := json.NewDecoder(req.Body).Decode(&parsedReq); err != nil {
 		writeErrorResponse(rw, http.StatusBadRequest, receivedBadRequest, err)
+
 		return false
 	}
 
@@ -376,6 +400,7 @@ func buildDebugOutputForRequest(req interface{}) string {
 	b, err := json.Marshal(req)
 	if err != nil {
 		logger.Errorf("Failed to marshal request for debug output: %s", err)
+
 		return ""
 	}
 
@@ -387,14 +412,17 @@ func stripPassphrase(msg json.RawMessage) string {
 
 	if err := json.Unmarshal(msg, &m); err != nil {
 		logger.Errorf("Failed to unmarshal request for stripping passphrase: %s", err)
+
 		return ""
 	}
 
 	if _, ok := m[passphraseTag]; ok {
 		m[passphraseTag] = "***"
+
 		b, err := json.Marshal(m)
 		if err != nil {
 			logger.Errorf("Failed to marshal request after stripping passphrase: %s", err)
+
 			return ""
 		}
 
@@ -408,6 +436,7 @@ func prepareKMSProvider(rw http.ResponseWriter, provider Provider, keystoreID, p
 	keystoreRepo, err := keystore.NewRepository(provider.StorageProvider())
 	if err != nil {
 		writeErrorResponse(rw, http.StatusInternalServerError, createKMSProviderFailure, err)
+
 		return nil
 	}
 
@@ -417,6 +446,7 @@ func prepareKMSProvider(rw http.ResponseWriter, provider Provider, keystoreID, p
 	})
 	if err != nil {
 		writeErrorResponse(rw, http.StatusInternalServerError, createKMSProviderFailure, err)
+
 		return nil
 	}
 
