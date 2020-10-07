@@ -30,7 +30,7 @@ type repository struct {
 // NewRepository returns a new Repository instance backed by the specified storage.
 func NewRepository(provider storage.Provider) (Repository, error) {
 	err := provider.CreateStore(storeName)
-	if err != nil && !errors.Is(err,storage.ErrDuplicateStore) {
+	if err != nil && !errors.Is(err, storage.ErrDuplicateStore) {
 		return nil, err
 	}
 
@@ -50,6 +50,7 @@ func (s *repository) Get(id string) (*Keystore, error) {
 	}
 
 	var k Keystore
+
 	err = json.Unmarshal(bytes, &k)
 	if err != nil {
 		return nil, err

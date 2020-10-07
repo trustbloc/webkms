@@ -8,6 +8,7 @@ package operation
 
 import (
 	"bytes"
+	"context"
 	"encoding/base64"
 	"encoding/json"
 	"errors"
@@ -97,7 +98,7 @@ func TestCreateKeystoreHandler(t *testing.T) {
 	})
 
 	t.Run("Received bad request: EOF", func(t *testing.T) {
-		req, err := http.NewRequest(http.MethodPost, "", bytes.NewBuffer([]byte("")))
+		req, err := http.NewRequestWithContext(context.Background(), http.MethodPost, "", bytes.NewBuffer([]byte("")))
 		require.NoError(t, err)
 
 		op := New(NewMockProvider())
@@ -150,14 +151,14 @@ func TestCreateKeyHandler(t *testing.T) {
 		handler := getHandler(t, op, keysEndpoint, http.MethodPost)
 
 		rr := httptest.NewRecorder()
-		handler.Handle().ServeHTTP(rr, buildCreateKeyReq(t, testKeyType))
+		handler.Handle().ServeHTTP(rr, buildCreateKeyReq(t))
 
 		require.Equal(t, http.StatusCreated, rr.Code)
 		require.NotEmpty(t, rr.Header().Get("Location"))
 	})
 
 	t.Run("Received bad request: EOF", func(t *testing.T) {
-		req, err := http.NewRequest(http.MethodPost, "", bytes.NewBuffer([]byte("")))
+		req, err := http.NewRequestWithContext(context.Background(), http.MethodPost, "", bytes.NewBuffer([]byte("")))
 		require.NoError(t, err)
 
 		op := New(NewMockProvider())
@@ -177,7 +178,7 @@ func TestCreateKeyHandler(t *testing.T) {
 		handler := getHandler(t, op, keysEndpoint, http.MethodPost)
 
 		rr := httptest.NewRecorder()
-		handler.Handle().ServeHTTP(rr, buildCreateKeyReq(t, testKeyType))
+		handler.Handle().ServeHTTP(rr, buildCreateKeyReq(t))
 
 		require.Equal(t, http.StatusInternalServerError, rr.Code)
 		require.Contains(t, rr.Body.String(), strings.TrimSuffix(createKMSProviderFailure, "%s"))
@@ -190,7 +191,7 @@ func TestCreateKeyHandler(t *testing.T) {
 		handler := getHandler(t, op, keysEndpoint, http.MethodPost)
 
 		rr := httptest.NewRecorder()
-		handler.Handle().ServeHTTP(rr, buildCreateKeyReq(t, testKeyType))
+		handler.Handle().ServeHTTP(rr, buildCreateKeyReq(t))
 
 		require.Equal(t, http.StatusInternalServerError, rr.Code)
 		require.Contains(t, rr.Body.String(), strings.TrimSuffix(createKMSProviderFailure, "%s"))
@@ -203,7 +204,7 @@ func TestCreateKeyHandler(t *testing.T) {
 		handler := getHandler(t, op, keysEndpoint, http.MethodPost)
 
 		rr := httptest.NewRecorder()
-		handler.Handle().ServeHTTP(rr, buildCreateKeyReq(t, testKeyType))
+		handler.Handle().ServeHTTP(rr, buildCreateKeyReq(t))
 
 		require.Equal(t, http.StatusInternalServerError, rr.Code)
 		require.Contains(t, rr.Body.String(), strings.TrimSuffix(createKeyFailure, "%s"))
@@ -220,14 +221,14 @@ func TestSignHandler(t *testing.T) {
 		handler := getHandler(t, op, signEndpoint, http.MethodPost)
 
 		rr := httptest.NewRecorder()
-		handler.Handle().ServeHTTP(rr, buildSignReq(t, testMessage))
+		handler.Handle().ServeHTTP(rr, buildSignReq(t))
 
 		require.Equal(t, http.StatusOK, rr.Code)
 		require.Contains(t, rr.Body.String(), base64.URLEncoding.EncodeToString([]byte("signature")))
 	})
 
 	t.Run("Received bad request: EOF", func(t *testing.T) {
-		req, err := http.NewRequest(http.MethodPost, "", bytes.NewBuffer([]byte("")))
+		req, err := http.NewRequestWithContext(context.Background(), http.MethodPost, "", bytes.NewBuffer([]byte("")))
 		require.NoError(t, err)
 
 		op := New(NewMockProvider())
@@ -247,7 +248,7 @@ func TestSignHandler(t *testing.T) {
 		handler := getHandler(t, op, signEndpoint, http.MethodPost)
 
 		rr := httptest.NewRecorder()
-		handler.Handle().ServeHTTP(rr, buildSignReq(t, testMessage))
+		handler.Handle().ServeHTTP(rr, buildSignReq(t))
 
 		require.Equal(t, http.StatusInternalServerError, rr.Code)
 		require.Contains(t, rr.Body.String(), strings.TrimSuffix(createKMSProviderFailure, "%s"))
@@ -260,7 +261,7 @@ func TestSignHandler(t *testing.T) {
 		handler := getHandler(t, op, signEndpoint, http.MethodPost)
 
 		rr := httptest.NewRecorder()
-		handler.Handle().ServeHTTP(rr, buildSignReq(t, testMessage))
+		handler.Handle().ServeHTTP(rr, buildSignReq(t))
 
 		require.Equal(t, http.StatusInternalServerError, rr.Code)
 		require.Contains(t, rr.Body.String(), strings.TrimSuffix(createKMSProviderFailure, "%s"))
@@ -274,7 +275,7 @@ func TestSignHandler(t *testing.T) {
 		handler := getHandler(t, op, signEndpoint, http.MethodPost)
 
 		rr := httptest.NewRecorder()
-		handler.Handle().ServeHTTP(rr, buildSignReq(t, testMessage))
+		handler.Handle().ServeHTTP(rr, buildSignReq(t))
 
 		require.Equal(t, http.StatusInternalServerError, rr.Code)
 		require.Contains(t, rr.Body.String(), strings.TrimSuffix(signMessageFailure, "%s"))
@@ -303,7 +304,7 @@ func TestVerifyHandler(t *testing.T) {
 	})
 
 	t.Run("Received bad request: EOF", func(t *testing.T) {
-		req, err := http.NewRequest(http.MethodPost, "", bytes.NewBuffer([]byte("")))
+		req, err := http.NewRequestWithContext(context.Background(), http.MethodPost, "", bytes.NewBuffer([]byte("")))
 		require.NoError(t, err)
 
 		op := New(NewMockProvider())
@@ -392,14 +393,14 @@ func TestEncryptHandler(t *testing.T) {
 		handler := getHandler(t, op, encryptEndpoint, http.MethodPost)
 
 		rr := httptest.NewRecorder()
-		handler.Handle().ServeHTTP(rr, buildEncryptReq(t, testMessage, testAAD))
+		handler.Handle().ServeHTTP(rr, buildEncryptReq(t))
 
 		require.Equal(t, http.StatusOK, rr.Code)
 		require.Contains(t, rr.Body.String(), base64.URLEncoding.EncodeToString([]byte("cipher text")))
 	})
 
 	t.Run("Received bad request: EOF", func(t *testing.T) {
-		req, err := http.NewRequest(http.MethodPost, "", bytes.NewBuffer([]byte("")))
+		req, err := http.NewRequestWithContext(context.Background(), http.MethodPost, "", bytes.NewBuffer([]byte("")))
 		require.NoError(t, err)
 
 		op := New(NewMockProvider())
@@ -419,7 +420,7 @@ func TestEncryptHandler(t *testing.T) {
 		handler := getHandler(t, op, encryptEndpoint, http.MethodPost)
 
 		rr := httptest.NewRecorder()
-		handler.Handle().ServeHTTP(rr, buildEncryptReq(t, testMessage, testAAD))
+		handler.Handle().ServeHTTP(rr, buildEncryptReq(t))
 
 		require.Equal(t, http.StatusInternalServerError, rr.Code)
 		require.Contains(t, rr.Body.String(), strings.TrimSuffix(createKMSProviderFailure, "%s"))
@@ -432,7 +433,7 @@ func TestEncryptHandler(t *testing.T) {
 		handler := getHandler(t, op, encryptEndpoint, http.MethodPost)
 
 		rr := httptest.NewRecorder()
-		handler.Handle().ServeHTTP(rr, buildEncryptReq(t, testMessage, testAAD))
+		handler.Handle().ServeHTTP(rr, buildEncryptReq(t))
 
 		require.Equal(t, http.StatusInternalServerError, rr.Code)
 		require.Contains(t, rr.Body.String(), strings.TrimSuffix(createKMSProviderFailure, "%s"))
@@ -446,7 +447,7 @@ func TestEncryptHandler(t *testing.T) {
 		handler := getHandler(t, op, encryptEndpoint, http.MethodPost)
 
 		rr := httptest.NewRecorder()
-		handler.Handle().ServeHTTP(rr, buildEncryptReq(t, testMessage, testAAD))
+		handler.Handle().ServeHTTP(rr, buildEncryptReq(t))
 
 		require.Equal(t, http.StatusInternalServerError, rr.Code)
 		require.Contains(t, rr.Body.String(), strings.TrimSuffix(encryptMessageFailure, "%s"))
@@ -482,7 +483,7 @@ func TestDecryptHandler(t *testing.T) {
 	})
 
 	t.Run("Received bad request: EOF", func(t *testing.T) {
-		req, err := http.NewRequest(http.MethodPost, "", bytes.NewBuffer([]byte("")))
+		req, err := http.NewRequestWithContext(context.Background(), http.MethodPost, "", bytes.NewBuffer([]byte("")))
 		require.NoError(t, err)
 
 		op := New(NewMockProvider())
@@ -621,14 +622,14 @@ func TestComputeMACHandler(t *testing.T) {
 		handler := getHandler(t, op, computeMACEndpoint, http.MethodPost)
 
 		rr := httptest.NewRecorder()
-		handler.Handle().ServeHTTP(rr, buildComputeMACReq(t, testData))
+		handler.Handle().ServeHTTP(rr, buildComputeMACReq(t))
 
 		require.Equal(t, http.StatusOK, rr.Code)
 		require.Contains(t, rr.Body.String(), base64.URLEncoding.EncodeToString([]byte("mac")))
 	})
 
 	t.Run("Received bad request: EOF", func(t *testing.T) {
-		req, err := http.NewRequest(http.MethodPost, "", bytes.NewBuffer([]byte("")))
+		req, err := http.NewRequestWithContext(context.Background(), http.MethodPost, "", bytes.NewBuffer([]byte("")))
 		require.NoError(t, err)
 
 		op := New(NewMockProvider())
@@ -648,7 +649,7 @@ func TestComputeMACHandler(t *testing.T) {
 		handler := getHandler(t, op, computeMACEndpoint, http.MethodPost)
 
 		rr := httptest.NewRecorder()
-		handler.Handle().ServeHTTP(rr, buildComputeMACReq(t, testData))
+		handler.Handle().ServeHTTP(rr, buildComputeMACReq(t))
 
 		require.Equal(t, http.StatusInternalServerError, rr.Code)
 		require.Contains(t, rr.Body.String(), strings.TrimSuffix(createKMSProviderFailure, "%s"))
@@ -661,7 +662,7 @@ func TestComputeMACHandler(t *testing.T) {
 		handler := getHandler(t, op, computeMACEndpoint, http.MethodPost)
 
 		rr := httptest.NewRecorder()
-		handler.Handle().ServeHTTP(rr, buildComputeMACReq(t, testData))
+		handler.Handle().ServeHTTP(rr, buildComputeMACReq(t))
 
 		require.Equal(t, http.StatusInternalServerError, rr.Code)
 		require.Contains(t, rr.Body.String(), strings.TrimSuffix(createKMSProviderFailure, "%s"))
@@ -675,7 +676,7 @@ func TestComputeMACHandler(t *testing.T) {
 		handler := getHandler(t, op, computeMACEndpoint, http.MethodPost)
 
 		rr := httptest.NewRecorder()
-		handler.Handle().ServeHTTP(rr, buildComputeMACReq(t, testData))
+		handler.Handle().ServeHTTP(rr, buildComputeMACReq(t))
 
 		require.Equal(t, http.StatusInternalServerError, rr.Code)
 		require.Contains(t, rr.Body.String(), strings.TrimSuffix(computeMACFailure, "%s"))
@@ -692,7 +693,7 @@ func TestVerifyMACHandler(t *testing.T) {
 		handler := getHandler(t, op, verifyMACEndpoint, http.MethodPost)
 
 		mac := base64.URLEncoding.EncodeToString([]byte(testMAC))
-		req := buildVerifyMACReq(t, mac, testData)
+		req := buildVerifyMACReq(t, mac)
 
 		rr := httptest.NewRecorder()
 		handler.Handle().ServeHTTP(rr, req)
@@ -701,7 +702,7 @@ func TestVerifyMACHandler(t *testing.T) {
 	})
 
 	t.Run("Received bad request: EOF", func(t *testing.T) {
-		req, err := http.NewRequest(http.MethodPost, "", bytes.NewBuffer([]byte("")))
+		req, err := http.NewRequestWithContext(context.Background(), http.MethodPost, "", bytes.NewBuffer([]byte("")))
 		require.NoError(t, err)
 
 		op := New(NewMockProvider())
@@ -719,7 +720,7 @@ func TestVerifyMACHandler(t *testing.T) {
 		handler := getHandler(t, op, verifyMACEndpoint, http.MethodPost)
 
 		rr := httptest.NewRecorder()
-		handler.Handle().ServeHTTP(rr, buildVerifyMACReq(t, "!mac", testData))
+		handler.Handle().ServeHTTP(rr, buildVerifyMACReq(t, "!mac"))
 
 		require.Equal(t, http.StatusBadRequest, rr.Code)
 		require.Contains(t, rr.Body.String(), strings.TrimSuffix(receivedBadRequest, "%s"))
@@ -732,7 +733,7 @@ func TestVerifyMACHandler(t *testing.T) {
 		handler := getHandler(t, op, verifyMACEndpoint, http.MethodPost)
 
 		mac := base64.URLEncoding.EncodeToString([]byte(testMAC))
-		req := buildVerifyMACReq(t, mac, testData)
+		req := buildVerifyMACReq(t, mac)
 
 		rr := httptest.NewRecorder()
 		handler.Handle().ServeHTTP(rr, req)
@@ -748,7 +749,7 @@ func TestVerifyMACHandler(t *testing.T) {
 		handler := getHandler(t, op, verifyMACEndpoint, http.MethodPost)
 
 		mac := base64.URLEncoding.EncodeToString([]byte(testMAC))
-		req := buildVerifyMACReq(t, mac, testData)
+		req := buildVerifyMACReq(t, mac)
 
 		rr := httptest.NewRecorder()
 		handler.Handle().ServeHTTP(rr, req)
@@ -765,7 +766,7 @@ func TestVerifyMACHandler(t *testing.T) {
 		handler := getHandler(t, op, verifyMACEndpoint, http.MethodPost)
 
 		mac := base64.URLEncoding.EncodeToString([]byte(testMAC))
-		req := buildVerifyMACReq(t, mac, testData)
+		req := buildVerifyMACReq(t, mac)
 
 		rr := httptest.NewRecorder()
 		handler.Handle().ServeHTTP(rr, req)
@@ -844,27 +845,27 @@ func keystoreBytes(t *testing.T) []byte {
 		KeyIDs:     []string{testKeyID},
 	}
 
-	bytes, err := json.Marshal(testKeystore)
+	b, err := json.Marshal(testKeystore)
 	require.NoError(t, err)
 
-	return bytes
+	return b
 }
 
 func buildCreateKeystoreReq(t *testing.T, controller string) *http.Request {
 	t.Helper()
 
 	payload := fmt.Sprintf(createKeystoreReqFormat, controller)
-	req, err := http.NewRequest(http.MethodPost, "", bytes.NewBuffer([]byte(payload)))
+	req, err := http.NewRequestWithContext(context.Background(), http.MethodPost, "", bytes.NewBuffer([]byte(payload)))
 	require.NoError(t, err)
 
 	return req
 }
 
-func buildCreateKeyReq(t *testing.T, keyType string) *http.Request {
+func buildCreateKeyReq(t *testing.T) *http.Request {
 	t.Helper()
 
-	payload := fmt.Sprintf(createKeyReqFormat, keyType)
-	req, err := http.NewRequest(http.MethodPost, "", bytes.NewBuffer([]byte(payload)))
+	payload := fmt.Sprintf(createKeyReqFormat, testKeyType)
+	req, err := http.NewRequestWithContext(context.Background(), http.MethodPost, "", bytes.NewBuffer([]byte(payload)))
 	require.NoError(t, err)
 
 	req = mux.SetURLVars(req, map[string]string{
@@ -874,26 +875,11 @@ func buildCreateKeyReq(t *testing.T, keyType string) *http.Request {
 	return req
 }
 
-func buildSignReq(t *testing.T, message string) *http.Request {
+func buildSignReq(t *testing.T) *http.Request {
 	t.Helper()
 
-	payload := fmt.Sprintf(signReqFormat, message)
-	req, err := http.NewRequest(http.MethodPost, "", bytes.NewBuffer([]byte(payload)))
-	require.NoError(t, err)
-
-	req = mux.SetURLVars(req, map[string]string{
-		"keystoreID": testKeystoreID,
-		"keyID":      testKeyID,
-	})
-
-	return req
-}
-
-func buildVerifyReq(t *testing.T, signature string) *http.Request {
-	t.Helper()
-
-	payload := fmt.Sprintf(verifyReqFormat, signature, testMessage)
-	req, err := http.NewRequest(http.MethodPost, "", bytes.NewBuffer([]byte(payload)))
+	payload := fmt.Sprintf(signReqFormat, testMessage)
+	req, err := http.NewRequestWithContext(context.Background(), http.MethodPost, "", bytes.NewBuffer([]byte(payload)))
 	require.NoError(t, err)
 
 	req = mux.SetURLVars(req, map[string]string{
@@ -904,11 +890,26 @@ func buildVerifyReq(t *testing.T, signature string) *http.Request {
 	return req
 }
 
-func buildEncryptReq(t *testing.T, message, aad string) *http.Request {
+func buildVerifyReq(t *testing.T, sig string) *http.Request {
 	t.Helper()
 
-	payload := fmt.Sprintf(encryptReqFormat, message, aad)
-	req, err := http.NewRequest(http.MethodPost, "", bytes.NewBuffer([]byte(payload)))
+	payload := fmt.Sprintf(verifyReqFormat, sig, testMessage)
+	req, err := http.NewRequestWithContext(context.Background(), http.MethodPost, "", bytes.NewBuffer([]byte(payload)))
+	require.NoError(t, err)
+
+	req = mux.SetURLVars(req, map[string]string{
+		"keystoreID": testKeystoreID,
+		"keyID":      testKeyID,
+	})
+
+	return req
+}
+
+func buildEncryptReq(t *testing.T) *http.Request {
+	t.Helper()
+
+	payload := fmt.Sprintf(encryptReqFormat, testMessage, testAAD)
+	req, err := http.NewRequestWithContext(context.Background(), http.MethodPost, "", bytes.NewBuffer([]byte(payload)))
 	require.NoError(t, err)
 
 	req = mux.SetURLVars(req, map[string]string{
@@ -923,7 +924,7 @@ func buildDecryptReq(t *testing.T, cipherText, nonce string) *http.Request {
 	t.Helper()
 
 	payload := fmt.Sprintf(decryptReqFormat, cipherText, testAAD, nonce)
-	req, err := http.NewRequest(http.MethodPost, "", bytes.NewBuffer([]byte(payload)))
+	req, err := http.NewRequestWithContext(context.Background(), http.MethodPost, "", bytes.NewBuffer([]byte(payload)))
 	require.NoError(t, err)
 
 	req = mux.SetURLVars(req, map[string]string{
@@ -934,11 +935,11 @@ func buildDecryptReq(t *testing.T, cipherText, nonce string) *http.Request {
 	return req
 }
 
-func buildComputeMACReq(t *testing.T, data string) *http.Request {
+func buildComputeMACReq(t *testing.T) *http.Request {
 	t.Helper()
 
-	payload := fmt.Sprintf(computeMACReqFormat, data)
-	req, err := http.NewRequest(http.MethodPost, "", bytes.NewBuffer([]byte(payload)))
+	payload := fmt.Sprintf(computeMACReqFormat, testData)
+	req, err := http.NewRequestWithContext(context.Background(), http.MethodPost, "", bytes.NewBuffer([]byte(payload)))
 	require.NoError(t, err)
 
 	req = mux.SetURLVars(req, map[string]string{
@@ -949,11 +950,11 @@ func buildComputeMACReq(t *testing.T, data string) *http.Request {
 	return req
 }
 
-func buildVerifyMACReq(t *testing.T, mac, data string) *http.Request {
+func buildVerifyMACReq(t *testing.T, mac string) *http.Request {
 	t.Helper()
 
-	payload := fmt.Sprintf(verifyMACReqFormat, mac, data)
-	req, err := http.NewRequest(http.MethodPost, "", bytes.NewBuffer([]byte(payload)))
+	payload := fmt.Sprintf(verifyMACReqFormat, mac, testData)
+	req, err := http.NewRequestWithContext(context.Background(), http.MethodPost, "", bytes.NewBuffer([]byte(payload)))
 	require.NoError(t, err)
 
 	req = mux.SetURLVars(req, map[string]string{

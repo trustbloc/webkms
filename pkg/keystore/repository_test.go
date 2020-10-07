@@ -103,6 +103,7 @@ func TestSave(t *testing.T) {
 		require.NoError(t, err)
 
 		bytes, err := provider.Store.Get(testKeystoreID)
+		require.NoError(t, err)
 
 		var keystoreGet keystore.Keystore
 		err = json.Unmarshal(bytes, &keystoreGet)

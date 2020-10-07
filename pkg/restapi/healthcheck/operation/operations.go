@@ -51,7 +51,6 @@ func (o *Operation) healthCheckHandler(rw http.ResponseWriter, _ *http.Request) 
 		Status:      "success",
 		CurrentTime: time.Now(),
 	})
-
 	if err != nil {
 		o.logger.Errorf("healthcheck response failure: %s", err)
 	}

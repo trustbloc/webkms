@@ -16,12 +16,14 @@ import (
 	"github.com/trustbloc/hub-kms/pkg/keystore"
 )
 
+// MockProvider is a mock Provider for KMS service.
 type MockProvider struct {
 	MockKeystore *mockkeystore.MockRepository
 	MockKMS      *mockkms.KeyManager
 	MockCrypto   *mockcrypto.Crypto
 }
 
+// NewMockProvider returns a new mock Provider for KMS service.
 func NewMockProvider() *MockProvider {
 	return &MockProvider{
 		MockKeystore: mockkeystore.NewMockRepository(),
@@ -30,14 +32,17 @@ func NewMockProvider() *MockProvider {
 	}
 }
 
+// Keystore gets the keystore repository instance.
 func (p *MockProvider) Keystore() keystore.Repository {
 	return p.MockKeystore
 }
 
+// KMS gets the KMS instance.
 func (p *MockProvider) KMS() kms.KeyManager {
 	return p.MockKMS
 }
 
+// Crypto gets the Crypto instance.
 func (p *MockProvider) Crypto() crypto.Crypto {
 	return p.MockCrypto
 }
