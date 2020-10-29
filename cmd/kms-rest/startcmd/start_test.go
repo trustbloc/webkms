@@ -7,26 +7,14 @@ SPDX-License-Identifier: Apache-2.0
 package startcmd
 
 import (
-	"errors"
 	"fmt"
 	"net/http"
 	"os"
 	"testing"
 
-	"github.com/hyperledger/aries-framework-go/pkg/mock/secretlock"
-	ariesmockstorage "github.com/hyperledger/aries-framework-go/pkg/mock/storage"
-	"github.com/hyperledger/aries-framework-go/pkg/storage"
 	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/require"
 	"github.com/trustbloc/edge-core/pkg/log"
-
-	"github.com/trustbloc/hub-kms/pkg/restapi/kms/operation"
-)
-
-const (
-	testKeystoreID = "keystoreID"
-	testPassphrase = "p@ssphrase"
-	testKeyURI     = "local://test"
 )
 
 type mockServer struct{}
@@ -229,24 +217,11 @@ func TestCreateOperationProvider(t *testing.T) {
 			kmsSecretsDBParams: &dbParameters{databaseType: databaseTypeMemOption},
 		})
 
-		require.NotNil(t, p)
-		require.NotNil(t, p.StorageProvider())
-		require.NotNil(t, p.KMSCreator())
-		require.NotNil(t, p.Crypto())
 		require.NoError(t, err)
-	})
-
-	t.Run("Success with CouchDB option", func(t *testing.T) {
-		p, err := createOperationProvider(&kmsRestParameters{
-			dbParams:           &dbParameters{databaseType: databaseTypeCouchDBOption, databaseURL: "url"},
-			kmsSecretsDBParams: &dbParameters{databaseType: databaseTypeCouchDBOption, databaseURL: "url"},
-		})
-
 		require.NotNil(t, p)
-		require.NotNil(t, p.StorageProvider())
-		require.NotNil(t, p.KMSCreator())
-		require.NotNil(t, p.Crypto())
-		require.NoError(t, err)
+		require.NotNil(t, p.KeystoreService())
+		require.NotNil(t, p.KMSServiceCreator())
+		require.NotNil(t, p.Logger())
 	})
 
 	t.Run("Fail with invalid db option", func(t *testing.T) {
@@ -267,83 +242,6 @@ func TestCreateOperationProvider(t *testing.T) {
 
 		require.Nil(t, p)
 		require.Error(t, err)
-	})
-}
-
-func TestPrepareKMSCreator(t *testing.T) {
-	t.Run("Success", func(t *testing.T) {
-		kmsCreator := prepareKMSCreator(ariesmockstorage.NewMockStoreProvider())
-
-		kms, err := kmsCreator(operation.KMSCreatorContext{
-			KeystoreID: testKeystoreID,
-			Passphrase: testPassphrase,
-		})
-
-		require.NotNil(t, kms)
-		require.NoError(t, err)
-	})
-
-	t.Run("Error prepare master key reader", func(t *testing.T) {
-		kmsCreator := prepareKMSCreator(
-			&ariesmockstorage.MockStoreProvider{
-				ErrOpenStoreHandle: errors.New("open store error"),
-			})
-
-		kms, err := kmsCreator(operation.KMSCreatorContext{
-			KeystoreID: testKeystoreID,
-			Passphrase: testPassphrase,
-		})
-
-		require.Nil(t, kms)
-		require.Error(t, err)
-	})
-}
-
-func TestPrepareMasterKeyReader(t *testing.T) {
-	t.Run("Error open store", func(t *testing.T) {
-		reader, err := prepareMasterKeyReader(
-			&ariesmockstorage.MockStoreProvider{
-				ErrOpenStoreHandle: errors.New("open store error"),
-			}, &secretlock.MockSecretLock{}, testKeyURI)
-
-		require.Nil(t, reader)
-		require.Equal(t, errors.New("open store error"), err)
-	})
-
-	t.Run("Error retrieve master key from store", func(t *testing.T) {
-		reader, err := prepareMasterKeyReader(
-			&ariesmockstorage.MockStoreProvider{
-				Store: &ariesmockstorage.MockStore{
-					ErrGet: errors.New("get error"),
-				},
-			}, &secretlock.MockSecretLock{}, testKeyURI)
-
-		require.Nil(t, reader)
-		require.Equal(t, errors.New("get error"), err)
-	})
-
-	t.Run("Error put newly generated master key into store", func(t *testing.T) {
-		reader, err := prepareMasterKeyReader(
-			&ariesmockstorage.MockStoreProvider{
-				Store: &ariesmockstorage.MockStore{
-					ErrGet: storage.ErrDataNotFound,
-					ErrPut: errors.New("put error"),
-				},
-			}, &secretlock.MockSecretLock{}, testKeyURI)
-
-		require.Nil(t, reader)
-		require.Equal(t, errors.New("put error"), err)
-	})
-
-	t.Run("Error secret lock encrypt", func(t *testing.T) {
-		reader, err := prepareMasterKeyReader(
-			&ariesmockstorage.MockStoreProvider{Store: &ariesmockstorage.MockStore{}},
-			&secretlock.MockSecretLock{
-				ErrEncrypt: errors.New("encrypt error"),
-			}, testKeyURI)
-
-		require.Nil(t, reader)
-		require.Equal(t, errors.New("encrypt error"), err)
 	})
 }
 

@@ -4,7 +4,7 @@ Copyright SecureKey Technologies Inc. All Rights Reserved.
 SPDX-License-Identifier: Apache-2.0
 */
 
-package support
+package support_test
 
 import (
 	"net/http"
@@ -12,6 +12,8 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/require"
+
+	"github.com/trustbloc/hub-kms/pkg/internal/support"
 )
 
 func TestNewHTTPHandler(t *testing.T) {
@@ -23,7 +25,7 @@ func TestNewHTTPHandler(t *testing.T) {
 		handled <- true
 	}
 
-	handler := NewHTTPHandler(path, method, handlerFn)
+	handler := support.NewHTTPHandler(path, method, handlerFn)
 	require.Equal(t, path, handler.Path())
 	require.Equal(t, method, handler.Method())
 	require.NotNil(t, handler.Handle())

@@ -31,7 +31,11 @@ type serviceError struct {
 }
 
 func (e *serviceError) Error() string {
-	return e.msg + ": " + e.err.Error()
+	if e.err != nil {
+		return e.msg + ": " + e.err.Error()
+	}
+
+	return e.msg
 }
 
 func (e *serviceError) Unwrap() error {

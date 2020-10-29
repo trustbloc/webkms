@@ -14,14 +14,26 @@ import (
 )
 
 func TestError(t *testing.T) {
-	serviceErr := &serviceError{
-		msg: "test message",
-		err: errors.New("error"),
-	}
+	t.Run("service error with wrapped error", func(t *testing.T) {
+		serviceErr := &serviceError{
+			msg: "test message",
+			err: errors.New("error"),
+		}
 
-	msg := serviceErr.Error()
+		msg := serviceErr.Error()
 
-	require.Equal(t, "test message: error", msg)
+		require.Equal(t, "test message: error", msg)
+	})
+
+	t.Run("service error without wrapped error", func(t *testing.T) {
+		serviceErr := &serviceError{
+			msg: "test message",
+		}
+
+		msg := serviceErr.Error()
+
+		require.Equal(t, "test message", msg)
+	})
 }
 
 func TestUnwrap(t *testing.T) {

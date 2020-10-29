@@ -25,10 +25,10 @@ type Service interface {
 	VerifyMAC(keystoreID, keyID string, mac, data []byte) error
 }
 
-// Provider contains dependencies for the KMS service constructor.
+// Provider contains dependencies for the KMS service.
 type Provider interface {
 	Keystore() keystore.Repository
-	KMS() kms.KeyManager
+	KeyManager() kms.KeyManager
 	Crypto() crypto.Crypto
 }
 
@@ -38,11 +38,11 @@ type service struct {
 	crypto     crypto.Crypto
 }
 
-// NewService returns a new Service instance with provided dependencies.
+// NewService returns a new KMS service with provided dependencies.
 func NewService(provider Provider) Service {
 	return &service{
 		keystore:   provider.Keystore(),
-		keyManager: provider.KMS(),
+		keyManager: provider.KeyManager(),
 		crypto:     provider.Crypto(),
 	}
 }
