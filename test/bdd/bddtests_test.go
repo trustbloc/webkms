@@ -92,6 +92,10 @@ func initializeTestSuite(ctx *godog.TestSuiteContext) {
 
 		for _, v := range composeFiles {
 			newComposition, err := dockerutil.NewComposition(composeProjectName, "docker-compose.yml", v)
+
+			// TODO (#67): Don't depend on CouchDB availability when starting up KMS service
+			time.Sleep(time.Second * time.Duration(5))
+
 			if err != nil {
 				panic(fmt.Sprintf("Error composing system in BDD context: %s", err))
 			}

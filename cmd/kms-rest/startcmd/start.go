@@ -7,22 +7,11 @@ SPDX-License-Identifier: Apache-2.0
 package startcmd
 
 import (
-	"bytes"
-	"crypto/rand"
-	"crypto/sha256"
 	"errors"
-	"fmt"
 	"net/http"
 	"strings"
 
 	"github.com/gorilla/mux"
-	"github.com/hyperledger/aries-framework-go/pkg/crypto"
-	"github.com/hyperledger/aries-framework-go/pkg/crypto/tinkcrypto"
-	"github.com/hyperledger/aries-framework-go/pkg/kms"
-	"github.com/hyperledger/aries-framework-go/pkg/kms/localkms"
-	"github.com/hyperledger/aries-framework-go/pkg/secretlock"
-	"github.com/hyperledger/aries-framework-go/pkg/secretlock/local"
-	"github.com/hyperledger/aries-framework-go/pkg/secretlock/local/masterlock/hkdf"
 	ariesstorage "github.com/hyperledger/aries-framework-go/pkg/storage"
 	ariescouchdbstorage "github.com/hyperledger/aries-framework-go/pkg/storage/couchdb"
 	ariesmemstorage "github.com/hyperledger/aries-framework-go/pkg/storage/mem"
@@ -35,6 +24,8 @@ import (
 	"github.com/trustbloc/edge-core/pkg/storage/memstore"
 	cmdutils "github.com/trustbloc/edge-core/pkg/utils/cmd"
 
+	"github.com/trustbloc/hub-kms/pkg/keystore"
+	"github.com/trustbloc/hub-kms/pkg/kms"
 	"github.com/trustbloc/hub-kms/pkg/restapi/healthcheck"
 	kmsrest "github.com/trustbloc/hub-kms/pkg/restapi/kms"
 	"github.com/trustbloc/hub-kms/pkg/restapi/kms/operation"
@@ -108,12 +99,6 @@ const (
 	logLevelWarn     = "warning"
 	logLevelInfo     = "info"
 	logLevelDebug    = "debug"
-
-	masterKeyURI       = "local-lock://%s"
-	masterKeyStoreName = "masterkey"
-	masterKeyDBKeyName = masterKeyStoreName
-
-	keySize = sha256.Size
 )
 
 var logger = log.New("kms-rest")
@@ -302,22 +287,23 @@ func startKmsService(parameters *kmsRestParameters, srv server) error {
 
 	router := mux.NewRouter()
 
-	// add health check service API handlers
-	healthCheckService := healthcheck.New(log.New("hub-kms-healthcheck"))
+	// add healthcheck API handlers
+	healthCheckLogger := log.New("hub-kms-healthcheck")
+	healthCheckService := healthcheck.New(healthCheckLogger)
 
 	for _, handler := range healthCheckService.GetOperations() {
 		router.HandleFunc(handler.Path(), handler.Handle()).Methods(handler.Method())
 	}
 
-	// add KMS service API handlers
+	// add KMS API handlers
 	opProv, err := createOperationProvider(parameters)
 	if err != nil {
 		return err
 	}
 
-	kmsService := kmsrest.New(opProv)
+	kmsREST := kmsrest.New(opProv)
 
-	for _, handler := range kmsService.GetOperations() {
+	for _, handler := range kmsREST.GetOperations() {
 		router.HandleFunc(handler.Path(), handler.Handle()).Methods(handler.Method())
 	}
 
@@ -335,24 +321,6 @@ func startKmsService(parameters *kmsRestParameters, srv server) error {
 		constructCORSHandler(router))
 }
 
-type operationProvider struct {
-	storageProvider storage.Provider
-	kmsCreator      operation.KMSCreator
-	crypto          crypto.Crypto
-}
-
-func (k operationProvider) StorageProvider() storage.Provider {
-	return k.storageProvider
-}
-
-func (k operationProvider) KMSCreator() operation.KMSCreator {
-	return k.kmsCreator
-}
-
-func (k operationProvider) Crypto() crypto.Crypto {
-	return k.crypto
-}
-
 func setLogLevel(level string) {
 	logLevel, err := log.ParseLevel(level)
 	if err != nil {
@@ -365,13 +333,31 @@ func setLogLevel(level string) {
 	log.SetLevel("", logLevel)
 }
 
+type operationProvider struct {
+	keystoreService   keystore.Service
+	kmsServiceCreator func(req *http.Request) (kms.Service, error)
+	logger            log.Logger
+}
+
+func (p operationProvider) KeystoreService() keystore.Service {
+	return p.keystoreService
+}
+
+func (p operationProvider) KMSServiceCreator() func(req *http.Request) (kms.Service, error) {
+	return p.kmsServiceCreator
+}
+
+func (p operationProvider) Logger() log.Logger {
+	return p.logger
+}
+
 func createOperationProvider(parameters *kmsRestParameters) (operation.Provider, error) {
-	c, err := tinkcrypto.New()
+	storageProvider, err := getStorageProvider(parameters.dbParams)
 	if err != nil {
 		return nil, err
 	}
 
-	storageProvider, err := getStorageProvider(parameters.dbParams)
+	keystoreRepo, err := keystore.NewRepository(storageProvider)
 	if err != nil {
 		return nil, err
 	}
@@ -382,9 +368,9 @@ func createOperationProvider(parameters *kmsRestParameters) (operation.Provider,
 	}
 
 	return operationProvider{
-		storageProvider: storageProvider,
-		kmsCreator:      prepareKMSCreator(kmsSecretsStorageProvider),
-		crypto:          c,
+		keystoreService:   keystore.NewService(keystoreRepo),
+		kmsServiceCreator: kms.NewKMSServiceCreator(keystoreRepo, kmsSecretsStorageProvider),
+		logger:            log.New("hub-kms-restapi"),
 	}, nil
 }
 
@@ -409,109 +395,6 @@ func getKMSSecretsStorageProvider(params *dbParameters) (ariesstorage.Provider, 
 	default:
 		return nil, errors.New("kms secrets database not set to a valid type")
 	}
-}
-
-type kmsProvider struct {
-	storageProvider ariesstorage.Provider
-	secretLock      secretlock.Service
-}
-
-func (k kmsProvider) StorageProvider() ariesstorage.Provider {
-	return k.storageProvider
-}
-
-func (k kmsProvider) SecretLock() secretlock.Service {
-	return k.secretLock
-}
-
-func prepareKMSCreator(kmsStorageProvider ariesstorage.Provider) operation.KMSCreator {
-	return func(ctx operation.KMSCreatorContext) (kms.KeyManager, error) {
-		keyURI := fmt.Sprintf(masterKeyURI, ctx.KeystoreID)
-
-		secretLock, err := prepareSecretLock(ctx.Passphrase)
-		if err != nil {
-			return nil, err
-		}
-
-		masterKeyReader, err := prepareMasterKeyReader(kmsStorageProvider, secretLock, keyURI)
-		if err != nil {
-			return nil, err
-		}
-
-		secretLockService, err := local.NewService(masterKeyReader, secretLock)
-		if err != nil {
-			return nil, err
-		}
-
-		kmsProv := kmsProvider{
-			storageProvider: kmsStorageProvider,
-			secretLock:      secretLockService,
-		}
-
-		localKMS, err := localkms.New(keyURI, kmsProv)
-		if err != nil {
-			return nil, err
-		}
-
-		return localKMS, nil
-	}
-}
-
-func prepareSecretLock(passphrase string) (secretlock.Service, error) {
-	return hkdf.NewMasterLock(passphrase, sha256.New, nil)
-}
-
-func prepareMasterKeyReader(kmsStorageProv ariesstorage.Provider, secLock secretlock.Service,
-	keyURI string) (*bytes.Reader, error) {
-	masterKeyStore, err := kmsStorageProv.OpenStore(masterKeyStoreName)
-	if err != nil {
-		return nil, err
-	}
-
-	masterKey, err := masterKeyStore.Get(masterKeyDBKeyName)
-	if err != nil {
-		if errors.Is(err, ariesstorage.ErrDataNotFound) {
-			masterKey, err = prepareNewMasterKey(masterKeyStore, secLock, keyURI)
-			if err != nil {
-				return nil, err
-			}
-		} else {
-			return nil, err
-		}
-	}
-
-	return bytes.NewReader(masterKey), nil
-}
-
-func prepareNewMasterKey(masterKeyStore ariesstorage.Store, secLock secretlock.Service, keyURI string) ([]byte, error) {
-	masterKeyContent := randomBytes(keySize)
-
-	masterKeyEnc, err := secLock.Encrypt(keyURI, &secretlock.EncryptRequest{
-		Plaintext: string(masterKeyContent),
-	})
-	if err != nil {
-		return nil, err
-	}
-
-	masterKey := []byte(masterKeyEnc.Ciphertext)
-
-	err = masterKeyStore.Put(masterKeyDBKeyName, masterKey)
-	if err != nil {
-		return nil, err
-	}
-
-	return masterKey, nil
-}
-
-func randomBytes(size uint32) []byte {
-	buf := make([]byte, size)
-
-	_, err := rand.Read(buf)
-	if err != nil {
-		panic(err) // out of randomness, should never happen :-)
-	}
-
-	return buf
 }
 
 func constructCORSHandler(handler http.Handler) http.Handler {

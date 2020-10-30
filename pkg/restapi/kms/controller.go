@@ -10,12 +10,12 @@ import (
 	"github.com/trustbloc/hub-kms/pkg/restapi/kms/operation"
 )
 
-// Controller contains handlers for controller.
+// Controller defines a controller for KMS operations.
 type Controller struct {
 	handlers []operation.Handler
 }
 
-// New returns a new controller instance.
+// New returns a new Controller instance.
 func New(provider operation.Provider) *Controller {
 	op := operation.New(provider)
 	handlers := op.GetRESTHandlers()
@@ -23,7 +23,7 @@ func New(provider operation.Provider) *Controller {
 	return &Controller{handlers: handlers}
 }
 
-// GetOperations returns all controller endpoints.
+// GetOperations returns supported HTTP handlers for KMS operations.
 func (c *Controller) GetOperations() []operation.Handler {
 	return c.handlers
 }

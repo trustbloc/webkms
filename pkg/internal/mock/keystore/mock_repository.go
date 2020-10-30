@@ -14,7 +14,7 @@ import (
 	"github.com/trustbloc/hub-kms/pkg/keystore"
 )
 
-// MockRepository is a mock Keystore Repository.
+// MockRepository is a mock Keystore repository.
 type MockRepository struct {
 	Store   map[string]*keystore.Keystore
 	lock    sync.RWMutex
@@ -22,7 +22,7 @@ type MockRepository struct {
 	ErrSave error
 }
 
-// NewMockRepository returns a new mock Keystore Repository.
+// NewMockRepository returns a new mock Keystore repository.
 func NewMockRepository() *MockRepository {
 	return &MockRepository{Store: map[string]*keystore.Keystore{}}
 }
