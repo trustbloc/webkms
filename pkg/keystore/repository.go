@@ -9,6 +9,7 @@ package keystore
 import (
 	"encoding/json"
 	"errors"
+	"sync"
 
 	"github.com/trustbloc/edge-core/pkg/storage"
 )
@@ -24,27 +25,23 @@ type Repository interface {
 }
 
 type repository struct {
-	store storage.Store
+	once            sync.Once
+	storageProvider storage.Provider
+	store           storage.Store
 }
 
 // NewRepository returns a new Repository instance backed by the specified storage.
-func NewRepository(provider storage.Provider) (Repository, error) {
-	err := provider.CreateStore(storeName)
-	if err != nil && !errors.Is(err, storage.ErrDuplicateStore) {
-		return nil, err
-	}
-
-	store, err := provider.OpenStore(storeName)
-	if err != nil {
-		return nil, err
-	}
-
-	return &repository{store: store}, nil
+func NewRepository(provider storage.Provider) Repository {
+	return &repository{storageProvider: provider}
 }
 
 // Get retrieves the keystore by id.
-func (s *repository) Get(id string) (*Keystore, error) {
-	bytes, err := s.store.Get(id)
+func (r *repository) Get(id string) (*Keystore, error) {
+	if err := r.initStore(); err != nil {
+		return nil, err
+	}
+
+	bytes, err := r.store.Get(id)
 	if err != nil {
 		return nil, err
 	}
@@ -60,16 +57,35 @@ func (s *repository) Get(id string) (*Keystore, error) {
 }
 
 // Save stores the keystore.
-func (s *repository) Save(k *Keystore) error {
+func (r *repository) Save(k *Keystore) error {
+	if err := r.initStore(); err != nil {
+		return err
+	}
+
 	bytes, err := json.Marshal(k)
 	if err != nil {
 		return err
 	}
 
-	err = s.store.Put(k.ID, bytes)
+	err = r.store.Put(k.ID, bytes)
 	if err != nil {
 		return err
 	}
 
 	return nil
+}
+
+func (r *repository) initStore() error {
+	var err error
+
+	r.once.Do(func() {
+		err = r.storageProvider.CreateStore(storeName)
+		if errors.Is(err, storage.ErrDuplicateStore) {
+			err = nil
+		}
+
+		r.store, err = r.storageProvider.OpenStore(storeName)
+	})
+
+	return err
 }
