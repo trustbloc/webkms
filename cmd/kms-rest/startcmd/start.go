@@ -357,10 +357,7 @@ func createOperationProvider(parameters *kmsRestParameters) (operation.Provider,
 		return nil, err
 	}
 
-	keystoreRepo, err := keystore.NewRepository(storageProvider)
-	if err != nil {
-		return nil, err
-	}
+	keystoreRepo := keystore.NewRepository(storageProvider)
 
 	kmsSecretsStorageProvider, err := getKMSSecretsStorageProvider(parameters.kmsSecretsDBParams)
 	if err != nil {
