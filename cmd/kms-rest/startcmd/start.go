@@ -12,8 +12,8 @@ import (
 	"strings"
 
 	"github.com/gorilla/mux"
+	ariescouchdbstorage "github.com/hyperledger/aries-framework-go-ext/component/storage/couchdb"
 	ariesstorage "github.com/hyperledger/aries-framework-go/pkg/storage"
-	ariescouchdbstorage "github.com/hyperledger/aries-framework-go/pkg/storage/couchdb"
 	ariesmemstorage "github.com/hyperledger/aries-framework-go/pkg/storage/mem"
 	"github.com/rs/cors"
 	"github.com/spf13/cobra"

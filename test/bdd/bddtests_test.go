@@ -101,7 +101,7 @@ func initializeTestSuite(ctx *godog.TestSuiteContext) {
 
 		fmt.Println("docker-compose up ... waiting for containers to start ...")
 
-		testSleep := 3
+		testSleep := 10
 		if os.Getenv("TEST_SLEEP") != "" {
 			s, err := strconv.Atoi(os.Getenv("TEST_SLEEP"))
 			if err != nil {

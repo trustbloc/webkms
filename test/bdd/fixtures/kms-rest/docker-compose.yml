@@ -15,18 +15,21 @@ services:
       - KMS_REST_TLS_SERVE_CERT=/etc/tls/ec-pubCert.pem
       - KMS_REST_TLS_SERVE_KEY=/etc/tls/ec-key.pem
       - DATABASE_TYPE=couchdb
-      - DATABASE_URL=couchdb.example.com:5984
+      - DATABASE_URL=admin:password@couchdb.example.com:5984
       - DATABASE_PREFIX=keystore
       - KMS_SECRETS_DATABASE_TYPE=couchdb
-      - KMS_SECRETS_DATABASE_URL=couchdb.example.com:5984
+      - KMS_SECRETS_DATABASE_URL=admin:password@couchdb.example.com:5984
       - KMS_SECRETS_DATABASE_PREFIX=kms
     ports:
       - 8076:8076
+    entrypoint: ""
+    # TODO add retry for couchdb
+    command: /bin/sh -c "sleep 5;kms-rest start"
     volumes:
       - ../keys/tls:/etc/tls
     networks:
       - couchdb_bdd_net
-    command: start
+
 
 networks:
   couchdb_bdd_net:
