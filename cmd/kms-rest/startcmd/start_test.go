@@ -224,17 +224,15 @@ func TestCreateOperationProvider(t *testing.T) {
 		require.NotNil(t, p.Logger())
 	})
 
-	t.Run("Success with CouchDB option", func(t *testing.T) {
+	t.Run("failed with CouchDB option", func(t *testing.T) {
 		p, err := createOperationProvider(&kmsRestParameters{
 			dbParams:           &dbParameters{databaseType: databaseTypeCouchDBOption, databaseURL: "url"},
 			kmsSecretsDBParams: &dbParameters{databaseType: databaseTypeCouchDBOption, databaseURL: "url"},
 		})
 
-		require.NoError(t, err)
-		require.NotNil(t, p)
-		require.NotNil(t, p.KeystoreService())
-		require.NotNil(t, p.KMSServiceCreator())
-		require.NotNil(t, p.Logger())
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "failed to ping couchDB")
+		require.Nil(t, p)
 	})
 
 	t.Run("Fail with invalid db option", func(t *testing.T) {
