@@ -60,7 +60,6 @@ linters-settings:
       - opinionated
     disabled-checks:
       - unnamedResult
-      - whyNoLint # TODO enable.
   funlen:
     lines: 60
     statements: 40
@@ -70,13 +69,14 @@ linters-settings:
     allow-multiline-assign: true
     allow-case-traling-whitespace: true
     allow-cuddle-declarations: false
+  testpackage:
+    skip-regexp: (main|start)_test\.go # TODO(#72): Enable testpackage linter option for cmd packages
 
 linters:
   enable-all: true
   disable:
     - maligned
     - prealloc
-    - testpackage
     - goerr113
 
 issues:
@@ -92,10 +92,6 @@ issues:
         - lll
 
   exclude:
-    # Allow package logger variables (for now)
-    - \`logger\` is a global variable
     -  Line contains TODO/BUG/FIXME
     # Add comments for package
     -  at least one file in a package should have a package comment
-    # Allow magic number 1
-    - Magic number[:] 1[^\d]

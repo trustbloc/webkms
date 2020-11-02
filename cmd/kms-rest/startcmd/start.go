@@ -93,25 +93,26 @@ const (
 const (
 	databaseTypeMemOption     = "mem"
 	databaseTypeCouchDBOption = "couchdb"
-
-	logLevelCritical = "critical"
-	logLevelError    = "error"
-	logLevelWarn     = "warning"
-	logLevelInfo     = "info"
-	logLevelDebug    = "debug"
 )
 
-var logger = log.New("kms-rest")
-
-type server interface {
+// Server represents an HTTP server.
+type Server interface {
 	ListenAndServe(host, certFile, keyFile string, router http.Handler) error
+	Logger() log.Logger
 }
 
-// HTTPServer represents an actual HTTP server implementation.
-type HTTPServer struct{}
+// httpServer is the actual Server implementation.
+type httpServer struct {
+	logger log.Logger
+}
 
-// ListenAndServe starts the server using the standard Go HTTP/HTTPS implementation.
-func (s *HTTPServer) ListenAndServe(host, certFile, keyFile string, router http.Handler) error {
+// NewHTTPServer returns a new instance of Server.
+func NewHTTPServer(logger log.Logger) Server {
+	return &httpServer{logger: logger}
+}
+
+// ListenAndServe starts the server using the standard HTTP(S) implementation.
+func (s *httpServer) ListenAndServe(host, certFile, keyFile string, router http.Handler) error {
 	if certFile != "" && keyFile != "" {
 		return http.ListenAndServeTLS(host, certFile, keyFile, router)
 	}
@@ -119,8 +120,13 @@ func (s *HTTPServer) ListenAndServe(host, certFile, keyFile string, router http.
 	return http.ListenAndServe(host, router)
 }
 
+// Logger returns a logger instance.
+func (s *httpServer) Logger() log.Logger {
+	return s.logger
+}
+
 // GetStartCmd returns the Cobra start command.
-func GetStartCmd(srv server) *cobra.Command {
+func GetStartCmd(srv Server) *cobra.Command {
 	startCmd := createStartCmd(srv)
 
 	createFlags(startCmd)
@@ -128,7 +134,7 @@ func GetStartCmd(srv server) *cobra.Command {
 	return startCmd
 }
 
-func createStartCmd(srv server) *cobra.Command {
+func createStartCmd(srv Server) *cobra.Command {
 	return &cobra.Command{
 		Use:   "start",
 		Short: "Start kms-rest",
@@ -280,9 +286,9 @@ func getKMSSecretsDBParameters(cmd *cobra.Command) (*dbParameters, error) {
 	}, nil
 }
 
-func startKmsService(parameters *kmsRestParameters, srv server) error {
+func startKmsService(parameters *kmsRestParameters, srv Server) error {
 	if parameters.logLevel != "" {
-		setLogLevel(parameters.logLevel)
+		setLogLevel(parameters.logLevel, srv)
 	}
 
 	router := mux.NewRouter()
@@ -312,7 +318,7 @@ func startKmsService(parameters *kmsRestParameters, srv server) error {
 		router.HandleFunc(handler.Path(), handler.Handle()).Methods(handler.Method())
 	}
 
-	logger.Infof("Starting KMS service on host %s", parameters.hostURL)
+	srv.Logger().Infof("Starting KMS service on host %s", parameters.hostURL)
 
 	return srv.ListenAndServe(
 		parameters.hostURL,
@@ -321,10 +327,10 @@ func startKmsService(parameters *kmsRestParameters, srv server) error {
 		constructCORSHandler(router))
 }
 
-func setLogLevel(level string) {
+func setLogLevel(level string, srv Server) {
 	logLevel, err := log.ParseLevel(level)
 	if err != nil {
-		logger.Warnf("%s is not a valid logging level. It must be one of the following: "+
+		srv.Logger().Warnf("%s is not a valid logging level. It must be one of the following: "+
 			"critical, error, warning, info, debug. Defaulting to info.", level)
 
 		logLevel = log.INFO

@@ -4,9 +4,7 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 #
-
 set -e
-
 
 echo "Generating hub-kms Test PKI"
 

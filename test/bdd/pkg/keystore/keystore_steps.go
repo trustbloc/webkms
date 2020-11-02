@@ -13,6 +13,7 @@ import (
 	"net/url"
 
 	"github.com/cucumber/godog"
+	"github.com/trustbloc/edge-core/pkg/log"
 
 	"github.com/trustbloc/hub-kms/test/bdd/pkg/bddutil"
 	"github.com/trustbloc/hub-kms/test/bdd/pkg/context"
@@ -32,11 +33,12 @@ type Steps struct {
 	bddContext       *context.BDDContext
 	responseStatus   int
 	responseLocation string
+	logger           log.Logger
 }
 
 // NewSteps creates a new Steps.
 func NewSteps() *Steps {
-	return &Steps{}
+	return &Steps{logger: log.New("kms-rest/tests/keystore")}
 }
 
 // SetContext sets a fresh context for every scenario.
@@ -51,15 +53,16 @@ func (s *Steps) RegisterSteps(ctx *godog.ScenarioContext) {
 		"Location with a valid URL for the newly created keystore$", s.checkResponse)
 }
 
+//nolint:bodyclose // bddutil.CloseResponseBody
 func (s *Steps) sendCreateKeystoreReq(endpoint string) error {
 	body := bytes.NewBuffer([]byte(createKeystoreReq))
 
-	resp, err := bddutil.HTTPDo(http.MethodPost, endpoint, contentType, body, s.bddContext.TLSConfig()) //nolint: bodyclose
+	resp, err := bddutil.HTTPDo(http.MethodPost, endpoint, contentType, body, s.bddContext.TLSConfig())
 	if err != nil {
 		return err
 	}
 
-	defer bddutil.CloseResponseBody(resp.Body)
+	defer bddutil.CloseResponseBody(resp.Body, s.logger)
 
 	s.responseStatus = resp.StatusCode
 	s.responseLocation = resp.Header.Get(locationHeader)

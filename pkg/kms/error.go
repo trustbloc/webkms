@@ -25,12 +25,18 @@ const (
 	invalidKeyFailure  = "invalid key"
 )
 
-type serviceError struct {
+// ServiceError represents a KMS service error.
+type ServiceError struct {
 	msg string
 	err error
 }
 
-func (e *serviceError) Error() string {
+// NewServiceError returns a new instance of ServiceError.
+func NewServiceError(msg string, err error) ServiceError {
+	return ServiceError{msg: msg, err: err}
+}
+
+func (e ServiceError) Error() string {
 	if e.err != nil {
 		return e.msg + ": " + e.err.Error()
 	}
@@ -38,13 +44,14 @@ func (e *serviceError) Error() string {
 	return e.msg
 }
 
-func (e *serviceError) Unwrap() error {
+// Unwrap gets the underlying error of ServiceError.
+func (e ServiceError) Unwrap() error {
 	return e.err
 }
 
-// ErrorMessage returns the user-friendly error message.
-func ErrorMessage(err error) string {
-	var e *serviceError
+// UserErrorMessage returns the user-friendly error message.
+func UserErrorMessage(err error) string {
+	var e ServiceError
 	if errors.As(err, &e) && e.msg != "" {
 		return e.msg
 	}
