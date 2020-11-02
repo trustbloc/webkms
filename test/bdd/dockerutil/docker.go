@@ -41,7 +41,7 @@ func (d *dockerCmdlineHelper) issueDockerCommand(cmdArgs []string) (string, erro
 
 	var err error
 
-	cmd := exec.Command("docker", cmdArgs...) //nolint: gosec
+	cmd := exec.Command("docker", cmdArgs...) //nolint:gosec // subprocess launched with variable
 	cmdOut, err = cmd.CombinedOutput()
 
 	return string(cmdOut), err

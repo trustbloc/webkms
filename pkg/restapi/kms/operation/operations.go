@@ -373,7 +373,7 @@ func (o *Operation) writeErrorResponse(rw http.ResponseWriter, status int, messa
 	rw.WriteHeader(status)
 
 	e := json.NewEncoder(rw).Encode(errorResponse{
-		Message: fmt.Sprintf(messageFormat, kms.ErrorMessage(err)),
+		Message: fmt.Sprintf(messageFormat, kms.UserErrorMessage(err)),
 	})
 
 	if e != nil {

@@ -51,19 +51,19 @@ func NewService(provider Provider) Service {
 func (s *service) CreateKey(keystoreID string, kt kms.KeyType) (string, error) {
 	keyID, _, err := s.keyManager.Create(kt)
 	if err != nil {
-		return "", &serviceError{msg: createKeyFailed, err: err}
+		return "", NewServiceError(createKeyFailed, err)
 	}
 
 	k, err := s.keystore.Get(keystoreID)
 	if err != nil {
-		return "", &serviceError{msg: getKeystoreFailed, err: err}
+		return "", NewServiceError(getKeystoreFailed, err)
 	}
 
 	k.KeyIDs = append(k.KeyIDs, keyID)
 
 	err = s.keystore.Save(k)
 	if err != nil {
-		return "", &serviceError{msg: saveKeystoreFailed, err: err}
+		return "", NewServiceError(saveKeystoreFailed, err)
 	}
 
 	return keyID, nil
@@ -78,7 +78,7 @@ func (s *service) Sign(keystoreID, keyID string, msg []byte) ([]byte, error) {
 
 	sig, err := s.crypto.Sign(msg, kh)
 	if err != nil {
-		return nil, &serviceError{msg: signMessageFailed, err: err}
+		return nil, NewServiceError(signMessageFailed, err)
 	}
 
 	return sig, nil
@@ -93,12 +93,12 @@ func (s *service) Verify(keystoreID, keyID string, sig, msg []byte) error {
 
 	pub, err := kh.(*keyset.Handle).Public()
 	if err != nil {
-		return &serviceError{msg: noPublicKeyFailure, err: err}
+		return NewServiceError(noPublicKeyFailure, err)
 	}
 
 	err = s.crypto.Verify(sig, msg, pub)
 	if err != nil {
-		return &serviceError{msg: verifySignatureFailed, err: err}
+		return NewServiceError(verifySignatureFailed, err)
 	}
 
 	return nil
@@ -113,7 +113,7 @@ func (s *service) Encrypt(keystoreID, keyID string, msg, aad []byte) ([]byte, []
 
 	cipher, nonce, err := s.crypto.Encrypt(msg, aad, kh)
 	if err != nil {
-		return nil, nil, &serviceError{msg: encryptMessageFailed, err: err}
+		return nil, nil, NewServiceError(encryptMessageFailed, err)
 	}
 
 	return cipher, nonce, nil
@@ -128,7 +128,7 @@ func (s *service) Decrypt(keystoreID, keyID string, cipher, aad, nonce []byte) (
 
 	plain, err := s.crypto.Decrypt(cipher, aad, nonce, kh)
 	if err != nil {
-		return nil, &serviceError{msg: decryptCipherFailed, err: err}
+		return nil, NewServiceError(decryptCipherFailed, err)
 	}
 
 	return plain, nil
@@ -143,7 +143,7 @@ func (s *service) ComputeMAC(keystoreID, keyID string, data []byte) ([]byte, err
 
 	mac, err := s.crypto.ComputeMAC(data, kh)
 	if err != nil {
-		return nil, &serviceError{msg: computeMACFailed, err: err}
+		return nil, NewServiceError(computeMACFailed, err)
 	}
 
 	return mac, nil
@@ -158,7 +158,7 @@ func (s *service) VerifyMAC(keystoreID, keyID string, mac, data []byte) error {
 
 	err = s.crypto.VerifyMAC(mac, data, kh)
 	if err != nil {
-		return &serviceError{msg: verifyMACFailed, err: err}
+		return NewServiceError(verifyMACFailed, err)
 	}
 
 	return nil
@@ -167,11 +167,11 @@ func (s *service) VerifyMAC(keystoreID, keyID string, mac, data []byte) error {
 func (s *service) getKeyHandle(keystoreID, keyID string) (interface{}, error) {
 	k, err := s.keystore.Get(keystoreID)
 	if err != nil {
-		return nil, &serviceError{msg: getKeystoreFailed, err: err}
+		return nil, NewServiceError(getKeystoreFailed, err)
 	}
 
 	if len(k.KeyIDs) == 0 {
-		return nil, &serviceError{msg: noKeysFailure}
+		return nil, NewServiceError(noKeysFailure, nil)
 	}
 
 	found := false
@@ -185,12 +185,12 @@ func (s *service) getKeyHandle(keystoreID, keyID string) (interface{}, error) {
 	}
 
 	if !found {
-		return nil, &serviceError{msg: invalidKeyFailure}
+		return nil, NewServiceError(invalidKeyFailure, nil)
 	}
 
 	kh, err := s.keyManager.Get(keyID)
 	if err != nil {
-		return nil, &serviceError{msg: getKeyFailed, err: err}
+		return nil, NewServiceError(getKeyFailed, err)
 	}
 
 	return kh, nil

@@ -21,16 +21,15 @@ const (
 	serverEndpoint = "https://%s:%d"
 )
 
-var logger = log.New("bdd-common")
-
 // Steps defines context for BDD test steps.
 type Steps struct {
 	bddContext *context.BDDContext
+	logger     log.Logger
 }
 
 // NewSteps creates a new Steps.
 func NewSteps() *Steps {
-	return &Steps{}
+	return &Steps{logger: log.New("kms-rest/tests/common")}
 }
 
 // SetContext sets a fresh context for every scenario.
@@ -53,7 +52,7 @@ func (s *Steps) checkServerIsRun(host string, port int) error {
 
 	err = resp.Body.Close()
 	if err != nil {
-		logger.Errorf("Failed to close response body: %s", err)
+		s.logger.Errorf("Failed to close response body: %s", err)
 	}
 
 	s.bddContext.ServerEndpoint = fmt.Sprintf(serverEndpoint, host, port)

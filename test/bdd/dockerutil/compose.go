@@ -13,6 +13,7 @@ import (
 	"log"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"strings"
 
 	docker "github.com/fsouza/go-dockerclient"
@@ -110,7 +111,7 @@ func (c *Composition) issueCommand(args []string, dir string) (_ []byte, err err
 	var cmdArgs []string
 	cmdArgs = append(cmdArgs, c.getFileArgs()...)
 	cmdArgs = append(cmdArgs, args...)
-	cmd := exec.Command(dockerComposeCommand, cmdArgs...) //nolint: gosec
+	cmd := exec.Command(dockerComposeCommand, cmdArgs...) //nolint:gosec // subprocess launched with variable
 	cmd.Dir = dir
 
 	if cmdOut, err = cmd.CombinedOutput(); err != nil {
@@ -153,7 +154,7 @@ func (c *Composition) GenerateLogs(dir, logName string) error {
 		return err
 	}
 
-	f, err := os.OpenFile(logName, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0o600) //nolint: gosec
+	f, err := os.OpenFile(filepath.Clean(logName), os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0o600)
 	if err != nil {
 		return err
 	}
@@ -211,10 +212,10 @@ func GenerateBytesUUID() []byte {
 	}
 
 	// variant bits; see section 4.1.1
-	uuid[8] = uuid[8]&^0xc0 | 0x80 //nolint: gomnd
+	uuid[8] = uuid[8]&^0xc0 | 0x80 //nolint:gomnd // https://tools.ietf.org/html/rfc4122#section-4.1.1
 
 	// version 4 (pseudo-random); see section 4.1.3
-	uuid[6] = uuid[6]&^0xf0 | 0x40 //nolint: gomnd
+	uuid[6] = uuid[6]&^0xf0 | 0x40 //nolint:gomnd // https://tools.ietf.org/html/rfc4122#section-4.1.3
 
 	return uuid
 }

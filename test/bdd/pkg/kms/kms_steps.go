@@ -18,6 +18,7 @@ import (
 	"strings"
 
 	"github.com/cucumber/godog"
+	"github.com/trustbloc/edge-core/pkg/log"
 
 	"github.com/trustbloc/hub-kms/test/bdd/pkg/bddutil"
 	"github.com/trustbloc/hub-kms/test/bdd/pkg/context"
@@ -78,6 +79,7 @@ const (
 // Steps defines steps context for the KMS operations.
 type Steps struct {
 	bddContext       *context.BDDContext
+	logger           log.Logger
 	keystoreEndpoint string
 	message          string
 	signature        string
@@ -93,7 +95,7 @@ type Steps struct {
 
 // NewSteps creates steps context for the KMS operations.
 func NewSteps() *Steps {
-	return &Steps{}
+	return &Steps{logger: log.New("kms-rest/tests/kms")}
 }
 
 // SetContext sets a fresh context for every scenario.
@@ -142,35 +144,37 @@ func (s *Steps) checkSuccessfulResp() error {
 	return nil
 }
 
+//nolint:bodyclose // bddutil.CloseResponseBody
 func (s *Steps) createKeystore() error {
 	postURL := strings.ReplaceAll(createKeystoreEndpoint, "{serverEndpoint}", s.bddContext.ServerEndpoint)
 
 	body := bytes.NewBuffer([]byte(createKeystoreReq))
 
-	resp, err := bddutil.HTTPDo(http.MethodPost, postURL, contentType, body, s.bddContext.TLSConfig()) //nolint: bodyclose
+	resp, err := bddutil.HTTPDo(http.MethodPost, postURL, contentType, body, s.bddContext.TLSConfig())
 	if err != nil {
 		return err
 	}
 
-	defer bddutil.CloseResponseBody(resp.Body)
+	defer bddutil.CloseResponseBody(resp.Body, s.logger)
 
 	s.keystoreEndpoint = resp.Header.Get(locationHeader)
 
 	return nil
 }
 
+//nolint:bodyclose // bddutil.CloseResponseBody
 func (s *Steps) sendCreateKeyReq(endpoint, keyType string) error {
 	postURL := strings.ReplaceAll(endpoint, "{keystoreEndpoint}", s.keystoreEndpoint)
 
 	req := fmt.Sprintf(createKeyReq, keyType)
 	body := bytes.NewBuffer([]byte(req))
 
-	resp, err := bddutil.HTTPDo(http.MethodPost, postURL, contentType, body, s.bddContext.TLSConfig()) //nolint: bodyclose
+	resp, err := bddutil.HTTPDo(http.MethodPost, postURL, contentType, body, s.bddContext.TLSConfig())
 	if err != nil {
 		return err
 	}
 
-	defer bddutil.CloseResponseBody(resp.Body)
+	defer bddutil.CloseResponseBody(resp.Body, s.logger)
 
 	s.responseStatus = resp.StatusCode
 	s.responseLocation = resp.Header.Get(locationHeader)
@@ -210,19 +214,20 @@ func (s *Steps) createKeystoreAndKey(keyType string) error {
 	return nil
 }
 
-//nolint: dupl
+//nolint:dupl // for better readability
 func (s *Steps) sendSignMessageReq(endpoint, message string) error {
 	postURL := strings.ReplaceAll(endpoint, "{keyEndpoint}", s.responseLocation)
 
 	req := fmt.Sprintf(signMessageReq, message)
 	body := bytes.NewBuffer([]byte(req))
 
-	resp, err := bddutil.HTTPDo(http.MethodPost, postURL, contentType, body, s.bddContext.TLSConfig()) //nolint: bodyclose
+	//nolint:bodyclose // bddutil.CloseResponseBody
+	resp, err := bddutil.HTTPDo(http.MethodPost, postURL, contentType, body, s.bddContext.TLSConfig())
 	if err != nil {
 		return err
 	}
 
-	defer bddutil.CloseResponseBody(resp.Body)
+	defer bddutil.CloseResponseBody(resp.Body, s.logger)
 
 	s.message = message
 	s.responseStatus = resp.StatusCode
@@ -256,18 +261,19 @@ func (s *Steps) sendVerifySignatureReq(endpoint string) error {
 	return s.sendVerifyReq(endpoint, fmt.Sprintf(verifySignatureReq, s.signature, s.message))
 }
 
+//nolint:bodyclose // bddutil.CloseResponseBody
 func (s *Steps) sendEncryptMessageReq(endpoint, message string) error {
 	postURL := strings.ReplaceAll(endpoint, "{keyEndpoint}", s.responseLocation)
 
 	req := fmt.Sprintf(encryptMessageReq, message, "additional data")
 	body := bytes.NewBuffer([]byte(req))
 
-	resp, err := bddutil.HTTPDo(http.MethodPost, postURL, contentType, body, s.bddContext.TLSConfig()) //nolint: bodyclose
+	resp, err := bddutil.HTTPDo(http.MethodPost, postURL, contentType, body, s.bddContext.TLSConfig())
 	if err != nil {
 		return err
 	}
 
-	defer bddutil.CloseResponseBody(resp.Body)
+	defer bddutil.CloseResponseBody(resp.Body, s.logger)
 
 	s.responseStatus = resp.StatusCode
 
@@ -298,18 +304,19 @@ func (s *Steps) checkEncryptMessageResp() error {
 	return nil
 }
 
+//nolint:bodyclose // bddutil.CloseResponseBody
 func (s *Steps) sendDecryptCipherReq(endpoint string) error {
 	postURL := strings.ReplaceAll(endpoint, "{keyEndpoint}", s.responseLocation)
 
 	req := fmt.Sprintf(decryptCipherReq, s.cipherText, "additional data", s.nonce)
 	body := bytes.NewBuffer([]byte(req))
 
-	resp, err := bddutil.HTTPDo(http.MethodPost, postURL, contentType, body, s.bddContext.TLSConfig()) //nolint: bodyclose
+	resp, err := bddutil.HTTPDo(http.MethodPost, postURL, contentType, body, s.bddContext.TLSConfig())
 	if err != nil {
 		return err
 	}
 
-	defer bddutil.CloseResponseBody(resp.Body)
+	defer bddutil.CloseResponseBody(resp.Body, s.logger)
 
 	s.responseStatus = resp.StatusCode
 
@@ -338,19 +345,20 @@ func (s *Steps) checkDecryptCipherResp(expectedPlainText string) error {
 	return nil
 }
 
-//nolint: dupl
+//nolint:dupl // for better readability
 func (s *Steps) sendComputeMACReq(endpoint, data string) error {
 	postURL := strings.ReplaceAll(endpoint, "{keyEndpoint}", s.responseLocation)
 
 	req := fmt.Sprintf(computeMACReq, data)
 	body := bytes.NewBuffer([]byte(req))
 
-	resp, err := bddutil.HTTPDo(http.MethodPost, postURL, contentType, body, s.bddContext.TLSConfig()) //nolint: bodyclose
+	//nolint:bodyclose // bddutil.CloseResponseBody
+	resp, err := bddutil.HTTPDo(http.MethodPost, postURL, contentType, body, s.bddContext.TLSConfig())
 	if err != nil {
 		return err
 	}
 
-	defer bddutil.CloseResponseBody(resp.Body)
+	defer bddutil.CloseResponseBody(resp.Body, s.logger)
 
 	s.data = data
 	s.responseStatus = resp.StatusCode
@@ -384,16 +392,17 @@ func (s *Steps) sendVerifyMACReq(endpoint string) error {
 	return s.sendVerifyReq(endpoint, fmt.Sprintf(verifyMACReq, s.mac, s.data))
 }
 
+//nolint:bodyclose // bddutil.CloseResponseBody
 func (s *Steps) sendVerifyReq(endpoint, req string) error {
 	postURL := strings.ReplaceAll(endpoint, "{keyEndpoint}", s.responseLocation)
 	body := bytes.NewBuffer([]byte(req))
 
-	resp, err := bddutil.HTTPDo(http.MethodPost, postURL, contentType, body, s.bddContext.TLSConfig()) //nolint: bodyclose
+	resp, err := bddutil.HTTPDo(http.MethodPost, postURL, contentType, body, s.bddContext.TLSConfig())
 	if err != nil {
 		return err
 	}
 
-	defer bddutil.CloseResponseBody(resp.Body)
+	defer bddutil.CloseResponseBody(resp.Body, s.logger)
 
 	s.responseStatus = resp.StatusCode
 

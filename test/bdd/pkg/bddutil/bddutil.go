@@ -15,8 +15,6 @@ import (
 	"github.com/trustbloc/edge-core/pkg/log"
 )
 
-var logger = log.New("kms-rest-bdd-tests")
-
 // HTTPDo makes an HTTP request.
 func HTTPDo(method, url, contentType string, body io.Reader, tlsConfig *tls.Config) (*http.Response, error) {
 	req, err := http.NewRequestWithContext(context.Background(), method, url, body)
@@ -38,7 +36,7 @@ func HTTPDo(method, url, contentType string, body io.Reader, tlsConfig *tls.Conf
 }
 
 // CloseResponseBody closes the response body.
-func CloseResponseBody(respBody io.Closer) {
+func CloseResponseBody(respBody io.Closer, logger log.Logger) {
 	err := respBody.Close()
 	if err != nil {
 		logger.Errorf("Failed to close response body: %s", err.Error())

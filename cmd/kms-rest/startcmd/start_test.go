@@ -15,6 +15,15 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/require"
 	"github.com/trustbloc/edge-core/pkg/log"
+	"github.com/trustbloc/edge-core/pkg/log/mocklogger"
+)
+
+const (
+	logLevelCritical = "critical"
+	logLevelError    = "error"
+	logLevelWarn     = "warning"
+	logLevelInfo     = "info"
+	logLevelDebug    = "debug"
 )
 
 type mockServer struct{}
@@ -23,16 +32,20 @@ func (s *mockServer) ListenAndServe(host, certFile, keyFile string, router http.
 	return nil
 }
 
+func (s *mockServer) Logger() log.Logger {
+	return &mocklogger.MockLogger{}
+}
+
 func TestListenAndServe(t *testing.T) {
 	t.Run("test wrong host", func(t *testing.T) {
-		var w HTTPServer
+		var w httpServer
 		err := w.ListenAndServe("wronghost", "", "", nil)
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "address wronghost: missing port in address")
 	})
 
 	t.Run("test invalid key file", func(t *testing.T) {
-		var w HTTPServer
+		var w httpServer
 		err := w.ListenAndServe("localhost:8080", "test.key", "test.cert", nil)
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "open test.key: no such file or directory")

@@ -19,17 +19,16 @@ import (
 	"github.com/trustbloc/hub-kms/test/bdd/pkg/context"
 )
 
-var logger = log.New("healthcheck")
-
 // Steps defines steps for health check.
 type Steps struct {
 	bddContext *context.BDDContext
 	response   []byte
+	logger     log.Logger
 }
 
 // NewSteps creates steps for health check.
 func NewSteps() *Steps {
-	return &Steps{}
+	return &Steps{logger: log.New("kms-rest/tests/healthcheck")}
 }
 
 // RegisterSteps registers agent steps.
@@ -51,7 +50,7 @@ func (s *Steps) httpGet(url string) error {
 
 	defer func() {
 		if errClose := resp.Body.Close(); errClose != nil {
-			logger.Warnf("Error closing HTTP response from [%s]: %s", url, errClose)
+			s.logger.Warnf("Error closing HTTP response from [%s]: %s", url, errClose)
 		}
 	}()
 

@@ -13,8 +13,6 @@ import (
 	"github.com/trustbloc/hub-kms/cmd/kms-rest/startcmd"
 )
 
-var logger = log.New("kms-rest")
-
 func main() {
 	rootCmd := &cobra.Command{
 		Use: "kms-rest",
@@ -23,7 +21,9 @@ func main() {
 		},
 	}
 
-	rootCmd.AddCommand(startcmd.GetStartCmd(&startcmd.HTTPServer{}))
+	logger := log.New("kms-rest")
+	server := startcmd.NewHTTPServer(logger)
+	rootCmd.AddCommand(startcmd.GetStartCmd(server))
 
 	if err := rootCmd.Execute(); err != nil {
 		logger.Fatalf("Failed to run kms-rest: %s", err.Error())
