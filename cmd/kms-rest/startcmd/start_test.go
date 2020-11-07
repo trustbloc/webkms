@@ -237,14 +237,15 @@ func TestCreateOperationProvider(t *testing.T) {
 		require.NotNil(t, p.Logger())
 	})
 
-	t.Run("failed with CouchDB option", func(t *testing.T) {
+	// TODO(#53): don't depend on error message defined in external package
+	t.Run("Fail with CouchDB option", func(t *testing.T) {
 		p, err := createOperationProvider(&kmsRestParameters{
 			dbParams:           &dbParameters{databaseType: databaseTypeCouchDBOption, databaseURL: "url"},
 			kmsSecretsDBParams: &dbParameters{databaseType: databaseTypeCouchDBOption, databaseURL: "url"},
 		})
 
 		require.Error(t, err)
-		require.Contains(t, err.Error(), "failed to ping couchDB")
+		require.Contains(t, err.Error(), "failure while pinging couchDB")
 		require.Nil(t, p)
 	})
 
