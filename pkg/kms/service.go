@@ -14,7 +14,7 @@ import (
 	"github.com/trustbloc/hub-kms/pkg/keystore"
 )
 
-// Service provides kms/crypto functions on keys.
+// Service provides kms/crypto functionality.
 type Service interface {
 	CreateKey(keystoreID string, kt kms.KeyType) (string, error)
 	Sign(keystoreID, keyID string, msg []byte) ([]byte, error)
@@ -27,27 +27,27 @@ type Service interface {
 
 // Provider contains dependencies for the KMS service.
 type Provider interface {
-	Keystore() keystore.Repository
-	KeyManager() kms.KeyManager
+	KeystoreService() keystore.Service
+	OperationalKeyManager() kms.KeyManager
 	Crypto() crypto.Crypto
 }
 
 type service struct {
-	keystore   keystore.Repository
+	keystore   keystore.Service
 	keyManager kms.KeyManager
 	crypto     crypto.Crypto
 }
 
-// NewService returns a new KMS service with provided dependencies.
+// NewService returns a new Service instance.
 func NewService(provider Provider) Service {
 	return &service{
-		keystore:   provider.Keystore(),
-		keyManager: provider.KeyManager(),
+		keystore:   provider.KeystoreService(),
+		keyManager: provider.OperationalKeyManager(),
 		crypto:     provider.Crypto(),
 	}
 }
 
-// CreateKey creates a new key and associates it with a keystore.
+// CreateKey creates a new operational key and associates it with Keystore.
 func (s *service) CreateKey(keystoreID string, kt kms.KeyType) (string, error) {
 	keyID, _, err := s.keyManager.Create(kt)
 	if err != nil {
@@ -59,7 +59,7 @@ func (s *service) CreateKey(keystoreID string, kt kms.KeyType) (string, error) {
 		return "", NewServiceError(getKeystoreFailed, err)
 	}
 
-	k.KeyIDs = append(k.KeyIDs, keyID)
+	k.OperationalKeyIDs = append(k.OperationalKeyIDs, keyID)
 
 	err = s.keystore.Save(k)
 	if err != nil {
@@ -84,7 +84,7 @@ func (s *service) Sign(keystoreID, keyID string, msg []byte) ([]byte, error) {
 	return sig, nil
 }
 
-// Verify verifies a signature for the given message.
+// Verify verifies a signature for the message.
 func (s *service) Verify(keystoreID, keyID string, sig, msg []byte) error {
 	kh, err := s.getKeyHandle(keystoreID, keyID)
 	if err != nil {
@@ -104,7 +104,7 @@ func (s *service) Verify(keystoreID, keyID string, sig, msg []byte) error {
 	return nil
 }
 
-// Encrypt encrypts a message with aad.
+// Encrypt encrypts a message with additional authenticated data (AAD).
 func (s *service) Encrypt(keystoreID, keyID string, msg, aad []byte) ([]byte, []byte, error) {
 	kh, err := s.getKeyHandle(keystoreID, keyID)
 	if err != nil {
@@ -119,7 +119,7 @@ func (s *service) Encrypt(keystoreID, keyID string, msg, aad []byte) ([]byte, []
 	return cipher, nonce, nil
 }
 
-// Decrypt decrypts a cipher with aad and given nonce.
+// Decrypt decrypts a cipher with AAD and a nonce.
 func (s *service) Decrypt(keystoreID, keyID string, cipher, aad, nonce []byte) ([]byte, error) {
 	kh, err := s.getKeyHandle(keystoreID, keyID)
 	if err != nil {
@@ -149,7 +149,7 @@ func (s *service) ComputeMAC(keystoreID, keyID string, data []byte) ([]byte, err
 	return mac, nil
 }
 
-// VerifyMAC determines if mac is a correct authentication code (MAC) for data.
+// VerifyMAC determines if the given mac is a correct message authentication code (MAC) for data.
 func (s *service) VerifyMAC(keystoreID, keyID string, mac, data []byte) error {
 	kh, err := s.getKeyHandle(keystoreID, keyID)
 	if err != nil {
@@ -170,13 +170,13 @@ func (s *service) getKeyHandle(keystoreID, keyID string) (interface{}, error) {
 		return nil, NewServiceError(getKeystoreFailed, err)
 	}
 
-	if len(k.KeyIDs) == 0 {
+	if len(k.OperationalKeyIDs) == 0 {
 		return nil, NewServiceError(noKeysFailure, nil)
 	}
 
 	found := false
 
-	for _, id := range k.KeyIDs {
+	for _, id := range k.OperationalKeyIDs {
 		if id == keyID {
 			found = true
 

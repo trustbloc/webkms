@@ -31,17 +31,17 @@ const (
 )
 
 type kmsServiceProvider struct {
-	keystore   keystore.Repository
-	keyManager arieskms.KeyManager
-	crypto     crypto.Crypto
+	keystoreService       keystore.Service
+	operationalKeyManager arieskms.KeyManager
+	crypto                crypto.Crypto
 }
 
-func (k kmsServiceProvider) Keystore() keystore.Repository {
-	return k.keystore
+func (k kmsServiceProvider) KeystoreService() keystore.Service {
+	return k.keystoreService
 }
 
-func (k kmsServiceProvider) KeyManager() arieskms.KeyManager {
-	return k.keyManager
+func (k kmsServiceProvider) OperationalKeyManager() arieskms.KeyManager {
+	return k.operationalKeyManager
 }
 
 func (k kmsServiceProvider) Crypto() crypto.Crypto {
@@ -49,8 +49,8 @@ func (k kmsServiceProvider) Crypto() crypto.Crypto {
 }
 
 // NewKMSServiceCreator returns func to create KMS Service backed by LocalKMS and passphrase-based secret lock.
-func NewKMSServiceCreator(keystoreRepo keystore.Repository,
-	kmsSecretsStorageProvider ariesstorage.Provider) func(req *http.Request) (Service, error) {
+func NewKMSServiceCreator(keystoreService keystore.Service,
+	kmsStorageProvider ariesstorage.Provider) func(req *http.Request) (Service, error) {
 	return func(req *http.Request) (Service, error) {
 		keystoreID := mux.Vars(req)[keystoreIDQueryParam]
 		keyURI := fmt.Sprintf(masterKeyURI, keystoreID)
@@ -74,7 +74,7 @@ func NewKMSServiceCreator(keystoreRepo keystore.Repository,
 			return nil, err
 		}
 
-		keyManager, err := NewLocalKMS(keyURI, kmsSecretsStorageProvider, secLock)
+		keyManager, err := NewLocalKMS(keyURI, kmsStorageProvider, secLock)
 		if err != nil {
 			return nil, err
 		}
@@ -85,9 +85,9 @@ func NewKMSServiceCreator(keystoreRepo keystore.Repository,
 		}
 
 		provider := kmsServiceProvider{
-			keystore:   keystoreRepo,
-			keyManager: keyManager,
-			crypto:     c,
+			keystoreService:       keystoreService,
+			operationalKeyManager: keyManager,
+			crypto:                c,
 		}
 
 		return NewService(provider), nil

@@ -23,8 +23,8 @@ import (
 
 const (
 	testKeystoreID = "keystoreID"
-	testKeyType    = arieskms.ED25519
 	testKeyID      = "keyID"
+	testKeyType    = arieskms.ED25519
 	testMessage    = "test message"
 	testSignature  = "signature"
 	testAAD        = "additional data"
@@ -42,27 +42,26 @@ func TestNewService(t *testing.T) {
 func TestCreateKey(t *testing.T) {
 	t.Run("Success", func(t *testing.T) {
 		provider := mockkms.NewMockProvider()
-		provider.MockKeystore.Store[testKeystoreID] = &keystore.Keystore{
+		provider.MockKeyManager.CreateKeyID = testKeyID
+
+		k := &keystore.Keystore{
 			ID: testKeystoreID,
 		}
-		provider.MockKeyManager.CreateKeyID = testKeyID
+		provider.MockKeystoreService.GetKeystore = k
 
 		srv := kms.NewService(provider)
 		require.NotNil(t, srv)
 
 		keyID, err := srv.CreateKey(testKeystoreID, testKeyType)
-		require.NotEmpty(t, keyID)
+		require.Equal(t, testKeyID, keyID)
 		require.NoError(t, err)
 
-		k, ok := provider.MockKeystore.Store[testKeystoreID]
-		require.True(t, ok)
-		require.Equal(t, keyID, k.KeyIDs[0])
+		require.Contains(t, k.OperationalKeyIDs, keyID)
 	})
 
 	t.Run("Error: key create", func(t *testing.T) {
-		createKeyError := errors.New("create key error")
 		provider := mockkms.NewMockProvider()
-		provider.MockKeyManager.CreateKeyErr = createKeyError
+		provider.MockKeyManager.CreateKeyErr = errors.New("create key error")
 
 		srv := kms.NewService(provider)
 		require.NotNil(t, srv)
@@ -75,9 +74,8 @@ func TestCreateKey(t *testing.T) {
 	})
 
 	t.Run("Error: get keystore", func(t *testing.T) {
-		keystoreGetError := errors.New("get keystore error")
 		provider := mockkms.NewMockProvider()
-		provider.MockKeystore.ErrGet = keystoreGetError
+		provider.MockKeystoreService.GetErr = errors.New("get keystore error")
 
 		srv := kms.NewService(provider)
 		require.NotNil(t, srv)
@@ -90,13 +88,14 @@ func TestCreateKey(t *testing.T) {
 	})
 
 	t.Run("Error: save keystore", func(t *testing.T) {
-		keystoreSaveError := errors.New("save keystore error")
 		provider := mockkms.NewMockProvider()
-		provider.MockKeystore.ErrSave = keystoreSaveError
-		provider.MockKeystore.Store[testKeystoreID] = &keystore.Keystore{
+		provider.MockKeyManager.CreateKeyID = testKeyID
+
+		k := &keystore.Keystore{
 			ID: testKeystoreID,
 		}
-		provider.MockKeyManager.CreateKeyID = testKeyID
+		provider.MockKeystoreService.GetKeystore = k
+		provider.MockKeystoreService.SaveErr = errors.New("save keystore error")
 
 		srv := kms.NewService(provider)
 		require.NotNil(t, srv)
@@ -112,11 +111,13 @@ func TestCreateKey(t *testing.T) {
 func TestSign(t *testing.T) {
 	t.Run("Success", func(t *testing.T) {
 		provider := mockkms.NewMockProvider()
-		provider.MockKeystore.Store[testKeystoreID] = &keystore.Keystore{
-			ID:     testKeystoreID,
-			KeyIDs: []string{testKeyID},
-		}
 		provider.MockCrypto.SignValue = []byte("signature")
+
+		k := &keystore.Keystore{
+			ID:                testKeystoreID,
+			OperationalKeyIDs: []string{testKeyID},
+		}
+		provider.MockKeystoreService.GetKeystore = k
 
 		srv := kms.NewService(provider)
 		require.NotNil(t, srv)
@@ -128,9 +129,8 @@ func TestSign(t *testing.T) {
 	})
 
 	t.Run("Error: get keystore", func(t *testing.T) {
-		keystoreGetError := errors.New("get keystore error")
 		provider := mockkms.NewMockProvider()
-		provider.MockKeystore.ErrGet = keystoreGetError
+		provider.MockKeystoreService.GetErr = errors.New("get keystore error")
 
 		srv := kms.NewService(provider)
 		require.NotNil(t, srv)
@@ -144,9 +144,12 @@ func TestSign(t *testing.T) {
 
 	t.Run("Error: no keys defined", func(t *testing.T) {
 		provider := mockkms.NewMockProvider()
-		provider.MockKeystore.Store[testKeystoreID] = &keystore.Keystore{
+
+		k := &keystore.Keystore{
 			ID: testKeystoreID,
 		}
+		provider.MockKeystoreService.GetKeystore = k
+
 		srv := kms.NewService(provider)
 		require.NotNil(t, srv)
 
@@ -159,10 +162,13 @@ func TestSign(t *testing.T) {
 
 	t.Run("Error: invalid key ID", func(t *testing.T) {
 		provider := mockkms.NewMockProvider()
-		provider.MockKeystore.Store[testKeystoreID] = &keystore.Keystore{
-			ID:     testKeystoreID,
-			KeyIDs: []string{testKeyID},
+
+		k := &keystore.Keystore{
+			ID:                testKeystoreID,
+			OperationalKeyIDs: []string{testKeyID},
 		}
+		provider.MockKeystoreService.GetKeystore = k
+
 		srv := kms.NewService(provider)
 		require.NotNil(t, srv)
 
@@ -175,13 +181,13 @@ func TestSign(t *testing.T) {
 
 	t.Run("Error: get key", func(t *testing.T) {
 		provider := mockkms.NewMockProvider()
-		provider.MockKeystore.Store[testKeystoreID] = &keystore.Keystore{
-			ID:     testKeystoreID,
-			KeyIDs: []string{testKeyID},
-		}
+		provider.MockKeyManager.GetKeyErr = errors.New("get key error")
 
-		getKeyErr := errors.New("get key error")
-		provider.MockKeyManager.GetKeyErr = getKeyErr
+		k := &keystore.Keystore{
+			ID:                testKeystoreID,
+			OperationalKeyIDs: []string{testKeyID},
+		}
+		provider.MockKeystoreService.GetKeystore = k
 
 		srv := kms.NewService(provider)
 		require.NotNil(t, srv)
@@ -195,13 +201,13 @@ func TestSign(t *testing.T) {
 
 	t.Run("Error: sign message failed", func(t *testing.T) {
 		provider := mockkms.NewMockProvider()
-		provider.MockKeystore.Store[testKeystoreID] = &keystore.Keystore{
-			ID:     testKeystoreID,
-			KeyIDs: []string{testKeyID},
-		}
+		provider.MockCrypto.SignErr = errors.New("sign error")
 
-		signErr := errors.New("sign error")
-		provider.MockCrypto.SignErr = signErr
+		k := &keystore.Keystore{
+			ID:                testKeystoreID,
+			OperationalKeyIDs: []string{testKeyID},
+		}
+		provider.MockKeystoreService.GetKeystore = k
 
 		srv := kms.NewService(provider)
 		require.NotNil(t, srv)
@@ -217,15 +223,16 @@ func TestSign(t *testing.T) {
 func TestVerify(t *testing.T) {
 	t.Run("Success", func(t *testing.T) {
 		provider := mockkms.NewMockProvider()
-		provider.MockKeystore.Store[testKeystoreID] = &keystore.Keystore{
-			ID:     testKeystoreID,
-			KeyIDs: []string{testKeyID},
-		}
 
 		kh, err := keyset.NewHandle(signature.ED25519KeyTemplate())
 		require.NoError(t, err)
-
 		provider.MockKeyManager.GetKeyValue = kh
+
+		k := &keystore.Keystore{
+			ID:                testKeystoreID,
+			OperationalKeyIDs: []string{testKeyID},
+		}
+		provider.MockKeystoreService.GetKeystore = k
 
 		srv := kms.NewService(provider)
 		require.NotNil(t, srv)
@@ -235,9 +242,8 @@ func TestVerify(t *testing.T) {
 	})
 
 	t.Run("Error: get keystore", func(t *testing.T) {
-		keystoreGetError := errors.New("get keystore error")
 		provider := mockkms.NewMockProvider()
-		provider.MockKeystore.ErrGet = keystoreGetError
+		provider.MockKeystoreService.GetErr = errors.New("get keystore error")
 
 		srv := kms.NewService(provider)
 		require.NotNil(t, srv)
@@ -249,9 +255,12 @@ func TestVerify(t *testing.T) {
 
 	t.Run("Error: no keys defined", func(t *testing.T) {
 		provider := mockkms.NewMockProvider()
-		provider.MockKeystore.Store[testKeystoreID] = &keystore.Keystore{
+
+		k := &keystore.Keystore{
 			ID: testKeystoreID,
 		}
+		provider.MockKeystoreService.GetKeystore = k
+
 		srv := kms.NewService(provider)
 		require.NotNil(t, srv)
 
@@ -262,10 +271,13 @@ func TestVerify(t *testing.T) {
 
 	t.Run("Error: invalid key ID", func(t *testing.T) {
 		provider := mockkms.NewMockProvider()
-		provider.MockKeystore.Store[testKeystoreID] = &keystore.Keystore{
-			ID:     testKeystoreID,
-			KeyIDs: []string{testKeyID},
+
+		k := &keystore.Keystore{
+			ID:                testKeystoreID,
+			OperationalKeyIDs: []string{testKeyID},
 		}
+		provider.MockKeystoreService.GetKeystore = k
+
 		srv := kms.NewService(provider)
 		require.NotNil(t, srv)
 
@@ -276,13 +288,13 @@ func TestVerify(t *testing.T) {
 
 	t.Run("Error: get key", func(t *testing.T) {
 		provider := mockkms.NewMockProvider()
-		provider.MockKeystore.Store[testKeystoreID] = &keystore.Keystore{
-			ID:     testKeystoreID,
-			KeyIDs: []string{testKeyID},
-		}
+		provider.MockKeyManager.GetKeyErr = errors.New("get key error")
 
-		getKeyError := errors.New("get key error")
-		provider.MockKeyManager.GetKeyErr = getKeyError
+		k := &keystore.Keystore{
+			ID:                testKeystoreID,
+			OperationalKeyIDs: []string{testKeyID},
+		}
+		provider.MockKeystoreService.GetKeystore = k
 
 		srv := kms.NewService(provider)
 		require.NotNil(t, srv)
@@ -294,15 +306,16 @@ func TestVerify(t *testing.T) {
 
 	t.Run("Error: verify with bad key handle", func(t *testing.T) {
 		provider := mockkms.NewMockProvider()
-		provider.MockKeystore.Store[testKeystoreID] = &keystore.Keystore{
-			ID:     testKeystoreID,
-			KeyIDs: []string{testKeyID},
-		}
 
 		badKH, err := keyset.NewHandle(aead.KMSEnvelopeAEADKeyTemplate("badUrl", nil))
 		require.NoError(t, err)
-
 		provider.MockKeyManager.GetKeyValue = badKH
+
+		k := &keystore.Keystore{
+			ID:                testKeystoreID,
+			OperationalKeyIDs: []string{testKeyID},
+		}
+		provider.MockKeystoreService.GetKeystore = k
 
 		srv := kms.NewService(provider)
 		require.NotNil(t, srv)
@@ -313,16 +326,16 @@ func TestVerify(t *testing.T) {
 
 	t.Run("Error: invalid signature", func(t *testing.T) {
 		provider := mockkms.NewMockProvider()
-		provider.MockKeystore.Store[testKeystoreID] = &keystore.Keystore{
-			ID:     testKeystoreID,
-			KeyIDs: []string{testKeyID},
+		provider.MockCrypto.VerifyErr = errors.New("verify msg: invalid signature")
+
+		k := &keystore.Keystore{
+			ID:                testKeystoreID,
+			OperationalKeyIDs: []string{testKeyID},
 		}
-		invalidSignatureErr := errors.New("verify msg: invalid signature")
-		provider.MockCrypto.VerifyErr = invalidSignatureErr
+		provider.MockKeystoreService.GetKeystore = k
 
 		kh, err := keyset.NewHandle(signature.ED25519KeyTemplate())
 		require.NoError(t, err)
-
 		provider.MockKeyManager.GetKeyValue = kh
 
 		srv := kms.NewService(provider)
@@ -335,15 +348,16 @@ func TestVerify(t *testing.T) {
 
 	t.Run("Error: other verify error", func(t *testing.T) {
 		provider := mockkms.NewMockProvider()
-		provider.MockKeystore.Store[testKeystoreID] = &keystore.Keystore{
-			ID:     testKeystoreID,
-			KeyIDs: []string{testKeyID},
-		}
 		provider.MockCrypto.VerifyErr = errors.New("other verify error")
+
+		k := &keystore.Keystore{
+			ID:                testKeystoreID,
+			OperationalKeyIDs: []string{testKeyID},
+		}
+		provider.MockKeystoreService.GetKeystore = k
 
 		kh, err := keyset.NewHandle(signature.ED25519KeyTemplate())
 		require.NoError(t, err)
-
 		provider.MockKeyManager.GetKeyValue = kh
 
 		srv := kms.NewService(provider)
@@ -357,13 +371,14 @@ func TestVerify(t *testing.T) {
 func TestEncrypt(t *testing.T) {
 	t.Run("Success", func(t *testing.T) {
 		provider := mockkms.NewMockProvider()
-		provider.MockKeystore.Store[testKeystoreID] = &keystore.Keystore{
-			ID:     testKeystoreID,
-			KeyIDs: []string{testKeyID},
-		}
-
 		provider.MockCrypto.EncryptValue = []byte("cipher text")
 		provider.MockCrypto.EncryptNonceValue = []byte("nonce")
+
+		k := &keystore.Keystore{
+			ID:                testKeystoreID,
+			OperationalKeyIDs: []string{testKeyID},
+		}
+		provider.MockKeystoreService.GetKeystore = k
 
 		srv := kms.NewService(provider)
 		require.NotNil(t, srv)
@@ -375,9 +390,8 @@ func TestEncrypt(t *testing.T) {
 	})
 
 	t.Run("Error: get keystore", func(t *testing.T) {
-		keystoreGetError := errors.New("get keystore error")
 		provider := mockkms.NewMockProvider()
-		provider.MockKeystore.ErrGet = keystoreGetError
+		provider.MockKeystoreService.GetErr = errors.New("get keystore error")
 
 		srv := kms.NewService(provider)
 		require.NotNil(t, srv)
@@ -392,9 +406,12 @@ func TestEncrypt(t *testing.T) {
 
 	t.Run("Error: no keys defined", func(t *testing.T) {
 		provider := mockkms.NewMockProvider()
-		provider.MockKeystore.Store[testKeystoreID] = &keystore.Keystore{
+
+		k := &keystore.Keystore{
 			ID: testKeystoreID,
 		}
+		provider.MockKeystoreService.GetKeystore = k
+
 		srv := kms.NewService(provider)
 		require.NotNil(t, srv)
 
@@ -408,10 +425,13 @@ func TestEncrypt(t *testing.T) {
 
 	t.Run("Error: invalid key ID", func(t *testing.T) {
 		provider := mockkms.NewMockProvider()
-		provider.MockKeystore.Store[testKeystoreID] = &keystore.Keystore{
-			ID:     testKeystoreID,
-			KeyIDs: []string{testKeyID},
+
+		k := &keystore.Keystore{
+			ID:                testKeystoreID,
+			OperationalKeyIDs: []string{testKeyID},
 		}
+		provider.MockKeystoreService.GetKeystore = k
+
 		srv := kms.NewService(provider)
 		require.NotNil(t, srv)
 
@@ -425,13 +445,13 @@ func TestEncrypt(t *testing.T) {
 
 	t.Run("Error: get key", func(t *testing.T) {
 		provider := mockkms.NewMockProvider()
-		provider.MockKeystore.Store[testKeystoreID] = &keystore.Keystore{
-			ID:     testKeystoreID,
-			KeyIDs: []string{testKeyID},
-		}
+		provider.MockKeyManager.GetKeyErr = errors.New("get key error")
 
-		getKeyError := errors.New("get key error")
-		provider.MockKeyManager.GetKeyErr = getKeyError
+		k := &keystore.Keystore{
+			ID:                testKeystoreID,
+			OperationalKeyIDs: []string{testKeyID},
+		}
+		provider.MockKeystoreService.GetKeystore = k
 
 		srv := kms.NewService(provider)
 		require.NotNil(t, srv)
@@ -446,13 +466,13 @@ func TestEncrypt(t *testing.T) {
 
 	t.Run("Error: encrypt message failed", func(t *testing.T) {
 		provider := mockkms.NewMockProvider()
-		provider.MockKeystore.Store[testKeystoreID] = &keystore.Keystore{
-			ID:     testKeystoreID,
-			KeyIDs: []string{testKeyID},
-		}
+		provider.MockCrypto.EncryptErr = errors.New("encrypt error")
 
-		encryptErr := errors.New("encrypt error")
-		provider.MockCrypto.EncryptErr = encryptErr
+		k := &keystore.Keystore{
+			ID:                testKeystoreID,
+			OperationalKeyIDs: []string{testKeyID},
+		}
+		provider.MockKeystoreService.GetKeystore = k
 
 		srv := kms.NewService(provider)
 		require.NotNil(t, srv)
@@ -469,12 +489,13 @@ func TestEncrypt(t *testing.T) {
 func TestDecrypt(t *testing.T) {
 	t.Run("Success", func(t *testing.T) {
 		provider := mockkms.NewMockProvider()
-		provider.MockKeystore.Store[testKeystoreID] = &keystore.Keystore{
-			ID:     testKeystoreID,
-			KeyIDs: []string{testKeyID},
-		}
-
 		provider.MockCrypto.DecryptValue = []byte("plain text")
+
+		k := &keystore.Keystore{
+			ID:                testKeystoreID,
+			OperationalKeyIDs: []string{testKeyID},
+		}
+		provider.MockKeystoreService.GetKeystore = k
 
 		srv := kms.NewService(provider)
 		require.NotNil(t, srv)
@@ -486,9 +507,8 @@ func TestDecrypt(t *testing.T) {
 	})
 
 	t.Run("Error: get keystore", func(t *testing.T) {
-		keystoreGetError := errors.New("get keystore error")
 		provider := mockkms.NewMockProvider()
-		provider.MockKeystore.ErrGet = keystoreGetError
+		provider.MockKeystoreService.GetErr = errors.New("get keystore error")
 
 		srv := kms.NewService(provider)
 		require.NotNil(t, srv)
@@ -502,9 +522,12 @@ func TestDecrypt(t *testing.T) {
 
 	t.Run("Error: no keys defined", func(t *testing.T) {
 		provider := mockkms.NewMockProvider()
-		provider.MockKeystore.Store[testKeystoreID] = &keystore.Keystore{
+
+		k := &keystore.Keystore{
 			ID: testKeystoreID,
 		}
+		provider.MockKeystoreService.GetKeystore = k
+
 		srv := kms.NewService(provider)
 		require.NotNil(t, srv)
 
@@ -517,10 +540,13 @@ func TestDecrypt(t *testing.T) {
 
 	t.Run("Error: invalid key ID", func(t *testing.T) {
 		provider := mockkms.NewMockProvider()
-		provider.MockKeystore.Store[testKeystoreID] = &keystore.Keystore{
-			ID:     testKeystoreID,
-			KeyIDs: []string{testKeyID},
+
+		k := &keystore.Keystore{
+			ID:                testKeystoreID,
+			OperationalKeyIDs: []string{testKeyID},
 		}
+		provider.MockKeystoreService.GetKeystore = k
+
 		srv := kms.NewService(provider)
 		require.NotNil(t, srv)
 
@@ -533,13 +559,13 @@ func TestDecrypt(t *testing.T) {
 
 	t.Run("Error: get key", func(t *testing.T) {
 		provider := mockkms.NewMockProvider()
-		provider.MockKeystore.Store[testKeystoreID] = &keystore.Keystore{
-			ID:     testKeystoreID,
-			KeyIDs: []string{testKeyID},
-		}
+		provider.MockKeyManager.GetKeyErr = errors.New("get key error")
 
-		getKeyError := errors.New("get key error")
-		provider.MockKeyManager.GetKeyErr = getKeyError
+		k := &keystore.Keystore{
+			ID:                testKeystoreID,
+			OperationalKeyIDs: []string{testKeyID},
+		}
+		provider.MockKeystoreService.GetKeystore = k
 
 		srv := kms.NewService(provider)
 		require.NotNil(t, srv)
@@ -553,13 +579,13 @@ func TestDecrypt(t *testing.T) {
 
 	t.Run("Error: decrypt cipher failed", func(t *testing.T) {
 		provider := mockkms.NewMockProvider()
-		provider.MockKeystore.Store[testKeystoreID] = &keystore.Keystore{
-			ID:     testKeystoreID,
-			KeyIDs: []string{testKeyID},
-		}
+		provider.MockCrypto.DecryptErr = errors.New("decrypt error")
 
-		decryptErr := errors.New("decrypt error")
-		provider.MockCrypto.DecryptErr = decryptErr
+		k := &keystore.Keystore{
+			ID:                testKeystoreID,
+			OperationalKeyIDs: []string{testKeyID},
+		}
+		provider.MockKeystoreService.GetKeystore = k
 
 		srv := kms.NewService(provider)
 		require.NotNil(t, srv)
@@ -575,11 +601,13 @@ func TestDecrypt(t *testing.T) {
 func TestComputeMAC(t *testing.T) {
 	t.Run("Success", func(t *testing.T) {
 		provider := mockkms.NewMockProvider()
-		provider.MockKeystore.Store[testKeystoreID] = &keystore.Keystore{
-			ID:     testKeystoreID,
-			KeyIDs: []string{testKeyID},
-		}
 		provider.MockCrypto.ComputeMACValue = []byte("mac value")
+
+		k := &keystore.Keystore{
+			ID:                testKeystoreID,
+			OperationalKeyIDs: []string{testKeyID},
+		}
+		provider.MockKeystoreService.GetKeystore = k
 
 		srv := kms.NewService(provider)
 		require.NotNil(t, srv)
@@ -591,9 +619,8 @@ func TestComputeMAC(t *testing.T) {
 	})
 
 	t.Run("Error: get keystore", func(t *testing.T) {
-		keystoreGetError := errors.New("get keystore error")
 		provider := mockkms.NewMockProvider()
-		provider.MockKeystore.ErrGet = keystoreGetError
+		provider.MockKeystoreService.GetErr = errors.New("get keystore error")
 
 		srv := kms.NewService(provider)
 		require.NotNil(t, srv)
@@ -607,9 +634,12 @@ func TestComputeMAC(t *testing.T) {
 
 	t.Run("Error: no keys defined", func(t *testing.T) {
 		provider := mockkms.NewMockProvider()
-		provider.MockKeystore.Store[testKeystoreID] = &keystore.Keystore{
+
+		k := &keystore.Keystore{
 			ID: testKeystoreID,
 		}
+		provider.MockKeystoreService.GetKeystore = k
+
 		srv := kms.NewService(provider)
 		require.NotNil(t, srv)
 
@@ -622,10 +652,13 @@ func TestComputeMAC(t *testing.T) {
 
 	t.Run("Error: invalid key ID", func(t *testing.T) {
 		provider := mockkms.NewMockProvider()
-		provider.MockKeystore.Store[testKeystoreID] = &keystore.Keystore{
-			ID:     testKeystoreID,
-			KeyIDs: []string{testKeyID},
+
+		k := &keystore.Keystore{
+			ID:                testKeystoreID,
+			OperationalKeyIDs: []string{testKeyID},
 		}
+		provider.MockKeystoreService.GetKeystore = k
+
 		srv := kms.NewService(provider)
 		require.NotNil(t, srv)
 
@@ -638,13 +671,13 @@ func TestComputeMAC(t *testing.T) {
 
 	t.Run("Error: get key", func(t *testing.T) {
 		provider := mockkms.NewMockProvider()
-		provider.MockKeystore.Store[testKeystoreID] = &keystore.Keystore{
-			ID:     testKeystoreID,
-			KeyIDs: []string{testKeyID},
-		}
+		provider.MockKeyManager.GetKeyErr = errors.New("get key error")
 
-		getKeyError := errors.New("get key error")
-		provider.MockKeyManager.GetKeyErr = getKeyError
+		k := &keystore.Keystore{
+			ID:                testKeystoreID,
+			OperationalKeyIDs: []string{testKeyID},
+		}
+		provider.MockKeystoreService.GetKeystore = k
 
 		srv := kms.NewService(provider)
 		require.NotNil(t, srv)
@@ -658,13 +691,13 @@ func TestComputeMAC(t *testing.T) {
 
 	t.Run("Error: compute MAC failed", func(t *testing.T) {
 		provider := mockkms.NewMockProvider()
-		provider.MockKeystore.Store[testKeystoreID] = &keystore.Keystore{
-			ID:     testKeystoreID,
-			KeyIDs: []string{testKeyID},
-		}
+		provider.MockCrypto.ComputeMACErr = errors.New("compute MAC error")
 
-		computeMACErr := errors.New("compute MAC error")
-		provider.MockCrypto.ComputeMACErr = computeMACErr
+		k := &keystore.Keystore{
+			ID:                testKeystoreID,
+			OperationalKeyIDs: []string{testKeyID},
+		}
+		provider.MockKeystoreService.GetKeystore = k
 
 		srv := kms.NewService(provider)
 		require.NotNil(t, srv)
@@ -680,14 +713,15 @@ func TestComputeMAC(t *testing.T) {
 func TestVerifyMAC(t *testing.T) {
 	t.Run("Success", func(t *testing.T) {
 		provider := mockkms.NewMockProvider()
-		provider.MockKeystore.Store[testKeystoreID] = &keystore.Keystore{
-			ID:     testKeystoreID,
-			KeyIDs: []string{testKeyID},
+
+		k := &keystore.Keystore{
+			ID:                testKeystoreID,
+			OperationalKeyIDs: []string{testKeyID},
 		}
+		provider.MockKeystoreService.GetKeystore = k
 
 		kh, err := keyset.NewHandle(signature.ED25519KeyTemplate())
 		require.NoError(t, err)
-
 		provider.MockKeyManager.GetKeyValue = kh
 
 		srv := kms.NewService(provider)
@@ -698,9 +732,8 @@ func TestVerifyMAC(t *testing.T) {
 	})
 
 	t.Run("Error: get keystore", func(t *testing.T) {
-		keystoreGetError := errors.New("get keystore error")
 		provider := mockkms.NewMockProvider()
-		provider.MockKeystore.ErrGet = keystoreGetError
+		provider.MockKeystoreService.GetErr = errors.New("get keystore error")
 
 		srv := kms.NewService(provider)
 		require.NotNil(t, srv)
@@ -712,9 +745,12 @@ func TestVerifyMAC(t *testing.T) {
 
 	t.Run("Error: no keys defined", func(t *testing.T) {
 		provider := mockkms.NewMockProvider()
-		provider.MockKeystore.Store[testKeystoreID] = &keystore.Keystore{
+
+		k := &keystore.Keystore{
 			ID: testKeystoreID,
 		}
+		provider.MockKeystoreService.GetKeystore = k
+
 		srv := kms.NewService(provider)
 		require.NotNil(t, srv)
 
@@ -725,10 +761,13 @@ func TestVerifyMAC(t *testing.T) {
 
 	t.Run("Error: invalid key ID", func(t *testing.T) {
 		provider := mockkms.NewMockProvider()
-		provider.MockKeystore.Store[testKeystoreID] = &keystore.Keystore{
-			ID:     testKeystoreID,
-			KeyIDs: []string{testKeyID},
+
+		k := &keystore.Keystore{
+			ID:                testKeystoreID,
+			OperationalKeyIDs: []string{testKeyID},
 		}
+		provider.MockKeystoreService.GetKeystore = k
+
 		srv := kms.NewService(provider)
 		require.NotNil(t, srv)
 
@@ -739,13 +778,13 @@ func TestVerifyMAC(t *testing.T) {
 
 	t.Run("Error: get key", func(t *testing.T) {
 		provider := mockkms.NewMockProvider()
-		provider.MockKeystore.Store[testKeystoreID] = &keystore.Keystore{
-			ID:     testKeystoreID,
-			KeyIDs: []string{testKeyID},
-		}
+		provider.MockKeyManager.GetKeyErr = errors.New("get key error")
 
-		getKeyError := errors.New("get key error")
-		provider.MockKeyManager.GetKeyErr = getKeyError
+		k := &keystore.Keystore{
+			ID:                testKeystoreID,
+			OperationalKeyIDs: []string{testKeyID},
+		}
+		provider.MockKeystoreService.GetKeystore = k
 
 		srv := kms.NewService(provider)
 		require.NotNil(t, srv)
@@ -757,10 +796,12 @@ func TestVerifyMAC(t *testing.T) {
 
 	t.Run("Error: verify MAC failed", func(t *testing.T) {
 		provider := mockkms.NewMockProvider()
-		provider.MockKeystore.Store[testKeystoreID] = &keystore.Keystore{
-			ID:     testKeystoreID,
-			KeyIDs: []string{testKeyID},
+
+		k := &keystore.Keystore{
+			ID:                testKeystoreID,
+			OperationalKeyIDs: []string{testKeyID},
 		}
+		provider.MockKeystoreService.GetKeystore = k
 
 		kh, err := keyset.NewHandle(signature.ED25519KeyTemplate())
 		require.NoError(t, err)

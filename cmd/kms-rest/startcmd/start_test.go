@@ -59,7 +59,7 @@ func TestStartCmdContents(t *testing.T) {
 	require.Equal(t, "Start kms-rest", startCmd.Short)
 	require.Equal(t, "Start kms-rest inside the hub-kms", startCmd.Long)
 
-	checkFlagPropertiesCorrect(t, startCmd, hostURLFlagName, hostURLFlagShorthand, hostURLFlagUsage)
+	checkFlagPropertiesCorrect(t, startCmd, hostURLFlagName, "", hostURLFlagUsage)
 }
 
 func TestStartCmdWithBlankArg(t *testing.T) {
@@ -67,6 +67,7 @@ func TestStartCmdWithBlankArg(t *testing.T) {
 		hostURLFlagName,
 		databaseTypeFlagName, databaseURLFlagName, databasePrefixFlagName,
 		kmsDatabaseTypeFlagName, kmsDatabaseURLFlagName, kmsDatabasePrefixFlagName,
+		operationalKMSDatabaseTypeFlagName, operationalKMSDatabaseURLFlagName, operationalKMSDatabasePrefixFlagName,
 		tlsServeCertPathFlagName, tlsServeKeyPathFlagName, logLevelFlagName,
 	}
 
@@ -94,6 +95,7 @@ func TestStartCmdWithMissingArg(t *testing.T) {
 		args := []string{
 			"--" + databaseTypeFlagName, databaseTypeMemOption,
 			"--" + kmsDatabaseTypeFlagName, databaseTypeMemOption,
+			"--" + operationalKMSDatabaseTypeFlagName, databaseTypeMemOption,
 		}
 		startCmd.SetArgs(args)
 
@@ -101,7 +103,7 @@ func TestStartCmdWithMissingArg(t *testing.T) {
 
 		require.Error(t, err)
 		require.Equal(t, "Neither host-url (command line flag) nor "+
-			"KMS_REST_HOST_URL (environment variable) have been set.",
+			"KMS_HOST_URL (environment variable) have been set.",
 			err.Error())
 	})
 
@@ -111,30 +113,50 @@ func TestStartCmdWithMissingArg(t *testing.T) {
 		args := []string{
 			"--" + hostURLFlagName, "hostname",
 			"--" + kmsDatabaseTypeFlagName, databaseTypeMemOption,
+			"--" + operationalKMSDatabaseTypeFlagName, databaseTypeMemOption,
 		}
 		startCmd.SetArgs(args)
 
 		err := startCmd.Execute()
 		require.Error(t, err)
 		require.Equal(t, "Neither database-type (command line flag) nor "+
-			"DATABASE_TYPE (environment variable) have been set.",
+			"KMS_DATABASE_TYPE (environment variable) have been set.",
 			err.Error())
 	})
 
-	t.Run("test missing kms-secrets-database-type arg", func(t *testing.T) {
+	t.Run("test missing key-manager-database-type arg", func(t *testing.T) {
 		startCmd := GetStartCmd(&mockServer{})
 
 		args := []string{
 			"--" + hostURLFlagName, "hostname",
 			"--" + databaseTypeFlagName, databaseTypeMemOption,
+			"--" + operationalKMSDatabaseTypeFlagName, databaseTypeMemOption,
 		}
 		startCmd.SetArgs(args)
 
 		err := startCmd.Execute()
 
 		require.Error(t, err)
-		require.Equal(t, "Neither kms-secrets-database-type (command line flag) nor "+
-			"KMS_SECRETS_DATABASE_TYPE (environment variable) have been set.",
+		require.Equal(t, "Neither key-manager-database-type (command line flag) nor "+
+			"KMS_KEY_MANAGER_DATABASE_TYPE (environment variable) have been set.",
+			err.Error())
+	})
+
+	t.Run("test missing operational-key-manager-database-type arg", func(t *testing.T) {
+		startCmd := GetStartCmd(&mockServer{})
+
+		args := []string{
+			"--" + hostURLFlagName, "hostname",
+			"--" + databaseTypeFlagName, databaseTypeMemOption,
+			"--" + kmsDatabaseTypeFlagName, databaseTypeMemOption,
+		}
+		startCmd.SetArgs(args)
+
+		err := startCmd.Execute()
+
+		require.Error(t, err)
+		require.Equal(t, "Neither operational-key-manager-database-type (command line flag) nor "+
+			"KMS_OPERATIONAL_KEY_MANAGER_DATABASE_TYPE (environment variable) have been set.",
 			err.Error())
 	})
 }
@@ -148,7 +170,7 @@ func TestStartCmdWithBlankEnvVar(t *testing.T) {
 
 		err = startCmd.Execute()
 		require.Error(t, err)
-		require.Equal(t, "KMS_REST_HOST_URL value is empty", err.Error())
+		require.Equal(t, "KMS_HOST_URL value is empty", err.Error())
 	})
 }
 
@@ -159,6 +181,7 @@ func TestStartCmdValidArgs(t *testing.T) {
 		"--" + hostURLFlagName, "localhost:8080",
 		"--" + databaseTypeFlagName, databaseTypeMemOption,
 		"--" + kmsDatabaseTypeFlagName, databaseTypeMemOption,
+		"--" + operationalKMSDatabaseTypeFlagName, databaseTypeMemOption,
 	}
 	startCmd.SetArgs(args)
 
@@ -198,6 +221,7 @@ func TestStartCmdLogLevels(t *testing.T) {
 			"--" + hostURLFlagName, "localhost:8080",
 			"--" + databaseTypeFlagName, databaseTypeMemOption,
 			"--" + kmsDatabaseTypeFlagName, databaseTypeMemOption,
+			"--" + operationalKMSDatabaseTypeFlagName, databaseTypeMemOption,
 		}
 
 		if tt.in != "" {
@@ -216,7 +240,7 @@ func TestStartKMSService(t *testing.T) {
 	t.Run("Fail to create operation provider", func(t *testing.T) {
 		err := startKmsService(&kmsRestParameters{
 			dbParams:           &dbParameters{databaseType: "invalid"},
-			kmsSecretsDBParams: &dbParameters{databaseType: databaseTypeMemOption},
+			keyManagerDBParams: &dbParameters{databaseType: databaseTypeMemOption},
 		}, &mockServer{})
 
 		require.Error(t, err)
@@ -226,8 +250,9 @@ func TestStartKMSService(t *testing.T) {
 func TestCreateOperationProvider(t *testing.T) {
 	t.Run("Success with in-memory db option", func(t *testing.T) {
 		p, err := createOperationProvider(&kmsRestParameters{
-			dbParams:           &dbParameters{databaseType: databaseTypeMemOption},
-			kmsSecretsDBParams: &dbParameters{databaseType: databaseTypeMemOption},
+			dbParams:                      &dbParameters{databaseType: databaseTypeMemOption},
+			keyManagerDBParams:            &dbParameters{databaseType: databaseTypeMemOption},
+			operationalKeyManagerDBParams: &dbParameters{databaseType: databaseTypeMemOption},
 		})
 
 		require.NoError(t, err)
@@ -241,7 +266,7 @@ func TestCreateOperationProvider(t *testing.T) {
 	t.Run("Fail with CouchDB option", func(t *testing.T) {
 		p, err := createOperationProvider(&kmsRestParameters{
 			dbParams:           &dbParameters{databaseType: databaseTypeCouchDBOption, databaseURL: "url"},
-			kmsSecretsDBParams: &dbParameters{databaseType: databaseTypeCouchDBOption, databaseURL: "url"},
+			keyManagerDBParams: &dbParameters{databaseType: databaseTypeCouchDBOption, databaseURL: "url"},
 		})
 
 		require.Error(t, err)
@@ -252,7 +277,7 @@ func TestCreateOperationProvider(t *testing.T) {
 	t.Run("Fail with invalid db option", func(t *testing.T) {
 		p, err := createOperationProvider(&kmsRestParameters{
 			dbParams:           &dbParameters{databaseType: "invalid"},
-			kmsSecretsDBParams: &dbParameters{databaseType: databaseTypeMemOption},
+			keyManagerDBParams: &dbParameters{databaseType: databaseTypeMemOption},
 		})
 
 		require.Nil(t, p)
@@ -262,7 +287,7 @@ func TestCreateOperationProvider(t *testing.T) {
 	t.Run("Fail with invalid kms secrets db option", func(t *testing.T) {
 		p, err := createOperationProvider(&kmsRestParameters{
 			dbParams:           &dbParameters{databaseType: databaseTypeMemOption},
-			kmsSecretsDBParams: &dbParameters{databaseType: "invalid"},
+			keyManagerDBParams: &dbParameters{databaseType: "invalid"},
 		})
 
 		require.Nil(t, p)
@@ -295,6 +320,9 @@ func setEnvVars(t *testing.T) {
 
 	err = os.Setenv(kmsDatabaseTypeEnvKey, databaseTypeMemOption)
 	require.NoError(t, err)
+
+	err = os.Setenv(operationalKMSDatabaseTypeEnvKey, databaseTypeMemOption)
+	require.NoError(t, err)
 }
 
 func unsetEnvVars(t *testing.T) {
@@ -305,6 +333,9 @@ func unsetEnvVars(t *testing.T) {
 	require.NoError(t, err)
 
 	err = os.Unsetenv(kmsDatabaseTypeEnvKey)
+	require.NoError(t, err)
+
+	err = os.Unsetenv(operationalKMSDatabaseTypeEnvKey)
 	require.NoError(t, err)
 }
 

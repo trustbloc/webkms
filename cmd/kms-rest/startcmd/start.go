@@ -13,6 +13,9 @@ import (
 
 	"github.com/gorilla/mux"
 	ariescouchdbstorage "github.com/hyperledger/aries-framework-go-ext/component/storage/couchdb"
+	arieskms "github.com/hyperledger/aries-framework-go/pkg/kms"
+	"github.com/hyperledger/aries-framework-go/pkg/secretlock"
+	"github.com/hyperledger/aries-framework-go/pkg/secretlock/noop"
 	ariesstorage "github.com/hyperledger/aries-framework-go/pkg/storage"
 	ariesmemstorage "github.com/hyperledger/aries-framework-go/pkg/storage/mem"
 	"github.com/rs/cors"
@@ -34,57 +37,68 @@ import (
 const (
 	commonEnvVarUsageText = "Alternatively, this can be set with the following environment variable: "
 
-	hostURLFlagName      = "host-url"
-	hostURLFlagShorthand = "u"
-	hostURLFlagUsage     = "URL to run the kms-rest instance on. Format: HostName:Port."
-	hostURLEnvKey        = "KMS_REST_HOST_URL"
+	hostURLFlagName  = "host-url"
+	hostURLFlagUsage = "URL to run the KMS instance on. Format: HostName:Port."
+	hostURLEnvKey    = "KMS_HOST_URL"
 
-	databaseTypeFlagName      = "database-type"
-	databaseTypeEnvKey        = "DATABASE_TYPE"
-	databaseTypeFlagShorthand = "t"
-	databaseTypeFlagUsage     = "The type of database to use for storing metadata about keystores and" +
+	databaseTypeFlagName  = "database-type"
+	databaseTypeEnvKey    = "KMS_DATABASE_TYPE"
+	databaseTypeFlagUsage = "The type of database to use for storing metadata about keystores and " +
 		"associated keys. Supported options: mem, couchdb. " + commonEnvVarUsageText + databaseTypeEnvKey
 
-	databaseURLFlagName      = "database-url"
-	databaseURLEnvKey        = "DATABASE_URL"
-	databaseURLFlagShorthand = "v"
-	databaseURLFlagUsage     = "The URL of the database. Not needed if using in-memory storage. " +
+	databaseURLFlagName  = "database-url"
+	databaseURLEnvKey    = "KMS_DATABASE_URL"
+	databaseURLFlagUsage = "The URL of the database. Not needed if using in-memory storage. " +
 		"For CouchDB, include the username:password@ text if required. " + commonEnvVarUsageText + databaseURLEnvKey
 
 	databasePrefixFlagName  = "database-prefix"
-	databasePrefixEnvKey    = "DATABASE_PREFIX"
+	databasePrefixEnvKey    = "KMS_DATABASE_PREFIX"
 	databasePrefixFlagUsage = "An optional prefix to be used when creating and retrieving underlying databases. " +
 		commonEnvVarUsageText + databasePrefixEnvKey
 
-	kmsDatabaseTypeFlagName      = "kms-secrets-database-type"
-	kmsDatabaseTypeEnvKey        = "KMS_SECRETS_DATABASE_TYPE"
-	kmsDatabaseTypeFlagShorthand = "k"
-	kmsDatabaseTypeFlagUsage     = "The type of database to use for storing KMS secrets. " +
+	kmsDatabaseTypeFlagName  = "key-manager-database-type"
+	kmsDatabaseTypeEnvKey    = "KMS_KEY_MANAGER_DATABASE_TYPE"
+	kmsDatabaseTypeFlagUsage = "The type of database to use for storing KeyManager secrets. " +
 		"Supported options: mem, couchdb. " + commonEnvVarUsageText + kmsDatabaseTypeEnvKey
 
-	kmsDatabaseURLFlagName      = "kms-secrets-database-url"
-	kmsDatabaseURLEnvKey        = "KMS_SECRETS_DATABASE_URL"
-	kmsDatabaseURLFlagShorthand = "s"
-	kmsDatabaseURLFlagUsage     = "The URL of the database for KMS secrets. Not needed if using in-memory storage. " +
+	kmsDatabaseURLFlagName  = "key-manager-database-url"
+	kmsDatabaseURLEnvKey    = "KMS_KEY_MANAGER_DATABASE_URL"
+	kmsDatabaseURLFlagUsage = "The URL of the database for KMS secrets. Not needed if using in-memory storage. " +
 		"For CouchDB, include the username:password@ text if required. " + commonEnvVarUsageText + kmsDatabaseURLEnvKey
 
-	kmsDatabasePrefixFlagName  = "kms-secrets-database-prefix"
-	kmsDatabasePrefixEnvKey    = "KMS_SECRETS_DATABASE_PREFIX"
+	kmsDatabasePrefixFlagName  = "key-manager-database-prefix"
+	kmsDatabasePrefixEnvKey    = "KMS_KEY_MANAGER_DATABASE_PREFIX"
 	kmsDatabasePrefixFlagUsage = "An optional prefix to be used when creating and retrieving the underlying " +
-		"KMS secrets database. " + commonEnvVarUsageText + kmsDatabasePrefixEnvKey
+		"KeyManager secrets database. " + commonEnvVarUsageText + kmsDatabasePrefixEnvKey
+
+	operationalKMSDatabaseTypeFlagName  = "operational-key-manager-database-type"
+	operationalKMSDatabaseTypeEnvKey    = "KMS_OPERATIONAL_KEY_MANAGER_DATABASE_TYPE"
+	operationalKMSDatabaseTypeFlagUsage = "The type of database to use for storing Operational KeyManager secrets. " +
+		"Supported options: mem, couchdb. " + commonEnvVarUsageText + operationalKMSDatabaseTypeEnvKey
+
+	operationalKMSDatabaseURLFlagName  = "operational-key-manager-database-url"
+	operationalKMSDatabaseURLEnvKey    = "KMS_OPERATIONAL_KEY_MANAGER_DATABASE_URL"
+	operationalKMSDatabaseURLFlagUsage = "The URL of the database for Operational KeyManager secrets. Not needed if " +
+		"using in-memory storage. For CouchDB, include the username:password@ text if required. " +
+		commonEnvVarUsageText + operationalKMSDatabaseURLEnvKey
+
+	operationalKMSDatabasePrefixFlagName  = "operational-key-manager-database-prefix"
+	operationalKMSDatabasePrefixEnvKey    = "KMS_OPERATIONAL_KEY_MANAGER_DATABASE_PREFIX"
+	operationalKMSDatabasePrefixFlagUsage = "An optional prefix to be used when creating and retrieving the " +
+		"underlying Operational KeyManager secrets database. " + commonEnvVarUsageText + operationalKMSDatabasePrefixEnvKey
 
 	tlsServeCertPathFlagName  = "tls-serve-cert"
 	tlsServeCertPathFlagUsage = "Path to the server certificate to use when serving HTTPS. " +
 		commonEnvVarUsageText + tlsServeCertPathEnvKey
-	tlsServeCertPathEnvKey = "KMS_REST_TLS_SERVE_CERT"
+	tlsServeCertPathEnvKey = "KMS_TLS_SERVE_CERT"
 
 	tlsServeKeyPathFlagName  = "tls-serve-key"
 	tlsServeKeyPathFlagUsage = "Path to the private key to use when serving HTTPS. " +
 		commonEnvVarUsageText + tlsServeKeyPathFlagEnvKey
-	tlsServeKeyPathFlagEnvKey = "KMS_REST_TLS_SERVE_KEY"
+	tlsServeKeyPathFlagEnvKey = "KMS_TLS_SERVE_KEY"
 
 	logLevelFlagName        = "log-level"
-	logLevelEnvKey          = "KMS_REST_LOG_LEVEL"
+	logLevelEnvKey          = "KMS_LOG_LEVEL"
 	logLevelFlagShorthand   = "l"
 	logLevelPrefixFlagUsage = "Logging level to set. Supported options: critical, error, warning, info, debug. " +
 		`Defaults to "info". ` + commonEnvVarUsageText + logLevelEnvKey
@@ -151,15 +165,19 @@ func createStartCmd(srv Server) *cobra.Command {
 }
 
 func createFlags(startCmd *cobra.Command) {
-	startCmd.Flags().StringP(hostURLFlagName, hostURLFlagShorthand, "", hostURLFlagUsage)
+	startCmd.Flags().StringP(hostURLFlagName, "", "", hostURLFlagUsage)
 
-	startCmd.Flags().StringP(databaseTypeFlagName, databaseTypeFlagShorthand, "", databaseTypeFlagUsage)
-	startCmd.Flags().StringP(databaseURLFlagName, databaseURLFlagShorthand, "", databaseURLFlagUsage)
+	startCmd.Flags().StringP(databaseTypeFlagName, "", "", databaseTypeFlagUsage)
+	startCmd.Flags().StringP(databaseURLFlagName, "", "", databaseURLFlagUsage)
 	startCmd.Flags().StringP(databasePrefixFlagName, "", "", databasePrefixFlagUsage)
 
-	startCmd.Flags().StringP(kmsDatabaseTypeFlagName, kmsDatabaseTypeFlagShorthand, "", kmsDatabaseTypeFlagUsage)
-	startCmd.Flags().StringP(kmsDatabaseURLFlagName, kmsDatabaseURLFlagShorthand, "", kmsDatabaseURLFlagUsage)
+	startCmd.Flags().StringP(kmsDatabaseTypeFlagName, "", "", kmsDatabaseTypeFlagUsage)
+	startCmd.Flags().StringP(kmsDatabaseURLFlagName, "", "", kmsDatabaseURLFlagUsage)
 	startCmd.Flags().StringP(kmsDatabasePrefixFlagName, "", "", kmsDatabasePrefixFlagUsage)
+
+	startCmd.Flags().StringP(operationalKMSDatabaseTypeFlagName, "", "", operationalKMSDatabaseTypeFlagUsage)
+	startCmd.Flags().StringP(operationalKMSDatabaseURLFlagName, "", "", operationalKMSDatabaseURLFlagUsage)
+	startCmd.Flags().StringP(operationalKMSDatabasePrefixFlagName, "", "", operationalKMSDatabasePrefixFlagUsage)
 
 	startCmd.Flags().StringP(tlsServeCertPathFlagName, "", "", tlsServeCertPathFlagUsage)
 	startCmd.Flags().StringP(tlsServeKeyPathFlagName, "", "", tlsServeKeyPathFlagUsage)
@@ -168,11 +186,12 @@ func createFlags(startCmd *cobra.Command) {
 }
 
 type kmsRestParameters struct {
-	hostURL            string
-	tlsParams          *tlsParameters
-	dbParams           *dbParameters
-	kmsSecretsDBParams *dbParameters
-	logLevel           string
+	hostURL                       string
+	tlsParams                     *tlsParameters
+	dbParams                      *dbParameters
+	keyManagerDBParams            *dbParameters
+	operationalKeyManagerDBParams *dbParameters
+	logLevel                      string
 }
 
 type tlsParameters struct {
@@ -202,7 +221,12 @@ func getKmsRestParameters(cmd *cobra.Command) (*kmsRestParameters, error) {
 		return nil, err
 	}
 
-	kmsSecretsDBParams, err := getKMSSecretsDBParameters(cmd)
+	keyManagerDBParams, err := getKeyManagerDBParameters(cmd)
+	if err != nil {
+		return nil, err
+	}
+
+	operationalKeyManagerDBParams, err := getOperationalKeyManagerDBParameters(cmd)
 	if err != nil {
 		return nil, err
 	}
@@ -213,11 +237,12 @@ func getKmsRestParameters(cmd *cobra.Command) (*kmsRestParameters, error) {
 	}
 
 	return &kmsRestParameters{
-		hostURL:            hostURL,
-		tlsParams:          tlsParams,
-		dbParams:           dbParams,
-		kmsSecretsDBParams: kmsSecretsDBParams,
-		logLevel:           logLevel,
+		hostURL:                       hostURL,
+		tlsParams:                     tlsParams,
+		dbParams:                      dbParams,
+		keyManagerDBParams:            keyManagerDBParams,
+		operationalKeyManagerDBParams: operationalKeyManagerDBParams,
+		logLevel:                      logLevel,
 	}, nil
 }
 
@@ -263,7 +288,7 @@ func getDBParameters(cmd *cobra.Command) (*dbParameters, error) {
 	}, nil
 }
 
-func getKMSSecretsDBParameters(cmd *cobra.Command) (*dbParameters, error) {
+func getKeyManagerDBParameters(cmd *cobra.Command) (*dbParameters, error) {
 	dbType, err := cmdutils.GetUserSetVarFromString(cmd, kmsDatabaseTypeFlagName, kmsDatabaseTypeEnvKey, false)
 	if err != nil {
 		return nil, err
@@ -286,6 +311,32 @@ func getKMSSecretsDBParameters(cmd *cobra.Command) (*dbParameters, error) {
 	}, nil
 }
 
+func getOperationalKeyManagerDBParameters(cmd *cobra.Command) (*dbParameters, error) {
+	dbType, err := cmdutils.GetUserSetVarFromString(cmd, operationalKMSDatabaseTypeFlagName,
+		operationalKMSDatabaseTypeEnvKey, false)
+	if err != nil {
+		return nil, err
+	}
+
+	dbURL, err := cmdutils.GetUserSetVarFromString(cmd, operationalKMSDatabaseURLFlagName,
+		operationalKMSDatabaseURLEnvKey, true)
+	if err != nil {
+		return nil, err
+	}
+
+	dbPrefix, err := cmdutils.GetUserSetVarFromString(cmd, operationalKMSDatabasePrefixFlagName,
+		operationalKMSDatabasePrefixEnvKey, true)
+	if err != nil {
+		return nil, err
+	}
+
+	return &dbParameters{
+		databaseType:   dbType,
+		databaseURL:    dbURL,
+		databasePrefix: dbPrefix,
+	}, nil
+}
+
 func startKmsService(parameters *kmsRestParameters, srv Server) error {
 	if parameters.logLevel != "" {
 		setLogLevel(parameters.logLevel, srv)
@@ -294,7 +345,7 @@ func startKmsService(parameters *kmsRestParameters, srv Server) error {
 	router := mux.NewRouter()
 
 	// add healthcheck API handlers
-	healthCheckLogger := log.New("hub-kms-healthcheck")
+	healthCheckLogger := log.New("hub-kms/healthcheck")
 	healthCheckService := healthcheck.New(healthCheckLogger)
 
 	for _, handler := range healthCheckService.GetOperations() {
@@ -318,7 +369,7 @@ func startKmsService(parameters *kmsRestParameters, srv Server) error {
 		router.HandleFunc(handler.Path(), handler.Handle()).Methods(handler.Method())
 	}
 
-	srv.Logger().Infof("Starting KMS service on host %s", parameters.hostURL)
+	srv.Logger().Infof("Starting KMS on host %s", parameters.hostURL)
 
 	return srv.ListenAndServe(
 		parameters.hostURL,
@@ -357,23 +408,73 @@ func (p operationProvider) Logger() log.Logger {
 	return p.logger
 }
 
+type keystoreServiceProvider struct {
+	storageProvider    storage.Provider
+	keyManagerProvider arieskms.Provider
+	keyManagerCreator  arieskms.Creator
+}
+
+func (p keystoreServiceProvider) StorageProvider() storage.Provider {
+	return p.storageProvider
+}
+
+func (p keystoreServiceProvider) KeyManagerProvider() arieskms.Provider {
+	return p.keyManagerProvider
+}
+
+func (p keystoreServiceProvider) KeyManagerCreator() arieskms.Creator {
+	return p.keyManagerCreator
+}
+
+type kmsProvider struct {
+	storageProvider ariesstorage.Provider
+	secretLock      secretlock.Service
+}
+
+func (k kmsProvider) StorageProvider() ariesstorage.Provider {
+	return k.storageProvider
+}
+
+func (k kmsProvider) SecretLock() secretlock.Service {
+	return k.secretLock
+}
+
 func createOperationProvider(parameters *kmsRestParameters) (operation.Provider, error) {
 	storageProvider, err := getStorageProvider(parameters.dbParams)
 	if err != nil {
 		return nil, err
 	}
 
-	keystoreRepo := keystore.NewRepository(storageProvider)
+	keyManagerStorageProvider, err := getKMSStorageProvider(parameters.keyManagerDBParams)
+	if err != nil {
+		return nil, err
+	}
 
-	kmsSecretsStorageProvider, err := getKMSSecretsStorageProvider(parameters.kmsSecretsDBParams)
+	operationalKeyManagerStorageProvider, err := getKMSStorageProvider(parameters.operationalKeyManagerDBParams)
+	if err != nil {
+		return nil, err
+	}
+
+	keystoreServiceProv := keystoreServiceProvider{
+		storageProvider: storageProvider,
+		keyManagerProvider: &kmsProvider{
+			storageProvider: keyManagerStorageProvider,
+			secretLock:      &noop.NoLock{},
+		},
+		keyManagerCreator: func(provider arieskms.Provider) (arieskms.KeyManager, error) {
+			return kms.NewLocalKMS("local-lock://keystorekms", provider.StorageProvider(), provider.SecretLock())
+		},
+	}
+
+	keystoreService, err := keystore.NewService(keystoreServiceProv)
 	if err != nil {
 		return nil, err
 	}
 
 	return operationProvider{
-		keystoreService:   keystore.NewService(keystoreRepo),
-		kmsServiceCreator: kms.NewKMSServiceCreator(keystoreRepo, kmsSecretsStorageProvider),
-		logger:            log.New("hub-kms-restapi"),
+		keystoreService:   keystoreService,
+		kmsServiceCreator: kms.NewKMSServiceCreator(keystoreService, operationalKeyManagerStorageProvider),
+		logger:            log.New("hub-kms/restapi"),
 	}, nil
 }
 
@@ -388,7 +489,7 @@ func getStorageProvider(params *dbParameters) (storage.Provider, error) {
 	}
 }
 
-func getKMSSecretsStorageProvider(params *dbParameters) (ariesstorage.Provider, error) {
+func getKMSStorageProvider(params *dbParameters) (ariesstorage.Provider, error) {
 	switch {
 	case strings.EqualFold(params.databaseType, databaseTypeMemOption):
 		return ariesmemstorage.NewProvider(), nil

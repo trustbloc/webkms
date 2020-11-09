@@ -7,48 +7,132 @@ SPDX-License-Identifier: Apache-2.0
 package keystore
 
 import (
-	"time"
+	"encoding/json"
+	"errors"
 
-	"github.com/rs/xid"
+	arieskms "github.com/hyperledger/aries-framework-go/pkg/kms"
+	"github.com/trustbloc/edge-core/pkg/storage"
 )
 
-// Service provides functionality for working with a keystore.
+const (
+	storeName = "keystoredb"
+)
+
+// Service provides functionality for working with Keystore.
 type Service interface {
-	Create(controller string) (string, error)
+	Create(options ...Option) (*Keystore, error)
+	Get(keystoreID string) (*Keystore, error)
+	Save(k *Keystore) error
 }
 
-// Keystore represents vault metadata with a list of associated keys.
-type Keystore struct {
-	ID         string     `json:"id"`
-	Controller string     `json:"controller"`
-	KeyIDs     []string   `json:"keyIDs,omitempty"`
-	CreatedAt  *time.Time `json:"createdAt"`
+// Provider contains dependencies for the Keystore service.
+type Provider interface {
+	StorageProvider() storage.Provider
+	KeyManagerProvider() arieskms.Provider
+	KeyManagerCreator() arieskms.Creator
 }
 
 type service struct {
-	repo Repository
+	store      storage.Store
+	keyManager arieskms.KeyManager
 }
 
-// NewService returns a new Service instance with the specified repository.
-func NewService(repo Repository) Service {
-	return &service{repo: repo}
+// NewService returns a new Service instance.
+func NewService(provider Provider) (Service, error) {
+	err := provider.StorageProvider().CreateStore(storeName)
+	if err != nil && !errors.Is(err, storage.ErrDuplicateStore) {
+		return nil, err
+	}
+
+	store, err := provider.StorageProvider().OpenStore(storeName)
+	if err != nil {
+		return nil, err
+	}
+
+	keyManager, err := provider.KeyManagerCreator()(provider.KeyManagerProvider())
+	if err != nil {
+		return nil, err
+	}
+
+	return &service{
+		store:      store,
+		keyManager: keyManager,
+	}, nil
 }
 
-// Create creates a new keystore for the given controller (user).
-func (s *service) Create(controller string) (string, error) {
-	id := xid.New().String()
-	created := time.Now().UTC()
+// Create creates a new Keystore.
+func (s *service) Create(options ...Option) (*Keystore, error) {
+	opts := &Options{}
+
+	for i := range options {
+		options[i](opts)
+	}
 
 	k := &Keystore{
-		ID:         id,
-		Controller: controller,
-		CreatedAt:  &created,
+		ID:         opts.ID,
+		Controller: opts.Controller,
+		CreatedAt:  opts.CreatedAt,
 	}
 
-	err := s.repo.Save(k)
+	if opts.DelegateKeyType != "" {
+		keyID, _, err := s.keyManager.Create(opts.DelegateKeyType)
+		if err != nil {
+			return nil, err
+		}
+
+		k.DelegateKeyID = keyID
+	}
+
+	if opts.RecipientKeyType != "" {
+		keyID, _, err := s.keyManager.Create(opts.RecipientKeyType)
+		if err != nil {
+			return nil, err
+		}
+
+		k.RecipientKeyID = keyID
+	}
+
+	bytes, err := json.Marshal(k)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 
-	return id, nil
+	err = s.store.Put(k.ID, bytes)
+	if err != nil {
+		return nil, err
+	}
+
+	return k, nil
+}
+
+// Get retrieves Keystore by ID.
+func (s *service) Get(keystoreID string) (*Keystore, error) {
+	bytes, err := s.store.Get(keystoreID)
+	if err != nil {
+		return nil, err
+	}
+
+	var k Keystore
+
+	err = json.Unmarshal(bytes, &k)
+	if err != nil {
+		return nil, err
+	}
+
+	return &k, nil
+}
+
+// Save stores Keystore.
+func (s *service) Save(k *Keystore) error {
+	bytes, err := json.Marshal(k)
+	if err != nil {
+		return err
+	}
+
+	err = s.store.Put(k.ID, bytes)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }

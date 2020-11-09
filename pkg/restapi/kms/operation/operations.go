@@ -14,9 +14,11 @@ import (
 	"net/http"
 	"net/http/httputil"
 	"strings"
+	"time"
 
 	"github.com/gorilla/mux"
 	arieskms "github.com/hyperledger/aries-framework-go/pkg/kms"
+	"github.com/rs/xid"
 	"github.com/trustbloc/edge-core/pkg/log"
 
 	"github.com/trustbloc/hub-kms/pkg/internal/support"
@@ -107,14 +109,23 @@ func (o *Operation) createKeystoreHandler(rw http.ResponseWriter, req *http.Requ
 		return
 	}
 
-	keystoreID, err := o.keystoreService.Create(request.Controller)
+	createdAt := time.Now().UTC()
+	opts := []keystore.Option{
+		keystore.WithID(xid.New().String()),
+		keystore.WithController(request.Controller),
+		keystore.WithDelegateKeyType(arieskms.ED25519Type),
+		keystore.WithRecipientKeyType(arieskms.ED25519Type),
+		keystore.WithCreatedAt(&createdAt),
+	}
+
+	k, err := o.keystoreService.Create(opts...)
 	if err != nil {
 		o.writeErrorResponse(rw, http.StatusInternalServerError, createKeystoreFailure, err)
 
 		return
 	}
 
-	rw.Header().Set("Location", keystoreLocation(req.Host, keystoreID))
+	rw.Header().Set("Location", keystoreLocation(req.Host, k.ID))
 	rw.WriteHeader(http.StatusCreated)
 }
 
