@@ -18,27 +18,27 @@ import (
 
 // MockProvider is a mock Provider for KMS service.
 type MockProvider struct {
-	MockKeystore   *mockkeystore.MockRepository
-	MockKeyManager *mockkms.KeyManager
-	MockCrypto     *mockcrypto.Crypto
+	MockKeystoreService *mockkeystore.MockService
+	MockKeyManager      *mockkms.KeyManager
+	MockCrypto          *mockcrypto.Crypto
 }
 
-// NewMockProvider returns a new mock Provider for KMS service.
+// NewMockProvider returns a new mock Provider for the KMS service.
 func NewMockProvider() *MockProvider {
 	return &MockProvider{
-		MockKeystore:   mockkeystore.NewMockRepository(),
-		MockKeyManager: &mockkms.KeyManager{},
-		MockCrypto:     &mockcrypto.Crypto{},
+		MockKeystoreService: mockkeystore.NewMockService(),
+		MockKeyManager:      &mockkms.KeyManager{},
+		MockCrypto:          &mockcrypto.Crypto{},
 	}
 }
 
-// Keystore gets the keystore repository instance.
-func (p *MockProvider) Keystore() keystore.Repository {
-	return p.MockKeystore
+// KeystoreService gets the Keystore service instance.
+func (p *MockProvider) KeystoreService() keystore.Service {
+	return p.MockKeystoreService
 }
 
-// KeyManager gets the KeyManager instance.
-func (p *MockProvider) KeyManager() kms.KeyManager {
+// OperationalKeyManager gets the operational KeyManager instance.
+func (p *MockProvider) OperationalKeyManager() kms.KeyManager {
 	return p.MockKeyManager
 }
 

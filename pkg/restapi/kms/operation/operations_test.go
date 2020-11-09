@@ -20,6 +20,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	mockoperation "github.com/trustbloc/hub-kms/pkg/internal/mock/operation"
+	"github.com/trustbloc/hub-kms/pkg/keystore"
 	"github.com/trustbloc/hub-kms/pkg/restapi/kms/operation"
 )
 
@@ -87,6 +88,7 @@ func TestNew(t *testing.T) {
 func TestCreateKeystoreHandler(t *testing.T) {
 	t.Run("Success", func(t *testing.T) {
 		provider := mockoperation.NewMockProvider()
+		provider.MockKeystoreService.CreateKeystore = &keystore.Keystore{ID: testKeystoreID}
 		op := operation.New(provider)
 		handler := getHandler(t, op, keystoresEndpoint, http.MethodPost)
 

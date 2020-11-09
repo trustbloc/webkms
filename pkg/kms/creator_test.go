@@ -32,7 +32,7 @@ const (
 
 func TestNewKMSServiceCreator(t *testing.T) {
 	t.Run("Success", func(t *testing.T) {
-		creator := kms.NewKMSServiceCreator(keystore.NewMockRepository(), storage.NewMockStoreProvider())
+		creator := kms.NewKMSServiceCreator(keystore.NewMockService(), storage.NewMockStoreProvider())
 		req := buildPassphraseReq(t, "p@ssphrase")
 
 		srv, err := creator(req)
@@ -47,7 +47,7 @@ func TestNewKMSServiceCreator(t *testing.T) {
 	})
 
 	t.Run("Error: received empty request", func(t *testing.T) {
-		creator := kms.NewKMSServiceCreator(keystore.NewMockRepository(), storage.NewMockStoreProvider())
+		creator := kms.NewKMSServiceCreator(keystore.NewMockService(), storage.NewMockStoreProvider())
 		req, err := http.NewRequestWithContext(context.Background(), http.MethodPost, "", bytes.NewBuffer([]byte("")))
 		require.NoError(t, err)
 
@@ -59,7 +59,7 @@ func TestNewKMSServiceCreator(t *testing.T) {
 	})
 
 	t.Run("Error: passphrase is empty", func(t *testing.T) {
-		creator := kms.NewKMSServiceCreator(keystore.NewMockRepository(), storage.NewMockStoreProvider())
+		creator := kms.NewKMSServiceCreator(keystore.NewMockService(), storage.NewMockStoreProvider())
 		req := buildPassphraseReq(t, "")
 
 		srv, err := creator(req)
@@ -72,7 +72,7 @@ func TestNewKMSServiceCreator(t *testing.T) {
 	t.Run("Error: can't open store", func(t *testing.T) {
 		storageProv := storage.NewMockStoreProvider()
 		storageProv.ErrOpenStoreHandle = errors.New("open store err")
-		creator := kms.NewKMSServiceCreator(keystore.NewMockRepository(), storageProv)
+		creator := kms.NewKMSServiceCreator(keystore.NewMockService(), storageProv)
 		req := buildPassphraseReq(t, "p@ssphrase")
 
 		srv, err := creator(req)
