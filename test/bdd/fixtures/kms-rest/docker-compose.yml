@@ -12,17 +12,18 @@ services:
     image: ${KMS_REST_IMAGE}:latest
     environment:
       - KMS_HOST_URL=0.0.0.0:8076
+      - KMS_CACERTS=/etc/tls/ec-cacert.pem
       - KMS_TLS_SERVE_CERT=/etc/tls/ec-pubCert.pem
       - KMS_TLS_SERVE_KEY=/etc/tls/ec-key.pem
       - KMS_DATABASE_TYPE=couchdb
       - KMS_DATABASE_URL=admin:password@couchdb.example.com:5984
       - KMS_DATABASE_PREFIX=keystore
-      - KMS_KEY_MANAGER_DATABASE_TYPE=couchdb
-      - KMS_KEY_MANAGER_DATABASE_URL=admin:password@couchdb.example.com:5984
-      - KMS_KEY_MANAGER_DATABASE_PREFIX=kms
-      - KMS_OPERATIONAL_KEY_MANAGER_DATABASE_TYPE=couchdb
-      - KMS_OPERATIONAL_KEY_MANAGER_DATABASE_URL=admin:password@couchdb.example.com:5984
-      - KMS_OPERATIONAL_KEY_MANAGER_DATABASE_PREFIX=operationalkms
+      - KMS_SECRETS_DATABASE_TYPE=couchdb
+      - KMS_SECRETS_DATABASE_URL=admin:password@couchdb.example.com:5984
+      - KMS_SECRETS_DATABASE_PREFIX=kms
+      - KMS_OPERATIONAL_KMS_STORAGE_TYPE=couchdb
+      - KMS_OPERATIONAL_KMS_STORAGE_URL=admin:password@couchdb.example.com:5984
+      - KMS_OPERATIONAL_KMS_STORAGE_PREFIX=opkms
     ports:
       - 8076:8076
     entrypoint: ""

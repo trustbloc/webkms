@@ -11,19 +11,27 @@ Start the server with `./kms-rest start [flags]`.
 Parameters can be set by command line arguments or environment variables:
 
 ```
--u, --host-url string                     URL to run the kms-rest instance on. Format: HostName:Port.
-    --tls-serve-cert string               Path to the server certificate to use when serving HTTPS. Alternatively, this can be set with the following environment variable: KMS_REST_TLS_SERVE_CERT
-    --tls-serve-key string                Path to the private key to use when serving HTTPS. Alternatively, this can be set with the following environment variable: KMS_REST_TLS_SERVE_KEY
+    --host-url string                         URL to run the KMS instance on. Format: HostName:Port.
 
--t, --database-type string                The type of database to use for storing metadata about keystores andassociated keys. Supported options: mem, couchdb. Alternatively, this can be set with the following environment variable: DATABASE_TYPE
--v, --database-url string                 The URL of the database. Not needed if using in-memory storage. For CouchDB, include the username:password@ text if required. Alternatively, this can be set with the following environment variable: DATABASE_URL
-    --database-prefix string              An optional prefix to be used when creating and retrieving underlying databases. Alternatively, this can be set with the following environment variable: DATABASE_PREFIX
+-l, --log-level string                        Logging level to set. Supported options: critical, error, warning, info, debug. Defaults to "info". Alternatively, this can be set with the following environment variable: KMS_LOG_LEVEL
 
--k, --kms-secrets-database-type string    The type of database to use for storing KMS secrets. Supported options: mem, couchdb. Alternatively, this can be set with the following environment variable: KMS_SECRETS_DATABASE_TYPE
--s, --kms-secrets-database-url string     The URL of the database for KMS secrets. Not needed if using in-memory storage. For CouchDB, include the username:password@ text if required. Alternatively, this can be set with the following environment variable: KMS_SECRETS_DATABASE_URL
-    --kms-secrets-database-prefix string  An optional prefix to be used when creating and retrieving the underlying KMS secrets database. Alternatively, this can be set with the following environment variable: KMS_SECRETS_DATABASE_PREFIX
+-c, --tls-cacerts stringArray                 Comma-separated list of CA certs path. Alternatively, this can be set with the following environment variable: KMS_TLS_CACERTS
+-s, --tls-systemcertpool string               Use system certificate pool. Possible values [true] [false]. Defaults to false if not set. Alternatively, this can be set with the following environment variable: KMS_TLS_SYSTEMCERTPOOL
 
--l, --log-level string                    Logging level to set. Supported options: critical, error, warning, info, debug. Defaults to "info". Alternatively, this can be set with the following environment variable: KMS_REST_LOG_LEVEL
+    --tls-serve-cert string                   Path to the server certificate to use when serving HTTPS. Alternatively, this can be set with the following environment variable: KMS_TLS_SERVE_CERT
+    --tls-serve-key string                    Path to the private key to use when serving HTTPS. Alternatively, this can be set with the following environment variable: KMS_TLS_SERVE_KEY
+
+    --database-type string                    The type of database to use for storing metadata about keystores and associated keys. Supported options: mem, couchdb. Alternatively, this can be set with the following environment variable: KMS_DATABASE_TYPE
+    --database-url string                     The URL of the database. Not needed if using in-memory storage. For CouchDB, include the username:password@ text if required. Alternatively, this can be set with the following environment variable: KMS_DATABASE_URL
+    --database-prefix string                  An optional prefix to be used when creating and retrieving underlying databases. Alternatively, this can be set with the following environment variable: KMS_DATABASE_PREFIX
+
+    --kms-secrets-database-type string        The type of database to use for storing KMS secrets for Keystore. Supported options: mem, couchdb. Alternatively, this can be set with the following environment variable: KMS_SECRETS_DATABASE_TYPE
+    --kms-secrets-database-url string         The URL of the database for KMS secrets. Not needed if using in-memory storage. For CouchDB, include the username:password@ text if required. Alternatively, this can be set with the following environment variable: KMS_SECRETS_DATABASE_URL
+    --kms-secrets-database-prefix string      An optional prefix to be used when creating and retrieving the underlying KMS secrets database. Alternatively, this can be set with the following environment variable: KMS_SECRETS_DATABASE_PREFIX
+
+    --operational-kms-storage-type string     The type of storage to use for Operational (user-specific) KMS. Supported options: mem, couchdb, sds. Alternatively, this can be set with the following environment variable: KMS_OPERATIONAL_KMS_STORAGE_TYPE
+    --operational-kms-storage-url string      The URL of storage for Operational KMS. Not needed if using in-memory storage. For CouchDB, include the username:password@ text if required. Alternatively, this can be set with the following environment variable: KMS_OPERATIONAL_KMS_STORAGE_URL
+    --operational-kms-storage-prefix string   An optional prefix to be used when creating and retrieving the underlying Operational KMS storage. Alternatively, this can be set with the following environment variable: KMS_OPERATIONAL_KMS_STORAGE_PREFIX
 ```
 
 ## Example
@@ -31,6 +39,7 @@ Parameters can be set by command line arguments or environment variables:
 ```sh
 $ cd cmd/kms-rest
 $ go build
-$ ./kms-rest start --host-url localhost:8076 --database-type couchdb --database-url localhost:5984 --database-prefix keystore \
---kms-secrets-database-type couchdb --kms-secrets-database-url localhost:5984 --kms-secrets-database-prefix kms
+$ ./kms-rest start --host-url localhost:8076 --database-type couchdb --database-url admin:password@couchdb.example.com:5984 --database-prefix keystore \
+--kms-secrets-database-type couchdb --kms-secrets-database-url admin:password@couchdb.example.com:5984 --kms-secrets-database-prefix kms \
+--operational-kms-storage-type couchdb --operational-kms-storage-url admin:password@couchdb.example.com:5984 --operational-kms-storage-prefix opkms
 ```
