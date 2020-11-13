@@ -47,7 +47,7 @@ func TestCreateKey(t *testing.T) {
 		k := &keystore.Keystore{
 			ID: testKeystoreID,
 		}
-		provider.MockKeystoreService.GetKeystore = k
+		provider.MockKeystoreService.GetKeystoreValue = k
 
 		srv := kms.NewService(provider)
 		require.NotNil(t, srv)
@@ -94,7 +94,7 @@ func TestCreateKey(t *testing.T) {
 		k := &keystore.Keystore{
 			ID: testKeystoreID,
 		}
-		provider.MockKeystoreService.GetKeystore = k
+		provider.MockKeystoreService.GetKeystoreValue = k
 		provider.MockKeystoreService.SaveErr = errors.New("save keystore error")
 
 		srv := kms.NewService(provider)
@@ -117,7 +117,7 @@ func TestSign(t *testing.T) {
 			ID:                testKeystoreID,
 			OperationalKeyIDs: []string{testKeyID},
 		}
-		provider.MockKeystoreService.GetKeystore = k
+		provider.MockKeystoreService.GetKeystoreValue = k
 
 		srv := kms.NewService(provider)
 		require.NotNil(t, srv)
@@ -148,7 +148,7 @@ func TestSign(t *testing.T) {
 		k := &keystore.Keystore{
 			ID: testKeystoreID,
 		}
-		provider.MockKeystoreService.GetKeystore = k
+		provider.MockKeystoreService.GetKeystoreValue = k
 
 		srv := kms.NewService(provider)
 		require.NotNil(t, srv)
@@ -167,7 +167,7 @@ func TestSign(t *testing.T) {
 			ID:                testKeystoreID,
 			OperationalKeyIDs: []string{testKeyID},
 		}
-		provider.MockKeystoreService.GetKeystore = k
+		provider.MockKeystoreService.GetKeystoreValue = k
 
 		srv := kms.NewService(provider)
 		require.NotNil(t, srv)
@@ -187,7 +187,7 @@ func TestSign(t *testing.T) {
 			ID:                testKeystoreID,
 			OperationalKeyIDs: []string{testKeyID},
 		}
-		provider.MockKeystoreService.GetKeystore = k
+		provider.MockKeystoreService.GetKeystoreValue = k
 
 		srv := kms.NewService(provider)
 		require.NotNil(t, srv)
@@ -207,7 +207,7 @@ func TestSign(t *testing.T) {
 			ID:                testKeystoreID,
 			OperationalKeyIDs: []string{testKeyID},
 		}
-		provider.MockKeystoreService.GetKeystore = k
+		provider.MockKeystoreService.GetKeystoreValue = k
 
 		srv := kms.NewService(provider)
 		require.NotNil(t, srv)
@@ -232,7 +232,7 @@ func TestVerify(t *testing.T) {
 			ID:                testKeystoreID,
 			OperationalKeyIDs: []string{testKeyID},
 		}
-		provider.MockKeystoreService.GetKeystore = k
+		provider.MockKeystoreService.GetKeystoreValue = k
 
 		srv := kms.NewService(provider)
 		require.NotNil(t, srv)
@@ -259,7 +259,7 @@ func TestVerify(t *testing.T) {
 		k := &keystore.Keystore{
 			ID: testKeystoreID,
 		}
-		provider.MockKeystoreService.GetKeystore = k
+		provider.MockKeystoreService.GetKeystoreValue = k
 
 		srv := kms.NewService(provider)
 		require.NotNil(t, srv)
@@ -276,7 +276,7 @@ func TestVerify(t *testing.T) {
 			ID:                testKeystoreID,
 			OperationalKeyIDs: []string{testKeyID},
 		}
-		provider.MockKeystoreService.GetKeystore = k
+		provider.MockKeystoreService.GetKeystoreValue = k
 
 		srv := kms.NewService(provider)
 		require.NotNil(t, srv)
@@ -294,7 +294,7 @@ func TestVerify(t *testing.T) {
 			ID:                testKeystoreID,
 			OperationalKeyIDs: []string{testKeyID},
 		}
-		provider.MockKeystoreService.GetKeystore = k
+		provider.MockKeystoreService.GetKeystoreValue = k
 
 		srv := kms.NewService(provider)
 		require.NotNil(t, srv)
@@ -315,7 +315,7 @@ func TestVerify(t *testing.T) {
 			ID:                testKeystoreID,
 			OperationalKeyIDs: []string{testKeyID},
 		}
-		provider.MockKeystoreService.GetKeystore = k
+		provider.MockKeystoreService.GetKeystoreValue = k
 
 		srv := kms.NewService(provider)
 		require.NotNil(t, srv)
@@ -332,7 +332,7 @@ func TestVerify(t *testing.T) {
 			ID:                testKeystoreID,
 			OperationalKeyIDs: []string{testKeyID},
 		}
-		provider.MockKeystoreService.GetKeystore = k
+		provider.MockKeystoreService.GetKeystoreValue = k
 
 		kh, err := keyset.NewHandle(signature.ED25519KeyTemplate())
 		require.NoError(t, err)
@@ -354,7 +354,7 @@ func TestVerify(t *testing.T) {
 			ID:                testKeystoreID,
 			OperationalKeyIDs: []string{testKeyID},
 		}
-		provider.MockKeystoreService.GetKeystore = k
+		provider.MockKeystoreService.GetKeystoreValue = k
 
 		kh, err := keyset.NewHandle(signature.ED25519KeyTemplate())
 		require.NoError(t, err)
@@ -378,7 +378,7 @@ func TestEncrypt(t *testing.T) {
 			ID:                testKeystoreID,
 			OperationalKeyIDs: []string{testKeyID},
 		}
-		provider.MockKeystoreService.GetKeystore = k
+		provider.MockKeystoreService.GetKeystoreValue = k
 
 		srv := kms.NewService(provider)
 		require.NotNil(t, srv)
@@ -410,7 +410,7 @@ func TestEncrypt(t *testing.T) {
 		k := &keystore.Keystore{
 			ID: testKeystoreID,
 		}
-		provider.MockKeystoreService.GetKeystore = k
+		provider.MockKeystoreService.GetKeystoreValue = k
 
 		srv := kms.NewService(provider)
 		require.NotNil(t, srv)
@@ -430,7 +430,7 @@ func TestEncrypt(t *testing.T) {
 			ID:                testKeystoreID,
 			OperationalKeyIDs: []string{testKeyID},
 		}
-		provider.MockKeystoreService.GetKeystore = k
+		provider.MockKeystoreService.GetKeystoreValue = k
 
 		srv := kms.NewService(provider)
 		require.NotNil(t, srv)
@@ -451,7 +451,7 @@ func TestEncrypt(t *testing.T) {
 			ID:                testKeystoreID,
 			OperationalKeyIDs: []string{testKeyID},
 		}
-		provider.MockKeystoreService.GetKeystore = k
+		provider.MockKeystoreService.GetKeystoreValue = k
 
 		srv := kms.NewService(provider)
 		require.NotNil(t, srv)
@@ -472,7 +472,7 @@ func TestEncrypt(t *testing.T) {
 			ID:                testKeystoreID,
 			OperationalKeyIDs: []string{testKeyID},
 		}
-		provider.MockKeystoreService.GetKeystore = k
+		provider.MockKeystoreService.GetKeystoreValue = k
 
 		srv := kms.NewService(provider)
 		require.NotNil(t, srv)
@@ -495,7 +495,7 @@ func TestDecrypt(t *testing.T) {
 			ID:                testKeystoreID,
 			OperationalKeyIDs: []string{testKeyID},
 		}
-		provider.MockKeystoreService.GetKeystore = k
+		provider.MockKeystoreService.GetKeystoreValue = k
 
 		srv := kms.NewService(provider)
 		require.NotNil(t, srv)
@@ -526,7 +526,7 @@ func TestDecrypt(t *testing.T) {
 		k := &keystore.Keystore{
 			ID: testKeystoreID,
 		}
-		provider.MockKeystoreService.GetKeystore = k
+		provider.MockKeystoreService.GetKeystoreValue = k
 
 		srv := kms.NewService(provider)
 		require.NotNil(t, srv)
@@ -545,7 +545,7 @@ func TestDecrypt(t *testing.T) {
 			ID:                testKeystoreID,
 			OperationalKeyIDs: []string{testKeyID},
 		}
-		provider.MockKeystoreService.GetKeystore = k
+		provider.MockKeystoreService.GetKeystoreValue = k
 
 		srv := kms.NewService(provider)
 		require.NotNil(t, srv)
@@ -565,7 +565,7 @@ func TestDecrypt(t *testing.T) {
 			ID:                testKeystoreID,
 			OperationalKeyIDs: []string{testKeyID},
 		}
-		provider.MockKeystoreService.GetKeystore = k
+		provider.MockKeystoreService.GetKeystoreValue = k
 
 		srv := kms.NewService(provider)
 		require.NotNil(t, srv)
@@ -585,7 +585,7 @@ func TestDecrypt(t *testing.T) {
 			ID:                testKeystoreID,
 			OperationalKeyIDs: []string{testKeyID},
 		}
-		provider.MockKeystoreService.GetKeystore = k
+		provider.MockKeystoreService.GetKeystoreValue = k
 
 		srv := kms.NewService(provider)
 		require.NotNil(t, srv)
@@ -607,7 +607,7 @@ func TestComputeMAC(t *testing.T) {
 			ID:                testKeystoreID,
 			OperationalKeyIDs: []string{testKeyID},
 		}
-		provider.MockKeystoreService.GetKeystore = k
+		provider.MockKeystoreService.GetKeystoreValue = k
 
 		srv := kms.NewService(provider)
 		require.NotNil(t, srv)
@@ -638,7 +638,7 @@ func TestComputeMAC(t *testing.T) {
 		k := &keystore.Keystore{
 			ID: testKeystoreID,
 		}
-		provider.MockKeystoreService.GetKeystore = k
+		provider.MockKeystoreService.GetKeystoreValue = k
 
 		srv := kms.NewService(provider)
 		require.NotNil(t, srv)
@@ -657,7 +657,7 @@ func TestComputeMAC(t *testing.T) {
 			ID:                testKeystoreID,
 			OperationalKeyIDs: []string{testKeyID},
 		}
-		provider.MockKeystoreService.GetKeystore = k
+		provider.MockKeystoreService.GetKeystoreValue = k
 
 		srv := kms.NewService(provider)
 		require.NotNil(t, srv)
@@ -677,7 +677,7 @@ func TestComputeMAC(t *testing.T) {
 			ID:                testKeystoreID,
 			OperationalKeyIDs: []string{testKeyID},
 		}
-		provider.MockKeystoreService.GetKeystore = k
+		provider.MockKeystoreService.GetKeystoreValue = k
 
 		srv := kms.NewService(provider)
 		require.NotNil(t, srv)
@@ -697,7 +697,7 @@ func TestComputeMAC(t *testing.T) {
 			ID:                testKeystoreID,
 			OperationalKeyIDs: []string{testKeyID},
 		}
-		provider.MockKeystoreService.GetKeystore = k
+		provider.MockKeystoreService.GetKeystoreValue = k
 
 		srv := kms.NewService(provider)
 		require.NotNil(t, srv)
@@ -718,7 +718,7 @@ func TestVerifyMAC(t *testing.T) {
 			ID:                testKeystoreID,
 			OperationalKeyIDs: []string{testKeyID},
 		}
-		provider.MockKeystoreService.GetKeystore = k
+		provider.MockKeystoreService.GetKeystoreValue = k
 
 		kh, err := keyset.NewHandle(signature.ED25519KeyTemplate())
 		require.NoError(t, err)
@@ -749,7 +749,7 @@ func TestVerifyMAC(t *testing.T) {
 		k := &keystore.Keystore{
 			ID: testKeystoreID,
 		}
-		provider.MockKeystoreService.GetKeystore = k
+		provider.MockKeystoreService.GetKeystoreValue = k
 
 		srv := kms.NewService(provider)
 		require.NotNil(t, srv)
@@ -766,7 +766,7 @@ func TestVerifyMAC(t *testing.T) {
 			ID:                testKeystoreID,
 			OperationalKeyIDs: []string{testKeyID},
 		}
-		provider.MockKeystoreService.GetKeystore = k
+		provider.MockKeystoreService.GetKeystoreValue = k
 
 		srv := kms.NewService(provider)
 		require.NotNil(t, srv)
@@ -784,7 +784,7 @@ func TestVerifyMAC(t *testing.T) {
 			ID:                testKeystoreID,
 			OperationalKeyIDs: []string{testKeyID},
 		}
-		provider.MockKeystoreService.GetKeystore = k
+		provider.MockKeystoreService.GetKeystoreValue = k
 
 		srv := kms.NewService(provider)
 		require.NotNil(t, srv)
@@ -801,7 +801,7 @@ func TestVerifyMAC(t *testing.T) {
 			ID:                testKeystoreID,
 			OperationalKeyIDs: []string{testKeyID},
 		}
-		provider.MockKeystoreService.GetKeystore = k
+		provider.MockKeystoreService.GetKeystoreValue = k
 
 		kh, err := keyset.NewHandle(signature.ED25519KeyTemplate())
 		require.NoError(t, err)

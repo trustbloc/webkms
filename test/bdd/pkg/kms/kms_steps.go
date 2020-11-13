@@ -12,13 +12,15 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"net/http"
 	"net/url"
 	"strings"
 
 	"github.com/cucumber/godog"
+	"github.com/rs/xid"
 	"github.com/trustbloc/edge-core/pkg/log"
+	"github.com/trustbloc/edv/pkg/client"
+	"github.com/trustbloc/edv/pkg/restapi/models"
 
 	"github.com/trustbloc/hub-kms/test/bdd/pkg/bddutil"
 	"github.com/trustbloc/hub-kms/test/bdd/pkg/context"
@@ -26,7 +28,8 @@ import (
 
 const (
 	createKeystoreReq = `{
-	  "controller": "did:example:123456789"
+	  "controller": "%s",
+	  "operationalVaultID": "%s"
 	}`
 
 	createKeyReq = `{
@@ -69,33 +72,35 @@ const (
 	  "passphrase": "p@ssphrase"
 	}`
 
-	createKeystoreEndpoint = "{serverEndpoint}/kms/keystores"
-	keysEndpoint           = "https://{keystoreEndpoint}/keys"
+	edvBasePath            = "/encrypted-data-vaults"
+	createKeystoreEndpoint = "/kms/keystores"
+	keysEndpoint           = "/kms/keystores/{keystoreID}/keys"
 
-	contentType    = "application/json"
-	locationHeader = "Location"
+	contentType = "application/json"
+)
+
+const (
+	testController = "did:example:123456789"
+	testAAD        = "additional data"
 )
 
 // Steps defines steps context for the KMS operations.
 type Steps struct {
-	bddContext       *context.BDDContext
-	logger           log.Logger
-	keystoreEndpoint string
-	message          string
-	signature        string
-	cipherText       string
-	nonce            string
-	plainText        string
-	data             string
-	mac              string
-	errorMessage     string
-	responseStatus   int
-	responseLocation string
+	bddContext         *context.BDDContext
+	logger             log.Logger
+	operationalVaultID string
+	urlParams          map[string]string
+	status             string
+	headers            map[string]string
+	response           map[string]string
 }
 
 // NewSteps creates steps context for the KMS operations.
 func NewSteps() *Steps {
-	return &Steps{logger: log.New("kms-rest/tests/kms")}
+	return &Steps{
+		logger:    log.New("kms-rest/tests/kms"),
+		urlParams: make(map[string]string, 2), // keystoreID and keyID
+	}
 }
 
 // SetContext sets a fresh context for every scenario.
@@ -105,94 +110,62 @@ func (s *Steps) SetContext(ctx *context.BDDContext) {
 
 // RegisterSteps defines scenario steps.
 func (s *Steps) RegisterSteps(ctx *godog.ScenarioContext) {
-	// common steps
-	ctx.Step(`^User has created a keystore with a key of "([^"]*)" type on the server$`, s.createKeystoreAndKey)
-	ctx.Step(`^User gets a response with HTTP 200 OK and no error in the body$`, s.checkSuccessfulResp)
+	// common creation steps
+	ctx.Step(`^user has created a data vault on SDS Server for storing operational keys$`, s.createEDVDataVault)
+	ctx.Step(`^user has created a keystore with "([^"]*)" key on Key Server$`, s.createKeystoreAndKey)
+	// common response checking steps
+	ctx.Step(`^user gets a response with HTTP status code "([^"]*)"$`, s.checkResponseStatusCode)
+	ctx.Step(`^user gets a response with "([^"]*)" header with a valid URL$`, s.checkHeaderWithValidURL)
+	ctx.Step(`^user gets a response with non-empty "([^"]*)"$`, s.checkResponseWithNonEmptyValue)
+	ctx.Step(`^user gets a response with no "([^"]*)"$`, s.checkResponseWithNoValue)
+	ctx.Step(`^user gets a response with "([^"]*)" with value "([^"]*)"$`, s.checkResponseWithValue)
 	// create key steps
-	ctx.Step(`^User has created an empty keystore on the server$`, s.createKeystore)
-	ctx.Step(`^User sends an HTTP POST to "([^"]*)" to create a key of "([^"]*)" type$`, s.sendCreateKeyReq)
-	ctx.Step("^User gets a response with HTTP 201 Created and "+
-		"Location with a valid URL for the newly created key$", s.checkCreateKeyResp)
-	// sign message steps
-	ctx.Step(`^User sends an HTTP POST to "([^"]*)" to sign a message "([^"]*)"$`, s.sendSignMessageReq)
-	ctx.Step(`^User gets a response with HTTP 200 OK and a signature in the JSON body$`, s.checkSignMessageResp)
-	// verify signature steps
-	ctx.Step(`^User sends an HTTP POST to "([^"]*)" to verify a signature from the body$`, s.sendVerifySignatureReq)
-	// encrypt message steps
-	ctx.Step(`^User sends an HTTP POST to "([^"]*)" to encrypt a message "([^"]*)"$`, s.sendEncryptMessageReq)
-	ctx.Step(`^User gets a response with HTTP 200 OK and a cipher text in the JSON body$`, s.checkEncryptMessageResp)
-	// decrypt cipher steps
-	ctx.Step(`^User sends an HTTP POST to "([^"]*)" to decrypt a cipher text from the body$`, s.sendDecryptCipherReq)
-	ctx.Step(`^User gets a response with HTTP 200 OK and a plain text "([^"]*)" in the JSON body$`,
-		s.checkDecryptCipherResp)
-	// compute MAC steps
-	ctx.Step(`^User sends an HTTP POST to "([^"]*)" to compute MAC for data "([^"]*)"$`, s.sendComputeMACReq)
-	ctx.Step(`^User gets a response with HTTP 200 OK and MAC in the JSON body$`, s.checkComputeMACResp)
-	// verify MAC steps
-	ctx.Step(`^User sends an HTTP POST to "([^"]*)" to verify MAC for data$`, s.sendVerifyMACReq)
+	ctx.Step(`^user has created an empty keystore on Key Server$`, s.createKeystore)
+	ctx.Step(`^user sends an HTTP POST to "([^"]*)" to create "([^"]*)" key$`, s.sendCreateKeyRequest)
+	// sign/verify message steps
+	ctx.Step(`^user sends an HTTP POST to "([^"]*)" to sign "([^"]*)"$`, s.sendSignMessageRequest)
+	ctx.Step(`^user sends an HTTP POST to "([^"]*)" to verify "([^"]*)" for "([^"]*)"$`, s.sendVerifySignatureRequest)
+	// encrypt/decrypt message steps
+	ctx.Step(`^user sends an HTTP POST to "([^"]*)" to encrypt "([^"]*)"$`, s.sendEncryptMessageRequest)
+	ctx.Step(`^user sends an HTTP POST to "([^"]*)" to decrypt "([^"]*)"$`, s.sendDecryptCipherRequest)
+	// compute/verify MAC steps
+	ctx.Step(`^user sends an HTTP POST to "([^"]*)" to compute MAC for "([^"]*)"$`, s.sendComputeMACRequest)
+	ctx.Step(`^user sends an HTTP POST to "([^"]*)" to verify MAC "([^"]*)" for "([^"]*)"$`, s.sendVerifyMACRequest)
 }
 
-func (s *Steps) checkSuccessfulResp() error {
-	if s.responseStatus != http.StatusOK {
-		return fmt.Errorf("expected HTTP 200 OK, got: %d", s.responseStatus)
+func (s *Steps) createEDVDataVault() error {
+	config := models.DataVaultConfiguration{
+		Sequence:    0,
+		Controller:  testController,
+		ReferenceID: xid.New().String(),
+		KEK:         models.IDTypePair{ID: "https://example.com/kms/12345", Type: "AesKeyWrappingKey2019"},
+		HMAC:        models.IDTypePair{ID: "https://example.com/kms/67891", Type: "Sha256HmacKey2019"},
 	}
 
-	if s.errorMessage != "" {
-		return fmt.Errorf("expected no error in the body, got: %s", s.errorMessage)
+	c := client.New(s.bddContext.SDSServerURL+edvBasePath, client.WithTLSConfig(s.bddContext.TLSConfig()))
+
+	vaultLocation, err := c.CreateDataVault(&config)
+	if err != nil {
+		return err
 	}
+
+	parts := strings.Split(vaultLocation, "/")
+	s.operationalVaultID = parts[len(parts)-1]
 
 	return nil
 }
 
-//nolint:bodyclose // bddutil.CloseResponseBody
 func (s *Steps) createKeystore() error {
-	postURL := strings.ReplaceAll(createKeystoreEndpoint, "{serverEndpoint}", s.bddContext.ServerEndpoint)
+	req := fmt.Sprintf(createKeystoreReq, testController, s.operationalVaultID)
 
-	body := bytes.NewBuffer([]byte(createKeystoreReq))
-
-	resp, err := bddutil.HTTPDo(http.MethodPost, postURL, contentType, body, s.bddContext.TLSConfig())
+	resp, closeBody, err := s.post(s.bddContext.KeyServerURL+createKeystoreEndpoint, req)
 	if err != nil {
 		return err
 	}
 
-	defer bddutil.CloseResponseBody(resp.Body, s.logger)
+	defer closeBody()
 
-	s.keystoreEndpoint = resp.Header.Get(locationHeader)
-
-	return nil
-}
-
-//nolint:bodyclose // bddutil.CloseResponseBody
-func (s *Steps) sendCreateKeyReq(endpoint, keyType string) error {
-	postURL := strings.ReplaceAll(endpoint, "{keystoreEndpoint}", s.keystoreEndpoint)
-
-	req := fmt.Sprintf(createKeyReq, keyType)
-	body := bytes.NewBuffer([]byte(req))
-
-	resp, err := bddutil.HTTPDo(http.MethodPost, postURL, contentType, body, s.bddContext.TLSConfig())
-	if err != nil {
-		return err
-	}
-
-	defer bddutil.CloseResponseBody(resp.Body, s.logger)
-
-	s.responseStatus = resp.StatusCode
-	s.responseLocation = resp.Header.Get(locationHeader)
-
-	return nil
-}
-
-func (s *Steps) checkCreateKeyResp() error {
-	if s.responseStatus != http.StatusCreated {
-		return fmt.Errorf("expected HTTP 201 Created, got: %d", s.responseStatus)
-	}
-
-	_, err := url.ParseRequestURI(s.responseLocation)
-	if err != nil {
-		return fmt.Errorf("expected Location to be a valid URL, got: %s", err)
-	}
-
-	return nil
+	return s.processResponse(resp)
 }
 
 func (s *Steps) createKeystoreAndKey(keyType string) error {
@@ -201,238 +174,234 @@ func (s *Steps) createKeystoreAndKey(keyType string) error {
 		return err
 	}
 
-	err = s.sendCreateKeyReq(keysEndpoint, keyType)
-	if err != nil {
-		return err
-	}
-
-	err = s.checkCreateKeyResp()
-	if err != nil {
-		return err
-	}
-
-	return nil
+	return s.sendCreateKeyRequest(s.bddContext.KeyServerURL+keysEndpoint, keyType)
 }
 
-//nolint:dupl // for better readability
-func (s *Steps) sendSignMessageReq(endpoint, message string) error {
-	postURL := strings.ReplaceAll(endpoint, "{keyEndpoint}", s.responseLocation)
+func (s *Steps) sendCreateKeyRequest(endpoint, keyType string) error {
+	req := fmt.Sprintf(createKeyReq, keyType)
 
+	resp, closeBody, err := s.post(endpoint, req)
+	if err != nil {
+		return err
+	}
+
+	defer closeBody()
+
+	return s.processResponse(resp)
+}
+
+func (s *Steps) sendSignMessageRequest(endpoint, message string) error {
 	req := fmt.Sprintf(signMessageReq, message)
-	body := bytes.NewBuffer([]byte(req))
 
-	//nolint:bodyclose // bddutil.CloseResponseBody
-	resp, err := bddutil.HTTPDo(http.MethodPost, postURL, contentType, body, s.bddContext.TLSConfig())
+	resp, closeBody, err := s.post(endpoint, req)
 	if err != nil {
 		return err
 	}
 
-	defer bddutil.CloseResponseBody(resp.Body, s.logger)
+	defer closeBody()
 
-	s.message = message
-	s.responseStatus = resp.StatusCode
-
-	var signResp struct {
-		Signature string `json:"signature"`
-	}
-
-	if err := json.NewDecoder(resp.Body).Decode(&signResp); err != nil {
-		return err
-	}
-
-	s.signature = signResp.Signature
-
-	return nil
+	return s.processResponse(resp)
 }
 
-func (s *Steps) checkSignMessageResp() error {
-	if s.responseStatus != http.StatusOK {
-		return fmt.Errorf("expected HTTP 200 OK, got: %d", s.responseStatus)
-	}
+func (s *Steps) sendVerifySignatureRequest(endpoint, prop, message string) error {
+	req := fmt.Sprintf(verifySignatureReq, s.response[prop], message)
 
-	if s.signature == "" {
-		return errors.New("expected non-empty signature")
-	}
-
-	return nil
-}
-
-func (s *Steps) sendVerifySignatureReq(endpoint string) error {
-	return s.sendVerifyReq(endpoint, fmt.Sprintf(verifySignatureReq, s.signature, s.message))
-}
-
-//nolint:bodyclose // bddutil.CloseResponseBody
-func (s *Steps) sendEncryptMessageReq(endpoint, message string) error {
-	postURL := strings.ReplaceAll(endpoint, "{keyEndpoint}", s.responseLocation)
-
-	req := fmt.Sprintf(encryptMessageReq, message, "additional data")
-	body := bytes.NewBuffer([]byte(req))
-
-	resp, err := bddutil.HTTPDo(http.MethodPost, postURL, contentType, body, s.bddContext.TLSConfig())
+	resp, closeBody, err := s.post(endpoint, req)
 	if err != nil {
 		return err
 	}
 
-	defer bddutil.CloseResponseBody(resp.Body, s.logger)
+	defer closeBody()
 
-	s.responseStatus = resp.StatusCode
-
-	var encryptResp struct {
-		CipherText string `json:"cipherText"`
-		Nonce      string `json:"nonce"`
-	}
-
-	if err := json.NewDecoder(resp.Body).Decode(&encryptResp); err != nil {
-		return err
-	}
-
-	s.cipherText = encryptResp.CipherText
-	s.nonce = encryptResp.Nonce
-
-	return nil
+	return s.processResponse(resp)
 }
 
-func (s *Steps) checkEncryptMessageResp() error {
-	if s.responseStatus != http.StatusOK {
-		return fmt.Errorf("expected HTTP 200 OK, got: %d", s.responseStatus)
-	}
+func (s *Steps) sendEncryptMessageRequest(endpoint, message string) error {
+	req := fmt.Sprintf(encryptMessageReq, message, testAAD)
 
-	if s.cipherText == "" {
-		return errors.New("expected non-empty cipher text")
-	}
-
-	return nil
-}
-
-//nolint:bodyclose // bddutil.CloseResponseBody
-func (s *Steps) sendDecryptCipherReq(endpoint string) error {
-	postURL := strings.ReplaceAll(endpoint, "{keyEndpoint}", s.responseLocation)
-
-	req := fmt.Sprintf(decryptCipherReq, s.cipherText, "additional data", s.nonce)
-	body := bytes.NewBuffer([]byte(req))
-
-	resp, err := bddutil.HTTPDo(http.MethodPost, postURL, contentType, body, s.bddContext.TLSConfig())
+	resp, closeBody, err := s.post(endpoint, req)
 	if err != nil {
 		return err
 	}
 
-	defer bddutil.CloseResponseBody(resp.Body, s.logger)
+	defer closeBody()
 
-	s.responseStatus = resp.StatusCode
+	return s.processResponse(resp)
+}
 
-	var decryptResp struct {
-		PlainText string `json:"plainText"`
-	}
+func (s *Steps) sendDecryptCipherRequest(endpoint, prop string) error {
+	req := fmt.Sprintf(decryptCipherReq, s.response[prop], testAAD, s.response["nonce"])
 
-	if err := json.NewDecoder(resp.Body).Decode(&decryptResp); err != nil {
+	resp, closeBody, err := s.post(endpoint, req)
+	if err != nil {
 		return err
 	}
 
-	s.plainText = decryptResp.PlainText
+	defer closeBody()
 
-	return nil
+	return s.processResponse(resp)
 }
 
-func (s *Steps) checkDecryptCipherResp(expectedPlainText string) error {
-	if s.responseStatus != http.StatusOK {
-		return fmt.Errorf("expected HTTP 200 OK, got: %d", s.responseStatus)
-	}
-
-	if s.plainText != expectedPlainText {
-		return fmt.Errorf("expected plain text to be: %s, got: %s", expectedPlainText, s.plainText)
-	}
-
-	return nil
-}
-
-//nolint:dupl // for better readability
-func (s *Steps) sendComputeMACReq(endpoint, data string) error {
-	postURL := strings.ReplaceAll(endpoint, "{keyEndpoint}", s.responseLocation)
-
+func (s *Steps) sendComputeMACRequest(endpoint, data string) error {
 	req := fmt.Sprintf(computeMACReq, data)
-	body := bytes.NewBuffer([]byte(req))
 
-	//nolint:bodyclose // bddutil.CloseResponseBody
-	resp, err := bddutil.HTTPDo(http.MethodPost, postURL, contentType, body, s.bddContext.TLSConfig())
+	resp, closeBody, err := s.post(endpoint, req)
 	if err != nil {
 		return err
 	}
 
-	defer bddutil.CloseResponseBody(resp.Body, s.logger)
+	defer closeBody()
 
-	s.data = data
-	s.responseStatus = resp.StatusCode
+	return s.processResponse(resp)
+}
 
-	var computeMACResp struct {
-		MAC string `json:"mac"`
-	}
+func (s *Steps) sendVerifyMACRequest(endpoint, prop, data string) error {
+	req := fmt.Sprintf(verifyMACReq, s.response[prop], data)
 
-	if err := json.NewDecoder(resp.Body).Decode(&computeMACResp); err != nil {
+	resp, closeBody, err := s.post(endpoint, req)
+	if err != nil {
 		return err
 	}
 
-	s.mac = computeMACResp.MAC
+	defer closeBody()
 
-	return nil
+	return s.processResponse(resp)
 }
 
-func (s *Steps) checkComputeMACResp() error {
-	if s.responseStatus != http.StatusOK {
-		return fmt.Errorf("expected HTTP 200 OK, got: %d", s.responseStatus)
-	}
-
-	if s.mac == "" {
-		return errors.New("expected non-empty MAC")
+func (s *Steps) checkResponseStatusCode(status string) error {
+	if s.status != status {
+		return fmt.Errorf("expected HTTP response status %q, got: %q", status, s.status)
 	}
 
 	return nil
 }
 
-func (s *Steps) sendVerifyMACReq(endpoint string) error {
-	return s.sendVerifyReq(endpoint, fmt.Sprintf(verifyMACReq, s.mac, s.data))
-}
-
-//nolint:bodyclose // bddutil.CloseResponseBody
-func (s *Steps) sendVerifyReq(endpoint, req string) error {
-	postURL := strings.ReplaceAll(endpoint, "{keyEndpoint}", s.responseLocation)
-	body := bytes.NewBuffer([]byte(req))
-
-	resp, err := bddutil.HTTPDo(http.MethodPost, postURL, contentType, body, s.bddContext.TLSConfig())
+func (s *Steps) checkHeaderWithValidURL(header string) error {
+	_, err := url.ParseRequestURI(s.headers[header])
 	if err != nil {
-		return err
+		return fmt.Errorf("expected %q header to be a valid URL, got error: %q", header, err)
 	}
-
-	defer bddutil.CloseResponseBody(resp.Body, s.logger)
-
-	s.responseStatus = resp.StatusCode
-
-	errMsg, err := readErrorMessage(resp.Body)
-	if err != nil {
-		return err
-	}
-
-	s.errorMessage = errMsg
 
 	return nil
 }
 
-func readErrorMessage(r io.Reader) (string, error) {
-	respBody, err := ioutil.ReadAll(r)
-	if err != nil {
-		return "", err
+func (s *Steps) checkResponseWithNonEmptyValue(prop string) error {
+	if s.response[prop] == "" {
+		return fmt.Errorf("expected property %q to be non-empty", prop)
 	}
 
-	if len(respBody) > 0 {
-		var errorResp struct {
-			ErrorMessage string `json:"errMsg,omitempty"`
+	return nil
+}
+
+func (s *Steps) checkResponseWithNoValue(prop string) error {
+	v, ok := s.response[prop]
+	if ok {
+		return fmt.Errorf("expected no property %q, got with value: %q", prop, v)
+	}
+
+	return nil
+}
+
+func (s *Steps) checkResponseWithValue(prop, val string) error {
+	if s.response[prop] != val {
+		return fmt.Errorf("expected %q to be %q, got: %q", prop, val, s.response[prop])
+	}
+
+	return nil
+}
+
+func buildURL(endpoint string, params map[string]string) string {
+	pairs := make([]string, 2*len(params)) //nolint:gomnd // double size to include old-new pairs for replacer
+
+	i := 0
+
+	for k, v := range params {
+		pairs[i] = fmt.Sprintf("{%s}", k)
+		pairs[i+1] = v
+		i += 2
+	}
+
+	return strings.NewReplacer(pairs...).Replace(endpoint)
+}
+
+func (s *Steps) post(endpoint, body string) (*http.Response, func(), error) {
+	postURL := buildURL(endpoint, s.urlParams)
+	buf := bytes.NewBuffer([]byte(body))
+
+	resp, err := bddutil.HTTPDo(http.MethodPost, postURL, contentType, buf, s.bddContext.TLSConfig())
+	if err != nil {
+		return nil, nil, err
+	}
+
+	closeBodyFunc := func() {
+		err := resp.Body.Close()
+		if err != nil {
+			s.logger.Errorf("Failed to close response body: %s", err.Error())
+		}
+	}
+
+	return resp, closeBodyFunc, nil
+}
+
+func (s *Steps) processResponse(resp *http.Response) error {
+	s.status = resp.Status
+
+	loc := resp.Header.Get("Location")
+	if loc != "" {
+		keystoreID, keyID := parseLocation(loc)
+
+		if keystoreID != "" {
+			s.urlParams["keystoreID"] = keystoreID
 		}
 
-		if err := json.Unmarshal(respBody, &errorResp); err != nil {
-			return "", err
+		if keyID != "" {
+			s.urlParams["keyID"] = keyID
 		}
-
-		return errorResp.ErrorMessage, nil
 	}
 
-	return "", nil
+	h := make(map[string]string, len(resp.Header))
+	for k, v := range resp.Header {
+		h[k] = v[0]
+	}
+
+	s.headers = h
+
+	var jsonResp map[string]interface{}
+	if err := json.NewDecoder(resp.Body).Decode(&jsonResp); err != nil && !errors.Is(err, io.EOF) {
+		return err
+	}
+
+	m := make(map[string]string)
+
+	for k, v := range jsonResp {
+		a, ok := v.(string)
+		if ok {
+			m[k] = a
+		}
+	}
+
+	s.response = m
+
+	return nil
+}
+
+func parseLocation(loc string) (string, string) {
+	const (
+		keystoreIDPos = 3 // localhost:8076/kms/keystores/{keystoreID}
+		keyIDPos      = 5 // localhost:8076/kms/keystores/{keystoreID}/keys/{keyID}
+	)
+
+	s := strings.Split(loc, "/")
+
+	keystoreID := ""
+	if len(s) > keystoreIDPos {
+		keystoreID = s[keystoreIDPos]
+	}
+
+	keyID := ""
+	if len(s) > keyIDPos {
+		keyID = s[keyIDPos]
+	}
+
+	return keystoreID, keyID
 }

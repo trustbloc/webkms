@@ -1,0 +1,30 @@
+#
+# Copyright SecureKey Technologies Inc. All Rights Reserved.
+#
+# SPDX-License-Identifier: Apache-2.0
+#
+version: '2'
+
+services:
+
+  edv.example.com:
+    container_name: edv.example.com
+    image: ${EDV_REST_IMAGE}:${EDV_REST_IMAGE_TAG}
+    environment:
+      - EDV_HOST_URL=0.0.0.0:8081
+      - EDV_DATABASE_TYPE=${EDV_DATABASE_TYPE}
+      - EDV_DATABASE_URL=${EDV_DATABASE_URL}
+      - EDV_DATABASE_PREFIX=${EDV_DATABASE_PREFIX}
+      - EDV_TLS_CERT_FILE=/etc/tls/ec-pubCert.pem
+      - EDV_TLS_KEY_FILE=/etc/tls/ec-key.pem
+    ports:
+      - 8081:8081
+    volumes:
+      - ../keys/tls:/etc/tls
+    command: start
+    networks:
+      - couchdb_bdd_net
+
+networks:
+  couchdb_bdd_net:
+    external: true

@@ -7,12 +7,12 @@ version: '2'
 
 services:
 
-  kms.rest.example.com:
-    container_name: kms.rest.example.com
+  kms.example.com:
+    container_name: kms.example.com
     image: ${KMS_REST_IMAGE}:latest
     environment:
       - KMS_HOST_URL=0.0.0.0:8076
-      - KMS_CACERTS=/etc/tls/ec-cacert.pem
+      - KMS_TLS_CACERTS=/etc/tls/ec-cacert.pem
       - KMS_TLS_SERVE_CERT=/etc/tls/ec-pubCert.pem
       - KMS_TLS_SERVE_KEY=/etc/tls/ec-key.pem
       - KMS_DATABASE_TYPE=couchdb
@@ -21,9 +21,8 @@ services:
       - KMS_SECRETS_DATABASE_TYPE=couchdb
       - KMS_SECRETS_DATABASE_URL=admin:password@couchdb.example.com:5984
       - KMS_SECRETS_DATABASE_PREFIX=kms
-      - KMS_OPERATIONAL_KMS_STORAGE_TYPE=couchdb
-      - KMS_OPERATIONAL_KMS_STORAGE_URL=admin:password@couchdb.example.com:5984
-      - KMS_OPERATIONAL_KMS_STORAGE_PREFIX=opkms
+      - KMS_OPERATIONAL_KMS_STORAGE_TYPE=sds
+      - KMS_OPERATIONAL_KMS_STORAGE_URL=https://edv.example.com:8081
     ports:
       - 8076:8076
     entrypoint: ""
@@ -33,7 +32,6 @@ services:
       - ../keys/tls:/etc/tls
     networks:
       - couchdb_bdd_net
-
 
 networks:
   couchdb_bdd_net:

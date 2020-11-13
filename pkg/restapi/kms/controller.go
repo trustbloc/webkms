@@ -16,8 +16,8 @@ type Controller struct {
 }
 
 // New returns a new Controller instance.
-func New(provider operation.Provider) *Controller {
-	op := operation.New(provider)
+func New(config *operation.Config) *Controller {
+	op := operation.New(config)
 	handlers := op.GetRESTHandlers()
 
 	return &Controller{handlers: handlers}

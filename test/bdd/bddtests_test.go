@@ -28,7 +28,8 @@ import (
 const (
 	featuresPath           = "features"
 	caCertPath             = "fixtures/keys/tls/ec-cacert.pem"
-	kmsRestComposeFilePath = "./fixtures/kms-rest"
+	kmsComposeFilePath     = "./fixtures/kms"
+	edvComposeFilePath     = "./fixtures/edv"
 	couchDBComposeFilePath = "./fixtures/couchdb"
 )
 
@@ -78,7 +79,7 @@ func runBDDTests(tags, format string) int {
 }
 
 func initializeTestSuite(ctx *godog.TestSuiteContext) {
-	composeFiles := []string{couchDBComposeFilePath, kmsRestComposeFilePath}
+	composeFiles := []string{couchDBComposeFilePath, edvComposeFilePath, kmsComposeFilePath}
 
 	var composition []*dockerutil.Composition
 
@@ -154,7 +155,6 @@ func buildOptions(tags, format string) *godog.Options {
 		Tags:          tags,
 		Format:        format,
 		Paths:         []string{featuresPath},
-		Randomize:     time.Now().UTC().UnixNano(), // randomize scenario execution order
 		Strict:        true,
 		StopOnFailure: true,
 	}

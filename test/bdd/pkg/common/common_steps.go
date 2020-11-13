@@ -39,15 +39,38 @@ func (s *Steps) SetContext(ctx *context.BDDContext) {
 
 // RegisterSteps defines scenario steps.
 func (s *Steps) RegisterSteps(ctx *godog.ScenarioContext) {
-	ctx.Step(`^Key Server is running on "([^"]*)" port "([^"]*)"$`, s.checkServerIsRun)
+	ctx.Step(`^Key Server is running on "([^"]*)" port "([^"]*)"$`, s.checkKeyServerIsRun)
+	ctx.Step(`^SDS Server is running on "([^"]*)" port "([^"]*)"$`, s.checkSDSServerIsRun)
 }
 
-func (s *Steps) checkServerIsRun(host string, port int) error {
+func (s *Steps) checkKeyServerIsRun(host string, port int) error {
+	url, err := s.healthCheck(host, port)
+	if err != nil {
+		return err
+	}
+
+	s.bddContext.KeyServerURL = url
+
+	return nil
+}
+
+func (s *Steps) checkSDSServerIsRun(host string, port int) error {
+	url, err := s.healthCheck(host, port)
+	if err != nil {
+		return err
+	}
+
+	s.bddContext.SDSServerURL = url
+
+	return nil
+}
+
+func (s *Steps) healthCheck(host string, port int) (string, error) {
 	url := fmt.Sprintf(serverEndpoint+"/healthcheck", host, port)
 
 	resp, err := bddutil.HTTPDo(http.MethodGet, url, "", nil, s.bddContext.TLSConfig())
 	if err != nil {
-		return err
+		return "", err
 	}
 
 	err = resp.Body.Close()
@@ -55,7 +78,5 @@ func (s *Steps) checkServerIsRun(host string, port int) error {
 		s.logger.Errorf("Failed to close response body: %s", err)
 	}
 
-	s.bddContext.ServerEndpoint = fmt.Sprintf(serverEndpoint, host, port)
-
-	return nil
+	return fmt.Sprintf(serverEndpoint, host, port), nil
 }

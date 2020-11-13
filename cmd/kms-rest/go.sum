@@ -514,10 +514,10 @@ github.com/huaweicloud/golangsdk v0.0.0-20200304081349-45ec0797f2a4/go.mod h1:WQ
 github.com/hyperledger/aries-framework-go v0.1.5-0.20201017112511-5734c20820a9/go.mod h1:cLWhBbjgrA04Di9ufGqAuTCdoM33Xq4Cuc3fL/VLAgI=
 github.com/hyperledger/aries-framework-go v0.1.5-0.20201028195746-556cee009e20/go.mod h1:UF34fHG3WLB1QSxeIqDrWDhK98GLqA09NauwultnG7w=
 github.com/hyperledger/aries-framework-go v0.1.5-0.20201030222504-2f5e96e162b3/go.mod h1:UF34fHG3WLB1QSxeIqDrWDhK98GLqA09NauwultnG7w=
-github.com/hyperledger/aries-framework-go v0.1.5-0.20201111190047-cf441a4a9e67 h1:yx/nz5zUy5dLIFZqesC5Yw3gd7XbESRlXFmTpCSqh2E=
-github.com/hyperledger/aries-framework-go v0.1.5-0.20201111190047-cf441a4a9e67/go.mod h1:QzlBsH2J303U3r8lJ1jq69ackseH+v5/B9hpCFouBqg=
-github.com/hyperledger/aries-framework-go-ext/component/storage/couchdb v0.0.0-20201104150902-c6b30b1569cc h1:HKjIEAB1gqsNhgFY9umqn9cxLCmAAf87TVkc83qZO60=
-github.com/hyperledger/aries-framework-go-ext/component/storage/couchdb v0.0.0-20201104150902-c6b30b1569cc/go.mod h1:M7/MF6JD45J4CfhiHuO/CSt9ryzQR+ApV3IOAn2HKzo=
+github.com/hyperledger/aries-framework-go v0.1.5-0.20201114135201-ef5deba0feb1 h1:clvm1ckxTa6k19CO5Q/k9vWpr1DJ/EIkmN8tervgCBQ=
+github.com/hyperledger/aries-framework-go v0.1.5-0.20201114135201-ef5deba0feb1/go.mod h1:QzlBsH2J303U3r8lJ1jq69ackseH+v5/B9hpCFouBqg=
+github.com/hyperledger/aries-framework-go-ext/component/storage/couchdb v0.0.0-20201113155502-c4ba5d2c7c0a h1:RzG6xTcO3FlQzz8VS6dVe7ZlnGiFdSMZlGMxZDITF3c=
+github.com/hyperledger/aries-framework-go-ext/component/storage/couchdb v0.0.0-20201113155502-c4ba5d2c7c0a/go.mod h1:M7/MF6JD45J4CfhiHuO/CSt9ryzQR+ApV3IOAn2HKzo=
 github.com/hyperledger/aries-framework-go-ext/test/component/storage v0.0.0-20201020105420-c85a221b09b5 h1:lcnsNy983eXWEhi3uWFq/RV4ut6umrMQj/V7FtZ175A=
 github.com/hyperledger/aries-framework-go-ext/test/component/storage v0.0.0-20201020105420-c85a221b09b5/go.mod h1:6h4vLybbbz82KKsU5Qi15+SOT76U6jbd1//QL5ywQIM=
 github.com/ianlancetaylor/demangle v0.0.0-20181102032728-5e5cf60278f6/go.mod h1:aSSvb/t6k1mPoxDqO4vJh6VOCGPwU4O0C2/Eqndh1Sc=

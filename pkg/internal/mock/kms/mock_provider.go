@@ -37,8 +37,8 @@ func (p *MockProvider) KeystoreService() keystore.Service {
 	return p.MockKeystoreService
 }
 
-// OperationalKeyManager gets the operational KeyManager instance.
-func (p *MockProvider) OperationalKeyManager() kms.KeyManager {
+// KeyManager gets the KeyManager instance.
+func (p *MockProvider) KeyManager() kms.KeyManager {
 	return p.MockKeyManager
 }
 
