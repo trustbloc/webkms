@@ -17,7 +17,7 @@ services:
       - COUCHDB_USER=${COUCHDB_USERNAME}
       - COUCHDB_PASSWORD=${COUCHDB_PASSWORD}
     volumes:
-      - ./couchdb-config/config.ini:/opt/couchdb/etc/local.d/config.ini
+      - ./config/config.ini:/opt/couchdb/etc/local.d/config.ini
     networks:
       - bdd_net
 

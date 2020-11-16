@@ -14,8 +14,9 @@ import (
 
 // BDDContext is a global context shared between different test suites in bdd tests.
 type BDDContext struct {
-	tlsConfig      *tls.Config
-	ServerEndpoint string
+	KeyServerURL string
+	SDSServerURL string
+	tlsConfig    *tls.Config
 }
 
 // NewBDDContext creates a new BDDContext.

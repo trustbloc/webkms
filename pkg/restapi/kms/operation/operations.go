@@ -64,26 +64,29 @@ type Handler interface {
 	Handle() http.HandlerFunc
 }
 
-// Provider contains dependencies for Operation.
-type Provider interface {
-	KeystoreService() keystore.Service
-	KMSServiceCreator() func(req *http.Request) (kms.Service, error)
-	Logger() log.Logger
-}
-
 // Operation holds dependencies for handlers.
 type Operation struct {
 	keystoreService   keystore.Service
 	kmsServiceCreator func(req *http.Request) (kms.Service, error)
 	logger            log.Logger
+	isSDSUsed         bool
+}
+
+// Config defines configuration for KMS operations.
+type Config struct {
+	KeystoreService   keystore.Service
+	KMSServiceCreator func(req *http.Request) (kms.Service, error)
+	Logger            log.Logger
+	IsSDSUsed         bool
 }
 
 // New returns a new Operation instance.
-func New(provider Provider) *Operation {
+func New(config *Config) *Operation {
 	op := &Operation{
-		keystoreService:   provider.KeystoreService(),
-		kmsServiceCreator: provider.KMSServiceCreator(),
-		logger:            provider.Logger(),
+		keystoreService:   config.KeystoreService,
+		kmsServiceCreator: config.KMSServiceCreator,
+		logger:            config.Logger,
+		isSDSUsed:         config.IsSDSUsed,
 	}
 
 	return op
@@ -110,12 +113,20 @@ func (o *Operation) createKeystoreHandler(rw http.ResponseWriter, req *http.Requ
 	}
 
 	createdAt := time.Now().UTC()
+
 	opts := []keystore.Option{
 		keystore.WithID(xid.New().String()),
 		keystore.WithController(request.Controller),
 		keystore.WithDelegateKeyType(arieskms.ED25519Type),
-		keystore.WithRecipientKeyType(arieskms.ED25519Type),
 		keystore.WithCreatedAt(&createdAt),
+	}
+
+	if o.isSDSUsed {
+		opts = append(opts,
+			keystore.WithRecipientKeyType(arieskms.ECDH256KWAES256GCM),
+			keystore.WithMACKeyType(arieskms.HMACSHA256Tag256),
+			keystore.WithOperationalVaultID(request.OperationalVaultID),
+		)
 	}
 
 	k, err := o.keystoreService.Create(opts...)

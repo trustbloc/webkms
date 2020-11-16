@@ -28,7 +28,7 @@ type Service interface {
 // Provider contains dependencies for the KMS service.
 type Provider interface {
 	KeystoreService() keystore.Service
-	OperationalKeyManager() kms.KeyManager
+	KeyManager() kms.KeyManager
 	Crypto() crypto.Crypto
 }
 
@@ -42,7 +42,7 @@ type service struct {
 func NewService(provider Provider) Service {
 	return &service{
 		keystore:   provider.KeystoreService(),
-		keyManager: provider.OperationalKeyManager(),
+		keyManager: provider.KeyManager(),
 		crypto:     provider.Crypto(),
 	}
 }

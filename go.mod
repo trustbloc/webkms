@@ -9,7 +9,7 @@ go 1.15
 require (
 	github.com/google/tink/go v1.5.0
 	github.com/gorilla/mux v1.8.0
-	github.com/hyperledger/aries-framework-go v0.1.5-0.20201111190047-cf441a4a9e67
+	github.com/hyperledger/aries-framework-go v0.1.5-0.20201114135201-ef5deba0feb1
 	github.com/rs/xid v1.2.1
 	github.com/stretchr/testify v1.6.1
 	github.com/trustbloc/edge-core v0.1.5-0.20201106164919-76ecfeca954f

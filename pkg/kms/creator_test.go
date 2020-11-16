@@ -16,10 +16,14 @@ import (
 	"testing"
 
 	"github.com/gorilla/mux"
-	"github.com/hyperledger/aries-framework-go/pkg/mock/storage"
+	"github.com/hyperledger/aries-framework-go/pkg/crypto"
+	mockcrypto "github.com/hyperledger/aries-framework-go/pkg/mock/crypto"
+	mockstorage "github.com/hyperledger/aries-framework-go/pkg/mock/storage"
+	"github.com/hyperledger/aries-framework-go/pkg/storage"
 	"github.com/stretchr/testify/require"
 
-	"github.com/trustbloc/hub-kms/pkg/internal/mock/keystore"
+	mockkeystore "github.com/trustbloc/hub-kms/pkg/internal/mock/keystore"
+	"github.com/trustbloc/hub-kms/pkg/keystore"
 	"github.com/trustbloc/hub-kms/pkg/kms"
 )
 
@@ -32,7 +36,7 @@ const (
 
 func TestNewKMSServiceCreator(t *testing.T) {
 	t.Run("Success", func(t *testing.T) {
-		creator := kms.NewServiceCreator(keystore.NewMockService(), storage.NewMockStoreProvider())
+		creator := kms.NewServiceCreator(newConfig())
 		req := buildPassphraseReq(t, "p@ssphrase")
 
 		srv, err := creator(req)
@@ -47,7 +51,7 @@ func TestNewKMSServiceCreator(t *testing.T) {
 	})
 
 	t.Run("Error: received empty request", func(t *testing.T) {
-		creator := kms.NewServiceCreator(keystore.NewMockService(), storage.NewMockStoreProvider())
+		creator := kms.NewServiceCreator(newConfig())
 		req, err := http.NewRequestWithContext(context.Background(), http.MethodPost, "", bytes.NewBuffer([]byte("")))
 		require.NoError(t, err)
 
@@ -59,7 +63,7 @@ func TestNewKMSServiceCreator(t *testing.T) {
 	})
 
 	t.Run("Error: passphrase is empty", func(t *testing.T) {
-		creator := kms.NewServiceCreator(keystore.NewMockService(), storage.NewMockStoreProvider())
+		creator := kms.NewServiceCreator(newConfig())
 		req := buildPassphraseReq(t, "")
 
 		srv, err := creator(req)
@@ -70,9 +74,20 @@ func TestNewKMSServiceCreator(t *testing.T) {
 	})
 
 	t.Run("Error: can't open store", func(t *testing.T) {
-		storageProv := storage.NewMockStoreProvider()
-		storageProv.ErrOpenStoreHandle = errors.New("open store err")
-		creator := kms.NewServiceCreator(keystore.NewMockService(), storageProv)
+		p := mockstorage.NewMockStoreProvider()
+		p.ErrOpenStoreHandle = errors.New("open store err")
+
+		creator := kms.NewServiceCreator(newConfig(withStorageProvider(p)))
+		req := buildPassphraseReq(t, "p@ssphrase")
+
+		srv, err := creator(req)
+
+		require.Nil(t, srv)
+		require.Error(t, err)
+	})
+
+	t.Run("Error: can't resolve KMS storage", func(t *testing.T) {
+		creator := kms.NewServiceCreator(newConfig(withOperationalKMSStorageResolverErr(errors.New("resolver error"))))
 		req := buildPassphraseReq(t, "p@ssphrase")
 
 		srv, err := creator(req)
@@ -95,4 +110,52 @@ func buildPassphraseReq(t *testing.T, passphrase string) *http.Request {
 	})
 
 	return req
+}
+
+type options struct {
+	keystoreService                  keystore.Service
+	cryptoService                    crypto.Crypto
+	storageProvider                  storage.Provider
+	operationalKMSStorageResolverErr error
+}
+
+type optionFn func(opts *options)
+
+func newConfig(opts ...optionFn) *kms.Config {
+	cOpts := &options{
+		keystoreService:                  mockkeystore.NewMockService(),
+		cryptoService:                    &mockcrypto.Crypto{},
+		storageProvider:                  mockstorage.NewMockStoreProvider(),
+		operationalKMSStorageResolverErr: nil,
+	}
+
+	for i := range opts {
+		opts[i](cOpts)
+	}
+
+	config := &kms.Config{
+		KeystoreService:               cOpts.keystoreService,
+		CryptoService:                 cOpts.cryptoService,
+		OperationalKMSStorageResolver: func(string) (storage.Provider, error) { return cOpts.storageProvider, nil },
+	}
+
+	if cOpts.operationalKMSStorageResolverErr != nil {
+		config.OperationalKMSStorageResolver = func(string) (storage.Provider, error) {
+			return nil, cOpts.operationalKMSStorageResolverErr
+		}
+	}
+
+	return config
+}
+
+func withStorageProvider(p storage.Provider) optionFn {
+	return func(o *options) {
+		o.storageProvider = p
+	}
+}
+
+func withOperationalKMSStorageResolverErr(err error) optionFn {
+	return func(o *options) {
+		o.operationalKMSStorageResolverErr = err
+	}
 }

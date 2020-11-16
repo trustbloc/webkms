@@ -23,6 +23,8 @@ type Service interface {
 	Create(options ...Option) (*Keystore, error)
 	Get(keystoreID string) (*Keystore, error)
 	Save(k *Keystore) error
+	GetKeyHandle(keyID string) (interface{}, error)
+	KeyManager() (arieskms.KeyManager, error)
 }
 
 // Provider contains dependencies for the Keystore service.
@@ -69,9 +71,10 @@ func (s *service) Create(options ...Option) (*Keystore, error) {
 	}
 
 	k := &Keystore{
-		ID:         opts.ID,
-		Controller: opts.Controller,
-		CreatedAt:  opts.CreatedAt,
+		ID:                 opts.ID,
+		Controller:         opts.Controller,
+		OperationalVaultID: opts.OperationalVaultID,
+		CreatedAt:          opts.CreatedAt,
 	}
 
 	if opts.DelegateKeyType != "" {
@@ -90,6 +93,15 @@ func (s *service) Create(options ...Option) (*Keystore, error) {
 		}
 
 		k.RecipientKeyID = keyID
+	}
+
+	if opts.MACKeyType != "" {
+		keyID, _, err := s.keyManager.Create(opts.MACKeyType)
+		if err != nil {
+			return nil, err
+		}
+
+		k.MACKeyID = keyID
 	}
 
 	bytes, err := json.Marshal(k)
@@ -135,4 +147,19 @@ func (s *service) Save(k *Keystore) error {
 	}
 
 	return nil
+}
+
+// GetKeyHandle retrieves key handle by keyID.
+func (s *service) GetKeyHandle(keyID string) (interface{}, error) {
+	kh, err := s.keyManager.Get(keyID)
+	if err != nil {
+		return nil, err
+	}
+
+	return kh, nil
+}
+
+// KeyManager returns KeyManager that the Keystore service was initialized with.
+func (s *service) KeyManager() (arieskms.KeyManager, error) {
+	return s.keyManager, nil
 }

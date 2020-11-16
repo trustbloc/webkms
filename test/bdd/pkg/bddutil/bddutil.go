@@ -11,8 +11,6 @@ import (
 	"crypto/tls"
 	"io"
 	"net/http"
-
-	"github.com/trustbloc/edge-core/pkg/log"
 )
 
 // HTTPDo makes an HTTP request.
@@ -33,12 +31,4 @@ func HTTPDo(method, url, contentType string, body io.Reader, tlsConfig *tls.Conf
 	}
 
 	return httpClient.Do(req)
-}
-
-// CloseResponseBody closes the response body.
-func CloseResponseBody(respBody io.Closer, logger log.Logger) {
-	err := respBody.Close()
-	if err != nil {
-		logger.Errorf("Failed to close response body: %s", err.Error())
-	}
 }

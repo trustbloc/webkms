@@ -7,6 +7,7 @@ SPDX-License-Identifier: Apache-2.0
 package startcmd
 
 import (
+	"crypto/tls"
 	"errors"
 	"net/http"
 	"strconv"
@@ -14,6 +15,7 @@ import (
 
 	"github.com/gorilla/mux"
 	ariescouchdbstorage "github.com/hyperledger/aries-framework-go-ext/component/storage/couchdb"
+	"github.com/hyperledger/aries-framework-go/pkg/crypto/tinkcrypto"
 	arieskms "github.com/hyperledger/aries-framework-go/pkg/kms"
 	"github.com/hyperledger/aries-framework-go/pkg/secretlock"
 	"github.com/hyperledger/aries-framework-go/pkg/secretlock/noop"
@@ -27,12 +29,14 @@ import (
 	couchdbstore "github.com/trustbloc/edge-core/pkg/storage/couchdb"
 	"github.com/trustbloc/edge-core/pkg/storage/memstore"
 	cmdutils "github.com/trustbloc/edge-core/pkg/utils/cmd"
+	tlsutils "github.com/trustbloc/edge-core/pkg/utils/tls"
 
 	"github.com/trustbloc/hub-kms/pkg/keystore"
 	"github.com/trustbloc/hub-kms/pkg/kms"
 	"github.com/trustbloc/hub-kms/pkg/restapi/healthcheck"
 	kmsrest "github.com/trustbloc/hub-kms/pkg/restapi/kms"
 	"github.com/trustbloc/hub-kms/pkg/restapi/kms/operation"
+	"github.com/trustbloc/hub-kms/pkg/storage/sds"
 )
 
 const (
@@ -396,12 +400,12 @@ func startKmsService(parameters *kmsRestParameters, srv Server) error {
 	}
 
 	// add KMS API handlers
-	opProv, err := createOperationProvider(parameters)
+	config, err := prepareOperationConfig(parameters)
 	if err != nil {
 		return err
 	}
 
-	kmsREST := kmsrest.New(opProv)
+	kmsREST := kmsrest.New(config)
 
 	for _, handler := range kmsREST.GetOperations() {
 		router.HandleFunc(handler.Path(), handler.Handle()).Methods(handler.Method())
@@ -431,24 +435,6 @@ func setLogLevel(level string, srv Server) {
 	}
 
 	log.SetLevel("", logLevel)
-}
-
-type operationProvider struct {
-	keystoreService   keystore.Service
-	kmsServiceCreator func(req *http.Request) (kms.Service, error)
-	logger            log.Logger
-}
-
-func (p operationProvider) KeystoreService() keystore.Service {
-	return p.keystoreService
-}
-
-func (p operationProvider) KMSServiceCreator() func(req *http.Request) (kms.Service, error) {
-	return p.kmsServiceCreator
-}
-
-func (p operationProvider) Logger() log.Logger {
-	return p.logger
 }
 
 type keystoreServiceProvider struct {
@@ -482,7 +468,7 @@ func (k kmsProvider) SecretLock() secretlock.Service {
 	return k.secretLock
 }
 
-func createOperationProvider(parameters *kmsRestParameters) (operation.Provider, error) {
+func prepareOperationConfig(parameters *kmsRestParameters) (*operation.Config, error) {
 	keystoreService, err := prepareKeystoreService(parameters)
 	if err != nil {
 		return nil, err
@@ -493,10 +479,11 @@ func createOperationProvider(parameters *kmsRestParameters) (operation.Provider,
 		return nil, err
 	}
 
-	return operationProvider{
-		keystoreService:   keystoreService,
-		kmsServiceCreator: kmsServiceCreator,
-		logger:            log.New("hub-kms/restapi"),
+	return &operation.Config{
+		KeystoreService:   keystoreService,
+		KMSServiceCreator: kmsServiceCreator,
+		Logger:            log.New("hub-kms/restapi"),
+		IsSDSUsed:         strings.EqualFold(parameters.operationalKMSStorageParams.storageType, storageTypeSDSOption),
 	}, nil
 }
 
@@ -537,12 +524,46 @@ func prepareKeystoreService(parameters *kmsRestParameters) (keystore.Service, er
 }
 
 func prepareKMSServiceCreator(keystoreService keystore.Service, params *kmsRestParameters) (kms.ServiceCreator, error) {
-	operationalKMSStorageProvider, err := getKMSStorageProvider(params.operationalKMSStorageParams)
+	cryptoService, err := tinkcrypto.New()
 	if err != nil {
 		return nil, err
 	}
 
-	return kms.NewServiceCreator(keystoreService, operationalKMSStorageProvider), nil
+	rootCAs, err := tlsutils.GetCertPool(params.tlsUseSystemCertPool, params.tlsCACerts)
+	if err != nil {
+		return nil, err
+	}
+
+	tlsConfig := &tls.Config{
+		RootCAs:    rootCAs,
+		MinVersion: tls.VersionTLS12,
+	}
+
+	var kmsStorageResolver func(string) (ariesstorage.Provider, error)
+
+	if strings.EqualFold(params.operationalKMSStorageParams.storageType, storageTypeSDSOption) {
+		kmsStorageResolver = func(keystoreID string) (ariesstorage.Provider, error) {
+			config := &sds.Config{
+				KeystoreService: keystoreService,
+				CryptoService:   cryptoService,
+				SDSServerURL:    params.operationalKMSStorageParams.storageURL,
+				KeystoreID:      keystoreID,
+				TLSConfig:       tlsConfig,
+			}
+
+			return sds.NewStorageProvider(config)
+		}
+	} else {
+		kmsStorageResolver = func(string) (ariesstorage.Provider, error) {
+			return getKMSStorageProvider(params.operationalKMSStorageParams)
+		}
+	}
+
+	return kms.NewServiceCreator(&kms.Config{
+		KeystoreService:               keystoreService,
+		CryptoService:                 cryptoService,
+		OperationalKMSStorageResolver: kmsStorageResolver,
+	}), nil
 }
 
 func getStorageProvider(params *storageParameters) (storage.Provider, error) {
@@ -563,8 +584,6 @@ func getKMSStorageProvider(params *storageParameters) (ariesstorage.Provider, er
 	case strings.EqualFold(params.storageType, storageTypeCouchDBOption):
 		return ariescouchdbstorage.NewProvider(
 			params.storageURL, ariescouchdbstorage.WithDBPrefix(params.storagePrefix))
-	case strings.EqualFold(params.storageType, storageTypeSDSOption):
-		return nil, errors.New("KMS storage type not supported yet")
 	default:
 		return nil, errors.New("KMS storage not set to a valid type")
 	}

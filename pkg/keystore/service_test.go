@@ -12,6 +12,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/google/tink/go/keyset"
+	"github.com/google/tink/go/signature"
 	arieskms "github.com/hyperledger/aries-framework-go/pkg/kms"
 	"github.com/stretchr/testify/require"
 	"github.com/trustbloc/edge-core/pkg/storage"
@@ -25,6 +27,7 @@ const (
 	testKeystoreID = "keystoreID"
 	testKeyID      = "keyID"
 	testKeyType    = arieskms.ED25519Type
+	testVaultID    = "vaultID"
 )
 
 func TestNewService(t *testing.T) {
@@ -91,6 +94,8 @@ func TestCreate(t *testing.T) {
 			keystore.WithController(testController),
 			keystore.WithDelegateKeyType(testKeyType),
 			keystore.WithRecipientKeyType(testKeyType),
+			keystore.WithMACKeyType(testKeyType),
+			keystore.WithOperationalVaultID(testVaultID),
 			keystore.WithCreatedAt(&createdAt),
 		}
 
@@ -123,6 +128,20 @@ func TestCreate(t *testing.T) {
 		require.NoError(t, err)
 
 		keystoreID, err := srv.Create(keystore.WithID(testKeystoreID), keystore.WithRecipientKeyType(testKeyType))
+
+		require.Empty(t, keystoreID)
+		require.Error(t, err)
+	})
+
+	t.Run("Error: create MAC key", func(t *testing.T) {
+		provider := mock.NewMockProvider()
+		provider.MockKeyManager.CreateKeyErr = errors.New("create key error")
+
+		srv, err := keystore.NewService(provider)
+		require.NotNil(t, srv)
+		require.NoError(t, err)
+
+		keystoreID, err := srv.Create(keystore.WithID(testKeystoreID), keystore.WithMACKeyType(testKeyType))
 
 		require.Empty(t, keystoreID)
 		require.Error(t, err)
@@ -194,6 +213,50 @@ func TestSave(t *testing.T) {
 		k := testKeystore()
 		err = srv.Save(&k)
 		require.Error(t, err)
+	})
+}
+
+func TestGetKeyHandle(t *testing.T) {
+	t.Run("Success", func(t *testing.T) {
+		k, err := keyset.NewHandle(signature.ED25519KeyTemplate())
+		require.NoError(t, err)
+
+		provider := mock.NewMockProvider()
+		provider.MockKeyManager.GetKeyValue = k
+
+		srv, err := keystore.NewService(provider)
+		require.NotNil(t, srv)
+		require.NoError(t, err)
+
+		kh, err := srv.GetKeyHandle(testKeyID)
+		require.NotNil(t, kh)
+		require.NoError(t, err)
+	})
+
+	t.Run("Error: key manager get", func(t *testing.T) {
+		provider := mock.NewMockProvider()
+		provider.MockKeyManager.GetKeyErr = errors.New("get key error")
+
+		srv, err := keystore.NewService(provider)
+		require.NotNil(t, srv)
+		require.NoError(t, err)
+
+		kh, err := srv.GetKeyHandle(testKeyID)
+		require.Nil(t, kh)
+		require.Error(t, err)
+	})
+}
+
+func TestKeyManager(t *testing.T) {
+	t.Run("Success", func(t *testing.T) {
+		srv, err := keystore.NewService(mock.NewMockProvider())
+		require.NotNil(t, srv)
+		require.NoError(t, err)
+
+		keyManager, err := srv.KeyManager()
+
+		require.NotNil(t, keyManager)
+		require.NoError(t, err)
 	})
 }
 
