@@ -8,7 +8,7 @@ go 1.15
 
 require (
 	github.com/gorilla/mux v1.8.0
-	github.com/hyperledger/aries-framework-go v0.1.5-0.20201114135201-ef5deba0feb1
+	github.com/hyperledger/aries-framework-go v0.1.5-0.20201116212252-b6c55376d0e5
 	github.com/hyperledger/aries-framework-go-ext/component/storage/couchdb v0.0.0-20201113155502-c4ba5d2c7c0a
 	github.com/rs/cors v1.7.0
 	github.com/spf13/cobra v1.1.1

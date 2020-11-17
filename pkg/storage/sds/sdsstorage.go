@@ -18,6 +18,7 @@ import (
 	"github.com/hyperledger/aries-framework-go/pkg/doc/jose"
 	"github.com/hyperledger/aries-framework-go/pkg/storage"
 	"github.com/hyperledger/aries-framework-go/pkg/storage/edv"
+	"github.com/hyperledger/aries-framework-go/pkg/storage/formattedstore"
 
 	"github.com/trustbloc/hub-kms/pkg/keystore"
 )
@@ -47,7 +48,7 @@ func NewStorageProvider(c *Config) (storage.Provider, error) {
 		return nil, err
 	}
 
-	edvRESTProvider, err := c.createEDVRESTProvider(k)
+	restProvider, err := c.createRESTProvider(k)
 	if err != nil {
 		return nil, err
 	}
@@ -57,10 +58,10 @@ func NewStorageProvider(c *Config) (storage.Provider, error) {
 		return nil, err
 	}
 
-	return storage.NewFormattedProvider(edvRESTProvider, encryptedFormatter), nil
+	return formattedstore.NewFormattedProvider(restProvider, encryptedFormatter, true), nil
 }
 
-func (c *Config) createEDVRESTProvider(k *keystore.Keystore) (*edv.RESTProvider, error) {
+func (c *Config) createRESTProvider(k *keystore.Keystore) (*edv.RESTProvider, error) {
 	macKH, err := c.KeystoreService.GetKeyHandle(k.MACKeyID)
 	if err != nil {
 		return nil, err

@@ -47,7 +47,7 @@ func (s *Steps) SetContext(ctx *context.BDDContext) {
 
 // RegisterSteps defines scenario steps.
 func (s *Steps) RegisterSteps(ctx *godog.ScenarioContext) {
-	ctx.Step(`^user sends an HTTP POST to "([^"]*)" to create a keystore$`, s.sendCreateKeystoreRequest)
+	ctx.Step(`^user makes an HTTP POST to "([^"]*)" to create a keystore$`, s.sendCreateKeystoreRequest)
 	ctx.Step(`^user gets a response with HTTP status code "([^"]*)" and "([^"]*)" header with a valid URL$`,
 		s.checkResponse)
 }
@@ -55,7 +55,7 @@ func (s *Steps) RegisterSteps(ctx *godog.ScenarioContext) {
 func (s *Steps) sendCreateKeystoreRequest(endpoint string) error {
 	body := bytes.NewBuffer([]byte(createKeystoreReq))
 
-	resp, err := bddutil.HTTPDo(http.MethodPost, endpoint, contentType, body, s.bddContext.TLSConfig())
+	resp, err := bddutil.HTTPDo(http.MethodPost, endpoint, headers(), body, s.bddContext.TLSConfig())
 	if err != nil {
 		return err
 	}
@@ -90,4 +90,10 @@ func (s *Steps) checkResponse(status, header string) error {
 	}
 
 	return nil
+}
+
+func headers() map[string]string {
+	return map[string]string{
+		"Content-Type": contentType,
+	}
 }

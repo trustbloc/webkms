@@ -19,6 +19,10 @@ import (
 	"github.com/trustbloc/hub-kms/test/bdd/pkg/context"
 )
 
+const (
+	contentType = "application/json"
+)
+
 // Steps defines steps for health check.
 type Steps struct {
 	bddContext *context.BDDContext
@@ -43,7 +47,7 @@ func (s *Steps) SetContext(ctx *context.BDDContext) {
 }
 
 func (s *Steps) httpGet(url string) error {
-	resp, err := bddutil.HTTPDo(http.MethodGet, url, "", nil, s.bddContext.TLSConfig())
+	resp, err := bddutil.HTTPDo(http.MethodGet, url, headers(), nil, s.bddContext.TLSConfig())
 	if err != nil {
 		return err
 	}
@@ -80,4 +84,10 @@ func (s *Steps) validateResponse(expected string) error {
 	}
 
 	return nil
+}
+
+func headers() map[string]string {
+	return map[string]string{
+		"Content-Type": contentType,
+	}
 }

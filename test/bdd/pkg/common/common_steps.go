@@ -19,6 +19,7 @@ import (
 
 const (
 	serverEndpoint = "https://%s:%d"
+	contentType    = "application/json"
 )
 
 // Steps defines context for BDD test steps.
@@ -68,7 +69,7 @@ func (s *Steps) checkSDSServerIsRun(host string, port int) error {
 func (s *Steps) healthCheck(host string, port int) (string, error) {
 	url := fmt.Sprintf(serverEndpoint+"/healthcheck", host, port)
 
-	resp, err := bddutil.HTTPDo(http.MethodGet, url, "", nil, s.bddContext.TLSConfig())
+	resp, err := bddutil.HTTPDo(http.MethodGet, url, headers(), nil, s.bddContext.TLSConfig())
 	if err != nil {
 		return "", err
 	}
@@ -79,4 +80,10 @@ func (s *Steps) healthCheck(host string, port int) (string, error) {
 	}
 
 	return fmt.Sprintf(serverEndpoint, host, port), nil
+}
+
+func headers() map[string]string {
+	return map[string]string{
+		"Content-Type": contentType,
+	}
 }
