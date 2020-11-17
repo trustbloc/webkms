@@ -106,16 +106,17 @@ func (s *Steps) SetContext(ctx *context.BDDContext) {
 func (s *Steps) RegisterSteps(ctx *godog.ScenarioContext) {
 	// common creation steps
 	ctx.Step(`^user has created a data vault on SDS Server for storing operational keys$`, s.createEDVDataVault)
+	ctx.Step(`^user has created an empty keystore on Key Server$`, s.createKeystore)
 	ctx.Step(`^user has created a keystore with "([^"]*)" key on Key Server$`, s.createKeystoreAndKey)
 	// common response checking steps
-	ctx.Step(`^user gets a response with HTTP status code "([^"]*)"$`, s.checkResponseStatusCode)
+	ctx.Step(`^user gets a response with HTTP status "([^"]*)"$`, s.checkResponseStatus)
 	ctx.Step(`^user gets a response with "([^"]*)" header with a valid URL$`, s.checkHeaderWithValidURL)
 	ctx.Step(`^user gets a response with non-empty "([^"]*)"$`, s.checkResponseWithNonEmptyValue)
 	ctx.Step(`^user gets a response with no "([^"]*)"$`, s.checkResponseWithNoValue)
 	ctx.Step(`^user gets a response with "([^"]*)" with value "([^"]*)"$`, s.checkResponseWithValue)
-	// create key steps
-	ctx.Step(`^user has created an empty keystore on Key Server$`, s.createKeystore)
+	// create/export key steps
 	ctx.Step(`^user makes an HTTP POST to "([^"]*)" to create "([^"]*)" key$`, s.sendCreateKeyRequest)
+	ctx.Step(`^user makes an HTTP GET to "([^"]*)" to export public key$`, s.sendExportPubKeyRequest)
 	// sign/verify message steps
 	ctx.Step(`^user makes an HTTP POST to "([^"]*)" to sign "([^"]*)"$`, s.sendSignMessageRequest)
 	ctx.Step(`^user makes an HTTP POST to "([^"]*)" to verify "([^"]*)" for "([^"]*)"$`, s.sendVerifySignatureRequest)
@@ -175,6 +176,17 @@ func (s *Steps) sendCreateKeyRequest(endpoint, keyType string) error {
 	req := fmt.Sprintf(createKeyReq, keyType)
 
 	resp, closeBody, err := s.post(endpoint, req)
+	if err != nil {
+		return err
+	}
+
+	defer closeBody()
+
+	return s.processResponse(resp)
+}
+
+func (s *Steps) sendExportPubKeyRequest(endpoint string) error {
+	resp, closeBody, err := s.get(endpoint)
 	if err != nil {
 		return err
 	}
@@ -262,7 +274,7 @@ func (s *Steps) sendVerifyMACRequest(endpoint, prop, data string) error {
 	return s.processResponse(resp)
 }
 
-func (s *Steps) checkResponseStatusCode(status string) error {
+func (s *Steps) checkResponseStatus(status string) error {
 	if s.status != status {
 		return fmt.Errorf("expected HTTP response status %q, got: %q", status, s.status)
 	}
@@ -325,6 +337,27 @@ func headers() map[string]string {
 	}
 }
 
+//nolint:interfacer // `log.Logger` communicates the meaning better than the suggested `assert.TestingT` interface
+func closeBodyFunc(closer io.Closer, logger log.Logger) func() {
+	return func() {
+		err := closer.Close()
+		if err != nil {
+			logger.Errorf("Failed to close response body: %s", err.Error())
+		}
+	}
+}
+
+func (s *Steps) get(endpoint string) (*http.Response, func(), error) {
+	getURL := buildURL(endpoint, s.urlParams)
+
+	resp, err := bddutil.HTTPDo(http.MethodGet, getURL, headers(), nil, s.bddContext.TLSConfig())
+	if err != nil {
+		return nil, nil, err
+	}
+
+	return resp, closeBodyFunc(resp.Body, s.logger), nil
+}
+
 func (s *Steps) post(endpoint, body string) (*http.Response, func(), error) {
 	postURL := buildURL(endpoint, s.urlParams)
 	buf := bytes.NewBuffer([]byte(body))
@@ -334,30 +367,21 @@ func (s *Steps) post(endpoint, body string) (*http.Response, func(), error) {
 		return nil, nil, err
 	}
 
-	closeBodyFunc := func() {
-		err := resp.Body.Close()
-		if err != nil {
-			s.logger.Errorf("Failed to close response body: %s", err.Error())
-		}
-	}
-
-	return resp, closeBodyFunc, nil
+	return resp, closeBodyFunc(resp.Body, s.logger), nil
 }
 
 func (s *Steps) processResponse(resp *http.Response) error {
 	s.status = resp.Status
 
-	loc := resp.Header.Get("Location")
-	if loc != "" {
-		keystoreID, keyID := parseLocation(loc)
+	s.processResponseHeaders(resp)
 
-		if keystoreID != "" {
-			s.urlParams["keystoreID"] = keystoreID
-		}
+	return s.processResponseValues(resp)
+}
 
-		if keyID != "" {
-			s.urlParams["keyID"] = keyID
-		}
+func (s *Steps) processResponseHeaders(resp *http.Response) {
+	location := resp.Header.Get("Location")
+	if location != "" {
+		s.setURLParams(location)
 	}
 
 	h := make(map[string]string, len(resp.Header))
@@ -366,24 +390,18 @@ func (s *Steps) processResponse(resp *http.Response) error {
 	}
 
 	s.headers = h
+}
 
-	var jsonResp map[string]interface{}
-	if err := json.NewDecoder(resp.Body).Decode(&jsonResp); err != nil && !errors.Is(err, io.EOF) {
-		return err
+func (s *Steps) setURLParams(location string) {
+	keystoreID, keyID := parseLocation(location)
+
+	if keystoreID != "" {
+		s.urlParams["keystoreID"] = keystoreID
 	}
 
-	m := make(map[string]string)
-
-	for k, v := range jsonResp {
-		a, ok := v.(string)
-		if ok {
-			m[k] = a
-		}
+	if keyID != "" {
+		s.urlParams["keyID"] = keyID
 	}
-
-	s.response = m
-
-	return nil
 }
 
 func parseLocation(loc string) (string, string) {
@@ -405,4 +423,28 @@ func parseLocation(loc string) (string, string) {
 	}
 
 	return keystoreID, keyID
+}
+
+func (s *Steps) processResponseValues(resp *http.Response) error {
+	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusCreated {
+		return nil
+	}
+
+	var jsonResp map[string]interface{}
+	if err := json.NewDecoder(resp.Body).Decode(&jsonResp); err != nil && !errors.Is(err, io.EOF) {
+		return err
+	}
+
+	m := make(map[string]string)
+
+	for k, v := range jsonResp {
+		a, ok := v.(string)
+		if ok {
+			m[k] = a
+		}
+	}
+
+	s.response = m
+
+	return nil
 }

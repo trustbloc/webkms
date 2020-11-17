@@ -37,6 +37,7 @@ const (
 const (
 	keystoresEndpoint  = "/kms/keystores"
 	keysEndpoint       = "/kms/keystores/{keystoreID}/keys"
+	exportEndpoint     = "/kms/keystores/{keystoreID}/keys/{keyID}/export"
 	signEndpoint       = "/kms/keystores/{keystoreID}/keys/{keyID}/sign"
 	verifyEndpoint     = "/kms/keystores/{keystoreID}/keys/{keyID}/verify"
 	encryptEndpoint    = "/kms/keystores/{keystoreID}/keys/{keyID}/encrypt"
@@ -182,6 +183,47 @@ func TestCreateKeyHandler(t *testing.T) {
 
 		require.Equal(t, http.StatusInternalServerError, rr.Code)
 		require.Contains(t, rr.Body.String(), "Failed to create a key: create key error")
+	})
+}
+
+func TestExportKeyHandler(t *testing.T) {
+	t.Run("Success", func(t *testing.T) {
+		srv := mockkms.NewMockService()
+		srv.ExportKeyValue = []byte("public key bytes")
+
+		op := operation.New(newConfig(withKMSService(srv)))
+		handler := getHandler(t, op, exportEndpoint, http.MethodGet)
+
+		rr := httptest.NewRecorder()
+		handler.Handle().ServeHTTP(rr, buildExportKeyReq(t))
+
+		require.Equal(t, http.StatusOK, rr.Code)
+		require.Contains(t, rr.Body.String(), base64.URLEncoding.EncodeToString([]byte("public key bytes")))
+	})
+
+	t.Run("Failed to create a KMS service", func(t *testing.T) {
+		op := operation.New(newConfig(withKMSServiceCreatorErr(errors.New("kms service creator error"))))
+		handler := getHandler(t, op, exportEndpoint, http.MethodGet)
+
+		rr := httptest.NewRecorder()
+		handler.Handle().ServeHTTP(rr, buildExportKeyReq(t))
+
+		require.Equal(t, http.StatusInternalServerError, rr.Code)
+		require.Contains(t, rr.Body.String(), "Failed to create a KMS service: kms service creator error")
+	})
+
+	t.Run("Failed to export a public key", func(t *testing.T) {
+		srv := mockkms.NewMockService()
+		srv.ExportKeyErr = errors.New("export key error")
+
+		op := operation.New(newConfig(withKMSService(srv)))
+		handler := getHandler(t, op, exportEndpoint, http.MethodGet)
+
+		rr := httptest.NewRecorder()
+		handler.Handle().ServeHTTP(rr, buildExportKeyReq(t))
+
+		require.Equal(t, http.StatusInternalServerError, rr.Code)
+		require.Contains(t, rr.Body.String(), "Failed to export a public key: export key error")
 	})
 }
 
@@ -676,6 +718,20 @@ func buildCreateKeyReq(t *testing.T) *http.Request {
 
 	req = mux.SetURLVars(req, map[string]string{
 		"keystoreID": testKeystoreID,
+	})
+
+	return req
+}
+
+func buildExportKeyReq(t *testing.T) *http.Request {
+	t.Helper()
+
+	req, err := http.NewRequestWithContext(context.Background(), http.MethodGet, "", nil)
+	require.NoError(t, err)
+
+	req = mux.SetURLVars(req, map[string]string{
+		"keystoreID": testKeystoreID,
+		"keyID":      testKeyID,
 	})
 
 	return req
