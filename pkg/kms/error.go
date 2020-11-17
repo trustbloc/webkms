@@ -10,6 +10,7 @@ import "errors"
 
 const (
 	createKeyFailed       = "create key failed"
+	exportKeyFailed       = "export public key failed"
 	getKeystoreFailed     = "get keystore failed"
 	getKeyFailed          = "get key failed"
 	saveKeystoreFailed    = "save keystore failed"

@@ -11,12 +11,14 @@ import "github.com/hyperledger/aries-framework-go/pkg/kms"
 // MockService is a mock KMS service.
 type MockService struct {
 	CreateKeyValue  string
+	ExportKeyValue  []byte
 	SignValue       []byte
 	EncryptValue    []byte
 	Nonce           []byte
 	DecryptValue    []byte
 	ComputeMACValue []byte
 	CreateKeyErr    error
+	ExportKeyErr    error
 	SignErr         error
 	VerifyErr       error
 	EncryptErr      error
@@ -37,6 +39,15 @@ func (s *MockService) CreateKey(keystoreID string, kt kms.KeyType) (string, erro
 	}
 
 	return s.CreateKeyValue, nil
+}
+
+// ExportKey exports a public key.
+func (s *MockService) ExportKey(keystoreID, keyID string) ([]byte, error) {
+	if s.ExportKeyErr != nil {
+		return nil, s.ExportKeyErr
+	}
+
+	return s.ExportKeyValue, nil
 }
 
 // Sign signs a message.

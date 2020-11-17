@@ -37,6 +37,7 @@ const (
 	keystoreEndpoint   = keystoresEndpoint + "/{" + keystoreIDQueryParam + "}"
 	keysEndpoint       = keystoreEndpoint + "/keys"
 	keyEndpoint        = keysEndpoint + "/{" + keyIDQueryParam + "}"
+	exportEndpoint     = keyEndpoint + "/export"
 	signEndpoint       = keyEndpoint + "/sign"
 	verifyEndpoint     = keyEndpoint + "/verify"
 	encryptEndpoint    = keyEndpoint + "/encrypt"
@@ -49,6 +50,7 @@ const (
 	createKeystoreFailure   = "Failed to create a keystore: %s"
 	createKMSServiceFailure = "Failed to create a KMS service: %s"
 	createKeyFailure        = "Failed to create a key: %s"
+	exportKeyFailure        = "Failed to export a public key: %s"
 	signMessageFailure      = "Failed to sign a message: %s"
 	verifyMessageFailure    = "Failed to verify a message: %s"
 	encryptMessageFailure   = "Failed to encrypt a message: %s"
@@ -97,6 +99,7 @@ func (o *Operation) GetRESTHandlers() []Handler {
 	return []Handler{
 		support.NewHTTPHandler(keystoresEndpoint, http.MethodPost, o.createKeystoreHandler),
 		support.NewHTTPHandler(keysEndpoint, http.MethodPost, o.createKeyHandler),
+		support.NewHTTPHandler(exportEndpoint, http.MethodGet, o.exportKeyHandler),
 		support.NewHTTPHandler(signEndpoint, http.MethodPost, o.signHandler),
 		support.NewHTTPHandler(verifyEndpoint, http.MethodPost, o.verifyHandler),
 		support.NewHTTPHandler(encryptEndpoint, http.MethodPost, o.encryptHandler),
@@ -164,6 +167,31 @@ func (o *Operation) createKeyHandler(rw http.ResponseWriter, req *http.Request) 
 
 	rw.Header().Set("Location", keyLocation(req.Host, keystoreID, keyID))
 	rw.WriteHeader(http.StatusCreated)
+}
+
+func (o *Operation) exportKeyHandler(rw http.ResponseWriter, req *http.Request) {
+	o.logger.Debugf(prepareDebugOutputForRequest(req, o.logger))
+
+	kmsService, err := o.kmsServiceCreator(req)
+	if err != nil {
+		o.writeErrorResponse(rw, http.StatusInternalServerError, createKMSServiceFailure, err)
+
+		return
+	}
+
+	keystoreID := mux.Vars(req)[keystoreIDQueryParam]
+	keyID := mux.Vars(req)[keyIDQueryParam]
+
+	bytes, err := kmsService.ExportKey(keystoreID, keyID)
+	if err != nil {
+		o.writeErrorResponse(rw, http.StatusInternalServerError, exportKeyFailure, err)
+
+		return
+	}
+
+	o.writeResponse(rw, exportKeyResp{
+		PublicKey: base64.URLEncoding.EncodeToString(bytes),
+	})
 }
 
 //nolint:dupl // better readability

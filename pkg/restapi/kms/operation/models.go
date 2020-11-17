@@ -15,6 +15,10 @@ type createKeyReq struct {
 	KeyType string `json:"keyType"`
 }
 
+type exportKeyResp struct {
+	PublicKey string `json:"publicKey"`
+}
+
 type signReq struct {
 	Message string `json:"message"`
 }

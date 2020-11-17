@@ -17,6 +17,7 @@ import (
 // Service provides kms/crypto functionality.
 type Service interface {
 	CreateKey(keystoreID string, kt kms.KeyType) (string, error)
+	ExportKey(keystoreID, keyID string) ([]byte, error)
 	Sign(keystoreID, keyID string, msg []byte) ([]byte, error)
 	Verify(keystoreID, keyID string, sig, msg []byte) error
 	Encrypt(keystoreID, keyID string, msg, aad []byte) ([]byte, []byte, error)
@@ -67,6 +68,20 @@ func (s *service) CreateKey(keystoreID string, kt kms.KeyType) (string, error) {
 	}
 
 	return keyID, nil
+}
+
+// ExportKey exports a public key.
+func (s *service) ExportKey(keystoreID, keyID string) ([]byte, error) {
+	if err := s.checkKey(keystoreID, keyID); err != nil {
+		return nil, err
+	}
+
+	b, err := s.keyManager.ExportPubKeyBytes(keyID)
+	if err != nil {
+		return nil, NewServiceError(exportKeyFailed, err)
+	}
+
+	return b, nil
 }
 
 // Sign signs a message.
@@ -165,13 +180,26 @@ func (s *service) VerifyMAC(keystoreID, keyID string, mac, data []byte) error {
 }
 
 func (s *service) getKeyHandle(keystoreID, keyID string) (interface{}, error) {
+	if err := s.checkKey(keystoreID, keyID); err != nil {
+		return nil, err
+	}
+
+	kh, err := s.keyManager.Get(keyID)
+	if err != nil {
+		return nil, NewServiceError(getKeyFailed, err)
+	}
+
+	return kh, nil
+}
+
+func (s *service) checkKey(keystoreID, keyID string) error {
 	k, err := s.keystore.Get(keystoreID)
 	if err != nil {
-		return nil, NewServiceError(getKeystoreFailed, err)
+		return NewServiceError(getKeystoreFailed, err)
 	}
 
 	if len(k.OperationalKeyIDs) == 0 {
-		return nil, NewServiceError(noKeysFailure, nil)
+		return NewServiceError(noKeysFailure, nil)
 	}
 
 	found := false
@@ -185,13 +213,8 @@ func (s *service) getKeyHandle(keystoreID, keyID string) (interface{}, error) {
 	}
 
 	if !found {
-		return nil, NewServiceError(invalidKeyFailure, nil)
+		return NewServiceError(invalidKeyFailure, nil)
 	}
 
-	kh, err := s.keyManager.Get(keyID)
-	if err != nil {
-		return nil, NewServiceError(getKeyFailed, err)
-	}
-
-	return kh, nil
+	return nil
 }

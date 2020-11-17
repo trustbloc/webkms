@@ -108,6 +108,98 @@ func TestCreateKey(t *testing.T) {
 	})
 }
 
+func TestExportKey(t *testing.T) {
+	t.Run("Success", func(t *testing.T) {
+		provider := mockkms.NewMockProvider()
+		provider.MockKeyManager.ExportPubKeyBytesValue = []byte("public key bytes")
+
+		k := &keystore.Keystore{
+			ID:                testKeystoreID,
+			OperationalKeyIDs: []string{testKeyID},
+		}
+		provider.MockKeystoreService.GetKeystoreValue = k
+
+		srv := kms.NewService(provider)
+		require.NotNil(t, srv)
+
+		pub, err := srv.ExportKey(testKeystoreID, testKeyID)
+
+		require.NotEmpty(t, pub)
+		require.NoError(t, err)
+	})
+
+	t.Run("Error: get keystore", func(t *testing.T) {
+		provider := mockkms.NewMockProvider()
+		provider.MockKeystoreService.GetErr = errors.New("get keystore error")
+
+		srv := kms.NewService(provider)
+		require.NotNil(t, srv)
+
+		pub, err := srv.ExportKey(testKeystoreID, testKeyID)
+
+		require.Empty(t, pub)
+		require.Error(t, err)
+		require.Equal(t, "get keystore failed: get keystore error", err.Error())
+	})
+
+	t.Run("Error: no keys defined", func(t *testing.T) {
+		provider := mockkms.NewMockProvider()
+
+		k := &keystore.Keystore{
+			ID: testKeystoreID,
+		}
+		provider.MockKeystoreService.GetKeystoreValue = k
+
+		srv := kms.NewService(provider)
+		require.NotNil(t, srv)
+
+		pub, err := srv.ExportKey(testKeystoreID, testKeyID)
+
+		require.Empty(t, pub)
+		require.Error(t, err)
+		require.Equal(t, "no keys defined", err.Error())
+	})
+
+	t.Run("Error: invalid key ID", func(t *testing.T) {
+		provider := mockkms.NewMockProvider()
+
+		k := &keystore.Keystore{
+			ID:                testKeystoreID,
+			OperationalKeyIDs: []string{testKeyID},
+		}
+		provider.MockKeystoreService.GetKeystoreValue = k
+
+		srv := kms.NewService(provider)
+		require.NotNil(t, srv)
+
+		pub, err := srv.ExportKey(testKeystoreID, "invalidKeyID")
+
+		require.Empty(t, pub)
+		require.Error(t, err)
+		require.Equal(t, "invalid key", err.Error())
+	})
+
+	t.Run("Error: export public key failed", func(t *testing.T) {
+		provider := mockkms.NewMockProvider()
+		provider.MockKeyManager.ExportPubKeyBytesErr = errors.New("export error")
+
+		k := &keystore.Keystore{
+			ID:                testKeystoreID,
+			OperationalKeyIDs: []string{testKeyID},
+		}
+		provider.MockKeystoreService.GetKeystoreValue = k
+
+		srv := kms.NewService(provider)
+		require.NotNil(t, srv)
+
+		pub, err := srv.ExportKey(testKeystoreID, testKeyID)
+
+		require.Empty(t, pub)
+		require.Error(t, err)
+		require.Equal(t, "export public key failed: export error", err.Error())
+	})
+}
+
 func TestSign(t *testing.T) {
 	t.Run("Success", func(t *testing.T) {
 		provider := mockkms.NewMockProvider()
