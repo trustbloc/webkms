@@ -7,12 +7,8 @@ SPDX-License-Identifier: Apache-2.0
 package kms
 
 import (
-	"bytes"
 	"crypto/sha256"
-	"encoding/json"
 	"fmt"
-	"io"
-	"io/ioutil"
 	"net/http"
 
 	"github.com/gorilla/mux"
@@ -27,6 +23,7 @@ import (
 const (
 	masterKeyURI         = "local-lock://%s"
 	keystoreIDQueryParam = "keystoreID"
+	secretHeader         = "Hub-Kms-Secret" //nolint:gosec // not hardcoded credentials
 )
 
 // ServiceCreator is a function that creates KMS Service.
@@ -45,21 +42,11 @@ func NewServiceCreator(c *Config) ServiceCreator {
 		keystoreID := mux.Vars(req)[keystoreIDQueryParam]
 		keyURI := fmt.Sprintf(masterKeyURI, keystoreID)
 
-		b, err := cloneRequestBody(req)
-		if err != nil {
-			return nil, err
-		}
+		// TODO(#22): Replace with split secret shares. Consider to use "Hub-Kms-Secret-A" and "Hub-Kms-Secret-B-Path"
+		// headers to pass a content of secret A and a location to secret B accordingly.
+		secret := req.Header.Get(secretHeader)
 
-		p := struct {
-			Passphrase string `json:"passphrase"`
-		}{}
-
-		err = json.NewDecoder(b).Decode(&p)
-		if err != nil {
-			return nil, err
-		}
-
-		secLock, err := hkdf.NewMasterLock(p.Passphrase, sha256.New, nil)
+		secLock, err := hkdf.NewMasterLock(secret, sha256.New, nil)
 		if err != nil {
 			return nil, err
 		}
@@ -100,15 +87,4 @@ func (k kmsServiceProvider) KeyManager() kms.KeyManager {
 
 func (k kmsServiceProvider) Crypto() crypto.Crypto {
 	return k.crypto
-}
-
-func cloneRequestBody(req *http.Request) (io.ReadCloser, error) {
-	body, err := ioutil.ReadAll(req.Body)
-	if err != nil {
-		return nil, err
-	}
-
-	req.Body = ioutil.NopCloser(bytes.NewReader(body))
-
-	return ioutil.NopCloser(bytes.NewReader(body)), nil
 }

@@ -55,7 +55,7 @@ func TestNewProvider(t *testing.T) {
 		require.Error(t, err)
 	})
 
-	t.Run("Fail to create EDV REST provider: get MAC key handle", func(t *testing.T) {
+	t.Run("Fail to create REST provider: get MAC key handle", func(t *testing.T) {
 		srv := mockkeystore.NewMockService()
 		srv.GetKeystoreValue = &keystore.Keystore{
 			ID: testKeystoreID,
@@ -68,7 +68,7 @@ func TestNewProvider(t *testing.T) {
 		require.Error(t, err)
 	})
 
-	t.Run("Fail to create EDV REST provider: compute MAC for index name", func(t *testing.T) {
+	t.Run("Fail to create REST provider: compute MAC for index name", func(t *testing.T) {
 		srv := mockkeystore.NewMockService()
 		srv.GetKeystoreValue = &keystore.Keystore{
 			ID: testKeystoreID,

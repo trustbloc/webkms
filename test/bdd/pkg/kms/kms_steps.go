@@ -33,43 +33,36 @@ const (
 	}`
 
 	createKeyReq = `{
-	  "keyType": "%s",
-	  "passphrase": "p@ssphrase"
+	  "keyType": "%s"
 	}`
 
 	signMessageReq = `{
-	  "message": "%s",
-	  "passphrase": "p@ssphrase"
+	  "message": "%s"
 	}`
 
 	verifySignatureReq = `{
 	  "signature": "%s",
-	  "message": "%s",
-	  "passphrase": "p@ssphrase"
+	  "message": "%s"
 	}`
 
 	encryptMessageReq = `{
 	  "message": "%s",
-	  "aad": "%s",
-	  "passphrase": "p@ssphrase"
+	  "aad": "%s"
 	}`
 
 	decryptCipherReq = `{
 	  "cipherText": "%s",
 	  "aad": "%s",
-	  "nonce": "%s",
-	  "passphrase": "p@ssphrase"
+	  "nonce": "%s"
 	}`
 
 	computeMACReq = `{
-	  "data": "%s",
-	  "passphrase": "p@ssphrase"
+	  "data": "%s"
 	}`
 
 	verifyMACReq = `{
 	  "mac": "%s",
-	  "data": "%s",
-	  "passphrase": "p@ssphrase"
+	  "data": "%s"
 	}`
 
 	edvBasePath            = "/encrypted-data-vaults"
@@ -77,6 +70,7 @@ const (
 	keysEndpoint           = "/kms/keystores/{keystoreID}/keys"
 
 	contentType = "application/json"
+	passphrase  = "p@ssphrase"
 )
 
 const (
@@ -121,16 +115,16 @@ func (s *Steps) RegisterSteps(ctx *godog.ScenarioContext) {
 	ctx.Step(`^user gets a response with "([^"]*)" with value "([^"]*)"$`, s.checkResponseWithValue)
 	// create key steps
 	ctx.Step(`^user has created an empty keystore on Key Server$`, s.createKeystore)
-	ctx.Step(`^user sends an HTTP POST to "([^"]*)" to create "([^"]*)" key$`, s.sendCreateKeyRequest)
+	ctx.Step(`^user makes an HTTP POST to "([^"]*)" to create "([^"]*)" key$`, s.sendCreateKeyRequest)
 	// sign/verify message steps
-	ctx.Step(`^user sends an HTTP POST to "([^"]*)" to sign "([^"]*)"$`, s.sendSignMessageRequest)
-	ctx.Step(`^user sends an HTTP POST to "([^"]*)" to verify "([^"]*)" for "([^"]*)"$`, s.sendVerifySignatureRequest)
+	ctx.Step(`^user makes an HTTP POST to "([^"]*)" to sign "([^"]*)"$`, s.sendSignMessageRequest)
+	ctx.Step(`^user makes an HTTP POST to "([^"]*)" to verify "([^"]*)" for "([^"]*)"$`, s.sendVerifySignatureRequest)
 	// encrypt/decrypt message steps
-	ctx.Step(`^user sends an HTTP POST to "([^"]*)" to encrypt "([^"]*)"$`, s.sendEncryptMessageRequest)
-	ctx.Step(`^user sends an HTTP POST to "([^"]*)" to decrypt "([^"]*)"$`, s.sendDecryptCipherRequest)
+	ctx.Step(`^user makes an HTTP POST to "([^"]*)" to encrypt "([^"]*)"$`, s.sendEncryptMessageRequest)
+	ctx.Step(`^user makes an HTTP POST to "([^"]*)" to decrypt "([^"]*)"$`, s.sendDecryptCipherRequest)
 	// compute/verify MAC steps
-	ctx.Step(`^user sends an HTTP POST to "([^"]*)" to compute MAC for "([^"]*)"$`, s.sendComputeMACRequest)
-	ctx.Step(`^user sends an HTTP POST to "([^"]*)" to verify MAC "([^"]*)" for "([^"]*)"$`, s.sendVerifyMACRequest)
+	ctx.Step(`^user makes an HTTP POST to "([^"]*)" to compute MAC for "([^"]*)"$`, s.sendComputeMACRequest)
+	ctx.Step(`^user makes an HTTP POST to "([^"]*)" to verify MAC "([^"]*)" for "([^"]*)"$`, s.sendVerifyMACRequest)
 }
 
 func (s *Steps) createEDVDataVault() error {
@@ -324,11 +318,18 @@ func buildURL(endpoint string, params map[string]string) string {
 	return strings.NewReplacer(pairs...).Replace(endpoint)
 }
 
+func headers() map[string]string {
+	return map[string]string{
+		"Content-Type":   contentType,
+		"Hub-Kms-Secret": passphrase,
+	}
+}
+
 func (s *Steps) post(endpoint, body string) (*http.Response, func(), error) {
 	postURL := buildURL(endpoint, s.urlParams)
 	buf := bytes.NewBuffer([]byte(body))
 
-	resp, err := bddutil.HTTPDo(http.MethodPost, postURL, contentType, buf, s.bddContext.TLSConfig())
+	resp, err := bddutil.HTTPDo(http.MethodPost, postURL, headers(), buf, s.bddContext.TLSConfig())
 	if err != nil {
 		return nil, nil, err
 	}
