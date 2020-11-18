@@ -21,6 +21,7 @@ services:
       - KMS_SECRETS_DATABASE_TYPE=couchdb
       - KMS_SECRETS_DATABASE_URL=admin:password@couchdb.example.com:5984
       - KMS_SECRETS_DATABASE_PREFIX=kms
+      - KMS_SECRETS_MASTER_KEY_PATH=/etc/tls/service-lock.key
       - KMS_OPERATIONAL_KMS_STORAGE_TYPE=sds
       - KMS_OPERATIONAL_KMS_STORAGE_URL=https://edv.example.com:8081
     ports:

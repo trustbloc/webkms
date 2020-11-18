@@ -18,6 +18,7 @@ import (
 	"github.com/hyperledger/aries-framework-go/pkg/crypto/tinkcrypto"
 	arieskms "github.com/hyperledger/aries-framework-go/pkg/kms"
 	"github.com/hyperledger/aries-framework-go/pkg/secretlock"
+	"github.com/hyperledger/aries-framework-go/pkg/secretlock/local"
 	"github.com/hyperledger/aries-framework-go/pkg/secretlock/noop"
 	ariesstorage "github.com/hyperledger/aries-framework-go/pkg/storage"
 	ariesmemstorage "github.com/hyperledger/aries-framework-go/pkg/storage/mem"
@@ -102,6 +103,11 @@ const (
 	kmsDatabasePrefixEnvKey    = "KMS_SECRETS_DATABASE_PREFIX"
 	kmsDatabasePrefixFlagUsage = "An optional prefix to be used when creating and retrieving the underlying " +
 		"KMS secrets database. " + commonEnvVarUsageText + kmsDatabasePrefixEnvKey
+
+	kmsMasterKeyPathFlagName  = "kms-secrets-master-key-path"
+	kmsMasterKeyPathEnvKey    = "KMS_SECRETS_MASTER_KEY_PATH"
+	kmsMasterKeyPathFlagUsage = "The path to the file with master key to be used for secret lock. If missing noop " +
+		"service lock is used. " + commonEnvVarUsageText + kmsMasterKeyPathEnvKey
 
 	operationalKMSStorageTypeFlagName  = "operational-kms-storage-type"
 	operationalKMSStorageTypeEnvKey    = "KMS_OPERATIONAL_KMS_STORAGE_TYPE"
@@ -200,6 +206,8 @@ func createFlags(startCmd *cobra.Command) {
 	startCmd.Flags().StringP(kmsDatabaseURLFlagName, "", "", kmsDatabaseURLFlagUsage)
 	startCmd.Flags().StringP(kmsDatabasePrefixFlagName, "", "", kmsDatabasePrefixFlagUsage)
 
+	startCmd.Flags().StringP(kmsMasterKeyPathFlagName, "", "", kmsMasterKeyPathFlagUsage)
+
 	startCmd.Flags().StringP(operationalKMSStorageTypeFlagName, "", "", operationalKMSStorageTypeFlagUsage)
 	startCmd.Flags().StringP(operationalKMSStorageURLFlagName, "", "", operationalKMSStorageURLFlagUsage)
 	startCmd.Flags().StringP(operationalKMSStoragePrefixFlagName, "", "", operationalKMSStoragePrefixFlagUsage)
@@ -212,6 +220,7 @@ type kmsRestParameters struct {
 	tlsServeParams              *tlsServeParameters
 	storageParams               *storageParameters
 	kmsStorageParams            *storageParameters
+	kmsMasterKeyPath            string
 	operationalKMSStorageParams *storageParameters
 	logLevel                    string
 }
@@ -253,6 +262,11 @@ func getKmsRestParameters(cmd *cobra.Command) (*kmsRestParameters, error) {
 		return nil, err
 	}
 
+	masterKeyPath, err := cmdutils.GetUserSetVarFromString(cmd, kmsMasterKeyPathFlagName, kmsMasterKeyPathEnvKey, true)
+	if err != nil {
+		return nil, err
+	}
+
 	operationalKMSStorageParams, err := getOperationalKMSStorageParameters(cmd)
 	if err != nil {
 		return nil, err
@@ -270,6 +284,7 @@ func getKmsRestParameters(cmd *cobra.Command) (*kmsRestParameters, error) {
 		tlsServeParams:              tlsServeParams,
 		storageParams:               storageParams,
 		kmsStorageParams:            kmsStorageParams,
+		kmsMasterKeyPath:            masterKeyPath,
 		operationalKMSStorageParams: operationalKMSStorageParams,
 		logLevel:                    logLevel,
 	}, nil
@@ -500,9 +515,14 @@ func prepareKeystoreService(parameters *kmsRestParameters) (keystore.Service, er
 		return nil, err
 	}
 
+	secLock, err := getKMSSecretLock(parameters.kmsMasterKeyPath)
+	if err != nil {
+		return nil, err
+	}
+
 	kmsProvider := &kmsProvider{
 		storageProvider: kmsStorageProvider,
-		secretLock:      &noop.NoLock{},
+		secretLock:      secLock,
 	}
 
 	kmsCreator := func(provider arieskms.Provider) (arieskms.KeyManager, error) {
@@ -587,6 +607,19 @@ func getKMSStorageProvider(params *storageParameters) (ariesstorage.Provider, er
 	default:
 		return nil, errors.New("KMS storage not set to a valid type")
 	}
+}
+
+func getKMSSecretLock(keyPath string) (secretlock.Service, error) {
+	if keyPath == "" {
+		return &noop.NoLock{}, nil
+	}
+
+	masterKeyReader, err := local.MasterKeyFromPath(keyPath)
+	if err != nil {
+		return nil, err
+	}
+
+	return local.NewService(masterKeyReader, nil)
 }
 
 func constructCORSHandler(handler http.Handler) http.Handler {

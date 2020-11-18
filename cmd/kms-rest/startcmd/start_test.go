@@ -9,7 +9,10 @@ package startcmd
 import (
 	"bytes"
 	"context"
+	"crypto/rand"
+	"encoding/base64"
 	"fmt"
+	"io/ioutil"
 	"net/http"
 	"os"
 	"testing"
@@ -70,7 +73,7 @@ func TestStartCmdWithBlankArg(t *testing.T) {
 		hostURLFlagName, logLevelFlagName,
 		tlsServeCertPathFlagName, tlsServeKeyPathFlagName,
 		databaseTypeFlagName, databaseURLFlagName, databasePrefixFlagName,
-		kmsDatabaseTypeFlagName, kmsDatabaseURLFlagName, kmsDatabasePrefixFlagName,
+		kmsDatabaseTypeFlagName, kmsDatabaseURLFlagName, kmsDatabasePrefixFlagName, kmsMasterKeyPathFlagName,
 		operationalKMSStorageTypeFlagName, operationalKMSStorageURLFlagName, operationalKMSStoragePrefixFlagName,
 	}
 
@@ -227,7 +230,7 @@ func TestStartCmdLogLevels(t *testing.T) {
 	}
 }
 
-func TestStartCmdTLSCertParams(t *testing.T) {
+func TestStartCmdWithTLSCertParams(t *testing.T) {
 	t.Run("Success with tls-systemcertpool arg", func(t *testing.T) {
 		startCmd := GetStartCmd(&mockServer{})
 
@@ -245,6 +248,50 @@ func TestStartCmdTLSCertParams(t *testing.T) {
 
 		args := requiredArgs()
 		args = append(args, "--"+tlsSystemCertPoolFlagName, "invalid")
+
+		startCmd.SetArgs(args)
+
+		err := startCmd.Execute()
+		require.Error(t, err)
+	})
+}
+
+func TestStartCmdWithMasterKeyPathParam(t *testing.T) {
+	t.Run("Success with valid master key file", func(t *testing.T) {
+		file, closeFunc := createMasterKeyFile(t, false)
+		defer closeFunc()
+
+		startCmd := GetStartCmd(&mockServer{})
+
+		args := requiredArgs()
+		args = append(args, "--"+kmsMasterKeyPathFlagName, file)
+
+		startCmd.SetArgs(args)
+
+		err := startCmd.Execute()
+		require.NoError(t, err)
+	})
+
+	t.Run("Fail with invalid master key file content", func(t *testing.T) {
+		file, closeFunc := createMasterKeyFile(t, true)
+		defer closeFunc()
+
+		startCmd := GetStartCmd(&mockServer{})
+
+		args := requiredArgs()
+		args = append(args, "--"+kmsMasterKeyPathFlagName, file)
+
+		startCmd.SetArgs(args)
+
+		err := startCmd.Execute()
+		require.Error(t, err)
+	})
+
+	t.Run("Fail with invalid kms-secrets-master-key-path arg", func(t *testing.T) {
+		startCmd := GetStartCmd(&mockServer{})
+
+		args := requiredArgs()
+		args = append(args, "--"+kmsMasterKeyPathFlagName, "invalid")
 
 		startCmd.SetArgs(args)
 
@@ -391,4 +438,44 @@ func checkFlagPropertiesCorrect(t *testing.T, cmd *cobra.Command, flagName, flag
 
 	flagAnnotations := flag.Annotations
 	require.Nil(t, flagAnnotations)
+}
+
+func createMasterKeyFile(t *testing.T, empty bool) (string, func()) {
+	t.Helper()
+
+	f, err := ioutil.TempFile("", "service-lock.key")
+	require.NoError(t, err)
+
+	closeFunc := func() {
+		require.NoError(t, f.Close())
+		require.NoError(t, os.Remove(f.Name()))
+	}
+
+	if empty {
+		return f.Name(), closeFunc
+	}
+
+	const keySize = 32
+
+	key := randomBytes(keySize)
+	require.NotEmpty(t, key)
+
+	encoded := base64.URLEncoding.EncodeToString(key)
+
+	n, err := f.Write([]byte(encoded))
+	require.NoError(t, err)
+	require.Equal(t, len(encoded), n)
+
+	return f.Name(), closeFunc
+}
+
+func randomBytes(size uint32) []byte {
+	buf := make([]byte, size)
+
+	_, err := rand.Read(buf)
+	if err != nil {
+		panic(err)
+	}
+
+	return buf
 }
