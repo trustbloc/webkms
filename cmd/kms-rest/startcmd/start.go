@@ -15,6 +15,7 @@ import (
 
 	"github.com/gorilla/mux"
 	ariescouchdbstorage "github.com/hyperledger/aries-framework-go-ext/component/storage/couchdb"
+	cryptoapi "github.com/hyperledger/aries-framework-go/pkg/crypto"
 	"github.com/hyperledger/aries-framework-go/pkg/crypto/tinkcrypto"
 	arieskms "github.com/hyperledger/aries-framework-go/pkg/kms"
 	"github.com/hyperledger/aries-framework-go/pkg/secretlock"
@@ -32,6 +33,7 @@ import (
 	cmdutils "github.com/trustbloc/edge-core/pkg/utils/cmd"
 	tlsutils "github.com/trustbloc/edge-core/pkg/utils/tls"
 
+	"github.com/trustbloc/hub-kms/pkg/auth/zcapld"
 	"github.com/trustbloc/hub-kms/pkg/keystore"
 	"github.com/trustbloc/hub-kms/pkg/kms"
 	"github.com/trustbloc/hub-kms/pkg/restapi/healthcheck"
@@ -489,12 +491,23 @@ func prepareOperationConfig(parameters *kmsRestParameters) (*operation.Config, e
 		return nil, err
 	}
 
-	kmsServiceCreator, err := prepareKMSServiceCreator(keystoreService, parameters)
+	cryptoService, err := tinkcrypto.New()
+	if err != nil {
+		return nil, err
+	}
+
+	kmsServiceCreator, err := prepareKMSServiceCreator(keystoreService, cryptoService, parameters)
+	if err != nil {
+		return nil, err
+	}
+
+	km, err := keystoreService.KeyManager()
 	if err != nil {
 		return nil, err
 	}
 
 	return &operation.Config{
+		AuthService:       zcapld.New(km, cryptoService),
 		KeystoreService:   keystoreService,
 		KMSServiceCreator: kmsServiceCreator,
 		Logger:            log.New("hub-kms/restapi"),
@@ -543,12 +556,8 @@ func prepareKeystoreService(parameters *kmsRestParameters) (keystore.Service, er
 	return keystoreService, nil
 }
 
-func prepareKMSServiceCreator(keystoreService keystore.Service, params *kmsRestParameters) (kms.ServiceCreator, error) {
-	cryptoService, err := tinkcrypto.New()
-	if err != nil {
-		return nil, err
-	}
-
+func prepareKMSServiceCreator(keystoreService keystore.Service, cryptoService cryptoapi.Crypto,
+	params *kmsRestParameters) (kms.ServiceCreator, error) {
 	rootCAs, err := tlsutils.GetCertPool(params.tlsUseSystemCertPool, params.tlsCACerts)
 	if err != nil {
 		return nil, err

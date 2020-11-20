@@ -4,11 +4,12 @@ Copyright SecureKey Technologies Inc. All Rights Reserved.
 SPDX-License-Identifier: Apache-2.0
 */
 
-package sds_test
+package sds //nolint:testpackage // need to test local methods
 
 import (
 	"crypto/tls"
 	"errors"
+	"net/http"
 	"testing"
 
 	"github.com/google/tink/go/keyset"
@@ -20,13 +21,49 @@ import (
 
 	mockkeystore "github.com/trustbloc/hub-kms/pkg/internal/mock/keystore"
 	"github.com/trustbloc/hub-kms/pkg/keystore"
-	"github.com/trustbloc/hub-kms/pkg/storage/sds"
 )
 
 const (
 	testKeystoreID   = "keystoreID"
 	testSDSServerURL = "sds.example.com"
 )
+
+func TestSignHeader(t *testing.T) {
+	t.Run("test error from sign header", func(t *testing.T) {
+		kh, err := keyset.NewHandle(ecdh.ECDH256KWAES256GCMKeyTemplate())
+		require.NoError(t, err)
+
+		srv := mockkeystore.NewMockService()
+		srv.GetKeystoreValue = &keystore.Keystore{
+			ID: testKeystoreID,
+		}
+		srv.GetKeyHandleValue = kh
+
+		c := buildConfig(srv)
+		h, err := c.signHeader(&http.Request{Header: make(map[string][]string)}, []byte("{}"))
+
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "failed to resolve did:key URL")
+		require.Nil(t, h)
+	})
+
+	t.Run("test empty zcap", func(t *testing.T) {
+		kh, err := keyset.NewHandle(ecdh.ECDH256KWAES256GCMKeyTemplate())
+		require.NoError(t, err)
+
+		srv := mockkeystore.NewMockService()
+		srv.GetKeystoreValue = &keystore.Keystore{
+			ID: testKeystoreID,
+		}
+		srv.GetKeyHandleValue = kh
+
+		c := buildConfig(srv)
+		h, err := c.signHeader(&http.Request{Header: make(map[string][]string)}, nil)
+
+		require.NoError(t, err)
+		require.Nil(t, h)
+	})
+}
 
 func TestNewProvider(t *testing.T) {
 	t.Run("Success", func(t *testing.T) {
@@ -39,7 +76,7 @@ func TestNewProvider(t *testing.T) {
 		}
 		srv.GetKeyHandleValue = kh
 
-		p, err := sds.NewStorageProvider(buildConfig(srv))
+		p, err := NewStorageProvider(buildConfig(srv))
 
 		require.NotNil(t, p)
 		require.NoError(t, err)
@@ -49,7 +86,7 @@ func TestNewProvider(t *testing.T) {
 		srv := mockkeystore.NewMockService()
 		srv.GetErr = errors.New("get err")
 
-		p, err := sds.NewStorageProvider(buildConfig(srv))
+		p, err := NewStorageProvider(buildConfig(srv))
 
 		require.Nil(t, p)
 		require.Error(t, err)
@@ -62,7 +99,7 @@ func TestNewProvider(t *testing.T) {
 		}
 		srv.GetKeyHandleErr = errors.New("get key handle error")
 
-		p, err := sds.NewStorageProvider(buildConfig(srv))
+		p, err := NewStorageProvider(buildConfig(srv))
 
 		require.Nil(t, p)
 		require.Error(t, err)
@@ -74,7 +111,7 @@ func TestNewProvider(t *testing.T) {
 			ID: testKeystoreID,
 		}
 
-		config := &sds.Config{
+		config := &Config{
 			KeystoreService: srv,
 			CryptoService:   &mockcrypto.Crypto{ComputeMACErr: errors.New("compute mac error")},
 			TLSConfig:       &tls.Config{MinVersion: tls.VersionTLS12},
@@ -82,7 +119,7 @@ func TestNewProvider(t *testing.T) {
 			KeystoreID:      testKeystoreID,
 		}
 
-		p, err := sds.NewStorageProvider(config)
+		p, err := NewStorageProvider(config)
 
 		require.Nil(t, p)
 		require.Error(t, err)
@@ -98,7 +135,7 @@ func TestNewProvider(t *testing.T) {
 		}
 		srv.GetKeyHandleValue = kh
 
-		p, err := sds.NewStorageProvider(buildConfig(srv))
+		p, err := NewStorageProvider(buildConfig(srv))
 
 		require.Nil(t, p)
 		require.Error(t, err)
@@ -114,7 +151,7 @@ func TestNewProvider(t *testing.T) {
 		}
 		srv.GetKeyHandleValue = kh
 
-		p, err := sds.NewStorageProvider(buildConfig(srv))
+		p, err := NewStorageProvider(buildConfig(srv))
 
 		require.Nil(t, p)
 		require.Error(t, err)
@@ -131,15 +168,15 @@ func TestNewProvider(t *testing.T) {
 		srv.GetKeyHandleValue = kh
 		srv.KeyManagerErr = errors.New("get key manager error")
 
-		p, err := sds.NewStorageProvider(buildConfig(srv))
+		p, err := NewStorageProvider(buildConfig(srv))
 
 		require.Nil(t, p)
 		require.Error(t, err)
 	})
 }
 
-func buildConfig(keystoreService keystore.Service) *sds.Config {
-	return &sds.Config{
+func buildConfig(keystoreService keystore.Service) *Config {
+	return &Config{
 		KeystoreService: keystoreService,
 		CryptoService:   &mockcrypto.Crypto{},
 		TLSConfig:       &tls.Config{MinVersion: tls.VersionTLS12},

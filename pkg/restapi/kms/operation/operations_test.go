@@ -10,6 +10,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/base64"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
@@ -37,6 +38,7 @@ const (
 const (
 	keystoresEndpoint  = "/kms/keystores"
 	keysEndpoint       = "/kms/keystores/{keystoreID}/keys"
+	capabilityEndpoint = "/kms/keystores/{keystoreID}/capability"
 	exportEndpoint     = "/kms/keystores/{keystoreID}/keys/{keyID}/export"
 	signEndpoint       = "/kms/keystores/{keystoreID}/keys/{keyID}/sign"
 	verifyEndpoint     = "/kms/keystores/{keystoreID}/keys/{keyID}/verify"
@@ -127,7 +129,8 @@ func TestCreateKeystoreHandler(t *testing.T) {
 		srv := mockkeystore.NewMockService()
 		srv.CreateKeystoreValue = &keystore.Keystore{ID: testKeystoreID}
 
-		op := operation.New(newConfig(withKeystoreService(srv), withUsingSDS())) // TODO(#53): Improve reliability
+		op := operation.New(newConfig(withKeystoreService(srv), withUsingSDS(),
+			withAuthService(&mockAuthService{}))) // TODO(#53): Improve reliability
 		handler := getHandler(t, op, keystoresEndpoint, http.MethodPost)
 
 		rr := httptest.NewRecorder()
@@ -135,6 +138,23 @@ func TestCreateKeystoreHandler(t *testing.T) {
 
 		require.Equal(t, http.StatusCreated, rr.Code)
 		require.NotEmpty(t, rr.Header().Get("Location"))
+	})
+
+	t.Run("test error from create did key", func(t *testing.T) {
+		srv := mockkeystore.NewMockService()
+		srv.CreateKeystoreValue = &keystore.Keystore{ID: testKeystoreID}
+
+		op := operation.New(newConfig(withKeystoreService(srv), withUsingSDS(),
+			withAuthService(&mockAuthService{createDIDKeyFunc: func() (string, error) {
+				return "", fmt.Errorf("failed to create did key")
+			}}))) // TODO(#53): Improve reliability
+		handler := getHandler(t, op, keystoresEndpoint, http.MethodPost)
+
+		rr := httptest.NewRecorder()
+		handler.Handle().ServeHTTP(rr, buildCreateKeystoreReq(t, testController))
+
+		require.Equal(t, http.StatusInternalServerError, rr.Code)
+		require.Contains(t, rr.Body.String(), "failed to create did key")
 	})
 
 	t.Run("Received bad request", func(t *testing.T) {
@@ -163,6 +183,64 @@ func TestCreateKeystoreHandler(t *testing.T) {
 
 		require.Equal(t, http.StatusInternalServerError, rr.Code)
 		require.Contains(t, rr.Body.String(), "Failed to create a keystore: create keystore error")
+	})
+}
+
+func TestUpdateCapabilityHandler(t *testing.T) {
+	t.Run("Success", func(t *testing.T) {
+		srv := mockkeystore.NewMockService()
+		srv.GetKeystoreValue = &keystore.Keystore{ID: testKeystoreID}
+
+		op := operation.New(newConfig(withKeystoreService(srv)))
+		handler := getHandler(t, op, capabilityEndpoint, http.MethodPost)
+
+		rr := httptest.NewRecorder()
+		handler.Handle().ServeHTTP(rr, buildUpdateCapabilityReq(t, []byte("{}")))
+
+		require.Equal(t, http.StatusOK, rr.Code)
+	})
+
+	t.Run("test error from get key store", func(t *testing.T) {
+		srv := mockkeystore.NewMockService()
+		srv.GetErr = fmt.Errorf("failed to get key store")
+
+		op := operation.New(newConfig(withKeystoreService(srv)))
+		handler := getHandler(t, op, capabilityEndpoint, http.MethodPost)
+
+		rr := httptest.NewRecorder()
+		handler.Handle().ServeHTTP(rr, buildUpdateCapabilityReq(t, []byte("{}")))
+
+		require.Equal(t, http.StatusInternalServerError, rr.Code)
+		require.Contains(t, rr.Body.String(), "failed to get key store")
+	})
+
+	t.Run("test error from store key store", func(t *testing.T) {
+		srv := mockkeystore.NewMockService()
+		srv.GetKeystoreValue = &keystore.Keystore{ID: testKeystoreID}
+		srv.SaveErr = fmt.Errorf("failed to save key store")
+
+		op := operation.New(newConfig(withKeystoreService(srv)))
+		handler := getHandler(t, op, capabilityEndpoint, http.MethodPost)
+
+		rr := httptest.NewRecorder()
+		handler.Handle().ServeHTTP(rr, buildUpdateCapabilityReq(t, []byte("{}")))
+
+		require.Equal(t, http.StatusInternalServerError, rr.Code)
+		require.Contains(t, rr.Body.String(), "failed to save key store")
+	})
+
+	t.Run("test empty capability", func(t *testing.T) {
+		srv := mockkeystore.NewMockService()
+		srv.GetKeystoreValue = &keystore.Keystore{ID: testKeystoreID}
+
+		op := operation.New(newConfig(withKeystoreService(srv)))
+		handler := getHandler(t, op, capabilityEndpoint, http.MethodPost)
+
+		rr := httptest.NewRecorder()
+		handler.Handle().ServeHTTP(rr, buildUpdateCapabilityReq(t, nil))
+
+		require.Equal(t, http.StatusBadRequest, rr.Code)
+		require.Contains(t, rr.Body.String(), "operationalEDVCapability is empty")
 	})
 }
 
@@ -755,6 +833,23 @@ func buildCreateKeyReq(t *testing.T) *http.Request {
 	return req
 }
 
+func buildUpdateCapabilityReq(t *testing.T, capability []byte) *http.Request {
+	t.Helper()
+
+	b, err := json.Marshal(operation.UpdateCapabilityReq{OperationalEDVCapability: capability})
+	require.NoError(t, err)
+
+	req, err := http.NewRequestWithContext(context.Background(), http.MethodPost, "",
+		bytes.NewBuffer(b))
+	require.NoError(t, err)
+
+	req = mux.SetURLVars(req, map[string]string{
+		"keystoreID": testKeystoreID,
+	})
+
+	return req
+}
+
 func buildExportKeyReq(t *testing.T) *http.Request {
 	t.Helper()
 
@@ -865,6 +960,7 @@ type options struct {
 	logger               log.Logger
 	kmsServiceCreatorErr error
 	isSDSUsed            bool
+	authService          authService
 }
 
 type optionFn func(opts *options)
@@ -885,6 +981,7 @@ func newConfig(opts ...optionFn) *operation.Config {
 		KMSServiceCreator: func(_ *http.Request) (kms.Service, error) { return cOpts.kmsService, nil },
 		Logger:            cOpts.logger,
 		IsSDSUsed:         cOpts.isSDSUsed,
+		AuthService:       cOpts.authService,
 	}
 
 	if cOpts.kmsServiceCreatorErr != nil {
@@ -924,4 +1021,26 @@ func withUsingSDS() optionFn {
 	return func(o *options) {
 		o.isSDSUsed = true
 	}
+}
+
+func withAuthService(service authService) optionFn {
+	return func(o *options) {
+		o.authService = service
+	}
+}
+
+type authService interface {
+	CreateDIDKey() (string, error)
+}
+
+type mockAuthService struct {
+	createDIDKeyFunc func() (string, error)
+}
+
+func (m *mockAuthService) CreateDIDKey() (string, error) {
+	if m.createDIDKeyFunc != nil {
+		return m.createDIDKeyFunc()
+	}
+
+	return "", nil
 }

@@ -11,6 +11,7 @@ import (
 	"crypto/tls"
 	"encoding/json"
 	"fmt"
+	"net/http"
 
 	"github.com/google/tink/go/keyset"
 	"github.com/hyperledger/aries-framework-go/pkg/crypto"
@@ -20,6 +21,7 @@ import (
 	"github.com/hyperledger/aries-framework-go/pkg/storage/edv"
 	"github.com/hyperledger/aries-framework-go/pkg/storage/formattedstore"
 
+	"github.com/trustbloc/hub-kms/pkg/auth/zcapld"
 	"github.com/trustbloc/hub-kms/pkg/keystore"
 )
 
@@ -71,12 +73,30 @@ func (c *Config) createRESTProvider(k *keystore.Keystore) (*edv.RESTProvider, er
 
 	edvServerURL := c.SDSServerURL + edvEndpointPathRoot
 
-	p, err := edv.NewRESTProvider(edvServerURL, k.OperationalVaultID, macCrypto, edv.WithTLSConfig(c.TLSConfig))
+	p, err := edv.NewRESTProvider(edvServerURL, k.OperationalVaultID, macCrypto, edv.WithTLSConfig(c.TLSConfig),
+		edv.WithHeaders(func(req *http.Request) (*http.Header, error) {
+			return c.signHeader(req, k.OperationalEDVCapability)
+		}))
 	if err != nil {
 		return nil, err
 	}
 
 	return p, nil
+}
+
+func (c *Config) signHeader(req *http.Request, operationalEDVCapability []byte) (*http.Header, error) {
+	if len(operationalEDVCapability) != 0 {
+		km, errKm := c.KeystoreService.KeyManager()
+		if errKm != nil {
+			return nil, errKm
+		}
+
+		svc := zcapld.New(km, c.CryptoService)
+
+		return svc.SignHeader(req, operationalEDVCapability)
+	}
+
+	return nil, nil
 }
 
 func (c *Config) createEncryptedFormatter(k *keystore.Keystore) (*edv.EncryptedFormatter, error) {

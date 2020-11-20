@@ -7,24 +7,18 @@ module github.com/trustbloc/hub-kms/test/bdd
 go 1.15
 
 require (
-	github.com/Microsoft/go-winio v0.4.15 // indirect
-	github.com/Microsoft/hcsshim v0.8.10 // indirect
-	github.com/containerd/containerd v1.4.1 // indirect
-	github.com/containerd/continuity v0.0.0-20200928162600-f2cc35102c2a // indirect
 	github.com/cucumber/godog v0.10.0
 	github.com/fsouza/go-dockerclient v1.6.6
-	github.com/gofrs/uuid v3.3.0+incompatible // indirect
-	github.com/golang/protobuf v1.4.3 // indirect
-	github.com/moby/sys/mount v0.1.1 // indirect
-	github.com/moby/sys/mountinfo v0.4.0 // indirect
-	github.com/moby/term v0.0.0-20201101162038-25d840ce174a // indirect
+	github.com/hyperledger/aries-framework-go v0.1.5-0.20201120180639-8c0425a6ab6c
 	github.com/rs/xid v1.2.1
-	github.com/sirupsen/logrus v1.7.0 // indirect
 	github.com/trustbloc/edge-core v0.1.5-0.20201121093852-c37f1dd38d3c
-	github.com/trustbloc/edv v0.1.5-0.20201118162147-b04b33fa9066
-	golang.org/x/sync v0.0.0-20201020160332-67f06af15bc9 // indirect
-	golang.org/x/sys v0.0.0-20201106081118-db71ae66460a // indirect
-	google.golang.org/genproto v0.0.0-20201106154455-f9bfe239b0ba // indirect
-	google.golang.org/grpc v1.33.2 // indirect
-	gopkg.in/yaml.v3 v3.0.0-20200615113413-eeeca48fe776 // indirect
+	github.com/trustbloc/edv v0.1.5-0.20201121163745-3cda022e7ae8
+	github.com/trustbloc/hub-kms v0.0.0-00010101000000-000000000000
+)
+
+replace (
+	github.com/kilic/bls12-381 => github.com/trustbloc/bls12-381 v0.0.0-20201104214312-31de2a204df8
+	github.com/trustbloc/hub-kms => ../..
+	// https://github.com/ory/dockertest/issues/208#issuecomment-686820414
+	golang.org/x/sys => golang.org/x/sys v0.0.0-20200826173525-f9321e4c35a6
 )

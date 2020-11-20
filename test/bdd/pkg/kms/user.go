@@ -12,12 +12,17 @@ import (
 	"io"
 	"net/http"
 	"strings"
+
+	"github.com/hyperledger/aries-framework-go/pkg/doc/util/signature"
+	"github.com/trustbloc/edge-core/pkg/zcapld"
 )
 
 type user struct {
 	name             string
 	controller       string
 	keystoreID       string
+	edvCapability    *zcapld.Capability
+	signer           signature.Signer
 	keyID            string
 	vaultID          string
 	recipientPubKeys map[string]publicKeyWithBytesXY

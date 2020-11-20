@@ -7,6 +7,7 @@ SPDX-License-Identifier: Apache-2.0
 package keystore
 
 import (
+	"encoding/json"
 	"time"
 
 	"github.com/hyperledger/aries-framework-go/pkg/kms"
@@ -14,14 +15,15 @@ import (
 
 // Keystore represents user's keystore with a list of associated keys and metadata.
 type Keystore struct {
-	ID                 string     `json:"id"`
-	Controller         string     `json:"controller"`
-	DelegateKeyID      string     `json:"delegateKeyID,omitempty"`
-	RecipientKeyID     string     `json:"recipientKeyID,omitempty"`
-	MACKeyID           string     `json:"macKeyID,omitempty"`
-	OperationalVaultID string     `json:"operationalVaultID,omitempty"`
-	OperationalKeyIDs  []string   `json:"operationalKeyIDs,omitempty"`
-	CreatedAt          *time.Time `json:"createdAt"`
+	ID                       string          `json:"id"`
+	Controller               string          `json:"controller"`
+	DelegateKeyID            string          `json:"delegateKeyID,omitempty"`
+	RecipientKeyID           string          `json:"recipientKeyID,omitempty"`
+	MACKeyID                 string          `json:"macKeyID,omitempty"`
+	OperationalVaultID       string          `json:"operationalVaultID,omitempty"`
+	OperationalEDVCapability json.RawMessage `json:"operationalEDVCapability,omitempty"`
+	OperationalKeyIDs        []string        `json:"operationalKeyIDs,omitempty"`
+	CreatedAt                *time.Time      `json:"createdAt"`
 }
 
 // Options configures Keystore during creation.

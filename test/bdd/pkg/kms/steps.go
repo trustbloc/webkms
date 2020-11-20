@@ -19,11 +19,18 @@ import (
 	"strings"
 
 	"github.com/cucumber/godog"
+	"github.com/hyperledger/aries-framework-go/pkg/doc/signature/suite"
+	"github.com/hyperledger/aries-framework-go/pkg/doc/signature/suite/ed25519signature2018"
+	"github.com/hyperledger/aries-framework-go/pkg/doc/util/signature"
+	"github.com/hyperledger/aries-framework-go/pkg/kms"
+	"github.com/hyperledger/aries-framework-go/pkg/vdr/fingerprint"
 	"github.com/rs/xid"
 	"github.com/trustbloc/edge-core/pkg/log"
+	"github.com/trustbloc/edge-core/pkg/zcapld"
 	"github.com/trustbloc/edv/pkg/client"
 	"github.com/trustbloc/edv/pkg/restapi/models"
 
+	"github.com/trustbloc/hub-kms/pkg/restapi/kms/operation"
 	"github.com/trustbloc/hub-kms/test/bdd/pkg/bddutil"
 	"github.com/trustbloc/hub-kms/test/bdd/pkg/context"
 )
@@ -33,10 +40,12 @@ const (
 	createKeystoreEndpoint = "/kms/keystores"
 	keysEndpoint           = "/kms/keystores/{keystoreID}/keys"
 	exportKeyEndpoint      = "/kms/keystores/{keystoreID}/keys/{keyID}/export"
+	capabilityEndpoint     = "/kms/keystores/{keystoreID}/capability"
 )
 
 const (
-	keySize = sha256.Size
+	keySize     = sha256.Size
+	edvResource = "urn:edv:vault"
 )
 
 // Steps defines steps context for the KMS operations.
@@ -93,9 +102,16 @@ func (s *Steps) RegisterSteps(ctx *godog.ScenarioContext) {
 }
 
 func (s *Steps) createEDVDataVault(userName string) error {
+	signer, err := signature.NewCryptoSigner(s.bddContext.Crypto, s.bddContext.KeyManager, kms.ED25519)
+	if err != nil {
+		return fmt.Errorf("failed to create crypto signer: %w", err)
+	}
+
+	_, didKey := fingerprint.CreateDIDKey(signer.PublicKeyBytes())
+
 	config := models.DataVaultConfiguration{
 		Sequence:    0,
-		Controller:  "did:example:123456789",
+		Controller:  didKey,
 		ReferenceID: xid.New().String(),
 		KEK:         models.IDTypePair{ID: "https://example.com/kms/12345", Type: "AesKeyWrappingKey2019"},
 		HMAC:        models.IDTypePair{ID: "https://example.com/kms/67891", Type: "Sha256HmacKey2019"},
@@ -103,18 +119,26 @@ func (s *Steps) createEDVDataVault(userName string) error {
 
 	c := client.New(s.bddContext.SDSServerURL+edvBasePath, client.WithTLSConfig(s.bddContext.TLSConfig()))
 
-	vaultURL, _, err := c.CreateDataVault(&config)
+	vaultURL, resp, err := c.CreateDataVault(&config)
 	if err != nil {
 		return err
 	}
 
 	parts := strings.Split(vaultURL, "/")
 
+	edvCapability, err := zcapld.ParseCapability(resp)
+	if err != nil {
+		return err
+	}
+
 	_, ok := s.users[userName]
 	if !ok {
 		u := &user{
-			name:    userName,
-			vaultID: parts[len(parts)-1],
+			name:          userName,
+			vaultID:       parts[len(parts)-1],
+			controller:    didKey,
+			signer:        signer,
+			edvCapability: edvCapability,
 		}
 
 		s.users[userName] = u
@@ -138,7 +162,53 @@ func (s *Steps) createKeystore(user string) error {
 
 	defer closeBody()
 
-	return u.processResponse(nil, resp)
+	if err := u.processResponse(nil, resp); err != nil {
+		return err
+	}
+
+	return s.updateCapability(u)
+}
+
+func (s *Steps) updateCapability(u *user) error {
+	// create chain capability
+	chainCapability, err := s.createChainCapability(u)
+	if err != nil {
+		return err
+	}
+
+	chainCapabilityBytes, err := json.Marshal(chainCapability)
+	if err != nil {
+		return err
+	}
+
+	req := &operation.UpdateCapabilityReq{
+		OperationalEDVCapability: chainCapabilityBytes,
+	}
+
+	resp, closeBody, err := s.post(u, s.bddContext.KeyServerURL+capabilityEndpoint, //nolint:bodyclose // false check
+		req)
+	if err != nil {
+		return err
+	}
+
+	defer closeBody()
+
+	if resp.StatusCode != http.StatusOK {
+		return fmt.Errorf("failed to update capability return status code %d", resp.StatusCode)
+	}
+
+	return nil
+}
+
+func (s *Steps) createChainCapability(u *user) (*zcapld.Capability, error) {
+	return zcapld.NewCapability(&zcapld.Signer{
+		SignatureSuite:     ed25519signature2018.New(suite.WithSigner(u.signer)),
+		SuiteType:          ed25519signature2018.SignatureType,
+		VerificationMethod: u.controller,
+	}, zcapld.WithParent(u.edvCapability.ID), zcapld.WithInvoker(u.response.headers["Edvdidkey"]),
+		zcapld.WithAllowedActions("read", "write"),
+		zcapld.WithInvocationTarget(u.vaultID, edvResource),
+		zcapld.WithCapabilityChain(u.edvCapability.Parent, u.edvCapability.ID))
 }
 
 func (s *Steps) createKeystoreAndKey(user, keyType string) error {

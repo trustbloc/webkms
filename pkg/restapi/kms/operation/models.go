@@ -6,9 +6,17 @@ SPDX-License-Identifier: Apache-2.0
 
 package operation
 
-type createKeystoreReq struct {
+import "encoding/json"
+
+// CreateKeystoreReq create key store request.
+type CreateKeystoreReq struct {
 	Controller         string `json:"controller"`
 	OperationalVaultID string `json:"operationalVaultID"`
+}
+
+// UpdateCapabilityReq update capability request.
+type UpdateCapabilityReq struct {
+	OperationalEDVCapability json.RawMessage `json:"operationalEDVCapability,omitempty"`
 }
 
 type createKeyReq struct {
