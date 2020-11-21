@@ -17,6 +17,10 @@ services:
       - EDV_DATABASE_PREFIX=${EDV_DATABASE_PREFIX}
       - EDV_TLS_CERT_FILE=/etc/tls/ec-pubCert.pem
       - EDV_TLS_KEY_FILE=/etc/tls/ec-key.pem
+      - EDV_AUTH_ENABLE=true
+      - EDV_LOCALKMS_SECRETS_DATABASE_TYPE=${EDV_DATABASE_TYPE}
+      - EDV_LOCALKMS_SECRETS_DATABASE_URL=${EDV_DATABASE_URL}
+      - EDV_LOCALKMS_SECRETS_DATABASE_PREFIX=${EDV_DATABASE_PREFIX}_kms
     ports:
       - 8081:8081
     volumes:

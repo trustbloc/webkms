@@ -37,6 +37,7 @@ const (
 	keystoresEndpoint  = kmsBasePath + "/keystores"
 	keystoreEndpoint   = keystoresEndpoint + "/{" + keystoreIDQueryParam + "}"
 	keysEndpoint       = keystoreEndpoint + "/keys"
+	capabilityEndpoint = keystoreEndpoint + "/capability"
 	keyEndpoint        = keysEndpoint + "/{" + keyIDQueryParam + "}"
 	exportEndpoint     = keyEndpoint + "/export"
 	signEndpoint       = keyEndpoint + "/sign"
@@ -51,6 +52,8 @@ const (
 	// Error messages.
 	receivedBadRequest      = "Received bad request: %s"
 	createKeystoreFailure   = "Failed to create a keystore: %s"
+	getKeystoreFailure      = "Failed to get a keystore: %s"
+	saveKeystoreFailure     = "Failed to get a keystore: %s"
 	createKMSServiceFailure = "Failed to create a KMS service: %s"
 	createKeyFailure        = "Failed to create a key: %s"
 	exportKeyFailure        = "Failed to export a public key: %s"
@@ -71,12 +74,17 @@ type Handler interface {
 	Handle() http.HandlerFunc
 }
 
+type authService interface {
+	CreateDIDKey() (string, error)
+}
+
 // Operation holds dependencies for handlers.
 type Operation struct {
 	keystoreService   keystore.Service
 	kmsServiceCreator func(req *http.Request) (kms.Service, error)
 	logger            log.Logger
 	isSDSUsed         bool
+	authService       authService
 }
 
 // Config defines configuration for KMS operations.
@@ -85,6 +93,7 @@ type Config struct {
 	KMSServiceCreator func(req *http.Request) (kms.Service, error)
 	Logger            log.Logger
 	IsSDSUsed         bool
+	AuthService       authService
 }
 
 // New returns a new Operation instance.
@@ -94,6 +103,7 @@ func New(config *Config) *Operation {
 		kmsServiceCreator: config.KMSServiceCreator,
 		logger:            config.Logger,
 		isSDSUsed:         config.IsSDSUsed,
+		authService:       config.AuthService,
 	}
 
 	return op
@@ -104,6 +114,7 @@ func (o *Operation) GetRESTHandlers() []Handler {
 	return []Handler{
 		support.NewHTTPHandler(keystoresEndpoint, http.MethodPost, o.createKeystoreHandler),
 		support.NewHTTPHandler(keysEndpoint, http.MethodPost, o.createKeyHandler),
+		support.NewHTTPHandler(capabilityEndpoint, http.MethodPost, o.updateCapabilityHandler),
 		support.NewHTTPHandler(exportEndpoint, http.MethodGet, o.exportKeyHandler),
 		support.NewHTTPHandler(signEndpoint, http.MethodPost, o.signHandler),
 		support.NewHTTPHandler(verifyEndpoint, http.MethodPost, o.verifyHandler),
@@ -117,7 +128,7 @@ func (o *Operation) GetRESTHandlers() []Handler {
 }
 
 func (o *Operation) createKeystoreHandler(rw http.ResponseWriter, req *http.Request) {
-	var request createKeystoreReq
+	var request CreateKeystoreReq
 	if ok := o.parseRequest(&request, rw, req); !ok {
 		return
 	}
@@ -146,7 +157,15 @@ func (o *Operation) createKeystoreHandler(rw http.ResponseWriter, req *http.Requ
 		return
 	}
 
+	didKey, err := o.authService.CreateDIDKey()
+	if err != nil {
+		o.writeErrorResponse(rw, http.StatusInternalServerError, createKeystoreFailure, err)
+
+		return
+	}
+
 	rw.Header().Set("Location", keystoreLocation(req.Host, k.ID))
+	rw.Header().Set("Edvdidkey", didKey)
 	rw.WriteHeader(http.StatusCreated)
 }
 
@@ -174,6 +193,39 @@ func (o *Operation) createKeyHandler(rw http.ResponseWriter, req *http.Request) 
 
 	rw.Header().Set("Location", keyLocation(req.Host, keystoreID, keyID))
 	rw.WriteHeader(http.StatusCreated)
+}
+
+func (o *Operation) updateCapabilityHandler(rw http.ResponseWriter, req *http.Request) {
+	var request UpdateCapabilityReq
+	if ok := o.parseRequest(&request, rw, req); !ok {
+		return
+	}
+
+	if len(request.OperationalEDVCapability) == 0 {
+		o.writeErrorResponse(rw, http.StatusBadRequest, "operationalEDVCapability is empty",
+			fmt.Errorf(""))
+
+		return
+	}
+
+	keystoreID := mux.Vars(req)[keystoreIDQueryParam]
+
+	ks, err := o.keystoreService.Get(keystoreID)
+	if err != nil {
+		o.writeErrorResponse(rw, http.StatusInternalServerError, getKeystoreFailure, err)
+
+		return
+	}
+
+	ks.OperationalEDVCapability = request.OperationalEDVCapability
+
+	if err := o.keystoreService.Save(ks); err != nil {
+		o.writeErrorResponse(rw, http.StatusInternalServerError, saveKeystoreFailure, err)
+
+		return
+	}
+
+	rw.WriteHeader(http.StatusOK)
 }
 
 func (o *Operation) exportKeyHandler(rw http.ResponseWriter, req *http.Request) {
