@@ -9,6 +9,7 @@ package kms
 import (
 	"github.com/google/tink/go/keyset"
 	"github.com/hyperledger/aries-framework-go/pkg/crypto"
+	"github.com/hyperledger/aries-framework-go/pkg/crypto/tinkcrypto/primitive/composite/keyio"
 	"github.com/hyperledger/aries-framework-go/pkg/kms"
 
 	"github.com/trustbloc/hub-kms/pkg/keystore"
@@ -24,6 +25,10 @@ type Service interface {
 	Decrypt(keystoreID, keyID string, cipher, aad, nonce []byte) ([]byte, error)
 	ComputeMAC(keystoreID, keyID string, data []byte) ([]byte, error)
 	VerifyMAC(keystoreID, keyID string, mac, data []byte) error
+	WrapKey(keystoreID, keyID string, cek, apu, apv []byte,
+		recipientPubKey *crypto.PublicKey) (*crypto.RecipientWrappedKey, error)
+	UnwrapKey(keystoreID, keyID string, recipientWK *crypto.RecipientWrappedKey,
+		senderPubKey *crypto.PublicKey) ([]byte, error)
 }
 
 // Provider contains dependencies for the KMS service.
@@ -177,6 +182,63 @@ func (s *service) VerifyMAC(keystoreID, keyID string, mac, data []byte) error {
 	}
 
 	return nil
+}
+
+// WrapKey wraps cek for the recipient with public key 'recipientPubKey'.
+func (s *service) WrapKey(keystoreID, keyID string, cek, apu, apv []byte,
+	recipientPubKey *crypto.PublicKey) (*crypto.RecipientWrappedKey, error) {
+	if keyID != "" {
+		kh, err := s.getKeyHandle(keystoreID, keyID)
+		if err != nil {
+			return nil, err
+		}
+
+		// ECDH-1PU key wrapping (Authcrypt)
+		recipientWrappedKey, err := s.crypto.WrapKey(cek, apu, apv, recipientPubKey, crypto.WithSender(kh))
+		if err != nil {
+			return nil, NewServiceError(wrapKeyFailed, err)
+		}
+
+		return recipientWrappedKey, nil
+	}
+
+	recipientWrappedKey, err := s.crypto.WrapKey(cek, apu, apv, recipientPubKey)
+	if err != nil {
+		return nil, NewServiceError(wrapKeyFailed, err)
+	}
+
+	return recipientWrappedKey, nil
+}
+
+// UnwrapKey unwraps a key in recipientWK.
+func (s *service) UnwrapKey(keystoreID, keyID string, recipientWK *crypto.RecipientWrappedKey,
+	senderPubKey *crypto.PublicKey) ([]byte, error) {
+	kh, err := s.getKeyHandle(keystoreID, keyID)
+	if err != nil {
+		return nil, err
+	}
+
+	if senderPubKey != nil {
+		senderKH, e := keyio.PublicKeyToKeysetHandle(senderPubKey)
+		if e != nil {
+			return nil, NewServiceError(unwrapKeyFailed, e)
+		}
+
+		// ECDH-1PU key unwrapping (Authcrypt)
+		cek, e := s.crypto.UnwrapKey(recipientWK, kh, crypto.WithSender(senderKH))
+		if e != nil {
+			return nil, NewServiceError(unwrapKeyFailed, e)
+		}
+
+		return cek, nil
+	}
+
+	cek, err := s.crypto.UnwrapKey(recipientWK, kh)
+	if err != nil {
+		return nil, NewServiceError(unwrapKeyFailed, err)
+	}
+
+	return cek, nil
 }
 
 func (s *service) getKeyHandle(keystoreID, keyID string) (interface{}, error) {

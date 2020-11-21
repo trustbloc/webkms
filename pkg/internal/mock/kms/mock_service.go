@@ -6,7 +6,10 @@ SPDX-License-Identifier: Apache-2.0
 
 package kms
 
-import "github.com/hyperledger/aries-framework-go/pkg/kms"
+import (
+	"github.com/hyperledger/aries-framework-go/pkg/crypto"
+	"github.com/hyperledger/aries-framework-go/pkg/kms"
+)
 
 // MockService is a mock KMS service.
 type MockService struct {
@@ -17,7 +20,9 @@ type MockService struct {
 	Nonce           []byte
 	DecryptValue    []byte
 	ComputeMACValue []byte
+	WrapKeyValue    *crypto.RecipientWrappedKey
 	CreateKeyErr    error
+	UnwrapKeyValue  []byte
 	ExportKeyErr    error
 	SignErr         error
 	VerifyErr       error
@@ -25,6 +30,8 @@ type MockService struct {
 	DecryptErr      error
 	ComputeMACErr   error
 	VerifyMACErr    error
+	WrapKeyErr      error
+	UnwrapKeyErr    error
 }
 
 // NewMockService returns a new mock KMS service.
@@ -102,4 +109,24 @@ func (s *MockService) VerifyMAC(keystoreID, keyID string, mac, data []byte) erro
 	}
 
 	return nil
+}
+
+// WrapKey wraps cek for the recipient with public key 'recipientPubKey'.
+func (s *MockService) WrapKey(keystoreID, keyID string, cek, apu, apv []byte,
+	recipientPubKey *crypto.PublicKey) (*crypto.RecipientWrappedKey, error) {
+	if s.WrapKeyErr != nil {
+		return nil, s.WrapKeyErr
+	}
+
+	return s.WrapKeyValue, nil
+}
+
+// UnwrapKey unwraps a key in recipientWK.
+func (s *MockService) UnwrapKey(keystoreID, keyID string, recipientWK *crypto.RecipientWrappedKey,
+	senderPubKey *crypto.PublicKey) ([]byte, error) {
+	if s.UnwrapKeyErr != nil {
+		return nil, s.UnwrapKeyErr
+	}
+
+	return s.UnwrapKeyValue, nil
 }

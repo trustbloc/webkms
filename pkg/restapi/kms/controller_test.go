@@ -31,7 +31,7 @@ func TestGetOperations(t *testing.T) {
 
 	ops := controller.GetOperations()
 
-	require.Equal(t, 9, len(ops))
+	require.Equal(t, 11, len(ops))
 }
 
 func newConfig() *operation.Config {
