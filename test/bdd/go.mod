@@ -20,8 +20,8 @@ require (
 	github.com/moby/term v0.0.0-20201101162038-25d840ce174a // indirect
 	github.com/rs/xid v1.2.1
 	github.com/sirupsen/logrus v1.7.0 // indirect
-	github.com/trustbloc/edge-core v0.1.5-0.20201106164919-76ecfeca954f
-	github.com/trustbloc/edv v0.1.5-0.20201116214851-c634f0545148
+	github.com/trustbloc/edge-core v0.1.5-0.20201121093852-c37f1dd38d3c
+	github.com/trustbloc/edv v0.1.5-0.20201118162147-b04b33fa9066
 	golang.org/x/sync v0.0.0-20201020160332-67f06af15bc9 // indirect
 	golang.org/x/sys v0.0.0-20201106081118-db71ae66460a // indirect
 	google.golang.org/genproto v0.0.0-20201106154455-f9bfe239b0ba // indirect

@@ -20,6 +20,8 @@ const (
 	decryptCipherFailed   = "decrypt cipher failed"
 	computeMACFailed      = "compute MAC failed"
 	verifyMACFailed       = "verify MAC failed"
+	wrapKeyFailed         = "key wrapping failed"
+	unwrapKeyFailed       = "key unwrapping failed"
 
 	noPublicKeyFailure = "no public key"
 	noKeysFailure      = "no keys defined"

@@ -4,7 +4,7 @@ Copyright SecureKey Technologies Inc. All Rights Reserved.
 SPDX-License-Identifier: Apache-2.0
 */
 
-package operation
+package kms
 
 type createKeystoreReq struct {
 	Controller         string `json:"controller"`
@@ -65,14 +65,6 @@ type verifyMACReq struct {
 	Data string `json:"data"`
 }
 
-type publicKey struct {
-	KID   string `json:"kid,omitempty"`
-	X     string `json:"x,omitempty"`
-	Y     string `json:"y,omitempty"`
-	Curve string `json:"curve,omitempty"`
-	Type  string `json:"type,omitempty"`
-}
-
 type wrapReq struct {
 	CEK             string    `json:"cek,omitempty"`
 	APU             string    `json:"apu,omitempty"`
@@ -101,4 +93,20 @@ type unwrapReq struct {
 
 type unwrapResp struct {
 	Key string `json:"key,omitempty"`
+}
+
+type publicKey struct {
+	KID   string `json:"kid,omitempty"`
+	X     string `json:"x,omitempty"`
+	Y     string `json:"y,omitempty"`
+	Curve string `json:"curve,omitempty"`
+	Type  string `json:"type,omitempty"`
+}
+
+type publicKeyWithBytesXY struct {
+	KID   string `json:"kid,omitempty"`
+	X     []byte `json:"x,omitempty"`
+	Y     []byte `json:"y,omitempty"`
+	Curve string `json:"curve,omitempty"`
+	Type  string `json:"type,omitempty"`
 }

@@ -17,6 +17,7 @@ import (
 	"time"
 
 	"github.com/gorilla/mux"
+	"github.com/hyperledger/aries-framework-go/pkg/crypto"
 	arieskms "github.com/hyperledger/aries-framework-go/pkg/kms"
 	"github.com/rs/xid"
 	"github.com/trustbloc/edge-core/pkg/log"
@@ -44,6 +45,8 @@ const (
 	decryptEndpoint    = keyEndpoint + "/decrypt"
 	computeMACEndpoint = keyEndpoint + "/computemac"
 	verifyMACEndpoint  = keyEndpoint + "/verifymac"
+	wrapEndpoint       = keystoreEndpoint + "/wrap" // kms/keystores/{keystoreID}/wrap
+	unwrapEndpoint     = keyEndpoint + "/unwrap"    // kms/keystores/{keystoreID}/keys/{keyID}/unwrap
 
 	// Error messages.
 	receivedBadRequest      = "Received bad request: %s"
@@ -57,6 +60,8 @@ const (
 	decryptMessageFailure   = "Failed to decrypt a message: %s"
 	computeMACFailure       = "Failed to compute MAC: %s"
 	verifyMACFailure        = "Failed to verify MAC: %s"
+	wrapMessageFailure      = "Failed to wrap a key: %s"
+	unwrapMessageFailure    = "Failed to unwrap a key: %s"
 )
 
 // Handler defines an HTTP handler for the API endpoint.
@@ -106,6 +111,8 @@ func (o *Operation) GetRESTHandlers() []Handler {
 		support.NewHTTPHandler(decryptEndpoint, http.MethodPost, o.decryptHandler),
 		support.NewHTTPHandler(computeMACEndpoint, http.MethodPost, o.computeMACHandler),
 		support.NewHTTPHandler(verifyMACEndpoint, http.MethodPost, o.verifyMACHandler),
+		support.NewHTTPHandler(wrapEndpoint, http.MethodPost, o.wrapHandler),
+		support.NewHTTPHandler(unwrapEndpoint, http.MethodPost, o.unwrapHandler),
 	}
 }
 
@@ -392,6 +399,145 @@ func (o *Operation) verifyMACHandler(rw http.ResponseWriter, req *http.Request) 
 	rw.WriteHeader(http.StatusOK)
 }
 
+func (o *Operation) wrapHandler(rw http.ResponseWriter, req *http.Request) {
+	kmsService, err := o.kmsServiceCreator(req)
+	if err != nil {
+		o.writeErrorResponse(rw, http.StatusInternalServerError, createKMSServiceFailure, err)
+
+		return
+	}
+
+	var request wrapReq
+	if ok := o.parseRequest(&request, rw, req); !ok {
+		return
+	}
+
+	keystoreID := mux.Vars(req)[keystoreIDQueryParam]
+
+	cek, err := base64.URLEncoding.DecodeString(request.CEK)
+	if err != nil {
+		o.writeErrorResponse(rw, http.StatusBadRequest, receivedBadRequest, err)
+
+		return
+	}
+
+	apu, err := base64.URLEncoding.DecodeString(request.APU)
+	if err != nil {
+		o.writeErrorResponse(rw, http.StatusBadRequest, receivedBadRequest, err)
+
+		return
+	}
+
+	apv, err := base64.URLEncoding.DecodeString(request.APV)
+	if err != nil {
+		o.writeErrorResponse(rw, http.StatusBadRequest, receivedBadRequest, err)
+
+		return
+	}
+
+	recPubKey, err := unmarshalPublicKey(&request.RecipientPubKey)
+	if err != nil {
+		o.writeErrorResponse(rw, http.StatusBadRequest, receivedBadRequest, err)
+
+		return
+	}
+
+	wrappedKey, err := kmsService.WrapKey(keystoreID, request.SenderKID, cek, apu, apv, recPubKey)
+	if err != nil {
+		o.writeErrorResponse(rw, http.StatusInternalServerError, wrapMessageFailure, err)
+
+		return
+	}
+
+	o.writeResponse(rw, wrapResp{recipientWrappedKey{
+		KID:          base64.URLEncoding.EncodeToString([]byte(wrappedKey.KID)),
+		EncryptedCEK: base64.URLEncoding.EncodeToString(wrappedKey.EncryptedCEK),
+		EPK:          marshalPublicKey(&wrappedKey.EPK),
+		Alg:          base64.URLEncoding.EncodeToString([]byte(wrappedKey.Alg)),
+		APU:          base64.URLEncoding.EncodeToString(wrappedKey.APU),
+		APV:          base64.URLEncoding.EncodeToString(wrappedKey.APV),
+	}})
+}
+
+//nolint:funlen // readability
+func (o *Operation) unwrapHandler(rw http.ResponseWriter, req *http.Request) {
+	kmsService, err := o.kmsServiceCreator(req)
+	if err != nil {
+		o.writeErrorResponse(rw, http.StatusInternalServerError, createKMSServiceFailure, err)
+
+		return
+	}
+
+	var request unwrapReq
+	if ok := o.parseRequest(&request, rw, req); !ok {
+		return
+	}
+
+	keystoreID := mux.Vars(req)[keystoreIDQueryParam]
+	keyID := mux.Vars(req)[keyIDQueryParam]
+
+	kid, err := base64.URLEncoding.DecodeString(request.WrappedKey.KID)
+	if err != nil {
+		o.writeErrorResponse(rw, http.StatusBadRequest, receivedBadRequest, err)
+
+		return
+	}
+
+	enc, err := base64.URLEncoding.DecodeString(request.WrappedKey.EncryptedCEK)
+	if err != nil {
+		o.writeErrorResponse(rw, http.StatusBadRequest, receivedBadRequest, err)
+
+		return
+	}
+
+	epk, err := unmarshalPublicKey(&request.WrappedKey.EPK)
+	if err != nil {
+		o.writeErrorResponse(rw, http.StatusBadRequest, receivedBadRequest, err)
+
+		return
+	}
+
+	alg, err := base64.URLEncoding.DecodeString(request.WrappedKey.Alg)
+	if err != nil {
+		o.writeErrorResponse(rw, http.StatusBadRequest, receivedBadRequest, err)
+
+		return
+	}
+
+	apu, err := base64.URLEncoding.DecodeString(request.WrappedKey.APU)
+	if err != nil {
+		o.writeErrorResponse(rw, http.StatusBadRequest, receivedBadRequest, err)
+
+		return
+	}
+
+	apv, err := base64.URLEncoding.DecodeString(request.WrappedKey.APV)
+	if err != nil {
+		o.writeErrorResponse(rw, http.StatusBadRequest, receivedBadRequest, err)
+
+		return
+	}
+
+	recipientWK := &crypto.RecipientWrappedKey{
+		KID:          string(kid),
+		EncryptedCEK: enc,
+		EPK:          *epk,
+		Alg:          string(alg),
+		APU:          apu,
+		APV:          apv,
+	}
+
+	// TODO(): Implement support for Authcrypt unwrapping
+	cek, err := kmsService.UnwrapKey(keystoreID, keyID, recipientWK, nil)
+	if err != nil {
+		o.writeErrorResponse(rw, http.StatusInternalServerError, unwrapMessageFailure, err)
+
+		return
+	}
+
+	o.writeResponse(rw, unwrapResp{Key: base64.URLEncoding.EncodeToString(cek)})
+}
+
 func (o *Operation) parseRequest(parsedReq interface{}, rw http.ResponseWriter, req *http.Request) bool {
 	o.logger.Debugf(prepareDebugOutputForRequest(req, o.logger))
 
@@ -435,6 +581,51 @@ func (o *Operation) writeResponse(rw io.Writer, v interface{}) {
 	err := json.NewEncoder(rw).Encode(v)
 	if err != nil {
 		o.logger.Errorf("Unable to send a response: %s", err)
+	}
+}
+
+func unmarshalPublicKey(k *publicKey) (*crypto.PublicKey, error) {
+	kid, err := base64.URLEncoding.DecodeString(k.KID)
+	if err != nil {
+		return nil, err
+	}
+
+	x, err := base64.URLEncoding.DecodeString(k.X)
+	if err != nil {
+		return nil, err
+	}
+
+	y, err := base64.URLEncoding.DecodeString(k.Y)
+	if err != nil {
+		return nil, err
+	}
+
+	curve, err := base64.URLEncoding.DecodeString(k.Curve)
+	if err != nil {
+		return nil, err
+	}
+
+	typ, err := base64.URLEncoding.DecodeString(k.Type)
+	if err != nil {
+		return nil, err
+	}
+
+	return &crypto.PublicKey{
+		KID:   string(kid),
+		X:     x,
+		Y:     y,
+		Curve: string(curve),
+		Type:  string(typ),
+	}, nil
+}
+
+func marshalPublicKey(k *crypto.PublicKey) publicKey {
+	return publicKey{
+		KID:   base64.URLEncoding.EncodeToString([]byte(k.KID)),
+		X:     base64.URLEncoding.EncodeToString(k.X),
+		Y:     base64.URLEncoding.EncodeToString(k.Y),
+		Curve: base64.URLEncoding.EncodeToString([]byte(k.Curve)),
+		Type:  base64.URLEncoding.EncodeToString([]byte(k.Type)),
 	}
 }
 

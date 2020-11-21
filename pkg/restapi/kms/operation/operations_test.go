@@ -44,6 +44,8 @@ const (
 	decryptEndpoint    = "/kms/keystores/{keystoreID}/keys/{keyID}/decrypt"
 	computeMACEndpoint = "/kms/keystores/{keystoreID}/keys/{keyID}/computemac"
 	verifyMACEndpoint  = "/kms/keystores/{keystoreID}/keys/{keyID}/verifymac"
+	wrapEndpoint       = "/kms/keystores/{keystoreID}/wrap"
+	unwrapEndpoint     = "/kms/keystores/{keystoreID}/keys/{keyID}/unwrap"
 )
 
 const (
@@ -82,6 +84,36 @@ const (
 	verifyMACReqFormat = `{
 	  "mac": "%s",
 	  "data": "%s"
+	}`
+
+	publicKeyFormat = `{
+	  "kid": "%s",
+	  "x": "%s",
+	  "y": "%s",
+	  "curve": "%s",
+	  "type": "%s"
+	}`
+
+	wrapReqFormat = `{
+	  "cek": "%s",
+	  "apu": "%s",
+	  "apv": "%s",
+	  "recpubkey": %s,
+	  "senderkid": "%s"
+	}`
+
+	wrappedKeyFormat = `{
+	  "kid": "%s",
+	  "encryptedcek": "%s",
+	  "epk": %s,
+	  "alg": "%s",
+	  "apu": "%s",
+	  "apv": "%s"
+	}`
+
+	unwrapReqFormat = `{
+	  "wrappedKey": %s,
+	  "senderkid": "%s"
 	}`
 )
 

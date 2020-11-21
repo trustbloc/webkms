@@ -13,6 +13,9 @@ import (
 	"github.com/google/tink/go/aead"
 	"github.com/google/tink/go/keyset"
 	"github.com/google/tink/go/signature"
+	"github.com/hyperledger/aries-framework-go/pkg/crypto"
+	"github.com/hyperledger/aries-framework-go/pkg/crypto/tinkcrypto/primitive/composite/ecdh"
+	"github.com/hyperledger/aries-framework-go/pkg/crypto/tinkcrypto/primitive/composite/keyio"
 	arieskms "github.com/hyperledger/aries-framework-go/pkg/kms"
 	"github.com/stretchr/testify/require"
 
@@ -908,5 +911,340 @@ func TestVerifyMAC(t *testing.T) {
 		err = srv.VerifyMAC(testKeystoreID, testKeyID, []byte(testMAC), []byte(testMessage))
 		require.Error(t, err)
 		require.Equal(t, "verify MAC failed: verify MAC error", err.Error())
+	})
+}
+
+func TestWrapKey_Anoncrypt(t *testing.T) {
+	t.Run("Success", func(t *testing.T) {
+		provider := mockkms.NewMockProvider()
+		provider.MockCrypto.WrapValue = &crypto.RecipientWrappedKey{}
+
+		srv := kms.NewService(provider)
+		require.NotNil(t, srv)
+
+		key, err := srv.WrapKey(testKeystoreID, "", []byte("cek"), []byte("apu"), []byte("apv"),
+			&crypto.PublicKey{})
+
+		require.NotNil(t, key)
+		require.NoError(t, err)
+	})
+
+	t.Run("Error: key wrapping failed", func(t *testing.T) {
+		provider := mockkms.NewMockProvider()
+		provider.MockCrypto.WrapError = errors.New("wrap error")
+
+		srv := kms.NewService(provider)
+		require.NotNil(t, srv)
+
+		key, err := srv.WrapKey(testKeystoreID, "", []byte("cek"), []byte("apu"), []byte("apv"),
+			&crypto.PublicKey{})
+
+		require.Nil(t, key)
+		require.Error(t, err)
+		require.Equal(t, "key wrapping failed: wrap error", err.Error())
+	})
+}
+
+func TestWrapKey_Authcrypt(t *testing.T) {
+	t.Run("Success", func(t *testing.T) {
+		provider := mockkms.NewMockProvider()
+
+		k := &keystore.Keystore{
+			ID:                testKeystoreID,
+			OperationalKeyIDs: []string{testKeyID},
+		}
+		provider.MockKeystoreService.GetKeystoreValue = k
+
+		provider.MockCrypto.WrapValue = &crypto.RecipientWrappedKey{}
+
+		srv := kms.NewService(provider)
+		require.NotNil(t, srv)
+
+		key, err := srv.WrapKey(testKeystoreID, testKeyID, []byte("cek"), []byte("apu"), []byte("apv"),
+			&crypto.PublicKey{})
+
+		require.NotNil(t, key)
+		require.NoError(t, err)
+	})
+
+	t.Run("Error: get keystore", func(t *testing.T) {
+		provider := mockkms.NewMockProvider()
+		provider.MockKeystoreService.GetErr = errors.New("get keystore error")
+
+		srv := kms.NewService(provider)
+		require.NotNil(t, srv)
+
+		key, err := srv.WrapKey(testKeystoreID, testKeyID, []byte("cek"), []byte("apu"), []byte("apv"),
+			&crypto.PublicKey{})
+
+		require.Nil(t, key)
+		require.Error(t, err)
+		require.Equal(t, "get keystore failed: get keystore error", err.Error())
+	})
+
+	t.Run("Error: no keys defined", func(t *testing.T) {
+		provider := mockkms.NewMockProvider()
+
+		k := &keystore.Keystore{
+			ID: testKeystoreID,
+		}
+		provider.MockKeystoreService.GetKeystoreValue = k
+
+		srv := kms.NewService(provider)
+		require.NotNil(t, srv)
+
+		key, err := srv.WrapKey(testKeystoreID, testKeyID, []byte("cek"), []byte("apu"), []byte("apv"),
+			&crypto.PublicKey{})
+
+		require.Nil(t, key)
+		require.Error(t, err)
+		require.Equal(t, "no keys defined", err.Error())
+	})
+
+	t.Run("Error: invalid key ID", func(t *testing.T) {
+		provider := mockkms.NewMockProvider()
+
+		k := &keystore.Keystore{
+			ID:                testKeystoreID,
+			OperationalKeyIDs: []string{testKeyID},
+		}
+		provider.MockKeystoreService.GetKeystoreValue = k
+
+		srv := kms.NewService(provider)
+		require.NotNil(t, srv)
+
+		key, err := srv.WrapKey(testKeystoreID, "invalid", []byte("cek"), []byte("apu"), []byte("apv"),
+			&crypto.PublicKey{})
+
+		require.Nil(t, key)
+		require.Error(t, err)
+		require.Equal(t, "invalid key", err.Error())
+	})
+
+	t.Run("Error: get key", func(t *testing.T) {
+		provider := mockkms.NewMockProvider()
+		provider.MockKeyManager.GetKeyErr = errors.New("get key error")
+
+		k := &keystore.Keystore{
+			ID:                testKeystoreID,
+			OperationalKeyIDs: []string{testKeyID},
+		}
+		provider.MockKeystoreService.GetKeystoreValue = k
+
+		srv := kms.NewService(provider)
+		require.NotNil(t, srv)
+
+		key, err := srv.WrapKey(testKeystoreID, testKeyID, []byte("cek"), []byte("apu"), []byte("apv"),
+			&crypto.PublicKey{})
+
+		require.Nil(t, key)
+		require.Error(t, err)
+		require.Equal(t, "get key failed: get key error", err.Error())
+	})
+
+	t.Run("Error: key wrapping failed", func(t *testing.T) {
+		provider := mockkms.NewMockProvider()
+		provider.MockCrypto.WrapError = errors.New("wrap error")
+
+		k := &keystore.Keystore{
+			ID:                testKeystoreID,
+			OperationalKeyIDs: []string{testKeyID},
+		}
+		provider.MockKeystoreService.GetKeystoreValue = k
+
+		srv := kms.NewService(provider)
+		require.NotNil(t, srv)
+
+		key, err := srv.WrapKey(testKeystoreID, testKeyID, []byte("cek"), []byte("apu"), []byte("apv"),
+			&crypto.PublicKey{})
+
+		require.Nil(t, key)
+		require.Error(t, err)
+		require.Equal(t, "key wrapping failed: wrap error", err.Error())
+	})
+}
+
+func TestUnwrapKey_Anoncrypt(t *testing.T) {
+	t.Run("Success", func(t *testing.T) {
+		provider := mockkms.NewMockProvider()
+
+		k := &keystore.Keystore{
+			ID:                testKeystoreID,
+			OperationalKeyIDs: []string{testKeyID},
+		}
+		provider.MockKeystoreService.GetKeystoreValue = k
+
+		provider.MockCrypto.UnwrapValue = []byte("key")
+
+		srv := kms.NewService(provider)
+		require.NotNil(t, srv)
+
+		key, err := srv.UnwrapKey(testKeystoreID, testKeyID, &crypto.RecipientWrappedKey{}, nil)
+
+		require.NotNil(t, key)
+		require.NoError(t, err)
+	})
+
+	t.Run("Error: get keystore", func(t *testing.T) {
+		provider := mockkms.NewMockProvider()
+		provider.MockKeystoreService.GetErr = errors.New("get keystore error")
+
+		srv := kms.NewService(provider)
+		require.NotNil(t, srv)
+
+		key, err := srv.UnwrapKey(testKeystoreID, testKeyID, &crypto.RecipientWrappedKey{}, nil)
+
+		require.Nil(t, key)
+		require.Error(t, err)
+		require.Equal(t, "get keystore failed: get keystore error", err.Error())
+	})
+
+	t.Run("Error: no keys defined", func(t *testing.T) {
+		provider := mockkms.NewMockProvider()
+
+		k := &keystore.Keystore{
+			ID: testKeystoreID,
+		}
+		provider.MockKeystoreService.GetKeystoreValue = k
+
+		srv := kms.NewService(provider)
+		require.NotNil(t, srv)
+
+		key, err := srv.UnwrapKey(testKeystoreID, testKeyID, &crypto.RecipientWrappedKey{}, nil)
+
+		require.Nil(t, key)
+		require.Error(t, err)
+		require.Equal(t, "no keys defined", err.Error())
+	})
+
+	t.Run("Error: invalid key ID", func(t *testing.T) {
+		provider := mockkms.NewMockProvider()
+
+		k := &keystore.Keystore{
+			ID:                testKeystoreID,
+			OperationalKeyIDs: []string{testKeyID},
+		}
+		provider.MockKeystoreService.GetKeystoreValue = k
+
+		srv := kms.NewService(provider)
+		require.NotNil(t, srv)
+
+		key, err := srv.UnwrapKey(testKeystoreID, "", &crypto.RecipientWrappedKey{}, nil)
+
+		require.Nil(t, key)
+		require.Error(t, err)
+		require.Equal(t, "invalid key", err.Error())
+	})
+
+	t.Run("Error: get key", func(t *testing.T) {
+		provider := mockkms.NewMockProvider()
+		provider.MockKeyManager.GetKeyErr = errors.New("get key error")
+
+		k := &keystore.Keystore{
+			ID:                testKeystoreID,
+			OperationalKeyIDs: []string{testKeyID},
+		}
+		provider.MockKeystoreService.GetKeystoreValue = k
+
+		srv := kms.NewService(provider)
+		require.NotNil(t, srv)
+
+		key, err := srv.UnwrapKey(testKeystoreID, testKeyID, &crypto.RecipientWrappedKey{}, nil)
+
+		require.Nil(t, key)
+		require.Error(t, err)
+		require.Equal(t, "get key failed: get key error", err.Error())
+	})
+
+	t.Run("Error: key unwrapping failed", func(t *testing.T) {
+		provider := mockkms.NewMockProvider()
+		provider.MockCrypto.UnwrapError = errors.New("unwrap error")
+
+		k := &keystore.Keystore{
+			ID:                testKeystoreID,
+			OperationalKeyIDs: []string{testKeyID},
+		}
+		provider.MockKeystoreService.GetKeystoreValue = k
+
+		srv := kms.NewService(provider)
+		require.NotNil(t, srv)
+
+		key, err := srv.UnwrapKey(testKeystoreID, testKeyID, &crypto.RecipientWrappedKey{}, nil)
+
+		require.Nil(t, key)
+		require.Error(t, err)
+		require.Equal(t, "key unwrapping failed: unwrap error", err.Error())
+	})
+}
+
+func TestUnwrapKey_Authcrypt(t *testing.T) {
+	t.Run("Success", func(t *testing.T) {
+		provider := mockkms.NewMockProvider()
+
+		k := &keystore.Keystore{
+			ID:                testKeystoreID,
+			OperationalKeyIDs: []string{testKeyID},
+		}
+		provider.MockKeystoreService.GetKeystoreValue = k
+
+		provider.MockCrypto.UnwrapValue = []byte("key")
+
+		srv := kms.NewService(provider)
+		require.NotNil(t, srv)
+
+		senderKH, err := keyset.NewHandle(ecdh.ECDH256KWAES256GCMKeyTemplate())
+		require.NoError(t, err)
+
+		senderPubKey, err := keyio.ExtractPrimaryPublicKey(senderKH)
+		require.NoError(t, err)
+
+		key, err := srv.UnwrapKey(testKeystoreID, testKeyID, &crypto.RecipientWrappedKey{}, senderPubKey)
+
+		require.NotNil(t, key)
+		require.NoError(t, err)
+	})
+
+	t.Run("Error: public key to keyset handle failed", func(t *testing.T) {
+		provider := mockkms.NewMockProvider()
+
+		k := &keystore.Keystore{
+			ID:                testKeystoreID,
+			OperationalKeyIDs: []string{testKeyID},
+		}
+		provider.MockKeystoreService.GetKeystoreValue = k
+
+		srv := kms.NewService(provider)
+		require.NotNil(t, srv)
+
+		key, err := srv.UnwrapKey(testKeystoreID, testKeyID, &crypto.RecipientWrappedKey{}, &crypto.PublicKey{})
+
+		require.Nil(t, key)
+		require.Error(t, err)
+	})
+
+	t.Run("Error: key unwrapping failed", func(t *testing.T) {
+		provider := mockkms.NewMockProvider()
+		provider.MockCrypto.UnwrapError = errors.New("unwrap error")
+
+		k := &keystore.Keystore{
+			ID:                testKeystoreID,
+			OperationalKeyIDs: []string{testKeyID},
+		}
+		provider.MockKeystoreService.GetKeystoreValue = k
+
+		srv := kms.NewService(provider)
+		require.NotNil(t, srv)
+
+		senderKH, err := keyset.NewHandle(ecdh.ECDH256KWAES256GCMKeyTemplate())
+		require.NoError(t, err)
+
+		senderPubKey, err := keyio.ExtractPrimaryPublicKey(senderKH)
+		require.NoError(t, err)
+
+		key, err := srv.UnwrapKey(testKeystoreID, testKeyID, &crypto.RecipientWrappedKey{}, senderPubKey)
+
+		require.Nil(t, key)
+		require.Error(t, err)
+		require.Equal(t, "key unwrapping failed: unwrap error", err.Error())
 	})
 }
