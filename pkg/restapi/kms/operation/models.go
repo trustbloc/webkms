@@ -10,8 +10,8 @@ import "encoding/json"
 
 // CreateKeystoreReq create key store request.
 type CreateKeystoreReq struct {
-	Controller         string `json:"controller"`
-	OperationalVaultID string `json:"operationalVaultID"`
+	Controller string `json:"controller"`
+	VaultID    string `json:"vaultID,omitempty"`
 }
 
 // UpdateCapabilityReq update capability request.
@@ -42,7 +42,7 @@ type verifyReq struct {
 
 type encryptReq struct {
 	Message        string `json:"message"`
-	AdditionalData string `json:"aad"`
+	AdditionalData string `json:"aad,omitempty"`
 }
 
 type encryptResp struct {
@@ -52,7 +52,7 @@ type encryptResp struct {
 
 type decryptReq struct {
 	CipherText     string `json:"cipherText"`
-	AdditionalData string `json:"aad"`
+	AdditionalData string `json:"aad,omitempty"`
 	Nonce          string `json:"nonce"`
 }
 
@@ -85,8 +85,8 @@ type wrapReq struct {
 	CEK             string    `json:"cek,omitempty"`
 	APU             string    `json:"apu,omitempty"`
 	APV             string    `json:"apv,omitempty"`
-	RecipientPubKey publicKey `json:"recpubkey,omitempty"`
-	SenderKID       string    `json:"senderkid,omitempty"`
+	RecipientPubKey publicKey `json:"recPubKey,omitempty"`
+	SenderKID       string    `json:"senderKID,omitempty"`
 }
 
 type wrapResp struct {
@@ -95,7 +95,7 @@ type wrapResp struct {
 
 type recipientWrappedKey struct {
 	KID          string    `json:"kid,omitempty"`
-	EncryptedCEK string    `json:"encryptedcek,omitempty"`
+	EncryptedCEK string    `json:"encryptedCEK,omitempty"`
 	EPK          publicKey `json:"epk,omitempty"`
 	Alg          string    `json:"alg,omitempty"`
 	APU          string    `json:"apu,omitempty"`
@@ -104,7 +104,7 @@ type recipientWrappedKey struct {
 
 type unwrapReq struct {
 	WrappedKey recipientWrappedKey `json:"wrappedKey,omitempty"`
-	SenderKID  string              `json:"senderkid,omitempty"`
+	SenderKID  string              `json:"senderKID,omitempty"`
 }
 
 type unwrapResp struct {

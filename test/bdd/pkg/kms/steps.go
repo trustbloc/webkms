@@ -193,12 +193,7 @@ func (a *authzKMSSigner) Sign(data []byte) ([]byte, error) {
 		return nil, err
 	}
 
-	signatureBytes, err := base64.URLEncoding.DecodeString(a.authzUser.response.body["signature"])
-	if err != nil {
-		return nil, err
-	}
-
-	return signatureBytes, nil
+	return []byte(a.authzUser.response.body["signature"]), nil
 }
 
 func (s *Steps) createKeystoreAuthzKMS(u *user) error {
@@ -220,8 +215,8 @@ func (s *Steps) createKeystore(user string) error {
 	u := s.users[user]
 
 	req := createKeystoreReq{
-		Controller:         u.controller,
-		OperationalVaultID: u.vaultID,
+		Controller: u.controller,
+		VaultID:    u.vaultID,
 	}
 
 	resp, closeBody, err := s.post(u, s.bddContext.KeyServerURL+createKeystoreEndpoint, req)
@@ -323,8 +318,13 @@ func (s *Steps) makeExportPubKeyReq(user, endpoint string) error {
 		return err
 	}
 
+	publicKey, err := base64.URLEncoding.DecodeString(parsedResp.PublicKey)
+	if err != nil {
+		return err
+	}
+
 	u.response.body = map[string]string{
-		"publicKey": parsedResp.PublicKey,
+		"publicKey": string(publicKey),
 	}
 
 	return nil
@@ -373,8 +373,13 @@ func (s *Steps) makeSignMessageReq(user, endpoint, message string) error {
 		return err
 	}
 
+	signature, err := base64.URLEncoding.DecodeString(parsedResp.Signature)
+	if err != nil {
+		return err
+	}
+
 	u.response.body = map[string]string{
-		"signature": parsedResp.Signature,
+		"signature": string(signature),
 	}
 
 	return nil
@@ -399,8 +404,13 @@ func (s *Steps) makeSignMessageReqAuthzKMS(u *user, endpoint, message string) er
 		return err
 	}
 
+	sig, err := base64.URLEncoding.DecodeString(parsedResp.Signature)
+	if err != nil {
+		return err
+	}
+
 	u.response.body = map[string]string{
-		"signature": parsedResp.Signature,
+		"signature": string(sig),
 	}
 
 	return nil
@@ -410,8 +420,8 @@ func (s *Steps) makeVerifySignatureReq(user, endpoint, tag, message string) erro
 	u := s.users[user]
 
 	req := &verifyReq{
-		Signature: u.response.body[tag],
-		Message:   message,
+		Signature: base64.URLEncoding.EncodeToString([]byte(u.response.body[tag])),
+		Message:   base64.URLEncoding.EncodeToString([]byte(message)),
 	}
 
 	resp, closeBody, err := s.post(u, endpoint, req)
@@ -428,8 +438,8 @@ func (s *Steps) makeEncryptMessageReq(user, endpoint, message string) error {
 	u := s.users[user]
 
 	req := &encryptReq{
-		Message:        message,
-		AdditionalData: "additional data",
+		Message:        base64.URLEncoding.EncodeToString([]byte(message)),
+		AdditionalData: base64.URLEncoding.EncodeToString([]byte("additional data")),
 	}
 
 	resp, closeBody, err := s.post(u, endpoint, req)
@@ -446,9 +456,19 @@ func (s *Steps) makeEncryptMessageReq(user, endpoint, message string) error {
 		return err
 	}
 
+	cipherText, err := base64.URLEncoding.DecodeString(parsedResp.CipherText)
+	if err != nil {
+		return err
+	}
+
+	nonce, err := base64.URLEncoding.DecodeString(parsedResp.Nonce)
+	if err != nil {
+		return err
+	}
+
 	u.response.body = map[string]string{
-		"cipherText": parsedResp.CipherText,
-		"nonce":      parsedResp.Nonce,
+		"cipherText": string(cipherText),
+		"nonce":      string(nonce),
 	}
 
 	return nil
@@ -458,9 +478,9 @@ func (s *Steps) makeDecryptCipherReq(user, endpoint, tag string) error {
 	u := s.users[user]
 
 	req := &decryptReq{
-		CipherText:     u.response.body[tag],
-		AdditionalData: "additional data",
-		Nonce:          u.response.body["nonce"],
+		CipherText:     base64.URLEncoding.EncodeToString([]byte(u.response.body[tag])),
+		AdditionalData: base64.URLEncoding.EncodeToString([]byte("additional data")),
+		Nonce:          base64.URLEncoding.EncodeToString([]byte(u.response.body["nonce"])),
 	}
 
 	resp, closeBody, err := s.post(u, endpoint, req)
@@ -477,8 +497,13 @@ func (s *Steps) makeDecryptCipherReq(user, endpoint, tag string) error {
 		return err
 	}
 
+	plainText, err := base64.URLEncoding.DecodeString(parsedResp.PlainText)
+	if err != nil {
+		return err
+	}
+
 	u.response.body = map[string]string{
-		"plainText": parsedResp.PlainText,
+		"plainText": string(plainText),
 	}
 
 	return nil
@@ -488,7 +513,7 @@ func (s *Steps) makeComputeMACReq(user, endpoint, data string) error {
 	u := s.users[user]
 
 	req := &computeMACReq{
-		Data: data,
+		Data: base64.URLEncoding.EncodeToString([]byte(data)),
 	}
 
 	resp, closeBody, err := s.post(u, endpoint, req)
@@ -505,8 +530,13 @@ func (s *Steps) makeComputeMACReq(user, endpoint, data string) error {
 		return err
 	}
 
+	mac, err := base64.URLEncoding.DecodeString(parsedResp.MAC)
+	if err != nil {
+		return err
+	}
+
 	u.response.body = map[string]string{
-		"mac": parsedResp.MAC,
+		"mac": string(mac),
 	}
 
 	return nil
@@ -516,8 +546,8 @@ func (s *Steps) makeVerifyMACReq(user, endpoint, tag, data string) error {
 	u := s.users[user]
 
 	req := &verifyMACReq{
-		MAC:  u.response.body[tag],
-		Data: data,
+		MAC:  base64.URLEncoding.EncodeToString([]byte(u.response.body[tag])),
+		Data: base64.URLEncoding.EncodeToString([]byte(data)),
 	}
 
 	resp, closeBody, err := s.post(u, endpoint, req)
@@ -605,8 +635,13 @@ func (s *Steps) makeUnwrapKeyReq(user, endpoint, tag, sender string) error {
 		return err
 	}
 
+	key, err := base64.URLEncoding.DecodeString(parsedResp.Key)
+	if err != nil {
+		return err
+	}
+
 	u.response.body = map[string]string{
-		"key": parsedResp.Key,
+		"key": string(key),
 	}
 
 	return nil
@@ -704,10 +739,7 @@ func (s *Steps) checkRespWithValue(user, tag, val string) error {
 func (s *Steps) checkRespWithKeyContent(user, keyID string) error {
 	u := s.users[user]
 
-	key, err := base64.URLEncoding.DecodeString(u.response.body["key"])
-	if err != nil {
-		return err
-	}
+	key := []byte(u.response.body["key"])
 
 	if !bytes.Equal(key, s.keys[keyID]) {
 		return fmt.Errorf("expected key content to be %q, got: %q", base64.URLEncoding.EncodeToString(s.keys[keyID]),

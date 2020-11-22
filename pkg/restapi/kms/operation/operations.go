@@ -146,7 +146,7 @@ func (o *Operation) createKeystoreHandler(rw http.ResponseWriter, req *http.Requ
 		opts = append(opts,
 			keystore.WithRecipientKeyType(arieskms.ECDH256KWAES256GCM),
 			keystore.WithMACKeyType(arieskms.HMACSHA256Tag256),
-			keystore.WithOperationalVaultID(request.OperationalVaultID),
+			keystore.WithOperationalVaultID(request.VaultID),
 		)
 	}
 
@@ -270,14 +270,14 @@ func (o *Operation) signHandler(rw http.ResponseWriter, req *http.Request) {
 	keystoreID := mux.Vars(req)[keystoreIDQueryParam]
 	keyID := mux.Vars(req)[keyIDQueryParam]
 
-	msgBytes, err := base64.URLEncoding.DecodeString(request.Message)
+	message, err := base64.URLEncoding.DecodeString(request.Message)
 	if err != nil {
 		o.writeErrorResponse(rw, http.StatusBadRequest, receivedBadRequest, err)
 
 		return
 	}
 
-	signature, err := kmsService.Sign(keystoreID, keyID, msgBytes)
+	signature, err := kmsService.Sign(keystoreID, keyID, message)
 	if err != nil {
 		o.writeErrorResponse(rw, http.StatusInternalServerError, signMessageFailure, err)
 
@@ -313,7 +313,14 @@ func (o *Operation) verifyHandler(rw http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	err = kmsService.Verify(keystoreID, keyID, signature, []byte(request.Message))
+	message, err := base64.URLEncoding.DecodeString(request.Message)
+	if err != nil {
+		o.writeErrorResponse(rw, http.StatusBadRequest, receivedBadRequest, err)
+
+		return
+	}
+
+	err = kmsService.Verify(keystoreID, keyID, signature, message)
 	if err != nil {
 		o.writeErrorResponse(rw, http.StatusInternalServerError, verifyMessageFailure, err)
 
@@ -339,8 +346,21 @@ func (o *Operation) encryptHandler(rw http.ResponseWriter, req *http.Request) {
 	keystoreID := mux.Vars(req)[keystoreIDQueryParam]
 	keyID := mux.Vars(req)[keyIDQueryParam]
 
-	cipherText, nonce, err := kmsService.Encrypt(keystoreID, keyID, []byte(request.Message),
-		[]byte(request.AdditionalData))
+	message, err := base64.URLEncoding.DecodeString(request.Message)
+	if err != nil {
+		o.writeErrorResponse(rw, http.StatusBadRequest, receivedBadRequest, err)
+
+		return
+	}
+
+	aad, err := base64.URLEncoding.DecodeString(request.AdditionalData)
+	if err != nil {
+		o.writeErrorResponse(rw, http.StatusBadRequest, receivedBadRequest, err)
+
+		return
+	}
+
+	cipherText, nonce, err := kmsService.Encrypt(keystoreID, keyID, message, aad)
 	if err != nil {
 		o.writeErrorResponse(rw, http.StatusInternalServerError, encryptMessageFailure, err)
 
@@ -376,6 +396,13 @@ func (o *Operation) decryptHandler(rw http.ResponseWriter, req *http.Request) {
 		return
 	}
 
+	aad, err := base64.URLEncoding.DecodeString(request.AdditionalData)
+	if err != nil {
+		o.writeErrorResponse(rw, http.StatusBadRequest, receivedBadRequest, err)
+
+		return
+	}
+
 	nonce, err := base64.URLEncoding.DecodeString(request.Nonce)
 	if err != nil {
 		o.writeErrorResponse(rw, http.StatusBadRequest, receivedBadRequest, err)
@@ -383,7 +410,7 @@ func (o *Operation) decryptHandler(rw http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	plainText, err := kmsService.Decrypt(keystoreID, keyID, cipherText, []byte(request.AdditionalData), nonce)
+	plainText, err := kmsService.Decrypt(keystoreID, keyID, cipherText, aad, nonce)
 	if err != nil {
 		o.writeErrorResponse(rw, http.StatusInternalServerError, decryptMessageFailure, err)
 
@@ -391,7 +418,7 @@ func (o *Operation) decryptHandler(rw http.ResponseWriter, req *http.Request) {
 	}
 
 	o.writeResponse(rw, decryptResp{
-		PlainText: string(plainText),
+		PlainText: base64.URLEncoding.EncodeToString(plainText),
 	})
 }
 
@@ -412,7 +439,14 @@ func (o *Operation) computeMACHandler(rw http.ResponseWriter, req *http.Request)
 	keystoreID := mux.Vars(req)[keystoreIDQueryParam]
 	keyID := mux.Vars(req)[keyIDQueryParam]
 
-	mac, err := kmsService.ComputeMAC(keystoreID, keyID, []byte(request.Data))
+	data, err := base64.URLEncoding.DecodeString(request.Data)
+	if err != nil {
+		o.writeErrorResponse(rw, http.StatusBadRequest, receivedBadRequest, err)
+
+		return
+	}
+
+	mac, err := kmsService.ComputeMAC(keystoreID, keyID, data)
 	if err != nil {
 		o.writeErrorResponse(rw, http.StatusInternalServerError, computeMACFailure, err)
 
@@ -448,7 +482,14 @@ func (o *Operation) verifyMACHandler(rw http.ResponseWriter, req *http.Request) 
 		return
 	}
 
-	err = kmsService.VerifyMAC(keystoreID, keyID, mac, []byte(request.Data))
+	data, err := base64.URLEncoding.DecodeString(request.Data)
+	if err != nil {
+		o.writeErrorResponse(rw, http.StatusBadRequest, receivedBadRequest, err)
+
+		return
+	}
+
+	err = kmsService.VerifyMAC(keystoreID, keyID, mac, data)
 	if err != nil {
 		o.writeErrorResponse(rw, http.StatusInternalServerError, verifyMACFailure, err)
 
@@ -586,7 +627,7 @@ func (o *Operation) unwrapHandler(rw http.ResponseWriter, req *http.Request) {
 		APV:          apv,
 	}
 
-	// TODO(): Implement support for Authcrypt unwrapping
+	// TODO(#90): Implement support for Authcrypt unwrapping
 	cek, err := kmsService.UnwrapKey(keystoreID, keyID, recipientWK, nil)
 	if err != nil {
 		o.writeErrorResponse(rw, http.StatusInternalServerError, unwrapMessageFailure, err)
