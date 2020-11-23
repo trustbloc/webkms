@@ -15,26 +15,26 @@ import (
 
 // Keystore represents user's keystore with a list of associated keys and metadata.
 type Keystore struct {
-	ID                       string          `json:"id"`
-	Controller               string          `json:"controller"`
-	DelegateKeyID            string          `json:"delegateKeyID,omitempty"`
-	RecipientKeyID           string          `json:"recipientKeyID,omitempty"`
-	MACKeyID                 string          `json:"macKeyID,omitempty"`
-	OperationalVaultID       string          `json:"operationalVaultID,omitempty"`
-	OperationalEDVCapability json.RawMessage `json:"operationalEDVCapability,omitempty"`
-	OperationalKeyIDs        []string        `json:"operationalKeyIDs,omitempty"`
-	CreatedAt                *time.Time      `json:"createdAt"`
+	ID             string          `json:"id"`
+	Controller     string          `json:"controller"`
+	DelegateKeyID  string          `json:"delegateKeyID,omitempty"`
+	RecipientKeyID string          `json:"recipientKeyID,omitempty"`
+	MACKeyID       string          `json:"macKeyID,omitempty"`
+	VaultID        string          `json:"vaultID,omitempty"`
+	EDVCapability  json.RawMessage `json:"edvCapability,omitempty"`
+	KeyIDs         []string        `json:"keyIDs,omitempty"`
+	CreatedAt      *time.Time      `json:"createdAt"`
 }
 
 // Options configures Keystore during creation.
 type Options struct {
-	ID                 string
-	Controller         string
-	DelegateKeyType    kms.KeyType
-	RecipientKeyType   kms.KeyType
-	MACKeyType         kms.KeyType
-	OperationalVaultID string
-	CreatedAt          *time.Time
+	ID               string
+	Controller       string
+	DelegateKeyType  kms.KeyType
+	RecipientKeyType kms.KeyType
+	MACKeyType       kms.KeyType
+	VaultID          string
+	CreatedAt        *time.Time
 }
 
 // Option configures Options.
@@ -78,10 +78,10 @@ func WithMACKeyType(k kms.KeyType) Option {
 	}
 }
 
-// WithOperationalVaultID sets the ID of the vault on SDS server for storing operational keys.
-func WithOperationalVaultID(id string) Option {
+// WithVaultID sets the ID of the vault on EDV server for storing keys.
+func WithVaultID(id string) Option {
 	return func(o *Options) {
-		o.OperationalVaultID = id
+		o.VaultID = id
 	}
 }
 

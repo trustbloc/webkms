@@ -4,7 +4,7 @@ Copyright SecureKey Technologies Inc. All Rights Reserved.
 SPDX-License-Identifier: Apache-2.0
 */
 
-package sds //nolint:testpackage // need to test local methods
+package edv //nolint:testpackage // need to test local methods
 
 import (
 	"crypto/tls"
@@ -25,7 +25,7 @@ import (
 
 const (
 	testKeystoreID   = "keystoreID"
-	testSDSServerURL = "sds.example.com"
+	testEDVServerURL = "edv.example.com"
 )
 
 func TestSignHeader(t *testing.T) {
@@ -115,7 +115,7 @@ func TestNewProvider(t *testing.T) {
 			KeystoreService: srv,
 			CryptoService:   &mockcrypto.Crypto{ComputeMACErr: errors.New("compute mac error")},
 			TLSConfig:       &tls.Config{MinVersion: tls.VersionTLS12},
-			SDSServerURL:    testSDSServerURL,
+			EDVServerURL:    testEDVServerURL,
 			KeystoreID:      testKeystoreID,
 		}
 
@@ -180,7 +180,7 @@ func buildConfig(keystoreService keystore.Service) *Config {
 		KeystoreService: keystoreService,
 		CryptoService:   &mockcrypto.Crypto{},
 		TLSConfig:       &tls.Config{MinVersion: tls.VersionTLS12},
-		SDSServerURL:    testSDSServerURL,
+		EDVServerURL:    testEDVServerURL,
 		KeystoreID:      testKeystoreID,
 	}
 }

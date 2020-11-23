@@ -74,7 +74,7 @@ func TestStartCmdWithBlankArg(t *testing.T) {
 		tlsServeCertPathFlagName, tlsServeKeyPathFlagName,
 		databaseTypeFlagName, databaseURLFlagName, databasePrefixFlagName,
 		kmsDatabaseTypeFlagName, kmsDatabaseURLFlagName, kmsDatabasePrefixFlagName, kmsMasterKeyPathFlagName,
-		operationalKMSStorageTypeFlagName, operationalKMSStorageURLFlagName, operationalKMSStoragePrefixFlagName,
+		keyManagerStorageTypeFlagName, keyManagerStorageURLFlagName, keyManagerStoragePrefixFlagName,
 	}
 
 	t.Parallel()
@@ -101,7 +101,7 @@ func TestStartCmdWithMissingArg(t *testing.T) {
 		args := []string{
 			"--" + databaseTypeFlagName, storageTypeMemOption,
 			"--" + kmsDatabaseTypeFlagName, storageTypeMemOption,
-			"--" + operationalKMSStorageTypeFlagName, storageTypeMemOption,
+			"--" + keyManagerStorageTypeFlagName, storageTypeMemOption,
 		}
 		startCmd.SetArgs(args)
 
@@ -119,7 +119,7 @@ func TestStartCmdWithMissingArg(t *testing.T) {
 		args := []string{
 			"--" + hostURLFlagName, "hostname",
 			"--" + kmsDatabaseTypeFlagName, storageTypeMemOption,
-			"--" + operationalKMSStorageTypeFlagName, storageTypeMemOption,
+			"--" + keyManagerStorageTypeFlagName, storageTypeMemOption,
 		}
 		startCmd.SetArgs(args)
 
@@ -136,7 +136,7 @@ func TestStartCmdWithMissingArg(t *testing.T) {
 		args := []string{
 			"--" + hostURLFlagName, "hostname",
 			"--" + databaseTypeFlagName, storageTypeMemOption,
-			"--" + operationalKMSStorageTypeFlagName, storageTypeMemOption,
+			"--" + keyManagerStorageTypeFlagName, storageTypeMemOption,
 		}
 		startCmd.SetArgs(args)
 
@@ -148,7 +148,7 @@ func TestStartCmdWithMissingArg(t *testing.T) {
 			err.Error())
 	})
 
-	t.Run("test missing operational-kms-storage-type arg", func(t *testing.T) {
+	t.Run("test missing key-manager-storage-type arg", func(t *testing.T) {
 		startCmd := GetStartCmd(&mockServer{})
 
 		args := []string{
@@ -161,8 +161,8 @@ func TestStartCmdWithMissingArg(t *testing.T) {
 		err := startCmd.Execute()
 
 		require.Error(t, err)
-		require.Equal(t, "Neither operational-kms-storage-type (command line flag) nor "+
-			"KMS_OPERATIONAL_KMS_STORAGE_TYPE (environment variable) have been set.",
+		require.Equal(t, "Neither key-manager-storage-type (command line flag) nor "+
+			"KMS_KEY_MANAGER_STORAGE_TYPE (environment variable) have been set.",
 			err.Error())
 	})
 }
@@ -314,9 +314,9 @@ func TestStartKMSService(t *testing.T) {
 func TestPrepareOperationConfig(t *testing.T) {
 	t.Run("Success with in-memory db option", func(t *testing.T) {
 		config, err := prepareOperationConfig(&kmsRestParameters{
-			storageParams:               &storageParameters{storageType: storageTypeMemOption},
-			kmsStorageParams:            &storageParameters{storageType: storageTypeMemOption},
-			operationalKMSStorageParams: &storageParameters{storageType: storageTypeMemOption},
+			storageParams:           &storageParameters{storageType: storageTypeMemOption},
+			kmsStorageParams:        &storageParameters{storageType: storageTypeMemOption},
+			keyManagerStorageParams: &storageParameters{storageType: storageTypeMemOption},
 		})
 
 		require.NoError(t, err)
@@ -329,9 +329,9 @@ func TestPrepareOperationConfig(t *testing.T) {
 	// TODO(#53): don't depend on error message defined in external package
 	t.Run("Fail with CouchDB option", func(t *testing.T) {
 		config, err := prepareOperationConfig(&kmsRestParameters{
-			storageParams:               &storageParameters{storageType: storageTypeCouchDBOption, storageURL: "url"},
-			kmsStorageParams:            &storageParameters{storageType: storageTypeCouchDBOption, storageURL: "url"},
-			operationalKMSStorageParams: &storageParameters{storageType: storageTypeCouchDBOption, storageURL: "url"},
+			storageParams:           &storageParameters{storageType: storageTypeCouchDBOption, storageURL: "url"},
+			kmsStorageParams:        &storageParameters{storageType: storageTypeCouchDBOption, storageURL: "url"},
+			keyManagerStorageParams: &storageParameters{storageType: storageTypeCouchDBOption, storageURL: "url"},
 		})
 
 		require.Error(t, err)
@@ -341,9 +341,9 @@ func TestPrepareOperationConfig(t *testing.T) {
 
 	t.Run("Fail with invalid db option", func(t *testing.T) {
 		config, err := prepareOperationConfig(&kmsRestParameters{
-			storageParams:               &storageParameters{storageType: "invalid"},
-			kmsStorageParams:            &storageParameters{storageType: storageTypeMemOption},
-			operationalKMSStorageParams: &storageParameters{storageType: storageTypeMemOption},
+			storageParams:           &storageParameters{storageType: "invalid"},
+			kmsStorageParams:        &storageParameters{storageType: storageTypeMemOption},
+			keyManagerStorageParams: &storageParameters{storageType: storageTypeMemOption},
 		})
 
 		require.Nil(t, config)
@@ -351,11 +351,11 @@ func TestPrepareOperationConfig(t *testing.T) {
 	})
 }
 
-func TestOperationalKMSStorageResolver(t *testing.T) { // TODO(#53): Rewrite this test
+func TestKeyManagerStorageResolver(t *testing.T) { // TODO(#53): Rewrite this test
 	config, err := prepareOperationConfig(&kmsRestParameters{
-		storageParams:               &storageParameters{storageType: storageTypeMemOption},
-		kmsStorageParams:            &storageParameters{storageType: storageTypeMemOption},
-		operationalKMSStorageParams: &storageParameters{storageType: storageTypeSDSOption},
+		storageParams:           &storageParameters{storageType: storageTypeMemOption},
+		kmsStorageParams:        &storageParameters{storageType: storageTypeMemOption},
+		keyManagerStorageParams: &storageParameters{storageType: storageTypeEDVOption},
 	})
 
 	require.NotNil(t, config)
@@ -395,7 +395,7 @@ func requiredArgs() []string {
 		"--" + hostURLFlagName, "localhost:8080",
 		"--" + databaseTypeFlagName, storageTypeMemOption,
 		"--" + kmsDatabaseTypeFlagName, storageTypeMemOption,
-		"--" + operationalKMSStorageTypeFlagName, storageTypeMemOption,
+		"--" + keyManagerStorageTypeFlagName, storageTypeMemOption,
 	}
 }
 
@@ -409,7 +409,7 @@ func setEnvVars(t *testing.T) {
 	err = os.Setenv(kmsDatabaseTypeEnvKey, storageTypeMemOption)
 	require.NoError(t, err)
 
-	err = os.Setenv(operationalKMSStorageTypeEnvKey, storageTypeMemOption)
+	err = os.Setenv(keyManagerStorageTypeEnvKey, storageTypeMemOption)
 	require.NoError(t, err)
 }
 
@@ -423,7 +423,7 @@ func unsetEnvVars(t *testing.T) {
 	err = os.Unsetenv(kmsDatabaseTypeEnvKey)
 	require.NoError(t, err)
 
-	err = os.Unsetenv(operationalKMSStorageTypeEnvKey)
+	err = os.Unsetenv(keyManagerStorageTypeEnvKey)
 	require.NoError(t, err)
 }
 

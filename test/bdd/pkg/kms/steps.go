@@ -72,7 +72,7 @@ func (s *Steps) SetContext(ctx *context.BDDContext) {
 // RegisterSteps defines scenario steps.
 func (s *Steps) RegisterSteps(ctx *godog.ScenarioContext) {
 	// common creation steps
-	ctx.Step(`^"([^"]*)" has created a data vault on SDS Server for storing operational keys$`, s.createEDVDataVault)
+	ctx.Step(`^"([^"]*)" has created a data vault on EDV Server for storing keys$`, s.createEDVDataVault)
 	ctx.Step(`^"([^"]*)" has created an empty keystore on Key Server$`, s.createKeystore)
 	ctx.Step(`^"([^"]*)" has created a keystore with "([^"]*)" key on Key Server$`, s.createKeystoreAndKey)
 	// common response checking steps
@@ -133,10 +133,7 @@ func (s *Steps) createEDVDataVault(userName string) error {
 		return errExport
 	}
 
-	pkBytes, err := base64.URLEncoding.DecodeString(authzUser.response.body["publicKey"])
-	if err != nil {
-		return err
-	}
+	pkBytes := []byte(authzUser.response.body["publicKey"])
 
 	_, didKey := fingerprint.CreateDIDKey(pkBytes)
 
@@ -148,7 +145,7 @@ func (s *Steps) createEDVDataVault(userName string) error {
 		HMAC:        models.IDTypePair{ID: "https://example.com/kms/67891", Type: "Sha256HmacKey2019"},
 	}
 
-	c := client.New(s.bddContext.SDSServerURL+edvBasePath, client.WithTLSConfig(s.bddContext.TLSConfig()))
+	c := client.New(s.bddContext.EDVServerURL+edvBasePath, client.WithTLSConfig(s.bddContext.TLSConfig()))
 
 	vaultURL, resp, err := c.CreateDataVault(&config)
 	if err != nil {
@@ -246,7 +243,7 @@ func (s *Steps) updateCapability(u *user) error {
 	}
 
 	req := &operation.UpdateCapabilityReq{
-		OperationalEDVCapability: chainCapabilityBytes,
+		EDVCapability: chainCapabilityBytes,
 	}
 
 	resp, closeBody, err := s.post(u, s.bddContext.KeyServerURL+capabilityEndpoint, //nolint:bodyclose // false check
@@ -345,8 +342,13 @@ func (s *Steps) makeExportPubKeyReqAuthzKMS(u *user, endpoint string) error {
 		return err
 	}
 
+	publicKey, err := base64.URLEncoding.DecodeString(parsedResp.PublicKey)
+	if err != nil {
+		return err
+	}
+
 	u.response.body = map[string]string{
-		"publicKey": parsedResp.PublicKey,
+		"publicKey": string(publicKey),
 	}
 
 	return nil

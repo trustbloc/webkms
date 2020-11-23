@@ -59,7 +59,7 @@ func TestCreateKey(t *testing.T) {
 		require.Equal(t, testKeyID, keyID)
 		require.NoError(t, err)
 
-		require.Contains(t, k.OperationalKeyIDs, keyID)
+		require.Contains(t, k.KeyIDs, keyID)
 	})
 
 	t.Run("Error: key create", func(t *testing.T) {
@@ -117,8 +117,8 @@ func TestExportKey(t *testing.T) {
 		provider.MockKeyManager.ExportPubKeyBytesValue = []byte("public key bytes")
 
 		k := &keystore.Keystore{
-			ID:                testKeystoreID,
-			OperationalKeyIDs: []string{testKeyID},
+			ID:     testKeystoreID,
+			KeyIDs: []string{testKeyID},
 		}
 		provider.MockKeystoreService.GetKeystoreValue = k
 
@@ -167,8 +167,8 @@ func TestExportKey(t *testing.T) {
 		provider := mockkms.NewMockProvider()
 
 		k := &keystore.Keystore{
-			ID:                testKeystoreID,
-			OperationalKeyIDs: []string{testKeyID},
+			ID:     testKeystoreID,
+			KeyIDs: []string{testKeyID},
 		}
 		provider.MockKeystoreService.GetKeystoreValue = k
 
@@ -187,8 +187,8 @@ func TestExportKey(t *testing.T) {
 		provider.MockKeyManager.ExportPubKeyBytesErr = errors.New("export error")
 
 		k := &keystore.Keystore{
-			ID:                testKeystoreID,
-			OperationalKeyIDs: []string{testKeyID},
+			ID:     testKeystoreID,
+			KeyIDs: []string{testKeyID},
 		}
 		provider.MockKeystoreService.GetKeystoreValue = k
 
@@ -209,8 +209,8 @@ func TestSign(t *testing.T) {
 		provider.MockCrypto.SignValue = []byte("signature")
 
 		k := &keystore.Keystore{
-			ID:                testKeystoreID,
-			OperationalKeyIDs: []string{testKeyID},
+			ID:     testKeystoreID,
+			KeyIDs: []string{testKeyID},
 		}
 		provider.MockKeystoreService.GetKeystoreValue = k
 
@@ -259,8 +259,8 @@ func TestSign(t *testing.T) {
 		provider := mockkms.NewMockProvider()
 
 		k := &keystore.Keystore{
-			ID:                testKeystoreID,
-			OperationalKeyIDs: []string{testKeyID},
+			ID:     testKeystoreID,
+			KeyIDs: []string{testKeyID},
 		}
 		provider.MockKeystoreService.GetKeystoreValue = k
 
@@ -279,8 +279,8 @@ func TestSign(t *testing.T) {
 		provider.MockKeyManager.GetKeyErr = errors.New("get key error")
 
 		k := &keystore.Keystore{
-			ID:                testKeystoreID,
-			OperationalKeyIDs: []string{testKeyID},
+			ID:     testKeystoreID,
+			KeyIDs: []string{testKeyID},
 		}
 		provider.MockKeystoreService.GetKeystoreValue = k
 
@@ -299,8 +299,8 @@ func TestSign(t *testing.T) {
 		provider.MockCrypto.SignErr = errors.New("sign error")
 
 		k := &keystore.Keystore{
-			ID:                testKeystoreID,
-			OperationalKeyIDs: []string{testKeyID},
+			ID:     testKeystoreID,
+			KeyIDs: []string{testKeyID},
 		}
 		provider.MockKeystoreService.GetKeystoreValue = k
 
@@ -324,8 +324,8 @@ func TestVerify(t *testing.T) {
 		provider.MockKeyManager.GetKeyValue = kh
 
 		k := &keystore.Keystore{
-			ID:                testKeystoreID,
-			OperationalKeyIDs: []string{testKeyID},
+			ID:     testKeystoreID,
+			KeyIDs: []string{testKeyID},
 		}
 		provider.MockKeystoreService.GetKeystoreValue = k
 
@@ -368,8 +368,8 @@ func TestVerify(t *testing.T) {
 		provider := mockkms.NewMockProvider()
 
 		k := &keystore.Keystore{
-			ID:                testKeystoreID,
-			OperationalKeyIDs: []string{testKeyID},
+			ID:     testKeystoreID,
+			KeyIDs: []string{testKeyID},
 		}
 		provider.MockKeystoreService.GetKeystoreValue = k
 
@@ -386,8 +386,8 @@ func TestVerify(t *testing.T) {
 		provider.MockKeyManager.GetKeyErr = errors.New("get key error")
 
 		k := &keystore.Keystore{
-			ID:                testKeystoreID,
-			OperationalKeyIDs: []string{testKeyID},
+			ID:     testKeystoreID,
+			KeyIDs: []string{testKeyID},
 		}
 		provider.MockKeystoreService.GetKeystoreValue = k
 
@@ -407,8 +407,8 @@ func TestVerify(t *testing.T) {
 		provider.MockKeyManager.GetKeyValue = badKH
 
 		k := &keystore.Keystore{
-			ID:                testKeystoreID,
-			OperationalKeyIDs: []string{testKeyID},
+			ID:     testKeystoreID,
+			KeyIDs: []string{testKeyID},
 		}
 		provider.MockKeystoreService.GetKeystoreValue = k
 
@@ -424,8 +424,8 @@ func TestVerify(t *testing.T) {
 		provider.MockCrypto.VerifyErr = errors.New("verify msg: invalid signature")
 
 		k := &keystore.Keystore{
-			ID:                testKeystoreID,
-			OperationalKeyIDs: []string{testKeyID},
+			ID:     testKeystoreID,
+			KeyIDs: []string{testKeyID},
 		}
 		provider.MockKeystoreService.GetKeystoreValue = k
 
@@ -446,8 +446,8 @@ func TestVerify(t *testing.T) {
 		provider.MockCrypto.VerifyErr = errors.New("other verify error")
 
 		k := &keystore.Keystore{
-			ID:                testKeystoreID,
-			OperationalKeyIDs: []string{testKeyID},
+			ID:     testKeystoreID,
+			KeyIDs: []string{testKeyID},
 		}
 		provider.MockKeystoreService.GetKeystoreValue = k
 
@@ -470,8 +470,8 @@ func TestEncrypt(t *testing.T) {
 		provider.MockCrypto.EncryptNonceValue = []byte("nonce")
 
 		k := &keystore.Keystore{
-			ID:                testKeystoreID,
-			OperationalKeyIDs: []string{testKeyID},
+			ID:     testKeystoreID,
+			KeyIDs: []string{testKeyID},
 		}
 		provider.MockKeystoreService.GetKeystoreValue = k
 
@@ -522,8 +522,8 @@ func TestEncrypt(t *testing.T) {
 		provider := mockkms.NewMockProvider()
 
 		k := &keystore.Keystore{
-			ID:                testKeystoreID,
-			OperationalKeyIDs: []string{testKeyID},
+			ID:     testKeystoreID,
+			KeyIDs: []string{testKeyID},
 		}
 		provider.MockKeystoreService.GetKeystoreValue = k
 
@@ -543,8 +543,8 @@ func TestEncrypt(t *testing.T) {
 		provider.MockKeyManager.GetKeyErr = errors.New("get key error")
 
 		k := &keystore.Keystore{
-			ID:                testKeystoreID,
-			OperationalKeyIDs: []string{testKeyID},
+			ID:     testKeystoreID,
+			KeyIDs: []string{testKeyID},
 		}
 		provider.MockKeystoreService.GetKeystoreValue = k
 
@@ -564,8 +564,8 @@ func TestEncrypt(t *testing.T) {
 		provider.MockCrypto.EncryptErr = errors.New("encrypt error")
 
 		k := &keystore.Keystore{
-			ID:                testKeystoreID,
-			OperationalKeyIDs: []string{testKeyID},
+			ID:     testKeystoreID,
+			KeyIDs: []string{testKeyID},
 		}
 		provider.MockKeystoreService.GetKeystoreValue = k
 
@@ -587,8 +587,8 @@ func TestDecrypt(t *testing.T) {
 		provider.MockCrypto.DecryptValue = []byte("plain text")
 
 		k := &keystore.Keystore{
-			ID:                testKeystoreID,
-			OperationalKeyIDs: []string{testKeyID},
+			ID:     testKeystoreID,
+			KeyIDs: []string{testKeyID},
 		}
 		provider.MockKeystoreService.GetKeystoreValue = k
 
@@ -637,8 +637,8 @@ func TestDecrypt(t *testing.T) {
 		provider := mockkms.NewMockProvider()
 
 		k := &keystore.Keystore{
-			ID:                testKeystoreID,
-			OperationalKeyIDs: []string{testKeyID},
+			ID:     testKeystoreID,
+			KeyIDs: []string{testKeyID},
 		}
 		provider.MockKeystoreService.GetKeystoreValue = k
 
@@ -657,8 +657,8 @@ func TestDecrypt(t *testing.T) {
 		provider.MockKeyManager.GetKeyErr = errors.New("get key error")
 
 		k := &keystore.Keystore{
-			ID:                testKeystoreID,
-			OperationalKeyIDs: []string{testKeyID},
+			ID:     testKeystoreID,
+			KeyIDs: []string{testKeyID},
 		}
 		provider.MockKeystoreService.GetKeystoreValue = k
 
@@ -677,8 +677,8 @@ func TestDecrypt(t *testing.T) {
 		provider.MockCrypto.DecryptErr = errors.New("decrypt error")
 
 		k := &keystore.Keystore{
-			ID:                testKeystoreID,
-			OperationalKeyIDs: []string{testKeyID},
+			ID:     testKeystoreID,
+			KeyIDs: []string{testKeyID},
 		}
 		provider.MockKeystoreService.GetKeystoreValue = k
 
@@ -699,8 +699,8 @@ func TestComputeMAC(t *testing.T) {
 		provider.MockCrypto.ComputeMACValue = []byte("mac value")
 
 		k := &keystore.Keystore{
-			ID:                testKeystoreID,
-			OperationalKeyIDs: []string{testKeyID},
+			ID:     testKeystoreID,
+			KeyIDs: []string{testKeyID},
 		}
 		provider.MockKeystoreService.GetKeystoreValue = k
 
@@ -749,8 +749,8 @@ func TestComputeMAC(t *testing.T) {
 		provider := mockkms.NewMockProvider()
 
 		k := &keystore.Keystore{
-			ID:                testKeystoreID,
-			OperationalKeyIDs: []string{testKeyID},
+			ID:     testKeystoreID,
+			KeyIDs: []string{testKeyID},
 		}
 		provider.MockKeystoreService.GetKeystoreValue = k
 
@@ -769,8 +769,8 @@ func TestComputeMAC(t *testing.T) {
 		provider.MockKeyManager.GetKeyErr = errors.New("get key error")
 
 		k := &keystore.Keystore{
-			ID:                testKeystoreID,
-			OperationalKeyIDs: []string{testKeyID},
+			ID:     testKeystoreID,
+			KeyIDs: []string{testKeyID},
 		}
 		provider.MockKeystoreService.GetKeystoreValue = k
 
@@ -789,8 +789,8 @@ func TestComputeMAC(t *testing.T) {
 		provider.MockCrypto.ComputeMACErr = errors.New("compute MAC error")
 
 		k := &keystore.Keystore{
-			ID:                testKeystoreID,
-			OperationalKeyIDs: []string{testKeyID},
+			ID:     testKeystoreID,
+			KeyIDs: []string{testKeyID},
 		}
 		provider.MockKeystoreService.GetKeystoreValue = k
 
@@ -810,8 +810,8 @@ func TestVerifyMAC(t *testing.T) {
 		provider := mockkms.NewMockProvider()
 
 		k := &keystore.Keystore{
-			ID:                testKeystoreID,
-			OperationalKeyIDs: []string{testKeyID},
+			ID:     testKeystoreID,
+			KeyIDs: []string{testKeyID},
 		}
 		provider.MockKeystoreService.GetKeystoreValue = k
 
@@ -858,8 +858,8 @@ func TestVerifyMAC(t *testing.T) {
 		provider := mockkms.NewMockProvider()
 
 		k := &keystore.Keystore{
-			ID:                testKeystoreID,
-			OperationalKeyIDs: []string{testKeyID},
+			ID:     testKeystoreID,
+			KeyIDs: []string{testKeyID},
 		}
 		provider.MockKeystoreService.GetKeystoreValue = k
 
@@ -876,8 +876,8 @@ func TestVerifyMAC(t *testing.T) {
 		provider.MockKeyManager.GetKeyErr = errors.New("get key error")
 
 		k := &keystore.Keystore{
-			ID:                testKeystoreID,
-			OperationalKeyIDs: []string{testKeyID},
+			ID:     testKeystoreID,
+			KeyIDs: []string{testKeyID},
 		}
 		provider.MockKeystoreService.GetKeystoreValue = k
 
@@ -893,8 +893,8 @@ func TestVerifyMAC(t *testing.T) {
 		provider := mockkms.NewMockProvider()
 
 		k := &keystore.Keystore{
-			ID:                testKeystoreID,
-			OperationalKeyIDs: []string{testKeyID},
+			ID:     testKeystoreID,
+			KeyIDs: []string{testKeyID},
 		}
 		provider.MockKeystoreService.GetKeystoreValue = k
 
@@ -950,8 +950,8 @@ func TestWrapKey_Authcrypt(t *testing.T) {
 		provider := mockkms.NewMockProvider()
 
 		k := &keystore.Keystore{
-			ID:                testKeystoreID,
-			OperationalKeyIDs: []string{testKeyID},
+			ID:     testKeystoreID,
+			KeyIDs: []string{testKeyID},
 		}
 		provider.MockKeystoreService.GetKeystoreValue = k
 
@@ -1005,8 +1005,8 @@ func TestWrapKey_Authcrypt(t *testing.T) {
 		provider := mockkms.NewMockProvider()
 
 		k := &keystore.Keystore{
-			ID:                testKeystoreID,
-			OperationalKeyIDs: []string{testKeyID},
+			ID:     testKeystoreID,
+			KeyIDs: []string{testKeyID},
 		}
 		provider.MockKeystoreService.GetKeystoreValue = k
 
@@ -1026,8 +1026,8 @@ func TestWrapKey_Authcrypt(t *testing.T) {
 		provider.MockKeyManager.GetKeyErr = errors.New("get key error")
 
 		k := &keystore.Keystore{
-			ID:                testKeystoreID,
-			OperationalKeyIDs: []string{testKeyID},
+			ID:     testKeystoreID,
+			KeyIDs: []string{testKeyID},
 		}
 		provider.MockKeystoreService.GetKeystoreValue = k
 
@@ -1047,8 +1047,8 @@ func TestWrapKey_Authcrypt(t *testing.T) {
 		provider.MockCrypto.WrapError = errors.New("wrap error")
 
 		k := &keystore.Keystore{
-			ID:                testKeystoreID,
-			OperationalKeyIDs: []string{testKeyID},
+			ID:     testKeystoreID,
+			KeyIDs: []string{testKeyID},
 		}
 		provider.MockKeystoreService.GetKeystoreValue = k
 
@@ -1069,8 +1069,8 @@ func TestUnwrapKey_Anoncrypt(t *testing.T) {
 		provider := mockkms.NewMockProvider()
 
 		k := &keystore.Keystore{
-			ID:                testKeystoreID,
-			OperationalKeyIDs: []string{testKeyID},
+			ID:     testKeystoreID,
+			KeyIDs: []string{testKeyID},
 		}
 		provider.MockKeystoreService.GetKeystoreValue = k
 
@@ -1121,8 +1121,8 @@ func TestUnwrapKey_Anoncrypt(t *testing.T) {
 		provider := mockkms.NewMockProvider()
 
 		k := &keystore.Keystore{
-			ID:                testKeystoreID,
-			OperationalKeyIDs: []string{testKeyID},
+			ID:     testKeystoreID,
+			KeyIDs: []string{testKeyID},
 		}
 		provider.MockKeystoreService.GetKeystoreValue = k
 
@@ -1141,8 +1141,8 @@ func TestUnwrapKey_Anoncrypt(t *testing.T) {
 		provider.MockKeyManager.GetKeyErr = errors.New("get key error")
 
 		k := &keystore.Keystore{
-			ID:                testKeystoreID,
-			OperationalKeyIDs: []string{testKeyID},
+			ID:     testKeystoreID,
+			KeyIDs: []string{testKeyID},
 		}
 		provider.MockKeystoreService.GetKeystoreValue = k
 
@@ -1161,8 +1161,8 @@ func TestUnwrapKey_Anoncrypt(t *testing.T) {
 		provider.MockCrypto.UnwrapError = errors.New("unwrap error")
 
 		k := &keystore.Keystore{
-			ID:                testKeystoreID,
-			OperationalKeyIDs: []string{testKeyID},
+			ID:     testKeystoreID,
+			KeyIDs: []string{testKeyID},
 		}
 		provider.MockKeystoreService.GetKeystoreValue = k
 
@@ -1182,8 +1182,8 @@ func TestUnwrapKey_Authcrypt(t *testing.T) {
 		provider := mockkms.NewMockProvider()
 
 		k := &keystore.Keystore{
-			ID:                testKeystoreID,
-			OperationalKeyIDs: []string{testKeyID},
+			ID:     testKeystoreID,
+			KeyIDs: []string{testKeyID},
 		}
 		provider.MockKeystoreService.GetKeystoreValue = k
 
@@ -1208,8 +1208,8 @@ func TestUnwrapKey_Authcrypt(t *testing.T) {
 		provider := mockkms.NewMockProvider()
 
 		k := &keystore.Keystore{
-			ID:                testKeystoreID,
-			OperationalKeyIDs: []string{testKeyID},
+			ID:     testKeystoreID,
+			KeyIDs: []string{testKeyID},
 		}
 		provider.MockKeystoreService.GetKeystoreValue = k
 
@@ -1227,8 +1227,8 @@ func TestUnwrapKey_Authcrypt(t *testing.T) {
 		provider.MockCrypto.UnwrapError = errors.New("unwrap error")
 
 		k := &keystore.Keystore{
-			ID:                testKeystoreID,
-			OperationalKeyIDs: []string{testKeyID},
+			ID:     testKeystoreID,
+			KeyIDs: []string{testKeyID},
 		}
 		provider.MockKeystoreService.GetKeystoreValue = k
 

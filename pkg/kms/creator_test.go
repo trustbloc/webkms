@@ -60,7 +60,7 @@ func TestNewKMSServiceCreator(t *testing.T) {
 	})
 
 	t.Run("Error: can't resolve KMS storage", func(t *testing.T) {
-		creator := kms.NewServiceCreator(newConfig(withOperationalKMSStorageResolverErr(errors.New("resolver error"))))
+		creator := kms.NewServiceCreator(newConfig(withKeyManagerStorageResolverErr(errors.New("resolver error"))))
 		req := buildReqWithSecretHeader(t, "p@ssphrase")
 
 		srv, err := creator(req)
@@ -87,20 +87,20 @@ func buildReqWithSecretHeader(t *testing.T, passphrase string) *http.Request {
 }
 
 type options struct {
-	keystoreService                  keystore.Service
-	cryptoService                    crypto.Crypto
-	storageProvider                  storage.Provider
-	operationalKMSStorageResolverErr error
+	keystoreService              keystore.Service
+	cryptoService                crypto.Crypto
+	storageProvider              storage.Provider
+	keyManagerStorageResolverErr error
 }
 
 type optionFn func(opts *options)
 
 func newConfig(opts ...optionFn) *kms.Config {
 	cOpts := &options{
-		keystoreService:                  mockkeystore.NewMockService(),
-		cryptoService:                    &mockcrypto.Crypto{},
-		storageProvider:                  mockstorage.NewMockStoreProvider(),
-		operationalKMSStorageResolverErr: nil,
+		keystoreService:              mockkeystore.NewMockService(),
+		cryptoService:                &mockcrypto.Crypto{},
+		storageProvider:              mockstorage.NewMockStoreProvider(),
+		keyManagerStorageResolverErr: nil,
 	}
 
 	for i := range opts {
@@ -108,14 +108,14 @@ func newConfig(opts ...optionFn) *kms.Config {
 	}
 
 	config := &kms.Config{
-		KeystoreService:               cOpts.keystoreService,
-		CryptoService:                 cOpts.cryptoService,
-		OperationalKMSStorageResolver: func(string) (storage.Provider, error) { return cOpts.storageProvider, nil },
+		KeystoreService:           cOpts.keystoreService,
+		CryptoService:             cOpts.cryptoService,
+		KeyManagerStorageResolver: func(string) (storage.Provider, error) { return cOpts.storageProvider, nil },
 	}
 
-	if cOpts.operationalKMSStorageResolverErr != nil {
-		config.OperationalKMSStorageResolver = func(string) (storage.Provider, error) {
-			return nil, cOpts.operationalKMSStorageResolverErr
+	if cOpts.keyManagerStorageResolverErr != nil {
+		config.KeyManagerStorageResolver = func(string) (storage.Provider, error) {
+			return nil, cOpts.keyManagerStorageResolverErr
 		}
 	}
 
@@ -128,8 +128,8 @@ func withStorageProvider(p storage.Provider) optionFn {
 	}
 }
 
-func withOperationalKMSStorageResolverErr(err error) optionFn {
+func withKeyManagerStorageResolverErr(err error) optionFn {
 	return func(o *options) {
-		o.operationalKMSStorageResolverErr = err
+		o.keyManagerStorageResolverErr = err
 	}
 }

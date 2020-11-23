@@ -129,7 +129,7 @@ func TestCreateKeystoreHandler(t *testing.T) {
 		srv := mockkeystore.NewMockService()
 		srv.CreateKeystoreValue = &keystore.Keystore{ID: testKeystoreID}
 
-		op := operation.New(newConfig(withKeystoreService(srv), withUsingSDS(),
+		op := operation.New(newConfig(withKeystoreService(srv), withEDV(),
 			withAuthService(&mockAuthService{}))) // TODO(#53): Improve reliability
 		handler := getHandler(t, op, keystoresEndpoint, http.MethodPost)
 
@@ -144,7 +144,7 @@ func TestCreateKeystoreHandler(t *testing.T) {
 		srv := mockkeystore.NewMockService()
 		srv.CreateKeystoreValue = &keystore.Keystore{ID: testKeystoreID}
 
-		op := operation.New(newConfig(withKeystoreService(srv), withUsingSDS(),
+		op := operation.New(newConfig(withKeystoreService(srv), withEDV(),
 			withAuthService(&mockAuthService{createDIDKeyFunc: func() (string, error) {
 				return "", fmt.Errorf("failed to create did key")
 			}}))) // TODO(#53): Improve reliability
@@ -240,7 +240,7 @@ func TestUpdateCapabilityHandler(t *testing.T) {
 		handler.Handle().ServeHTTP(rr, buildUpdateCapabilityReq(t, nil))
 
 		require.Equal(t, http.StatusBadRequest, rr.Code)
-		require.Contains(t, rr.Body.String(), "operationalEDVCapability is empty")
+		require.Contains(t, rr.Body.String(), "edvCapability is empty")
 	})
 }
 
@@ -967,7 +967,7 @@ func buildCreateKeyReq(t *testing.T) *http.Request {
 func buildUpdateCapabilityReq(t *testing.T, capability []byte) *http.Request {
 	t.Helper()
 
-	b, err := json.Marshal(operation.UpdateCapabilityReq{OperationalEDVCapability: capability})
+	b, err := json.Marshal(operation.UpdateCapabilityReq{EDVCapability: capability})
 	require.NoError(t, err)
 
 	req, err := http.NewRequestWithContext(context.Background(), http.MethodPost, "", bytes.NewBuffer(b))
@@ -1089,7 +1089,7 @@ type options struct {
 	kmsService           kms.Service
 	logger               log.Logger
 	kmsServiceCreatorErr error
-	isSDSUsed            bool
+	isEDVUsed            bool
 	authService          authService
 }
 
@@ -1110,7 +1110,7 @@ func newConfig(opts ...optionFn) *operation.Config {
 		KeystoreService:   cOpts.keystoreService,
 		KMSServiceCreator: func(_ *http.Request) (kms.Service, error) { return cOpts.kmsService, nil },
 		Logger:            cOpts.logger,
-		IsSDSUsed:         cOpts.isSDSUsed,
+		IsEDVUsed:         cOpts.isEDVUsed,
 		AuthService:       cOpts.authService,
 	}
 
@@ -1147,9 +1147,9 @@ func withKMSServiceCreatorErr(err error) optionFn {
 	}
 }
 
-func withUsingSDS() optionFn {
+func withEDV() optionFn {
 	return func(o *options) {
-		o.isSDSUsed = true
+		o.isEDVUsed = true
 	}
 }
 

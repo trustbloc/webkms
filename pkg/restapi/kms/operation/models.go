@@ -16,7 +16,7 @@ type CreateKeystoreReq struct {
 
 // UpdateCapabilityReq update capability request.
 type UpdateCapabilityReq struct {
-	OperationalEDVCapability json.RawMessage `json:"operationalEDVCapability,omitempty"`
+	EDVCapability json.RawMessage `json:"edvCapability,omitempty"`
 }
 
 type createKeyReq struct {

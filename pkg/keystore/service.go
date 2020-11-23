@@ -71,10 +71,10 @@ func (s *service) Create(options ...Option) (*Keystore, error) {
 	}
 
 	k := &Keystore{
-		ID:                 opts.ID,
-		Controller:         opts.Controller,
-		OperationalVaultID: opts.OperationalVaultID,
-		CreatedAt:          opts.CreatedAt,
+		ID:         opts.ID,
+		Controller: opts.Controller,
+		VaultID:    opts.VaultID,
+		CreatedAt:  opts.CreatedAt,
 	}
 
 	if opts.DelegateKeyType != "" {
