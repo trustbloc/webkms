@@ -22,11 +22,12 @@ import (
 
 // BDDContext is a global context shared between different test suites in bdd tests.
 type BDDContext struct {
-	KeyServerURL string
-	SDSServerURL string
-	tlsConfig    *tls.Config
-	KeyManager   kms.KeyManager
-	Crypto       cryptoapi.Crypto
+	KeyServerURL      string
+	AuthzKeyServerURL string
+	SDSServerURL      string
+	tlsConfig         *tls.Config
+	KeyManager        kms.KeyManager
+	Crypto            cryptoapi.Crypto
 }
 
 type kmsProvider struct {

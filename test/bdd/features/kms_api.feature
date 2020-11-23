@@ -9,6 +9,7 @@
 Feature: KMS and crypto operations
   Background:
     Given Key Server is running on "localhost" port "8076"
+      And Authz Key Server is running on "localhost" port "8077"
       And SDS Server is running on "localhost" port "8081"
       And "Alice" has created a data vault on SDS Server for storing operational keys
       And "Bob" has created a data vault on SDS Server for storing operational keys

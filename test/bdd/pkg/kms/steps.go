@@ -21,8 +21,6 @@ import (
 	"github.com/cucumber/godog"
 	"github.com/hyperledger/aries-framework-go/pkg/doc/signature/suite"
 	"github.com/hyperledger/aries-framework-go/pkg/doc/signature/suite/ed25519signature2018"
-	"github.com/hyperledger/aries-framework-go/pkg/doc/util/signature"
-	"github.com/hyperledger/aries-framework-go/pkg/kms"
 	"github.com/hyperledger/aries-framework-go/pkg/vdr/fingerprint"
 	"github.com/rs/xid"
 	"github.com/trustbloc/edge-core/pkg/log"
@@ -40,6 +38,7 @@ const (
 	createKeystoreEndpoint = "/kms/keystores"
 	keysEndpoint           = "/kms/keystores/{keystoreID}/keys"
 	exportKeyEndpoint      = "/kms/keystores/{keystoreID}/keys/{keyID}/export"
+	signEndpoint           = "/kms/keystores/{keystoreID}/keys/{keyID}/sign"
 	capabilityEndpoint     = "/kms/keystores/{keystoreID}/capability"
 )
 
@@ -101,13 +100,45 @@ func (s *Steps) RegisterSteps(ctx *godog.ScenarioContext) {
 	ctx.Step(`^"([^"]*)" gets a response with content of "([^"]*)" key$`, s.checkRespWithKeyContent)
 }
 
-func (s *Steps) createEDVDataVault(userName string) error {
-	signer, err := signature.NewCryptoSigner(s.bddContext.Crypto, s.bddContext.KeyManager, kms.ED25519)
-	if err != nil {
-		return fmt.Errorf("failed to create crypto signer: %w", err)
+func (s *Steps) makeCreateKeyReqAuthzKMS(u *user, endpoint, keyType string) error {
+	req := createKeyReq{
+		KeyType: keyType,
 	}
 
-	_, didKey := fingerprint.CreateDIDKey(signer.PublicKeyBytes())
+	resp, closeBody, err := s.post(u, endpoint, req)
+	if err != nil {
+		return err
+	}
+
+	defer closeBody()
+
+	return u.processResponse(nil, resp)
+}
+
+func (s *Steps) createEDVDataVault(userName string) error {
+	authzUser := &user{name: userName}
+
+	err := s.createKeystoreAuthzKMS(authzUser)
+	if err != nil {
+		return err
+	}
+
+	if errCreate := s.makeCreateKeyReqAuthzKMS(authzUser,
+		s.bddContext.AuthzKeyServerURL+keysEndpoint, "ED25519"); errCreate != nil {
+		return errCreate
+	}
+
+	if errExport := s.makeExportPubKeyReqAuthzKMS(authzUser,
+		s.bddContext.AuthzKeyServerURL+exportKeyEndpoint); errExport != nil {
+		return errExport
+	}
+
+	pkBytes, err := base64.URLEncoding.DecodeString(authzUser.response.body["publicKey"])
+	if err != nil {
+		return err
+	}
+
+	_, didKey := fingerprint.CreateDIDKey(pkBytes)
 
 	config := models.DataVaultConfiguration{
 		Sequence:    0,
@@ -137,7 +168,7 @@ func (s *Steps) createEDVDataVault(userName string) error {
 			name:          userName,
 			vaultID:       parts[len(parts)-1],
 			controller:    didKey,
-			signer:        signer,
+			signer:        newAuthzKMSSigner(s, authzUser),
 			edvCapability: edvCapability,
 		}
 
@@ -145,6 +176,44 @@ func (s *Steps) createEDVDataVault(userName string) error {
 	}
 
 	return nil
+}
+
+type authzKMSSigner struct {
+	s         *Steps
+	authzUser *user
+}
+
+func newAuthzKMSSigner(s *Steps, authzUser *user) *authzKMSSigner {
+	return &authzKMSSigner{s: s, authzUser: authzUser}
+}
+
+func (a *authzKMSSigner) Sign(data []byte) ([]byte, error) {
+	if err := a.s.makeSignMessageReqAuthzKMS(a.authzUser,
+		a.s.bddContext.AuthzKeyServerURL+signEndpoint, base64.URLEncoding.EncodeToString(data)); err != nil {
+		return nil, err
+	}
+
+	signatureBytes, err := base64.URLEncoding.DecodeString(a.authzUser.response.body["signature"])
+	if err != nil {
+		return nil, err
+	}
+
+	return signatureBytes, nil
+}
+
+func (s *Steps) createKeystoreAuthzKMS(u *user) error {
+	req := createKeystoreReq{
+		Controller: u.name,
+	}
+
+	resp, closeBody, err := s.post(u, s.bddContext.AuthzKeyServerURL+createKeystoreEndpoint, req)
+	if err != nil {
+		return err
+	}
+
+	defer closeBody()
+
+	return u.processResponse(nil, resp)
 }
 
 func (s *Steps) createKeystore(user string) error {
@@ -261,9 +330,57 @@ func (s *Steps) makeExportPubKeyReq(user, endpoint string) error {
 	return nil
 }
 
+func (s *Steps) makeExportPubKeyReqAuthzKMS(u *user, endpoint string) error {
+	resp, closeBody, err := s.get(u, endpoint)
+	if err != nil {
+		return err
+	}
+
+	defer closeBody()
+
+	var parsedResp exportKeyResp
+
+	err = u.processResponse(&parsedResp, resp)
+	if err != nil {
+		return err
+	}
+
+	u.response.body = map[string]string{
+		"publicKey": parsedResp.PublicKey,
+	}
+
+	return nil
+}
+
 func (s *Steps) makeSignMessageReq(user, endpoint, message string) error {
 	u := s.users[user]
 
+	req := signReq{
+		Message: base64.URLEncoding.EncodeToString([]byte(message)),
+	}
+
+	resp, closeBody, err := s.post(u, endpoint, req)
+	if err != nil {
+		return err
+	}
+
+	defer closeBody()
+
+	var parsedResp signResp
+
+	err = u.processResponse(&parsedResp, resp)
+	if err != nil {
+		return err
+	}
+
+	u.response.body = map[string]string{
+		"signature": parsedResp.Signature,
+	}
+
+	return nil
+}
+
+func (s *Steps) makeSignMessageReqAuthzKMS(u *user, endpoint, message string) error {
 	req := signReq{
 		Message: message,
 	}
