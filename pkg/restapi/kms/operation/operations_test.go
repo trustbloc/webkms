@@ -352,6 +352,21 @@ func TestSignHandler(t *testing.T) {
 		require.Contains(t, rr.Body.String(), base64.URLEncoding.EncodeToString([]byte("signature")))
 	})
 
+	t.Run("test illegal base64", func(t *testing.T) {
+		req, err := http.NewRequestWithContext(context.Background(), http.MethodPost, "",
+			bytes.NewBuffer([]byte(fmt.Sprintf(signReqFormat, "test message"))))
+		require.NoError(t, err)
+
+		op := operation.New(newConfig())
+		handler := getHandler(t, op, signEndpoint, http.MethodPost)
+
+		rr := httptest.NewRecorder()
+		handler.Handle().ServeHTTP(rr, req)
+
+		require.Equal(t, http.StatusBadRequest, rr.Code)
+		require.Contains(t, rr.Body.String(), "Received bad request: illegal base64")
+	})
+
 	t.Run("Received bad request", func(t *testing.T) {
 		req, err := http.NewRequestWithContext(context.Background(), http.MethodPost, "", bytes.NewBuffer([]byte("")))
 		require.NoError(t, err)
@@ -867,7 +882,7 @@ func buildExportKeyReq(t *testing.T) *http.Request {
 func buildSignReq(t *testing.T) *http.Request {
 	t.Helper()
 
-	payload := fmt.Sprintf(signReqFormat, "test message")
+	payload := fmt.Sprintf(signReqFormat, base64.URLEncoding.EncodeToString([]byte("test message")))
 	req, err := http.NewRequestWithContext(context.Background(), http.MethodPost, "", bytes.NewBuffer([]byte(payload)))
 	require.NoError(t, err)
 

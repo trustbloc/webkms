@@ -270,7 +270,14 @@ func (o *Operation) signHandler(rw http.ResponseWriter, req *http.Request) {
 	keystoreID := mux.Vars(req)[keystoreIDQueryParam]
 	keyID := mux.Vars(req)[keyIDQueryParam]
 
-	signature, err := kmsService.Sign(keystoreID, keyID, []byte(request.Message))
+	msgBytes, err := base64.URLEncoding.DecodeString(request.Message)
+	if err != nil {
+		o.writeErrorResponse(rw, http.StatusBadRequest, receivedBadRequest, err)
+
+		return
+	}
+
+	signature, err := kmsService.Sign(keystoreID, keyID, msgBytes)
 	if err != nil {
 		o.writeErrorResponse(rw, http.StatusInternalServerError, signMessageFailure, err)
 

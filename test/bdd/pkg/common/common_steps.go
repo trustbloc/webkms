@@ -41,6 +41,7 @@ func (s *Steps) SetContext(ctx *context.BDDContext) {
 // RegisterSteps defines scenario steps.
 func (s *Steps) RegisterSteps(ctx *godog.ScenarioContext) {
 	ctx.Step(`^Key Server is running on "([^"]*)" port "([^"]*)"$`, s.checkKeyServerIsRun)
+	ctx.Step(`^Authz Key Server is running on "([^"]*)" port "([^"]*)"$`, s.checkAuthzKeyServerIsRun)
 	ctx.Step(`^SDS Server is running on "([^"]*)" port "([^"]*)"$`, s.checkSDSServerIsRun)
 }
 
@@ -51,6 +52,17 @@ func (s *Steps) checkKeyServerIsRun(host string, port int) error {
 	}
 
 	s.bddContext.KeyServerURL = url
+
+	return nil
+}
+
+func (s *Steps) checkAuthzKeyServerIsRun(host string, port int) error {
+	url, err := s.healthCheck(host, port)
+	if err != nil {
+		return err
+	}
+
+	s.bddContext.AuthzKeyServerURL = url
 
 	return nil
 }

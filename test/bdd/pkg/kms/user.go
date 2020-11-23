@@ -13,16 +13,20 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/hyperledger/aries-framework-go/pkg/doc/util/signature"
 	"github.com/trustbloc/edge-core/pkg/zcapld"
 )
+
+type signer interface {
+	// Sign will sign document and return signature
+	Sign(data []byte) ([]byte, error)
+}
 
 type user struct {
 	name             string
 	controller       string
 	keystoreID       string
 	edvCapability    *zcapld.Capability
-	signer           signature.Signer
+	signer           signer
 	keyID            string
 	vaultID          string
 	recipientPubKeys map[string]publicKeyWithBytesXY
