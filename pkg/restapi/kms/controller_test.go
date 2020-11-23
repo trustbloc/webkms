@@ -39,6 +39,6 @@ func newConfig() *operation.Config {
 		KeystoreService:   mockkeystore.NewMockService(),
 		KMSServiceCreator: func(_ *http.Request) (kmsservice.Service, error) { return mockkms.NewMockService(), nil },
 		Logger:            &mocklogger.MockLogger{},
-		IsSDSUsed:         false,
+		IsEDVUsed:         false,
 	}
 }

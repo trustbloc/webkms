@@ -42,7 +42,7 @@ func (s *Steps) SetContext(ctx *context.BDDContext) {
 func (s *Steps) RegisterSteps(ctx *godog.ScenarioContext) {
 	ctx.Step(`^Key Server is running on "([^"]*)" port "([^"]*)"$`, s.checkKeyServerIsRun)
 	ctx.Step(`^Authz Key Server is running on "([^"]*)" port "([^"]*)"$`, s.checkAuthzKeyServerIsRun)
-	ctx.Step(`^SDS Server is running on "([^"]*)" port "([^"]*)"$`, s.checkSDSServerIsRun)
+	ctx.Step(`^EDV Server is running on "([^"]*)" port "([^"]*)"$`, s.checkEDVServerIsRun)
 }
 
 func (s *Steps) checkKeyServerIsRun(host string, port int) error {
@@ -67,13 +67,13 @@ func (s *Steps) checkAuthzKeyServerIsRun(host string, port int) error {
 	return nil
 }
 
-func (s *Steps) checkSDSServerIsRun(host string, port int) error {
+func (s *Steps) checkEDVServerIsRun(host string, port int) error {
 	url, err := s.healthCheck(host, port)
 	if err != nil {
 		return err
 	}
 
-	s.bddContext.SDSServerURL = url
+	s.bddContext.EDVServerURL = url
 
 	return nil
 }

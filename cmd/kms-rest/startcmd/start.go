@@ -39,7 +39,7 @@ import (
 	"github.com/trustbloc/hub-kms/pkg/restapi/healthcheck"
 	kmsrest "github.com/trustbloc/hub-kms/pkg/restapi/kms"
 	"github.com/trustbloc/hub-kms/pkg/restapi/kms/operation"
-	"github.com/trustbloc/hub-kms/pkg/storage/sds"
+	"github.com/trustbloc/hub-kms/pkg/storage/edv"
 )
 
 const (
@@ -111,27 +111,27 @@ const (
 	kmsMasterKeyPathFlagUsage = "The path to the file with master key to be used for secret lock. If missing noop " +
 		"service lock is used. " + commonEnvVarUsageText + kmsMasterKeyPathEnvKey
 
-	operationalKMSStorageTypeFlagName  = "operational-kms-storage-type"
-	operationalKMSStorageTypeEnvKey    = "KMS_OPERATIONAL_KMS_STORAGE_TYPE"
-	operationalKMSStorageTypeFlagUsage = "The type of storage to use for Operational (user-specific) KMS. " +
-		"Supported options: mem, couchdb, sds. " + commonEnvVarUsageText + operationalKMSStorageTypeEnvKey
+	keyManagerStorageTypeFlagName  = "key-manager-storage-type"
+	keyManagerStorageTypeEnvKey    = "KMS_KEY_MANAGER_STORAGE_TYPE"
+	keyManagerStorageTypeFlagUsage = "The type of storage to use for user's key manager. " +
+		"Supported options: mem, couchdb, edv. " + commonEnvVarUsageText + keyManagerStorageTypeEnvKey
 
-	operationalKMSStorageURLFlagName  = "operational-kms-storage-url"
-	operationalKMSStorageURLEnvKey    = "KMS_OPERATIONAL_KMS_STORAGE_URL"
-	operationalKMSStorageURLFlagUsage = "The URL of storage for Operational KMS. Not needed if using in-memory " +
+	keyManagerStorageURLFlagName  = "key-manager-storage-url"
+	keyManagerStorageURLEnvKey    = "KMS_KEY_MANAGER_STORAGE_URL"
+	keyManagerStorageURLFlagUsage = "The URL of storage for user's key manager. Not needed if using in-memory " +
 		"storage. For CouchDB, include the username:password@ text if required. " + commonEnvVarUsageText +
-		operationalKMSStorageURLEnvKey
+		keyManagerStorageURLEnvKey
 
-	operationalKMSStoragePrefixFlagName  = "operational-kms-storage-prefix"
-	operationalKMSStoragePrefixEnvKey    = "KMS_OPERATIONAL_KMS_STORAGE_PREFIX"
-	operationalKMSStoragePrefixFlagUsage = "An optional prefix to be used when creating and retrieving the " +
-		"underlying Operational KMS storage. " + commonEnvVarUsageText + operationalKMSStoragePrefixEnvKey
+	keyManagerStoragePrefixFlagName  = "key-manager-storage-prefix"
+	keyManagerStoragePrefixEnvKey    = "KMS_KEY_MANAGER_STORAGE_PREFIX"
+	keyManagerStoragePrefixFlagUsage = "An optional prefix to be used when creating and retrieving the " +
+		"underlying user's key manager storage. " + commonEnvVarUsageText + keyManagerStoragePrefixEnvKey
 )
 
 const (
 	storageTypeMemOption     = "mem"
 	storageTypeCouchDBOption = "couchdb"
-	storageTypeSDSOption     = "sds"
+	storageTypeEDVOption     = "edv"
 )
 
 // Server represents an HTTP server.
@@ -210,21 +210,21 @@ func createFlags(startCmd *cobra.Command) {
 
 	startCmd.Flags().StringP(kmsMasterKeyPathFlagName, "", "", kmsMasterKeyPathFlagUsage)
 
-	startCmd.Flags().StringP(operationalKMSStorageTypeFlagName, "", "", operationalKMSStorageTypeFlagUsage)
-	startCmd.Flags().StringP(operationalKMSStorageURLFlagName, "", "", operationalKMSStorageURLFlagUsage)
-	startCmd.Flags().StringP(operationalKMSStoragePrefixFlagName, "", "", operationalKMSStoragePrefixFlagUsage)
+	startCmd.Flags().StringP(keyManagerStorageTypeFlagName, "", "", keyManagerStorageTypeFlagUsage)
+	startCmd.Flags().StringP(keyManagerStorageURLFlagName, "", "", keyManagerStorageURLFlagUsage)
+	startCmd.Flags().StringP(keyManagerStoragePrefixFlagName, "", "", keyManagerStoragePrefixFlagUsage)
 }
 
 type kmsRestParameters struct {
-	hostURL                     string
-	tlsUseSystemCertPool        bool
-	tlsCACerts                  []string
-	tlsServeParams              *tlsServeParameters
-	storageParams               *storageParameters
-	kmsStorageParams            *storageParameters
-	kmsMasterKeyPath            string
-	operationalKMSStorageParams *storageParameters
-	logLevel                    string
+	hostURL                 string
+	tlsUseSystemCertPool    bool
+	tlsCACerts              []string
+	tlsServeParams          *tlsServeParameters
+	storageParams           *storageParameters
+	kmsStorageParams        *storageParameters
+	kmsMasterKeyPath        string
+	keyManagerStorageParams *storageParameters
+	logLevel                string
 }
 
 type tlsServeParameters struct {
@@ -269,7 +269,7 @@ func getKmsRestParameters(cmd *cobra.Command) (*kmsRestParameters, error) {
 		return nil, err
 	}
 
-	operationalKMSStorageParams, err := getOperationalKMSStorageParameters(cmd)
+	keyManagerStorageParams, err := getKeyManagerStorageParameters(cmd)
 	if err != nil {
 		return nil, err
 	}
@@ -280,15 +280,15 @@ func getKmsRestParameters(cmd *cobra.Command) (*kmsRestParameters, error) {
 	}
 
 	return &kmsRestParameters{
-		hostURL:                     strings.TrimSpace(hostURL),
-		tlsUseSystemCertPool:        tlsUseSystemCertPool,
-		tlsCACerts:                  tlsCACerts,
-		tlsServeParams:              tlsServeParams,
-		storageParams:               storageParams,
-		kmsStorageParams:            kmsStorageParams,
-		kmsMasterKeyPath:            masterKeyPath,
-		operationalKMSStorageParams: operationalKMSStorageParams,
-		logLevel:                    logLevel,
+		hostURL:                 strings.TrimSpace(hostURL),
+		tlsUseSystemCertPool:    tlsUseSystemCertPool,
+		tlsCACerts:              tlsCACerts,
+		tlsServeParams:          tlsServeParams,
+		storageParams:           storageParams,
+		kmsStorageParams:        kmsStorageParams,
+		kmsMasterKeyPath:        masterKeyPath,
+		keyManagerStorageParams: keyManagerStorageParams,
+		logLevel:                logLevel,
 	}, nil
 }
 
@@ -375,21 +375,21 @@ func getKMSStorageParameters(cmd *cobra.Command) (*storageParameters, error) {
 	}, nil
 }
 
-func getOperationalKMSStorageParameters(cmd *cobra.Command) (*storageParameters, error) {
-	storageType, err := cmdutils.GetUserSetVarFromString(cmd, operationalKMSStorageTypeFlagName,
-		operationalKMSStorageTypeEnvKey, false)
+func getKeyManagerStorageParameters(cmd *cobra.Command) (*storageParameters, error) {
+	storageType, err := cmdutils.GetUserSetVarFromString(cmd, keyManagerStorageTypeFlagName,
+		keyManagerStorageTypeEnvKey, false)
 	if err != nil {
 		return nil, err
 	}
 
-	storageURL, err := cmdutils.GetUserSetVarFromString(cmd, operationalKMSStorageURLFlagName,
-		operationalKMSStorageURLEnvKey, true)
+	storageURL, err := cmdutils.GetUserSetVarFromString(cmd, keyManagerStorageURLFlagName,
+		keyManagerStorageURLEnvKey, true)
 	if err != nil {
 		return nil, err
 	}
 
-	storagePrefix, err := cmdutils.GetUserSetVarFromString(cmd, operationalKMSStoragePrefixFlagName,
-		operationalKMSStoragePrefixEnvKey, true)
+	storagePrefix, err := cmdutils.GetUserSetVarFromString(cmd, keyManagerStoragePrefixFlagName,
+		keyManagerStoragePrefixEnvKey, true)
 	if err != nil {
 		return nil, err
 	}
@@ -511,7 +511,7 @@ func prepareOperationConfig(parameters *kmsRestParameters) (*operation.Config, e
 		KeystoreService:   keystoreService,
 		KMSServiceCreator: kmsServiceCreator,
 		Logger:            log.New("hub-kms/restapi"),
-		IsSDSUsed:         strings.EqualFold(parameters.operationalKMSStorageParams.storageType, storageTypeSDSOption),
+		IsEDVUsed:         strings.EqualFold(parameters.keyManagerStorageParams.storageType, storageTypeEDVOption),
 	}, nil
 }
 
@@ -570,28 +570,28 @@ func prepareKMSServiceCreator(keystoreService keystore.Service, cryptoService cr
 
 	var kmsStorageResolver func(string) (ariesstorage.Provider, error)
 
-	if strings.EqualFold(params.operationalKMSStorageParams.storageType, storageTypeSDSOption) {
+	if strings.EqualFold(params.keyManagerStorageParams.storageType, storageTypeEDVOption) {
 		kmsStorageResolver = func(keystoreID string) (ariesstorage.Provider, error) {
-			config := &sds.Config{
+			config := &edv.Config{
 				KeystoreService: keystoreService,
 				CryptoService:   cryptoService,
-				SDSServerURL:    params.operationalKMSStorageParams.storageURL,
+				EDVServerURL:    params.keyManagerStorageParams.storageURL,
 				KeystoreID:      keystoreID,
 				TLSConfig:       tlsConfig,
 			}
 
-			return sds.NewStorageProvider(config)
+			return edv.NewStorageProvider(config)
 		}
 	} else {
 		kmsStorageResolver = func(string) (ariesstorage.Provider, error) {
-			return getKMSStorageProvider(params.operationalKMSStorageParams)
+			return getKMSStorageProvider(params.keyManagerStorageParams)
 		}
 	}
 
 	return kms.NewServiceCreator(&kms.Config{
-		KeystoreService:               keystoreService,
-		CryptoService:                 cryptoService,
-		OperationalKMSStorageResolver: kmsStorageResolver,
+		KeystoreService:           keystoreService,
+		CryptoService:             cryptoService,
+		KeyManagerStorageResolver: kmsStorageResolver,
 	}), nil
 }
 

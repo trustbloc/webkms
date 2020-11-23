@@ -95,7 +95,7 @@ func TestCreate(t *testing.T) {
 			keystore.WithDelegateKeyType(testKeyType),
 			keystore.WithRecipientKeyType(testKeyType),
 			keystore.WithMACKeyType(testKeyType),
-			keystore.WithOperationalVaultID(testVaultID),
+			keystore.WithVaultID(testVaultID),
 			keystore.WithCreatedAt(&createdAt),
 		}
 
@@ -264,12 +264,12 @@ func testKeystore() keystore.Keystore {
 	createdAt := time.Now().UTC()
 
 	return keystore.Keystore{
-		ID:                testKeystoreID,
-		Controller:        testController,
-		DelegateKeyID:     testKeyID,
-		RecipientKeyID:    testKeyID,
-		CreatedAt:         &createdAt,
-		OperationalKeyIDs: []string{testKeyID},
+		ID:             testKeystoreID,
+		Controller:     testController,
+		DelegateKeyID:  testKeyID,
+		RecipientKeyID: testKeyID,
+		CreatedAt:      &createdAt,
+		KeyIDs:         []string{testKeyID},
 	}
 }
 

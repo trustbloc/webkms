@@ -83,7 +83,7 @@ type Operation struct {
 	keystoreService   keystore.Service
 	kmsServiceCreator func(req *http.Request) (kms.Service, error)
 	logger            log.Logger
-	isSDSUsed         bool
+	isEDVUsed         bool
 	authService       authService
 }
 
@@ -92,7 +92,7 @@ type Config struct {
 	KeystoreService   keystore.Service
 	KMSServiceCreator func(req *http.Request) (kms.Service, error)
 	Logger            log.Logger
-	IsSDSUsed         bool
+	IsEDVUsed         bool
 	AuthService       authService
 }
 
@@ -102,7 +102,7 @@ func New(config *Config) *Operation {
 		keystoreService:   config.KeystoreService,
 		kmsServiceCreator: config.KMSServiceCreator,
 		logger:            config.Logger,
-		isSDSUsed:         config.IsSDSUsed,
+		isEDVUsed:         config.IsEDVUsed,
 		authService:       config.AuthService,
 	}
 
@@ -142,11 +142,11 @@ func (o *Operation) createKeystoreHandler(rw http.ResponseWriter, req *http.Requ
 		keystore.WithCreatedAt(&createdAt),
 	}
 
-	if o.isSDSUsed {
+	if o.isEDVUsed {
 		opts = append(opts,
 			keystore.WithRecipientKeyType(arieskms.ECDH256KWAES256GCM),
 			keystore.WithMACKeyType(arieskms.HMACSHA256Tag256),
-			keystore.WithOperationalVaultID(request.VaultID),
+			keystore.WithVaultID(request.VaultID),
 		)
 	}
 
@@ -201,8 +201,8 @@ func (o *Operation) updateCapabilityHandler(rw http.ResponseWriter, req *http.Re
 		return
 	}
 
-	if len(request.OperationalEDVCapability) == 0 {
-		o.writeErrorResponse(rw, http.StatusBadRequest, "operationalEDVCapability is empty",
+	if len(request.EDVCapability) == 0 {
+		o.writeErrorResponse(rw, http.StatusBadRequest, "edvCapability is empty",
 			fmt.Errorf(""))
 
 		return
@@ -217,7 +217,7 @@ func (o *Operation) updateCapabilityHandler(rw http.ResponseWriter, req *http.Re
 		return
 	}
 
-	ks.OperationalEDVCapability = request.OperationalEDVCapability
+	ks.EDVCapability = request.EDVCapability
 
 	if err := o.keystoreService.Save(ks); err != nil {
 		o.writeErrorResponse(rw, http.StatusInternalServerError, saveKeystoreFailure, err)

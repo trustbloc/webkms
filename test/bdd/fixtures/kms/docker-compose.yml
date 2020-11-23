@@ -22,9 +22,9 @@ services:
       - KMS_SECRETS_DATABASE_URL=admin:password@couchdb.example.com:5984
       - KMS_SECRETS_DATABASE_PREFIX=authzkms
       - KMS_SECRETS_MASTER_KEY_PATH=/etc/tls/service-lock.key
-      - KMS_OPERATIONAL_KMS_STORAGE_TYPE=couchdb
-      - KMS_OPERATIONAL_KMS_STORAGE_URL=admin:password@couchdb.example.com:5984
-      - KMS_OPERATIONAL_KMS_STORAGE_PREFIX=ops
+      - KMS_KEY_MANAGER_STORAGE_TYPE=couchdb
+      - KMS_KEY_MANAGER_STORAGE_URL=admin:password@couchdb.example.com:5984
+      - KMS_KEY_MANAGER_STORAGE_PREFIX=authzkms_user
     ports:
       - 8077:8077
     entrypoint: ""
@@ -49,8 +49,8 @@ services:
       - KMS_SECRETS_DATABASE_URL=admin:password@couchdb.example.com:5984
       - KMS_SECRETS_DATABASE_PREFIX=kms
       - KMS_SECRETS_MASTER_KEY_PATH=/etc/tls/service-lock.key
-      - KMS_OPERATIONAL_KMS_STORAGE_TYPE=sds
-      - KMS_OPERATIONAL_KMS_STORAGE_URL=https://edv.example.com:8081
+      - KMS_KEY_MANAGER_STORAGE_TYPE=edv
+      - KMS_KEY_MANAGER_STORAGE_URL=https://edv.example.com:8081
     ports:
       - 8076:8076
     entrypoint: ""

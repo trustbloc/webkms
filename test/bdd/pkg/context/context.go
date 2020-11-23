@@ -24,7 +24,7 @@ import (
 type BDDContext struct {
 	KeyServerURL      string
 	AuthzKeyServerURL string
-	SDSServerURL      string
+	EDVServerURL      string
 	tlsConfig         *tls.Config
 	KeyManager        kms.KeyManager
 	Crypto            cryptoapi.Crypto

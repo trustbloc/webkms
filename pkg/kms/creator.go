@@ -31,9 +31,9 @@ type ServiceCreator func(req *http.Request) (Service, error)
 
 // Config defines configuration for ServiceCreator.
 type Config struct {
-	KeystoreService               keystore.Service
-	CryptoService                 crypto.Crypto
-	OperationalKMSStorageResolver func(keystoreID string) (storage.Provider, error)
+	KeystoreService           keystore.Service
+	CryptoService             crypto.Crypto
+	KeyManagerStorageResolver func(keystoreID string) (storage.Provider, error)
 }
 
 // NewServiceCreator returns func to create KMS Service backed by LocalKMS and passphrase-based secret lock.
@@ -51,7 +51,7 @@ func NewServiceCreator(c *Config) ServiceCreator {
 			return nil, err
 		}
 
-		kmsStorageProvider, err := c.OperationalKMSStorageResolver(keystoreID)
+		kmsStorageProvider, err := c.KeyManagerStorageResolver(keystoreID)
 		if err != nil {
 			return nil, err
 		}

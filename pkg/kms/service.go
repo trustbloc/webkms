@@ -53,7 +53,7 @@ func NewService(provider Provider) Service {
 	}
 }
 
-// CreateKey creates a new operational key and associates it with Keystore.
+// CreateKey creates a new key and associates it with Keystore.
 func (s *service) CreateKey(keystoreID string, kt kms.KeyType) (string, error) {
 	keyID, _, err := s.keyManager.Create(kt)
 	if err != nil {
@@ -65,7 +65,7 @@ func (s *service) CreateKey(keystoreID string, kt kms.KeyType) (string, error) {
 		return "", NewServiceError(getKeystoreFailed, err)
 	}
 
-	k.OperationalKeyIDs = append(k.OperationalKeyIDs, keyID)
+	k.KeyIDs = append(k.KeyIDs, keyID)
 
 	err = s.keystore.Save(k)
 	if err != nil {
@@ -260,13 +260,13 @@ func (s *service) checkKey(keystoreID, keyID string) error {
 		return NewServiceError(getKeystoreFailed, err)
 	}
 
-	if len(k.OperationalKeyIDs) == 0 {
+	if len(k.KeyIDs) == 0 {
 		return NewServiceError(noKeysFailure, nil)
 	}
 
 	found := false
 
-	for _, id := range k.OperationalKeyIDs {
+	for _, id := range k.KeyIDs {
 		if id == keyID {
 			found = true
 

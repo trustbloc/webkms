@@ -4,7 +4,7 @@ Copyright SecureKey Technologies Inc. All Rights Reserved.
 SPDX-License-Identifier: Apache-2.0
 */
 
-package sds
+package edv
 
 import (
 	"bytes"
@@ -34,16 +34,16 @@ const (
 	encType = "EDVEncryptedDocument"
 )
 
-// Config defines configuration for the SDS storage provider.
+// Config defines configuration for the EDV storage provider.
 type Config struct {
 	KeystoreService keystore.Service
 	CryptoService   crypto.Crypto
 	TLSConfig       *tls.Config
-	SDSServerURL    string
+	EDVServerURL    string
 	KeystoreID      string
 }
 
-// NewStorageProvider returns a new SDS storage provider instance.
+// NewStorageProvider returns a new EDV storage provider instance.
 func NewStorageProvider(c *Config) (storage.Provider, error) {
 	k, err := c.KeystoreService.Get(c.KeystoreID)
 	if err != nil {
@@ -71,11 +71,11 @@ func (c *Config) createRESTProvider(k *keystore.Keystore) (*edv.RESTProvider, er
 
 	macCrypto := edv.NewMACCrypto(macKH, c.CryptoService)
 
-	edvServerURL := c.SDSServerURL + edvEndpointPathRoot
+	edvServerURL := c.EDVServerURL + edvEndpointPathRoot
 
-	p, err := edv.NewRESTProvider(edvServerURL, k.OperationalVaultID, macCrypto, edv.WithTLSConfig(c.TLSConfig),
+	p, err := edv.NewRESTProvider(edvServerURL, k.VaultID, macCrypto, edv.WithTLSConfig(c.TLSConfig),
 		edv.WithHeaders(func(req *http.Request) (*http.Header, error) {
-			return c.signHeader(req, k.OperationalEDVCapability)
+			return c.signHeader(req, k.EDVCapability)
 		}))
 	if err != nil {
 		return nil, err
@@ -84,8 +84,8 @@ func (c *Config) createRESTProvider(k *keystore.Keystore) (*edv.RESTProvider, er
 	return p, nil
 }
 
-func (c *Config) signHeader(req *http.Request, operationalEDVCapability []byte) (*http.Header, error) {
-	if len(operationalEDVCapability) != 0 {
+func (c *Config) signHeader(req *http.Request, edvCapability []byte) (*http.Header, error) {
+	if len(edvCapability) != 0 {
 		km, errKm := c.KeystoreService.KeyManager()
 		if errKm != nil {
 			return nil, errKm
@@ -93,7 +93,7 @@ func (c *Config) signHeader(req *http.Request, operationalEDVCapability []byte) 
 
 		svc := zcapld.New(km, c.CryptoService)
 
-		return svc.SignHeader(req, operationalEDVCapability)
+		return svc.SignHeader(req, edvCapability)
 	}
 
 	return nil, nil

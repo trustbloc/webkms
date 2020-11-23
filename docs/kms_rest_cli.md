@@ -29,9 +29,11 @@ Parameters can be set by command line arguments or environment variables:
     --kms-secrets-database-url string         The URL of the database for KMS secrets. Not needed if using in-memory storage. For CouchDB, include the username:password@ text if required. Alternatively, this can be set with the following environment variable: KMS_SECRETS_DATABASE_URL
     --kms-secrets-database-prefix string      An optional prefix to be used when creating and retrieving the underlying KMS secrets database. Alternatively, this can be set with the following environment variable: KMS_SECRETS_DATABASE_PREFIX
 
-    --operational-kms-storage-type string     The type of storage to use for Operational (user-specific) KMS. Supported options: mem, couchdb, sds. Alternatively, this can be set with the following environment variable: KMS_OPERATIONAL_KMS_STORAGE_TYPE
-    --operational-kms-storage-url string      The URL of storage for Operational KMS. Not needed if using in-memory storage. For CouchDB, include the username:password@ text if required. Alternatively, this can be set with the following environment variable: KMS_OPERATIONAL_KMS_STORAGE_URL
-    --operational-kms-storage-prefix string   An optional prefix to be used when creating and retrieving the underlying Operational KMS storage. Alternatively, this can be set with the following environment variable: KMS_OPERATIONAL_KMS_STORAGE_PREFIX
+    --kms-secrets-master-key-path string      The path to the file with master key to be used for secret lock. If missing noop service lock is used. Alternatively, this can be set with the following environment variable: KMS_SECRETS_MASTER_KEY_PATH
+
+    --key-manager-storage-type string         The type of storage to use for user's key manager. Supported options: mem, couchdb, edv. Alternatively, this can be set with the following environment variable: KMS_KEY_MANAGER_STORAGE_TYPE
+    --key-manager-storage-url string          The URL of storage for user's key manager. Not needed if using in-memory storage. For CouchDB, include the username:password@ text if required. Alternatively, this can be set with the following environment variable: KMS_KEY_MANAGER_STORAGE_URL
+    --key-manager-storage-prefix string       An optional prefix to be used when creating and retrieving the underlying user's key manager storage. Alternatively, this can be set with the following environment variable: KMS_KEY_MANAGER_STORAGE_PREFIX
 ```
 
 ## Example
@@ -41,5 +43,5 @@ $ cd cmd/kms-rest
 $ go build
 $ ./kms-rest start --host-url localhost:8076 --database-type couchdb --database-url admin:password@couchdb.example.com:5984 --database-prefix keystore \
 --kms-secrets-database-type couchdb --kms-secrets-database-url admin:password@couchdb.example.com:5984 --kms-secrets-database-prefix kms \
---operational-kms-storage-type couchdb --operational-kms-storage-url admin:password@couchdb.example.com:5984 --operational-kms-storage-prefix opkms
+--key-manager-storage-type couchdb --key-manager-storage-url admin:password@couchdb.example.com:5984 --key-manager-storage-prefix kms_user
 ```
