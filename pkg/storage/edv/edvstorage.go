@@ -21,7 +21,6 @@ import (
 	"github.com/hyperledger/aries-framework-go/pkg/storage/edv"
 	"github.com/hyperledger/aries-framework-go/pkg/storage/formattedstore"
 
-	"github.com/trustbloc/hub-kms/pkg/auth/zcapld"
 	"github.com/trustbloc/hub-kms/pkg/keystore"
 )
 
@@ -34,13 +33,19 @@ const (
 	encType = "EDVEncryptedDocument"
 )
 
-// Config defines configuration for the EDV storage provider.
+// HeaderSigner computes a signature on the request and returns a header with the signature.
+type HeaderSigner interface {
+	SignHeader(*http.Request, []byte) (*http.Header, error)
+}
+
+// Config defines configuration for the SDS storage provider.
 type Config struct {
 	KeystoreService keystore.Service
 	CryptoService   crypto.Crypto
 	TLSConfig       *tls.Config
 	EDVServerURL    string
 	KeystoreID      string
+	HeaderSigner    HeaderSigner
 }
 
 // NewStorageProvider returns a new EDV storage provider instance.
@@ -86,14 +91,7 @@ func (c *Config) createRESTProvider(k *keystore.Keystore) (*edv.RESTProvider, er
 
 func (c *Config) signHeader(req *http.Request, edvCapability []byte) (*http.Header, error) {
 	if len(edvCapability) != 0 {
-		km, errKm := c.KeystoreService.KeyManager()
-		if errKm != nil {
-			return nil, errKm
-		}
-
-		svc := zcapld.New(km, c.CryptoService)
-
-		return svc.SignHeader(req, edvCapability)
+		return c.HeaderSigner.SignHeader(req, edvCapability)
 	}
 
 	return nil, nil

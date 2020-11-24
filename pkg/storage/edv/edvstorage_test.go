@@ -30,6 +30,7 @@ const (
 
 func TestSignHeader(t *testing.T) {
 	t.Run("test error from sign header", func(t *testing.T) {
+		expected := errors.New("failed to sign header")
 		kh, err := keyset.NewHandle(ecdh.ECDH256KWAES256GCMKeyTemplate())
 		require.NoError(t, err)
 
@@ -40,10 +41,13 @@ func TestSignHeader(t *testing.T) {
 		srv.GetKeyHandleValue = kh
 
 		c := buildConfig(srv)
+		c.HeaderSigner = &mockHeaderSigner{
+			signErr: expected,
+		}
 		h, err := c.signHeader(&http.Request{Header: make(map[string][]string)}, []byte("{}"))
 
 		require.Error(t, err)
-		require.Contains(t, err.Error(), "failed to resolve did:key URL")
+		require.True(t, errors.Is(err, expected))
 		require.Nil(t, h)
 	})
 
@@ -183,4 +187,13 @@ func buildConfig(keystoreService keystore.Service) *Config {
 		EDVServerURL:    testEDVServerURL,
 		KeystoreID:      testKeystoreID,
 	}
+}
+
+type mockHeaderSigner struct {
+	signVal *http.Header
+	signErr error
+}
+
+func (m *mockHeaderSigner) SignHeader(*http.Request, []byte) (*http.Header, error) {
+	return m.signVal, m.signErr
 }

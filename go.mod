@@ -8,6 +8,7 @@ go 1.15
 
 require (
 	github.com/google/tink/go v1.5.0
+	github.com/google/uuid v1.1.2
 	github.com/gorilla/mux v1.8.0
 	github.com/hyperledger/aries-framework-go v0.1.5-0.20201123085011-2625d433b8fd
 	github.com/igor-pavlenko/httpsignatures-go v0.0.21

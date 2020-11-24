@@ -12,7 +12,7 @@ require (
 	github.com/hyperledger/aries-framework-go v0.1.5-0.20201123085011-2625d433b8fd
 	github.com/rs/xid v1.2.1
 	github.com/trustbloc/edge-core v0.1.5-0.20201121214029-0646e96dbdcf
-	github.com/trustbloc/edv v0.1.5-0.20201122203913-1dae4015cad6
+	github.com/trustbloc/edv v0.1.5-0.20201121163745-3cda022e7ae8
 	github.com/trustbloc/hub-kms v0.0.0-00010101000000-000000000000
 )
 

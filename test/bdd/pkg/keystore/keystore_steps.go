@@ -8,20 +8,26 @@ package keystore
 
 import (
 	"bytes"
+	"compress/gzip"
+	"encoding/base64"
 	"fmt"
+	"io/ioutil"
 	"net/http"
 	"net/url"
 
 	"github.com/cucumber/godog"
 	"github.com/trustbloc/edge-core/pkg/log"
+	"github.com/trustbloc/edge-core/pkg/zcapld"
 
 	"github.com/trustbloc/hub-kms/test/bdd/pkg/bddutil"
 	"github.com/trustbloc/hub-kms/test/bdd/pkg/context"
 )
 
 const (
+	controller = "did:example:123456789"
+
 	createKeystoreReq = `{
-	  "controller": "did:example:123456789"
+	  "controller": "` + controller + `"
 	}`
 
 	contentType = "application/json"
@@ -31,7 +37,7 @@ const (
 type Steps struct {
 	bddContext *context.BDDContext
 	status     string
-	headers    map[string]string
+	headers    http.Header
 	logger     log.Logger
 }
 
@@ -48,7 +54,7 @@ func (s *Steps) SetContext(ctx *context.BDDContext) {
 // RegisterSteps defines scenario steps.
 func (s *Steps) RegisterSteps(ctx *godog.ScenarioContext) {
 	ctx.Step(`^user makes an HTTP POST to "([^"]*)" to create a keystore$`, s.sendCreateKeystoreRequest)
-	ctx.Step(`^user gets a response with HTTP status "([^"]*)" and "([^"]*)" header with a valid URL$`,
+	ctx.Step(`^user gets a response with HTTP status "([^"]*)" and with valid "([^"]*)" and "([^"]*)" headers$`,
 		s.checkResponse)
 }
 
@@ -68,25 +74,51 @@ func (s *Steps) sendCreateKeystoreRequest(endpoint string) error {
 	}()
 
 	s.status = resp.Status
-
-	h := make(map[string]string, len(resp.Header))
-	for k, v := range resp.Header {
-		h[k] = v[0]
-	}
-
-	s.headers = h
+	s.headers = resp.Header
 
 	return nil
 }
 
-func (s *Steps) checkResponse(status, header string) error {
+func (s *Steps) checkResponse(status, locationHeader, capabilityHeader string) error {
 	if s.status != status {
 		return fmt.Errorf("expected HTTP response status %q, got: %q", status, s.status)
 	}
 
-	_, err := url.ParseRequestURI(s.headers[header])
+	_, err := url.ParseRequestURI(s.headers.Get(locationHeader))
 	if err != nil {
-		return fmt.Errorf("expected %q header to be a valid URL, got error: %q", header, err)
+		return fmt.Errorf("expected %q header to be a valid URL, got error: %q", locationHeader, err)
+	}
+
+	encoded := s.headers.Get(capabilityHeader)
+	if encoded == "" {
+		return fmt.Errorf("header '%s' not found in response", capabilityHeader)
+	}
+
+	decoded, err := base64.URLEncoding.DecodeString(encoded)
+	if err != nil {
+		return fmt.Errorf("failed to base64-decode capability header: %w", err)
+	}
+
+	compressed, err := gzip.NewReader(bytes.NewReader(decoded))
+	if err != nil {
+		return fmt.Errorf("failed to open new gzip reader: %w", err)
+	}
+
+	uncompressed, err := ioutil.ReadAll(compressed)
+	if err != nil {
+		return fmt.Errorf("failed to gunzip capability: %w", err)
+	}
+
+	zcap, err := zcapld.ParseCapability(uncompressed)
+	if err != nil {
+		return fmt.Errorf("failed to parse capability: %w", err)
+	}
+
+	if zcap.Invoker != controller {
+		return fmt.Errorf(
+			"service returned wrong invoker; expected %s got %s",
+			controller, zcap.Invoker,
+		)
 	}
 
 	return nil

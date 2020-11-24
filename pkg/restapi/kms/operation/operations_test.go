@@ -21,6 +21,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/trustbloc/edge-core/pkg/log"
 	"github.com/trustbloc/edge-core/pkg/log/mocklogger"
+	"github.com/trustbloc/edge-core/pkg/zcapld"
 
 	mockkeystore "github.com/trustbloc/hub-kms/pkg/internal/mock/keystore"
 	mockkms "github.com/trustbloc/hub-kms/pkg/internal/mock/kms"
@@ -134,7 +135,7 @@ func TestCreateKeystoreHandler(t *testing.T) {
 		handler := getHandler(t, op, keystoresEndpoint, http.MethodPost)
 
 		rr := httptest.NewRecorder()
-		handler.Handle().ServeHTTP(rr, buildCreateKeystoreReq(t, testController))
+		handler.Handle().ServeHTTP(rr, buildCreateKeystoreReq(t))
 
 		require.Equal(t, http.StatusCreated, rr.Code)
 		require.NotEmpty(t, rr.Header().Get("Location"))
@@ -151,7 +152,7 @@ func TestCreateKeystoreHandler(t *testing.T) {
 		handler := getHandler(t, op, keystoresEndpoint, http.MethodPost)
 
 		rr := httptest.NewRecorder()
-		handler.Handle().ServeHTTP(rr, buildCreateKeystoreReq(t, testController))
+		handler.Handle().ServeHTTP(rr, buildCreateKeystoreReq(t))
 
 		require.Equal(t, http.StatusInternalServerError, rr.Code)
 		require.Contains(t, rr.Body.String(), "failed to create did key")
@@ -179,10 +180,27 @@ func TestCreateKeystoreHandler(t *testing.T) {
 		handler := getHandler(t, op, keystoresEndpoint, http.MethodPost)
 
 		rr := httptest.NewRecorder()
-		handler.Handle().ServeHTTP(rr, buildCreateKeystoreReq(t, testController))
+		handler.Handle().ServeHTTP(rr, buildCreateKeystoreReq(t))
 
 		require.Equal(t, http.StatusInternalServerError, rr.Code)
 		require.Contains(t, rr.Body.String(), "Failed to create a keystore: create keystore error")
+	})
+
+	t.Run("internal server error if cannot create zcap", func(t *testing.T) {
+		srv := mockkeystore.NewMockService()
+		srv.CreateKeystoreValue = &keystore.Keystore{ID: testKeystoreID}
+
+		op := operation.New(newConfig(
+			withKeystoreService(srv),
+			withAuthService(&mockAuthService{newCapabilityErr: errors.New("test")})),
+		)
+		handler := getHandler(t, op, keystoresEndpoint, http.MethodPost)
+
+		rr := httptest.NewRecorder()
+		handler.Handle().ServeHTTP(rr, buildCreateKeystoreReq(t))
+
+		require.Equal(t, http.StatusInternalServerError, rr.Code)
+		require.Contains(t, rr.Body.String(), "Failed to create zcap")
 	})
 }
 
@@ -940,10 +958,10 @@ func handlerLookup(t *testing.T, op *operation.Operation, pathToLookup, methodTo
 	return nil
 }
 
-func buildCreateKeystoreReq(t *testing.T, controller string) *http.Request {
+func buildCreateKeystoreReq(t *testing.T) *http.Request {
 	t.Helper()
 
-	payload := fmt.Sprintf(createKeystoreReqFormat, controller)
+	payload := fmt.Sprintf(createKeystoreReqFormat, testController)
 	req, err := http.NewRequestWithContext(context.Background(), http.MethodPost, "", bytes.NewBuffer([]byte(payload)))
 	require.NoError(t, err)
 
@@ -1161,10 +1179,13 @@ func withAuthService(service authService) optionFn {
 
 type authService interface {
 	CreateDIDKey() (string, error)
+	NewCapability(options ...zcapld.CapabilityOption) (*zcapld.Capability, error)
 }
 
 type mockAuthService struct {
 	createDIDKeyFunc func() (string, error)
+	newCapabilityVal *zcapld.Capability
+	newCapabilityErr error
 }
 
 func (m *mockAuthService) CreateDIDKey() (string, error) {
@@ -1173,4 +1194,8 @@ func (m *mockAuthService) CreateDIDKey() (string, error) {
 	}
 
 	return "", nil
+}
+
+func (m *mockAuthService) NewCapability(options ...zcapld.CapabilityOption) (*zcapld.Capability, error) {
+	return m.newCapabilityVal, m.newCapabilityErr
 }
