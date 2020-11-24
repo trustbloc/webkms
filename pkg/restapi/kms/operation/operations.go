@@ -21,7 +21,9 @@ import (
 	arieskms "github.com/hyperledger/aries-framework-go/pkg/kms"
 	"github.com/rs/xid"
 	"github.com/trustbloc/edge-core/pkg/log"
+	"github.com/trustbloc/edge-core/pkg/zcapld"
 
+	zcapld2 "github.com/trustbloc/hub-kms/pkg/auth/zcapld"
 	"github.com/trustbloc/hub-kms/pkg/internal/support"
 	"github.com/trustbloc/hub-kms/pkg/keystore"
 	"github.com/trustbloc/hub-kms/pkg/kms"
@@ -65,6 +67,23 @@ const (
 	verifyMACFailure        = "Failed to verify MAC: %s"
 	wrapMessageFailure      = "Failed to wrap a key: %s"
 	unwrapMessageFailure    = "Failed to unwrap a key: %s"
+	createZCAPFailure       = "Failed to create zcap: %s"
+)
+
+// 	zcapld.WithAllowedActions("GenerateKey", "ExportKey", "Sign", "Verify", "Wrap", "Unwrap"),
+
+const (
+	actionCreateKey       = "createKey"
+	actionExportKey       = "exportKey"
+	actionSign            = "sign"
+	actionVerify          = "verify"
+	actionWrap            = "wrap"
+	actionUnwrap          = "unwrap"
+	actionComputeMac      = "computeMAC"
+	actionVerifyMAC       = "verifyMAC"
+	actionEncrypt         = "encrypt"
+	actionDecrypt         = "decrypt"
+	actionStoreCapability = "updateEDVCapability"
 )
 
 // Handler defines an HTTP handler for the API endpoint.
@@ -76,6 +95,12 @@ type Handler interface {
 
 type authService interface {
 	CreateDIDKey() (string, error)
+	NewCapability(options ...zcapld.CapabilityOption) (*zcapld.Capability, error)
+}
+
+type zcapStore interface {
+	Resolve(string) (*zcapld.Capability, error)
+	Save(*zcapld.Capability) error
 }
 
 // Operation holds dependencies for handlers.
@@ -85,6 +110,7 @@ type Operation struct {
 	logger            log.Logger
 	isEDVUsed         bool
 	authService       authService
+	zcaps             zcapStore
 }
 
 // Config defines configuration for KMS operations.
@@ -94,6 +120,7 @@ type Config struct {
 	Logger            log.Logger
 	IsEDVUsed         bool
 	AuthService       authService
+	ZCAPStore         zcapStore
 }
 
 // New returns a new Operation instance.
@@ -104,6 +131,7 @@ func New(config *Config) *Operation {
 		logger:            config.Logger,
 		isEDVUsed:         config.IsEDVUsed,
 		authService:       config.AuthService,
+		zcaps:             config.ZCAPStore,
 	}
 
 	return op
@@ -164,8 +192,18 @@ func (o *Operation) createKeystoreHandler(rw http.ResponseWriter, req *http.Requ
 		return
 	}
 
-	rw.Header().Set("Location", keystoreLocation(req.Host, k.ID))
+	resource := keystoreLocation(req.Host, k.ID)
+
+	zcap, err := o.newCompressedZCAP(resource, k.Controller)
+	if err != nil {
+		o.writeErrorResponse(rw, http.StatusInternalServerError, createZCAPFailure, err)
+
+		return
+	}
+
+	rw.Header().Set("Location", resource)
 	rw.Header().Set("Edvdidkey", didKey)
+	rw.Header().Set("X-RootCapability", zcap)
 	rw.WriteHeader(http.StatusCreated)
 }
 
@@ -684,6 +722,25 @@ func (o *Operation) writeResponse(rw io.Writer, v interface{}) {
 	}
 }
 
+func (o *Operation) newCompressedZCAP(resource, controller string) (string, error) {
+	zcap, err := o.authService.NewCapability(
+		zcapld.WithInvocationTarget(resource, "urn:kms:keystore"),
+		zcapld.WithInvoker(controller),
+		zcapld.WithID(resource),
+		zcapld.WithAllowedActions(allActions()...),
+	)
+	if err != nil {
+		return "", fmt.Errorf("failed to create zcap: %w", err)
+	}
+
+	compressed, err := zcapld2.CompressZCAP(zcap)
+	if err != nil {
+		return "", fmt.Errorf("failed to compress zcap: %w", err)
+	}
+
+	return compressed, nil
+}
+
 func unmarshalPublicKey(k *publicKey) (*crypto.PublicKey, error) {
 	kid, err := base64.URLEncoding.DecodeString(k.KID)
 	if err != nil {
@@ -742,4 +799,20 @@ func keyLocation(hostURL, keystoreID, keyID string) string {
 		"{keyID}", keyID)
 
 	return fmt.Sprintf("%s%s", hostURL, r.Replace(keyEndpoint))
+}
+
+func allActions() []string {
+	return []string{
+		actionCreateKey,
+		actionExportKey,
+		actionSign,
+		actionVerify,
+		actionWrap,
+		actionUnwrap,
+		actionComputeMac,
+		actionVerifyMAC,
+		actionEncrypt,
+		actionDecrypt,
+		actionStoreCapability,
+	}
 }

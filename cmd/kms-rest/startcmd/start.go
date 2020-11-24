@@ -486,7 +486,12 @@ func (k kmsProvider) SecretLock() secretlock.Service {
 }
 
 func prepareOperationConfig(parameters *kmsRestParameters) (*operation.Config, error) {
-	keystoreService, err := prepareKeystoreService(parameters)
+	storageProvider, err := getStorageProvider(parameters.storageParams)
+	if err != nil {
+		return nil, err
+	}
+
+	keystoreService, err := prepareKeystoreService(parameters, storageProvider)
 	if err != nil {
 		return nil, err
 	}
@@ -496,18 +501,23 @@ func prepareOperationConfig(parameters *kmsRestParameters) (*operation.Config, e
 		return nil, err
 	}
 
-	kmsServiceCreator, err := prepareKMSServiceCreator(keystoreService, cryptoService, parameters)
-	if err != nil {
-		return nil, err
-	}
-
 	km, err := keystoreService.KeyManager()
 	if err != nil {
 		return nil, err
 	}
 
+	authService, err := zcapld.New(km, cryptoService, storageProvider)
+	if err != nil {
+		return nil, err
+	}
+
+	kmsServiceCreator, err := prepareKMSServiceCreator(keystoreService, cryptoService, parameters, authService)
+	if err != nil {
+		return nil, err
+	}
+
 	return &operation.Config{
-		AuthService:       zcapld.New(km, cryptoService),
+		AuthService:       authService,
 		KeystoreService:   keystoreService,
 		KMSServiceCreator: kmsServiceCreator,
 		Logger:            log.New("hub-kms/restapi"),
@@ -515,13 +525,8 @@ func prepareOperationConfig(parameters *kmsRestParameters) (*operation.Config, e
 	}, nil
 }
 
-func prepareKeystoreService(parameters *kmsRestParameters) (keystore.Service, error) {
+func prepareKeystoreService(parameters *kmsRestParameters, sp storage.Provider) (keystore.Service, error) {
 	const keyURI = "local-lock://keystorekms"
-
-	storageProvider, err := getStorageProvider(parameters.storageParams)
-	if err != nil {
-		return nil, err
-	}
 
 	kmsStorageProvider, err := getKMSStorageProvider(parameters.kmsStorageParams)
 	if err != nil {
@@ -543,7 +548,7 @@ func prepareKeystoreService(parameters *kmsRestParameters) (keystore.Service, er
 	}
 
 	keystoreServiceProv := keystoreServiceProvider{
-		storageProvider:    storageProvider,
+		storageProvider:    sp,
 		keyManagerProvider: kmsProvider,
 		keyManagerCreator:  kmsCreator,
 	}
@@ -557,7 +562,7 @@ func prepareKeystoreService(parameters *kmsRestParameters) (keystore.Service, er
 }
 
 func prepareKMSServiceCreator(keystoreService keystore.Service, cryptoService cryptoapi.Crypto,
-	params *kmsRestParameters) (kms.ServiceCreator, error) {
+	params *kmsRestParameters, signer edv.HeaderSigner) (kms.ServiceCreator, error) {
 	rootCAs, err := tlsutils.GetCertPool(params.tlsUseSystemCertPool, params.tlsCACerts)
 	if err != nil {
 		return nil, err
@@ -578,6 +583,7 @@ func prepareKMSServiceCreator(keystoreService keystore.Service, cryptoService cr
 				EDVServerURL:    params.keyManagerStorageParams.storageURL,
 				KeystoreID:      keystoreID,
 				TLSConfig:       tlsConfig,
+				HeaderSigner:    signer,
 			}
 
 			return edv.NewStorageProvider(config)

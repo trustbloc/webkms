@@ -10,26 +10,44 @@ import (
 	"compress/gzip"
 	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 
 	cryptoapi "github.com/hyperledger/aries-framework-go/pkg/crypto"
+	"github.com/hyperledger/aries-framework-go/pkg/doc/signature/suite"
+	"github.com/hyperledger/aries-framework-go/pkg/doc/signature/suite/ed25519signature2018"
 	"github.com/hyperledger/aries-framework-go/pkg/doc/util/signature"
 	"github.com/hyperledger/aries-framework-go/pkg/kms"
 	"github.com/hyperledger/aries-framework-go/pkg/vdr/fingerprint"
 	"github.com/igor-pavlenko/httpsignatures-go"
+	"github.com/trustbloc/edge-core/pkg/storage"
 	"github.com/trustbloc/edge-core/pkg/zcapld"
+)
+
+const (
+	zcapsStoreName = "zcaps"
 )
 
 // Service to provide zcapld functionality.
 type Service struct {
 	keyManager kms.KeyManager
 	crypto     cryptoapi.Crypto
+	store      storage.Store
 }
 
 // New return zcap service.
-func New(keyManager kms.KeyManager, crypto cryptoapi.Crypto) *Service {
-	return &Service{keyManager: keyManager, crypto: crypto}
+func New(keyManager kms.KeyManager, crypto cryptoapi.Crypto, sp storage.Provider) (*Service, error) {
+	store, err := openStore(sp)
+	if err != nil {
+		return nil, fmt.Errorf("failed to open store: %w", err)
+	}
+
+	return &Service{
+		keyManager: keyManager,
+		crypto:     crypto,
+		store:      store,
+	}, nil
 }
 
 // CreateDIDKey create did key.
@@ -39,9 +57,7 @@ func (s *Service) CreateDIDKey() (string, error) {
 		return "", fmt.Errorf("failed to create crypto signer: %w", err)
 	}
 
-	_, didKeyURL := fingerprint.CreateDIDKey(signer.PublicKeyBytes())
-
-	return didKeyURL, nil
+	return didKeyURL(signer.PublicKeyBytes()), nil
 }
 
 // SignHeader sign header.
@@ -51,7 +67,7 @@ func (s *Service) SignHeader(req *http.Request, capabilityBytes []byte) (*http.H
 		return nil, err
 	}
 
-	compressedZcap, err := compressZCAP(capability)
+	compressedZcap, err := CompressZCAP(capability)
 	if err != nil {
 		return nil, err
 	}
@@ -78,7 +94,40 @@ func (s *Service) SignHeader(req *http.Request, capabilityBytes []byte) (*http.H
 	return &req.Header, nil
 }
 
-func compressZCAP(zcap *zcapld.Capability) (string, error) {
+// NewCapability creates a new capability and puts it in storage.
+func (s *Service) NewCapability(options ...zcapld.CapabilityOption) (*zcapld.Capability, error) {
+	signer, err := signature.NewCryptoSigner(s.crypto, s.keyManager, kms.ED25519)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create a new signer: %w", err)
+	}
+
+	zcap, err := zcapld.NewCapability(
+		&zcapld.Signer{
+			SignatureSuite:     ed25519signature2018.New(suite.WithSigner(signer)),
+			SuiteType:          ed25519signature2018.SignatureType,
+			VerificationMethod: didKeyURL(signer.PublicKeyBytes()),
+		},
+		options...,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create zcap: %w", err)
+	}
+
+	raw, err := json.Marshal(zcap)
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal zcap: %w", err)
+	}
+
+	err = s.store.Put(zcap.ID, raw)
+	if err != nil {
+		return nil, fmt.Errorf("failed to store zcap: %w", err)
+	}
+
+	return zcap, nil
+}
+
+// CompressZCAP gzips the zcap, then base64URL-encodes it.
+func CompressZCAP(zcap *zcapld.Capability) (string, error) {
 	raw, err := json.Marshal(zcap)
 	if err != nil {
 		return "", err
@@ -99,4 +148,19 @@ func compressZCAP(zcap *zcapld.Capability) (string, error) {
 	}
 
 	return base64.URLEncoding.EncodeToString(compressed.Bytes()), nil
+}
+
+func didKeyURL(pubKeyBytes []byte) string {
+	_, didKeyURL := fingerprint.CreateDIDKey(pubKeyBytes)
+
+	return didKeyURL
+}
+
+func openStore(p storage.Provider) (storage.Store, error) {
+	err := p.CreateStore(zcapsStoreName)
+	if err != nil && !errors.Is(err, storage.ErrDuplicateStore) {
+		return nil, fmt.Errorf("failed to create store %s: %w", zcapsStoreName, err)
+	}
+
+	return p.OpenStore(zcapsStoreName)
 }
