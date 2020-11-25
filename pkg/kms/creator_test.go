@@ -8,26 +8,28 @@ package kms_test
 
 import (
 	"context"
+	"crypto/rand"
 	"errors"
 	"net/http"
 	"testing"
 
 	"github.com/gorilla/mux"
-	"github.com/hyperledger/aries-framework-go/pkg/crypto"
 	mockcrypto "github.com/hyperledger/aries-framework-go/pkg/mock/crypto"
+	mocksecretlock "github.com/hyperledger/aries-framework-go/pkg/mock/secretlock"
 	mockstorage "github.com/hyperledger/aries-framework-go/pkg/mock/storage"
+	"github.com/hyperledger/aries-framework-go/pkg/secretlock"
 	"github.com/hyperledger/aries-framework-go/pkg/storage"
 	"github.com/stretchr/testify/require"
 
 	mockkeystore "github.com/trustbloc/hub-kms/pkg/internal/mock/keystore"
-	"github.com/trustbloc/hub-kms/pkg/keystore"
 	"github.com/trustbloc/hub-kms/pkg/kms"
+	lock "github.com/trustbloc/hub-kms/pkg/secretlock"
 )
 
 func TestNewKMSServiceCreator(t *testing.T) {
 	t.Run("Success", func(t *testing.T) {
 		creator := kms.NewServiceCreator(newConfig())
-		req := buildReqWithSecretHeader(t, "p@ssphrase")
+		req := buildReq(t)
 
 		srv, err := creator(req)
 
@@ -35,15 +37,19 @@ func TestNewKMSServiceCreator(t *testing.T) {
 		require.NoError(t, err)
 	})
 
-	t.Run("Error: passphrase is empty", func(t *testing.T) {
-		creator := kms.NewServiceCreator(newConfig())
-		req := buildReqWithSecretHeader(t, "")
+	t.Run("Error: resolve secret lock", func(t *testing.T) {
+		resolver := &mockSecretLockResolver{
+			ResolveErr: errors.New("resolve error"),
+		}
+
+		creator := kms.NewServiceCreator(newConfig(withSecretLockResolver(resolver)))
+		req := buildReq(t)
 
 		srv, err := creator(req)
 
 		require.Nil(t, srv)
 		require.Error(t, err)
-		require.Equal(t, "passphrase is empty", err.Error())
+		require.Contains(t, err.Error(), "resolve error")
 	})
 
 	t.Run("Error: can't open store", func(t *testing.T) {
@@ -51,7 +57,7 @@ func TestNewKMSServiceCreator(t *testing.T) {
 		p.ErrOpenStoreHandle = errors.New("open store err")
 
 		creator := kms.NewServiceCreator(newConfig(withStorageProvider(p)))
-		req := buildReqWithSecretHeader(t, "p@ssphrase")
+		req := buildReq(t)
 
 		srv, err := creator(req)
 
@@ -61,7 +67,7 @@ func TestNewKMSServiceCreator(t *testing.T) {
 
 	t.Run("Error: can't resolve KMS storage", func(t *testing.T) {
 		creator := kms.NewServiceCreator(newConfig(withKeyManagerStorageResolverErr(errors.New("resolver error"))))
-		req := buildReqWithSecretHeader(t, "p@ssphrase")
+		req := buildReq(t)
 
 		srv, err := creator(req)
 
@@ -70,13 +76,11 @@ func TestNewKMSServiceCreator(t *testing.T) {
 	})
 }
 
-func buildReqWithSecretHeader(t *testing.T, passphrase string) *http.Request {
+func buildReq(t *testing.T) *http.Request {
 	t.Helper()
 
 	req, err := http.NewRequestWithContext(context.Background(), http.MethodPost, "", nil)
 	require.NoError(t, err)
-
-	req.Header.Add("Hub-Kms-Secret", passphrase)
 
 	req = mux.SetURLVars(req, map[string]string{
 		"keystoreID": testKeystoreID,
@@ -86,21 +90,49 @@ func buildReqWithSecretHeader(t *testing.T, passphrase string) *http.Request {
 	return req
 }
 
+func randomBytes(size uint32) []byte {
+	buf := make([]byte, size)
+
+	_, err := rand.Read(buf)
+	if err != nil {
+		panic(err) // out of randomness, should never happen
+	}
+
+	return buf
+}
+
+type mockSecretLockResolver struct {
+	MockSecretLock *mocksecretlock.MockSecretLock
+	ResolveErr     error
+}
+
+func (r *mockSecretLockResolver) Resolve(req *http.Request) (secretlock.Service, error) {
+	if r.ResolveErr != nil {
+		return nil, r.ResolveErr
+	}
+
+	return r.MockSecretLock, nil
+}
+
 type options struct {
-	keystoreService              keystore.Service
-	cryptoService                crypto.Crypto
 	storageProvider              storage.Provider
+	secretLockResolver           lock.Resolver
 	keyManagerStorageResolverErr error
 }
 
 type optionFn func(opts *options)
 
 func newConfig(opts ...optionFn) *kms.Config {
+	b := randomBytes(uint32(32))
+	secLock := &mocksecretlock.MockSecretLock{
+		ValEncrypt: string(b),
+		ValDecrypt: string(b),
+	}
+
 	cOpts := &options{
-		keystoreService:              mockkeystore.NewMockService(),
-		cryptoService:                &mockcrypto.Crypto{},
 		storageProvider:              mockstorage.NewMockStoreProvider(),
 		keyManagerStorageResolverErr: nil,
+		secretLockResolver:           &mockSecretLockResolver{MockSecretLock: secLock},
 	}
 
 	for i := range opts {
@@ -108,8 +140,9 @@ func newConfig(opts ...optionFn) *kms.Config {
 	}
 
 	config := &kms.Config{
-		KeystoreService:           cOpts.keystoreService,
-		CryptoService:             cOpts.cryptoService,
+		KeystoreService:           mockkeystore.NewMockService(),
+		CryptoService:             &mockcrypto.Crypto{},
+		SecretLockResolver:        cOpts.secretLockResolver,
 		KeyManagerStorageResolver: func(string) (storage.Provider, error) { return cOpts.storageProvider, nil },
 	}
 
@@ -125,6 +158,12 @@ func newConfig(opts ...optionFn) *kms.Config {
 func withStorageProvider(p storage.Provider) optionFn {
 	return func(o *options) {
 		o.storageProvider = p
+	}
+}
+
+func withSecretLockResolver(resolver lock.Resolver) optionFn {
+	return func(o *options) {
+		o.secretLockResolver = resolver
 	}
 }
 

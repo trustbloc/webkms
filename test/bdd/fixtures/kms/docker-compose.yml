@@ -15,13 +15,13 @@ services:
       - KMS_TLS_CACERTS=/etc/tls/ec-cacert.pem
       - KMS_TLS_SERVE_CERT=/etc/tls/ec-pubCert.pem
       - KMS_TLS_SERVE_KEY=/etc/tls/ec-key.pem
+      - KMS_MASTER_KEY_PATH=/etc/tls/service-lock.key
       - KMS_DATABASE_TYPE=couchdb
       - KMS_DATABASE_URL=admin:password@couchdb.example.com:5984
       - KMS_DATABASE_PREFIX=authzkeystore
       - KMS_SECRETS_DATABASE_TYPE=couchdb
       - KMS_SECRETS_DATABASE_URL=admin:password@couchdb.example.com:5984
       - KMS_SECRETS_DATABASE_PREFIX=authzkms
-      - KMS_SECRETS_MASTER_KEY_PATH=/etc/tls/service-lock.key
       - KMS_KEY_MANAGER_STORAGE_TYPE=couchdb
       - KMS_KEY_MANAGER_STORAGE_URL=admin:password@couchdb.example.com:5984
       - KMS_KEY_MANAGER_STORAGE_PREFIX=authzkms_user
@@ -42,13 +42,13 @@ services:
       - KMS_TLS_CACERTS=/etc/tls/ec-cacert.pem
       - KMS_TLS_SERVE_CERT=/etc/tls/ec-pubCert.pem
       - KMS_TLS_SERVE_KEY=/etc/tls/ec-key.pem
+      - KMS_MASTER_KEY_PATH=/etc/tls/service-lock.key
       - KMS_DATABASE_TYPE=couchdb
       - KMS_DATABASE_URL=admin:password@couchdb.example.com:5984
       - KMS_DATABASE_PREFIX=keystore
       - KMS_SECRETS_DATABASE_TYPE=couchdb
       - KMS_SECRETS_DATABASE_URL=admin:password@couchdb.example.com:5984
       - KMS_SECRETS_DATABASE_PREFIX=kms
-      - KMS_SECRETS_MASTER_KEY_PATH=/etc/tls/service-lock.key
       - KMS_KEY_MANAGER_STORAGE_TYPE=edv
       - KMS_KEY_MANAGER_STORAGE_URL=https://edv.example.com:8081
     ports:

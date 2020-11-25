@@ -798,8 +798,7 @@ func buildURI(endpoint, keystoreID, keyID string) string {
 
 func headers() map[string]string {
 	return map[string]string{
-		"Content-Type":   "application/json",
-		"Hub-Kms-Secret": "p@ssphrase",
+		"Content-Type": "application/json",
 	}
 }
 

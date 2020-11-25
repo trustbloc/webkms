@@ -21,6 +21,8 @@ Parameters can be set by command line arguments or environment variables:
     --tls-serve-cert string                   Path to the server certificate to use when serving HTTPS. Alternatively, this can be set with the following environment variable: KMS_TLS_SERVE_CERT
     --tls-serve-key string                    Path to the private key to use when serving HTTPS. Alternatively, this can be set with the following environment variable: KMS_TLS_SERVE_KEY
 
+    --kms-master-key-path string              The path to the file with master key to be used for secret lock. If missing noop service lock is used. Alternatively, this can be set with the following environment variable: KMS_MASTER_KEY_PATH
+
     --database-type string                    The type of database to use for storing metadata about keystores and associated keys. Supported options: mem, couchdb. Alternatively, this can be set with the following environment variable: KMS_DATABASE_TYPE
     --database-url string                     The URL of the database. Not needed if using in-memory storage. For CouchDB, include the username:password@ text if required. Alternatively, this can be set with the following environment variable: KMS_DATABASE_URL
     --database-prefix string                  An optional prefix to be used when creating and retrieving underlying databases. Alternatively, this can be set with the following environment variable: KMS_DATABASE_PREFIX
@@ -29,11 +31,11 @@ Parameters can be set by command line arguments or environment variables:
     --kms-secrets-database-url string         The URL of the database for KMS secrets. Not needed if using in-memory storage. For CouchDB, include the username:password@ text if required. Alternatively, this can be set with the following environment variable: KMS_SECRETS_DATABASE_URL
     --kms-secrets-database-prefix string      An optional prefix to be used when creating and retrieving the underlying KMS secrets database. Alternatively, this can be set with the following environment variable: KMS_SECRETS_DATABASE_PREFIX
 
-    --kms-secrets-master-key-path string      The path to the file with master key to be used for secret lock. If missing noop service lock is used. Alternatively, this can be set with the following environment variable: KMS_SECRETS_MASTER_KEY_PATH
-
     --key-manager-storage-type string         The type of storage to use for user's key manager. Supported options: mem, couchdb, edv. Alternatively, this can be set with the following environment variable: KMS_KEY_MANAGER_STORAGE_TYPE
     --key-manager-storage-url string          The URL of storage for user's key manager. Not needed if using in-memory storage. For CouchDB, include the username:password@ text if required. Alternatively, this can be set with the following environment variable: KMS_KEY_MANAGER_STORAGE_URL
     --key-manager-storage-prefix string       An optional prefix to be used when creating and retrieving the underlying user's key manager storage. Alternatively, this can be set with the following environment variable: KMS_KEY_MANAGER_STORAGE_PREFIX
+
+    --hub-auth-url string                     The URL of Hub Auth server to use for fetching secret share for secret lock. If not specified secret lock based on master key is used. Alternatively, this can be set with the following environment variable: KMS_HUB_AUTH_URL
 ```
 
 ## Example
