@@ -7,23 +7,21 @@ SPDX-License-Identifier: Apache-2.0
 package kms
 
 import (
-	"crypto/sha256"
 	"fmt"
 	"net/http"
 
 	"github.com/gorilla/mux"
 	"github.com/hyperledger/aries-framework-go/pkg/crypto"
 	"github.com/hyperledger/aries-framework-go/pkg/kms"
-	"github.com/hyperledger/aries-framework-go/pkg/secretlock/local/masterlock/hkdf"
 	"github.com/hyperledger/aries-framework-go/pkg/storage"
 
 	"github.com/trustbloc/hub-kms/pkg/keystore"
+	"github.com/trustbloc/hub-kms/pkg/secretlock"
 )
 
 const (
 	masterKeyURI         = "local-lock://%s"
 	keystoreIDQueryParam = "keystoreID"
-	secretHeader         = "Hub-Kms-Secret" //nolint:gosec // not hardcoded credentials
 )
 
 // ServiceCreator is a function that creates KMS Service.
@@ -34,6 +32,7 @@ type Config struct {
 	KeystoreService           keystore.Service
 	CryptoService             crypto.Crypto
 	KeyManagerStorageResolver func(keystoreID string) (storage.Provider, error)
+	SecretLockResolver        secretlock.Resolver
 }
 
 // NewServiceCreator returns func to create KMS Service backed by LocalKMS and passphrase-based secret lock.
@@ -42,11 +41,7 @@ func NewServiceCreator(c *Config) ServiceCreator {
 		keystoreID := mux.Vars(req)[keystoreIDQueryParam]
 		keyURI := fmt.Sprintf(masterKeyURI, keystoreID)
 
-		// TODO(#22): Replace with split secret shares. Consider to use "Hub-Kms-Secret-A" and "Hub-Kms-Secret-B-Path"
-		// headers to pass a content of secret A and a location to secret B accordingly.
-		secret := req.Header.Get(secretHeader)
-
-		secLock, err := hkdf.NewMasterLock(secret, sha256.New, nil)
+		secretLock, err := c.SecretLockResolver.Resolve(req)
 		if err != nil {
 			return nil, err
 		}
@@ -56,7 +51,7 @@ func NewServiceCreator(c *Config) ServiceCreator {
 			return nil, err
 		}
 
-		keyManager, err := NewLocalKMS(keyURI, kmsStorageProvider, secLock)
+		keyManager, err := NewLocalKMS(keyURI, kmsStorageProvider, secretLock)
 		if err != nil {
 			return nil, err
 		}

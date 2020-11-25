@@ -287,7 +287,7 @@ func TestStartCmdWithMasterKeyPathParam(t *testing.T) {
 		require.Error(t, err)
 	})
 
-	t.Run("Fail with invalid kms-secrets-master-key-path arg", func(t *testing.T) {
+	t.Run("Fail with invalid kms-master-key-path arg", func(t *testing.T) {
 		startCmd := GetStartCmd(&mockServer{})
 
 		args := requiredArgs()
@@ -298,6 +298,18 @@ func TestStartCmdWithMasterKeyPathParam(t *testing.T) {
 		err := startCmd.Execute()
 		require.Error(t, err)
 	})
+}
+
+func TestStartCmdWithHubAuthURLParam(t *testing.T) {
+	startCmd := GetStartCmd(&mockServer{})
+
+	args := requiredArgs()
+	args = append(args, "--"+hubAuthURLFlagName, "http://example.com")
+
+	startCmd.SetArgs(args)
+
+	err := startCmd.Execute()
+	require.NoError(t, err)
 }
 
 func TestStartKMSService(t *testing.T) {

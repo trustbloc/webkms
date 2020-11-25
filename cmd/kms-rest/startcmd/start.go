@@ -27,6 +27,7 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/trustbloc/edge-core/pkg/log"
 	"github.com/trustbloc/edge-core/pkg/restapi/logspec"
+	"github.com/trustbloc/edge-core/pkg/sss/base"
 	"github.com/trustbloc/edge-core/pkg/storage"
 	couchdbstore "github.com/trustbloc/edge-core/pkg/storage/couchdb"
 	"github.com/trustbloc/edge-core/pkg/storage/memstore"
@@ -39,6 +40,8 @@ import (
 	"github.com/trustbloc/hub-kms/pkg/restapi/healthcheck"
 	kmsrest "github.com/trustbloc/hub-kms/pkg/restapi/kms"
 	"github.com/trustbloc/hub-kms/pkg/restapi/kms/operation"
+	lock "github.com/trustbloc/hub-kms/pkg/secretlock"
+	"github.com/trustbloc/hub-kms/pkg/secretlock/secretsplitlock"
 	"github.com/trustbloc/hub-kms/pkg/storage/edv"
 )
 
@@ -69,6 +72,11 @@ const (
 	tlsServeKeyPathFlagUsage = "Path to the private key to use when serving HTTPS. " +
 		commonEnvVarUsageText + tlsServeKeyPathFlagEnvKey
 	tlsServeKeyPathFlagEnvKey = "KMS_TLS_SERVE_KEY"
+
+	kmsMasterKeyPathFlagName  = "kms-master-key-path" // TODO(#101): Update "master" key term
+	kmsMasterKeyPathEnvKey    = "KMS_MASTER_KEY_PATH"
+	kmsMasterKeyPathFlagUsage = "The path to the file with master key to be used for secret lock. If missing noop " +
+		"service lock is used. " + commonEnvVarUsageText + kmsMasterKeyPathEnvKey
 
 	logLevelFlagName        = "log-level"
 	logLevelEnvKey          = "KMS_LOG_LEVEL"
@@ -106,11 +114,6 @@ const (
 	kmsDatabasePrefixFlagUsage = "An optional prefix to be used when creating and retrieving the underlying " +
 		"KMS secrets database. " + commonEnvVarUsageText + kmsDatabasePrefixEnvKey
 
-	kmsMasterKeyPathFlagName  = "kms-secrets-master-key-path"
-	kmsMasterKeyPathEnvKey    = "KMS_SECRETS_MASTER_KEY_PATH"
-	kmsMasterKeyPathFlagUsage = "The path to the file with master key to be used for secret lock. If missing noop " +
-		"service lock is used. " + commonEnvVarUsageText + kmsMasterKeyPathEnvKey
-
 	keyManagerStorageTypeFlagName  = "key-manager-storage-type"
 	keyManagerStorageTypeEnvKey    = "KMS_KEY_MANAGER_STORAGE_TYPE"
 	keyManagerStorageTypeFlagUsage = "The type of storage to use for user's key manager. " +
@@ -126,6 +129,19 @@ const (
 	keyManagerStoragePrefixEnvKey    = "KMS_KEY_MANAGER_STORAGE_PREFIX"
 	keyManagerStoragePrefixFlagUsage = "An optional prefix to be used when creating and retrieving the " +
 		"underlying user's key manager storage. " + commonEnvVarUsageText + keyManagerStoragePrefixEnvKey
+
+	hubAuthURLFlagName  = "hub-auth-url"
+	hubAuthURLEnvKey    = "KMS_HUB_AUTH_URL"
+	hubAuthURLFlagUsage = "The URL of Hub Auth server to use for fetching secret share for secret lock. If not " +
+		"specified secret lock based on master key is used. " + commonEnvVarUsageText + hubAuthURLEnvKey
+)
+
+const (
+	// TODO: this is temporary until we come up with a better solution in both hub auth and hub kms.
+	hubAuthAPITokenFlagName  = "hub-auth-api-token"     //nolint:gosec // not hard-coded credentials
+	hubAuthAPITokenEnvKey    = "KMS_HUB_AUTH_API_TOKEN" //nolint:gosec // not hard-coded credentials
+	hubAuthAPITokenFlagUsage = "Static token used to protect the GET /secrets API in Hub Auth. " +
+		commonEnvVarUsageText + hubAuthAPITokenEnvKey
 )
 
 const (
@@ -213,6 +229,9 @@ func createFlags(startCmd *cobra.Command) {
 	startCmd.Flags().StringP(keyManagerStorageTypeFlagName, "", "", keyManagerStorageTypeFlagUsage)
 	startCmd.Flags().StringP(keyManagerStorageURLFlagName, "", "", keyManagerStorageURLFlagUsage)
 	startCmd.Flags().StringP(keyManagerStoragePrefixFlagName, "", "", keyManagerStoragePrefixFlagUsage)
+
+	startCmd.Flags().StringP(hubAuthURLFlagName, "", "", hubAuthURLFlagUsage)
+	startCmd.Flags().StringP(hubAuthAPITokenFlagName, "", "", hubAuthAPITokenFlagUsage)
 }
 
 type kmsRestParameters struct {
@@ -224,6 +243,8 @@ type kmsRestParameters struct {
 	kmsStorageParams        *storageParameters
 	kmsMasterKeyPath        string
 	keyManagerStorageParams *storageParameters
+	hubAuthURL              string
+	hubAuthAPIToken         string
 	logLevel                string
 }
 
@@ -238,7 +259,8 @@ type storageParameters struct {
 	storagePrefix string
 }
 
-func getKmsRestParameters(cmd *cobra.Command) (*kmsRestParameters, error) {
+//nolint:gocyclo // no complicated logic here.
+func getKmsRestParameters(cmd *cobra.Command) (*kmsRestParameters, error) { //nolint:funlen // better readability
 	hostURL, err := cmdutils.GetUserSetVarFromString(cmd, hostURLFlagName, hostURLEnvKey, false)
 	if err != nil {
 		return nil, err
@@ -264,12 +286,23 @@ func getKmsRestParameters(cmd *cobra.Command) (*kmsRestParameters, error) {
 		return nil, err
 	}
 
+	// TODO(#101): Update "master" key term
 	masterKeyPath, err := cmdutils.GetUserSetVarFromString(cmd, kmsMasterKeyPathFlagName, kmsMasterKeyPathEnvKey, true)
 	if err != nil {
 		return nil, err
 	}
 
 	keyManagerStorageParams, err := getKeyManagerStorageParameters(cmd)
+	if err != nil {
+		return nil, err
+	}
+
+	hubAuthURL, err := cmdutils.GetUserSetVarFromString(cmd, hubAuthURLFlagName, hubAuthURLEnvKey, true)
+	if err != nil {
+		return nil, err
+	}
+
+	hubAuthAPIToken, err := cmdutils.GetUserSetVarFromString(cmd, hubAuthAPITokenFlagName, hubAuthAPITokenEnvKey, true)
 	if err != nil {
 		return nil, err
 	}
@@ -288,6 +321,8 @@ func getKmsRestParameters(cmd *cobra.Command) (*kmsRestParameters, error) {
 		kmsStorageParams:        kmsStorageParams,
 		kmsMasterKeyPath:        masterKeyPath,
 		keyManagerStorageParams: keyManagerStorageParams,
+		hubAuthURL:              hubAuthURL,
+		hubAuthAPIToken:         hubAuthAPIToken,
 		logLevel:                logLevel,
 	}, nil
 }
@@ -511,7 +546,7 @@ func prepareOperationConfig(parameters *kmsRestParameters) (*operation.Config, e
 		return nil, err
 	}
 
-	kmsServiceCreator, err := prepareKMSServiceCreator(keystoreService, cryptoService, parameters, authService)
+	kmsServiceCreator, err := prepareKMSServiceCreator(keystoreService, cryptoService, authService, parameters)
 	if err != nil {
 		return nil, err
 	}
@@ -533,7 +568,7 @@ func prepareKeystoreService(parameters *kmsRestParameters, sp storage.Provider) 
 		return nil, err
 	}
 
-	secLock, err := getKMSSecretLock(parameters.kmsMasterKeyPath)
+	secLock, err := getMasterKeySecretLock(parameters.kmsMasterKeyPath)
 	if err != nil {
 		return nil, err
 	}
@@ -561,8 +596,8 @@ func prepareKeystoreService(parameters *kmsRestParameters, sp storage.Provider) 
 	return keystoreService, nil
 }
 
-func prepareKMSServiceCreator(keystoreService keystore.Service, cryptoService cryptoapi.Crypto,
-	params *kmsRestParameters, signer edv.HeaderSigner) (kms.ServiceCreator, error) {
+func prepareKMSServiceCreator(keystoreSrv keystore.Service, cryptoSrv cryptoapi.Crypto, signer edv.HeaderSigner,
+	params *kmsRestParameters) (kms.ServiceCreator, error) {
 	rootCAs, err := tlsutils.GetCertPool(params.tlsUseSystemCertPool, params.tlsCACerts)
 	if err != nil {
 		return nil, err
@@ -573,13 +608,22 @@ func prepareKMSServiceCreator(keystoreService keystore.Service, cryptoService cr
 		MinVersion: tls.VersionTLS12,
 	}
 
-	var kmsStorageResolver func(string) (ariesstorage.Provider, error)
+	return kms.NewServiceCreator(&kms.Config{
+		KeystoreService:           keystoreSrv,
+		CryptoService:             cryptoSrv,
+		KeyManagerStorageResolver: getKeyManagerStorageResolver(keystoreSrv, cryptoSrv, signer, params, tlsConfig),
+		SecretLockResolver:        getSecretLockResolver(params, tlsConfig),
+	}), nil
+}
 
-	if strings.EqualFold(params.keyManagerStorageParams.storageType, storageTypeEDVOption) {
-		kmsStorageResolver = func(keystoreID string) (ariesstorage.Provider, error) {
+func getKeyManagerStorageResolver(keystoreSrv keystore.Service, cryptoSrv cryptoapi.Crypto, signer edv.HeaderSigner,
+	params *kmsRestParameters, tlsConfig *tls.Config) func(string) (ariesstorage.Provider, error) {
+	switch {
+	case strings.EqualFold(params.keyManagerStorageParams.storageType, storageTypeEDVOption):
+		return func(keystoreID string) (ariesstorage.Provider, error) {
 			config := &edv.Config{
-				KeystoreService: keystoreService,
-				CryptoService:   cryptoService,
+				KeystoreService: keystoreSrv,
+				CryptoService:   cryptoSrv,
 				EDVServerURL:    params.keyManagerStorageParams.storageURL,
 				KeystoreID:      keystoreID,
 				TLSConfig:       tlsConfig,
@@ -588,17 +632,38 @@ func prepareKMSServiceCreator(keystoreService keystore.Service, cryptoService cr
 
 			return edv.NewStorageProvider(config)
 		}
-	} else {
-		kmsStorageResolver = func(string) (ariesstorage.Provider, error) {
+	default:
+		return func(string) (ariesstorage.Provider, error) {
 			return getKMSStorageProvider(params.keyManagerStorageParams)
 		}
 	}
+}
 
-	return kms.NewServiceCreator(&kms.Config{
-		KeystoreService:           keystoreService,
-		CryptoService:             cryptoService,
-		KeyManagerStorageResolver: kmsStorageResolver,
-	}), nil
+type keySecretLockResolver struct {
+	keyPath string
+}
+
+func (r *keySecretLockResolver) Resolve(_ *http.Request) (secretlock.Service, error) {
+	return getMasterKeySecretLock(r.keyPath)
+}
+
+func getSecretLockResolver(params *kmsRestParameters, tlsConfig *tls.Config) lock.Resolver {
+	switch {
+	case params.hubAuthURL != "":
+		config := &secretsplitlock.Config{
+			HubAuthURL:      params.hubAuthURL,
+			HubAuthAPIToken: params.hubAuthAPIToken,
+			HTTPClient:      &http.Client{Transport: &http.Transport{TLSClientConfig: tlsConfig}},
+			SecretSplitter:  &base.Splitter{},
+			Logger:          log.New("hub-kms/secretsplitlock"),
+		}
+
+		return secretsplitlock.New(config)
+	default:
+		return &keySecretLockResolver{
+			keyPath: params.kmsMasterKeyPath,
+		}
+	}
 }
 
 func getStorageProvider(params *storageParameters) (storage.Provider, error) {
@@ -624,7 +689,8 @@ func getKMSStorageProvider(params *storageParameters) (ariesstorage.Provider, er
 	}
 }
 
-func getKMSSecretLock(keyPath string) (secretlock.Service, error) {
+// TODO(#101): Update "master" key term.
+func getMasterKeySecretLock(keyPath string) (secretlock.Service, error) {
 	if keyPath == "" {
 		return &noop.NoLock{}, nil
 	}

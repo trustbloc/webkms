@@ -10,7 +10,7 @@ require (
 	github.com/google/tink/go v1.5.0
 	github.com/google/uuid v1.1.2
 	github.com/gorilla/mux v1.8.0
-	github.com/hyperledger/aries-framework-go v0.1.5-0.20201123085011-2625d433b8fd
+	github.com/hyperledger/aries-framework-go v0.1.5-0.20201124194436-a37f1c10fd4e
 	github.com/igor-pavlenko/httpsignatures-go v0.0.21
 	github.com/rs/xid v1.2.1
 	github.com/stretchr/testify v1.6.1

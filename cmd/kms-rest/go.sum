@@ -399,6 +399,7 @@ github.com/hashicorp/consul/api v1.1.0/go.mod h1:VmuI/Lkw1nC05EYQWNKwWGbkg+FbDBt
 github.com/hashicorp/consul/api v1.4.0/go.mod h1:xc8u05kyMa3Wjr9eEAsIAo3dg8+LywT5E/Cl7cNS5nU=
 github.com/hashicorp/consul/sdk v0.1.1/go.mod h1:VKf9jXwCTEY1QZP2MOLRhb5i/I/ssyNV1vwHyQBF0x8=
 github.com/hashicorp/consul/sdk v0.4.0/go.mod h1:fY08Y9z5SvJqevyZNy6WWPXiG3KwBPAvlcdx16zZ0fM=
+github.com/hashicorp/errwrap v1.0.0 h1:hLrqtEDnRye3+sgx6z4qVLNuviH3MR5aQ0ykNJa/UYA=
 github.com/hashicorp/errwrap v1.0.0/go.mod h1:YH+1FKiLXxHSkmPseP+kNlulaMuP3n2brvKWEqk/Jc4=
 github.com/hashicorp/go-bindata v3.0.8-0.20180209072458-bf7910af8997+incompatible/go.mod h1:+IrDq36jUYG0q6TsDY9uO2p77C8f8S5y+RbYHr2UI+U=
 github.com/hashicorp/go-cleanhttp v0.5.0/go.mod h1:JpRdi6/HCYpAwUzNwuwqhbovhLtngrth3wmdIIUrZ80=
@@ -461,6 +462,7 @@ github.com/hashicorp/raft-boltdb v0.0.0-20171010151810-6e5ba93211ea/go.mod h1:pN
 github.com/hashicorp/raft-snapshot v1.0.2-0.20190827162939-8117efcc5aab/go.mod h1:5sL9eUn72lH5DzsFIJ9jaysITbHksSSszImWSOTC8Ic=
 github.com/hashicorp/serf v0.8.2/go.mod h1:6hOLApaqBFA1NXqRQAsxw9QxuDEvNxSQRwA/JwenrHc=
 github.com/hashicorp/serf v0.8.3/go.mod h1:UpNcs7fFbpKIyZaUuSW6EPiH+eZC7OuyFD+wc1oal+k=
+github.com/hashicorp/vault v1.2.1-0.20200911125421-dba37adcb55a h1:4cBHXpugMTz4anYA27/SmM2a7c2+ot99UsrBSE1+DLM=
 github.com/hashicorp/vault v1.2.1-0.20200911125421-dba37adcb55a/go.mod h1:5AXfH3xGJffb77funy/WHkcsQfpTYwTZo6PkDl8iOrk=
 github.com/hashicorp/vault-plugin-auth-alicloud v0.5.5/go.mod h1:sQ+VNwPQlemgXHXikYH6onfH9gPwDZ1GUVRLz0ZvHx8=
 github.com/hashicorp/vault-plugin-auth-azure v0.5.6/go.mod h1:xUpcusehlkR1cNbA+wNta9W4slS64pYe7CXx5UYM2OQ=
@@ -515,8 +517,8 @@ github.com/huaweicloud/golangsdk v0.0.0-20200304081349-45ec0797f2a4/go.mod h1:WQ
 github.com/hyperledger/aries-framework-go v0.1.5-0.20201017112511-5734c20820a9/go.mod h1:cLWhBbjgrA04Di9ufGqAuTCdoM33Xq4Cuc3fL/VLAgI=
 github.com/hyperledger/aries-framework-go v0.1.5-0.20201028195746-556cee009e20/go.mod h1:UF34fHG3WLB1QSxeIqDrWDhK98GLqA09NauwultnG7w=
 github.com/hyperledger/aries-framework-go v0.1.5-0.20201120141223-c70cf578d36b/go.mod h1:QzlBsH2J303U3r8lJ1jq69ackseH+v5/B9hpCFouBqg=
-github.com/hyperledger/aries-framework-go v0.1.5-0.20201123085011-2625d433b8fd h1:xoE9iE/ij9qR4LvAP/ubME2dz/7eB6CLhNvK/M1iGrI=
-github.com/hyperledger/aries-framework-go v0.1.5-0.20201123085011-2625d433b8fd/go.mod h1:QzlBsH2J303U3r8lJ1jq69ackseH+v5/B9hpCFouBqg=
+github.com/hyperledger/aries-framework-go v0.1.5-0.20201124194436-a37f1c10fd4e h1:QluQFRvFRSYExodztwD1RS6bTRcqGZSjTuRpPCrOek0=
+github.com/hyperledger/aries-framework-go v0.1.5-0.20201124194436-a37f1c10fd4e/go.mod h1:QzlBsH2J303U3r8lJ1jq69ackseH+v5/B9hpCFouBqg=
 github.com/hyperledger/aries-framework-go-ext/component/storage/couchdb v0.0.0-20201119153638-fc5d5e680587 h1:/G0Cwa24V9sMrqD4LFZNDOU+41Of/kr7wpNq/v76hI8=
 github.com/hyperledger/aries-framework-go-ext/component/storage/couchdb v0.0.0-20201119153638-fc5d5e680587/go.mod h1:M7/MF6JD45J4CfhiHuO/CSt9ryzQR+ApV3IOAn2HKzo=
 github.com/hyperledger/aries-framework-go-ext/test/component/storage v0.0.0-20201020105420-c85a221b09b5 h1:lcnsNy983eXWEhi3uWFq/RV4ut6umrMQj/V7FtZ175A=
