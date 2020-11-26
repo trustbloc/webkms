@@ -11,7 +11,7 @@ require (
 	github.com/fsouza/go-dockerclient v1.6.6
 	github.com/hyperledger/aries-framework-go v0.1.5-0.20201124194436-a37f1c10fd4e
 	github.com/rs/xid v1.2.1
-	github.com/trustbloc/edge-core v0.1.5-0.20201121214029-0646e96dbdcf
+	github.com/trustbloc/edge-core v0.1.5-0.20201126210935-53388acb41fc
 	github.com/trustbloc/edv v0.1.5-0.20201125123749-8cff541c50ca
 	github.com/trustbloc/hub-kms v0.0.0-00010101000000-000000000000
 )
