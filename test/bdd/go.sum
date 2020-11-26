@@ -821,6 +821,8 @@ github.com/trustbloc/edge-core v0.1.5-0.20201121214029-0646e96dbdcf h1:D8Q4KRWD6
 github.com/trustbloc/edge-core v0.1.5-0.20201121214029-0646e96dbdcf h1:D8Q4KRWD64vWd6hgTdGDsWI0s9pEeKbN1eHsr+FVos0=
 github.com/trustbloc/edge-core v0.1.5-0.20201121214029-0646e96dbdcf/go.mod h1:iOoeeW5Jd6/hhEwaK0+lhBstV7yBWzJxckNU21V0+Vg=
 github.com/trustbloc/edge-core v0.1.5-0.20201121214029-0646e96dbdcf/go.mod h1:iOoeeW5Jd6/hhEwaK0+lhBstV7yBWzJxckNU21V0+Vg=
+github.com/trustbloc/edge-core v0.1.5-0.20201126210935-53388acb41fc h1:sGjZhZKuOB/x4ZUXkrID05RwVYvHDg5fe5BQhhubE0g=
+github.com/trustbloc/edge-core v0.1.5-0.20201126210935-53388acb41fc/go.mod h1:iOoeeW5Jd6/hhEwaK0+lhBstV7yBWzJxckNU21V0+Vg=
 github.com/trustbloc/edv v0.1.5-0.20201125123749-8cff541c50ca h1:Y3KDQyMjzctZdd9bSapsEB6KG/zJIJq+wA0cXTU74tY=
 github.com/trustbloc/edv v0.1.5-0.20201125123749-8cff541c50ca/go.mod h1:QpKdT5XtsilAY/7+/724KvKKKsgIca98OoBn9VYpnsY=
 github.com/tv42/httpunix v0.0.0-20150427012821-b75d8614f926/go.mod h1:9ESjWnEqriFuLhtthL60Sar/7RFoluCcXsuvEwTV5KM=
