@@ -35,7 +35,7 @@ func TestResolve(t *testing.T) {
 	t.Run("Success", func(t *testing.T) {
 		r := secretsplitlock.New(newConfig(t))
 
-		secLock, err := r.Resolve(buildReq("secretA"))
+		secLock, err := r.Resolve(buildReq(base64.StdEncoding.EncodeToString([]byte("secretA"))))
 
 		require.NotNil(t, secLock)
 		require.NoError(t, err)
@@ -51,6 +51,16 @@ func TestResolve(t *testing.T) {
 		require.Contains(t, err.Error(), "empty secret A")
 	})
 
+	t.Run("Fail to decode secret A", func(t *testing.T) {
+		r := secretsplitlock.New(newConfig(t))
+
+		secLock, err := r.Resolve(buildReq("!invalid"))
+
+		require.Nil(t, secLock)
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "fail to decode secret A")
+	})
+
 	t.Run("Fail to get secret B: response error", func(t *testing.T) {
 		httpClient := &mockHTTPClient{
 			DoFunc: func(req *http.Request) (*http.Response, error) {
@@ -60,7 +70,7 @@ func TestResolve(t *testing.T) {
 
 		r := secretsplitlock.New(newConfig(t, withHTTPClient(httpClient)))
 
-		secLock, err := r.Resolve(buildReq("secretA"))
+		secLock, err := r.Resolve(buildReq(base64.StdEncoding.EncodeToString([]byte("secretA"))))
 
 		require.Nil(t, secLock)
 		require.Error(t, err)
@@ -70,7 +80,7 @@ func TestResolve(t *testing.T) {
 	t.Run("Fail to get secret B: read body error", func(t *testing.T) {
 		r := secretsplitlock.New(newConfig(t, withResponseBody(ioutil.NopCloser(&failingReader{}))))
 
-		secLock, err := r.Resolve(buildReq("secretA"))
+		secLock, err := r.Resolve(buildReq(base64.StdEncoding.EncodeToString([]byte("secretA"))))
 
 		require.Nil(t, secLock)
 		require.Error(t, err)
@@ -80,7 +90,7 @@ func TestResolve(t *testing.T) {
 	t.Run("Fail to get secret B: secret decode error", func(t *testing.T) {
 		r := secretsplitlock.New(newConfig(t, withSecret("test secret")))
 
-		secLock, err := r.Resolve(buildReq("secretA"))
+		secLock, err := r.Resolve(buildReq(base64.StdEncoding.EncodeToString([]byte("secretA"))))
 
 		require.Nil(t, secLock)
 		require.Error(t, err)
@@ -94,7 +104,7 @@ func TestResolve(t *testing.T) {
 
 		r := secretsplitlock.New(newConfig(t, withSecretSplitter(splitter)))
 
-		secLock, err := r.Resolve(buildReq("secretA"))
+		secLock, err := r.Resolve(buildReq(base64.StdEncoding.EncodeToString([]byte("secretA"))))
 
 		require.Nil(t, secLock)
 		require.Error(t, err)
@@ -108,7 +118,7 @@ func TestResolve(t *testing.T) {
 
 		r := secretsplitlock.New(newConfig(t, withSecretSplitter(splitter)))
 
-		secLock, err := r.Resolve(buildReq("secretA"))
+		secLock, err := r.Resolve(buildReq(base64.StdEncoding.EncodeToString([]byte("secretA"))))
 
 		require.Nil(t, secLock)
 		require.Error(t, err)
@@ -132,7 +142,7 @@ func TestResolve(t *testing.T) {
 			withLogger(logger),
 		))
 
-		secLock, err := r.Resolve(buildReq("secretA"))
+		secLock, err := r.Resolve(buildReq(base64.StdEncoding.EncodeToString([]byte("secretA"))))
 
 		require.NotNil(t, secLock)
 		require.NoError(t, err)

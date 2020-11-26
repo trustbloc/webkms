@@ -65,6 +65,11 @@ func (s *secretSplitLock) Resolve(r *http.Request) (secretlock.Service, error) {
 		return nil, errors.New("empty secret A")
 	}
 
+	decodedSecretA, err := base64.StdEncoding.DecodeString(secretA)
+	if err != nil {
+		return nil, errors.New("fail to decode secret A")
+	}
+
 	sub := r.Header.Get(userHeader)
 
 	secretB, err := s.getSecretB(sub)
@@ -72,7 +77,7 @@ func (s *secretSplitLock) Resolve(r *http.Request) (secretlock.Service, error) {
 		return nil, fmt.Errorf("get secret B: %w", err)
 	}
 
-	combined, err := s.secretSplitter.Combine([][]byte{[]byte(secretA), secretB})
+	combined, err := s.secretSplitter.Combine([][]byte{decodedSecretA, secretB})
 	if err != nil {
 		return nil, fmt.Errorf("combine secrets: %w", err)
 	}
