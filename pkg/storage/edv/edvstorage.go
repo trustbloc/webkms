@@ -78,10 +78,15 @@ func (c *Config) createRESTProvider(k *keystore.Keystore) (*edv.RESTProvider, er
 
 	edvServerURL := c.EDVServerURL + edvEndpointPathRoot
 
-	p, err := edv.NewRESTProvider(edvServerURL, k.VaultID, macCrypto, edv.WithTLSConfig(c.TLSConfig),
+	p, err := edv.NewRESTProvider(
+		edvServerURL,
+		k.VaultID,
+		macCrypto,
+		edv.WithTLSConfig(c.TLSConfig),
 		edv.WithHeaders(func(req *http.Request) (*http.Header, error) {
 			return c.signHeader(req, k.EDVCapability)
-		}))
+		}),
+	)
 	if err != nil {
 		return nil, err
 	}

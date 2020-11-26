@@ -8,6 +8,7 @@ package kms
 
 import (
 	"bytes"
+	context2 "context"
 	"crypto/rand"
 	"crypto/sha256"
 	"encoding/base64"
@@ -19,15 +20,19 @@ import (
 	"strings"
 
 	"github.com/cucumber/godog"
+	"github.com/hyperledger/aries-framework-go/pkg/crypto"
 	"github.com/hyperledger/aries-framework-go/pkg/doc/signature/suite"
 	"github.com/hyperledger/aries-framework-go/pkg/doc/signature/suite/ed25519signature2018"
+	"github.com/hyperledger/aries-framework-go/pkg/kms"
 	"github.com/hyperledger/aries-framework-go/pkg/vdr/fingerprint"
+	"github.com/igor-pavlenko/httpsignatures-go"
 	"github.com/rs/xid"
 	"github.com/trustbloc/edge-core/pkg/log"
 	"github.com/trustbloc/edge-core/pkg/zcapld"
 	"github.com/trustbloc/edv/pkg/client"
 	"github.com/trustbloc/edv/pkg/restapi/models"
 
+	zcapld2 "github.com/trustbloc/hub-kms/pkg/auth/zcapld"
 	"github.com/trustbloc/hub-kms/pkg/restapi/kms/operation"
 	"github.com/trustbloc/hub-kms/test/bdd/pkg/bddutil"
 	"github.com/trustbloc/hub-kms/test/bdd/pkg/context"
@@ -47,26 +52,43 @@ const (
 	edvResource = "urn:edv:vault"
 )
 
+const (
+	actionCreateKey       = "createKey"
+	actionExportKey       = "exportKey"
+	actionSign            = "sign"
+	actionVerify          = "verify"
+	actionWrap            = "wrap"
+	actionUnwrap          = "unwrap"
+	actionComputeMac      = "computeMAC"
+	actionVerifyMAC       = "verifyMAC"
+	actionEncrypt         = "encrypt"
+	actionDecrypt         = "decrypt"
+	actionStoreCapability = "updateEDVCapability"
+)
+
 // Steps defines steps context for the KMS operations.
 type Steps struct {
 	bddContext *context.BDDContext
 	logger     log.Logger
 	users      map[string]*user
 	keys       map[string][]byte
+	httpClient *http.Client
 }
 
 // NewSteps creates steps context for the KMS operations.
 func NewSteps() *Steps {
 	return &Steps{
-		logger: log.New("kms-rest/tests/kms"),
-		users:  map[string]*user{},
-		keys:   map[string][]byte{"testCEK": randomBytes(keySize)},
+		logger:     log.New("kms-rest/tests/kms"),
+		users:      map[string]*user{},
+		keys:       map[string][]byte{"testCEK": randomBytes(keySize)},
+		httpClient: &http.Client{},
 	}
 }
 
 // SetContext sets a fresh context for every scenario.
 func (s *Steps) SetContext(ctx *context.BDDContext) {
 	s.bddContext = ctx
+	s.httpClient.Transport = &http.Transport{TLSClientConfig: ctx.TLSConfig()}
 }
 
 // RegisterSteps defines scenario steps.
@@ -115,22 +137,22 @@ func (s *Steps) makeCreateKeyReqAuthzKMS(u *user, endpoint, keyType string) erro
 	return u.processResponse(nil, resp)
 }
 
-func (s *Steps) createEDVDataVault(userName string) error {
+func (s *Steps) createEDVDataVault(userName string) error { // nolint:funlen // ignore
 	authzUser := &user{name: userName}
 
 	err := s.createKeystoreAuthzKMS(authzUser)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to creat auth keystore: %w", err)
 	}
 
 	if errCreate := s.makeCreateKeyReqAuthzKMS(authzUser,
 		s.bddContext.AuthzKeyServerURL+keysEndpoint, "ED25519"); errCreate != nil {
-		return errCreate
+		return fmt.Errorf("failed to create auth keystore key: %w", errCreate)
 	}
 
 	if errExport := s.makeExportPubKeyReqAuthzKMS(authzUser,
 		s.bddContext.AuthzKeyServerURL+exportKeyEndpoint); errExport != nil {
-		return errExport
+		return fmt.Errorf("failed to export authz keystore key: %w", errExport)
 	}
 
 	pkBytes := []byte(authzUser.response.body["publicKey"])
@@ -159,9 +181,9 @@ func (s *Steps) createEDVDataVault(userName string) error {
 		return err
 	}
 
-	_, ok := s.users[userName]
+	u, ok := s.users[userName]
 	if !ok {
-		u := &user{
+		u = &user{
 			name:          userName,
 			vaultID:       parts[len(parts)-1],
 			controller:    didKey,
@@ -170,6 +192,15 @@ func (s *Steps) createEDVDataVault(userName string) error {
 		}
 
 		s.users[userName] = u
+	}
+
+	u.authKMS = &remoteKMS{keystoreID: u.keystoreID}
+	u.authCrypto = &remoteAuthCrypto{
+		baseURL: s.bddContext.AuthzKeyServerURL,
+		httpClient: &http.Client{Transport: &http.Transport{
+			TLSClientConfig: s.bddContext.TLSConfig(),
+		}},
+		user: u,
 	}
 
 	return nil
@@ -242,20 +273,37 @@ func (s *Steps) updateCapability(u *user) error {
 		return err
 	}
 
-	req := &operation.UpdateCapabilityReq{
+	payload, err := json.Marshal(&operation.UpdateCapabilityReq{
 		EDVCapability: chainCapabilityBytes,
-	}
-
-	resp, closeBody, err := s.post(u, s.bddContext.KeyServerURL+capabilityEndpoint, //nolint:bodyclose // false check
-		req)
+	})
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to marshal request payload: %w", err)
 	}
 
-	defer closeBody()
+	resource := buildURI(s.bddContext.KeyServerURL+capabilityEndpoint, u.keystoreID, u.keyID)
 
-	if resp.StatusCode != http.StatusOK {
-		return fmt.Errorf("failed to update capability return status code %d", resp.StatusCode)
+	request, err := http.NewRequestWithContext(context2.Background(), http.MethodPost, resource, bytes.NewReader(payload))
+	if err != nil {
+		return fmt.Errorf("failed to build http request: %w", err)
+	}
+
+	err = u.SetCapabilityInvocation(request, actionStoreCapability)
+	if err != nil {
+		return fmt.Errorf("user failed to set capability: %w", err)
+	}
+
+	err = u.Sign(request)
+	if err != nil {
+		return fmt.Errorf("user failed to sign request: %w", err)
+	}
+
+	response, err := s.httpClient.Do(request) // nolint:bodyclose // ignore
+	if err != nil {
+		return fmt.Errorf("failed execute request %s: %w", request.URL.String(), err)
+	}
+
+	if response.StatusCode != http.StatusOK {
+		return fmt.Errorf("return status code %d", response.StatusCode)
 	}
 
 	return nil
@@ -284,33 +332,71 @@ func (s *Steps) createKeystoreAndKey(user, keyType string) error {
 func (s *Steps) makeCreateKeyReq(user, endpoint, keyType string) error {
 	u := s.users[user]
 
-	req := createKeyReq{
+	payload, err := json.Marshal(createKeyReq{
 		KeyType: keyType,
-	}
-
-	resp, closeBody, err := s.post(u, endpoint, req)
+	})
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to marshal payload: %w", err)
 	}
 
-	defer closeBody()
+	resource := buildURI(endpoint, u.keystoreID, u.keyID)
 
-	return u.processResponse(nil, resp)
+	request, err := http.NewRequestWithContext(context2.Background(), http.MethodPost, resource, bytes.NewReader(payload))
+	if err != nil {
+		return fmt.Errorf("failed to create request: %w", err)
+	}
+
+	err = u.SetCapabilityInvocation(request, actionCreateKey)
+	if err != nil {
+		return fmt.Errorf("failed to set capability invocation: %w", err)
+	}
+
+	err = u.Sign(request)
+	if err != nil {
+		return fmt.Errorf("user failed to sign http message: %w", err)
+	}
+
+	response, err := s.send(request)
+	if err != nil {
+		return fmt.Errorf("failed to send signed http request: %w", err)
+	}
+
+	return u.processResponse(nil, response)
 }
 
 func (s *Steps) makeExportPubKeyReq(user, endpoint string) error {
 	u := s.users[user]
 
-	resp, closeBody, err := s.get(u, endpoint)
+	destination := buildURI(endpoint, u.keystoreID, u.keyID)
+
+	request, err := http.NewRequestWithContext(
+		context2.Background(),
+		http.MethodGet,
+		destination,
+		nil,
+	)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to create export public key request: %w", err)
 	}
 
-	defer closeBody()
+	err = u.SetCapabilityInvocation(request, actionExportKey)
+	if err != nil {
+		return fmt.Errorf("user failed to set capability invocation: %w", err)
+	}
+
+	err = u.Sign(request)
+	if err != nil {
+		return fmt.Errorf("user failed to sign request: %w", err)
+	}
+
+	response, err := s.httpClient.Do(request)
+	if err != nil {
+		return fmt.Errorf("failed to execute request %s: %w", destination, err)
+	}
 
 	var parsedResp exportKeyResp
 
-	err = u.processResponse(&parsedResp, resp)
+	err = u.processResponse(&parsedResp, response)
 	if err != nil {
 		return err
 	}
@@ -339,7 +425,7 @@ func (s *Steps) makeExportPubKeyReqAuthzKMS(u *user, endpoint string) error {
 
 	err = u.processResponse(&parsedResp, resp)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to process response: %w", err)
 	}
 
 	publicKey, err := base64.URLEncoding.DecodeString(parsedResp.PublicKey)
@@ -357,20 +443,43 @@ func (s *Steps) makeExportPubKeyReqAuthzKMS(u *user, endpoint string) error {
 func (s *Steps) makeSignMessageReq(user, endpoint, message string) error {
 	u := s.users[user]
 
-	req := signReq{
+	payload, err := json.Marshal(signReq{
 		Message: base64.URLEncoding.EncodeToString([]byte(message)),
-	}
-
-	resp, closeBody, err := s.post(u, endpoint, req)
+	})
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to marshal request payload: %w", err)
 	}
 
-	defer closeBody()
+	destination := buildURI(endpoint, u.keystoreID, u.keyID)
+
+	request, err := http.NewRequestWithContext(
+		context2.Background(),
+		http.MethodPost,
+		destination,
+		bytes.NewReader(payload),
+	)
+	if err != nil {
+		return fmt.Errorf("failed to create http request: %w", err)
+	}
+
+	err = u.SetCapabilityInvocation(request, actionSign)
+	if err != nil {
+		return fmt.Errorf("user failed to set zcap on request: %w", err)
+	}
+
+	err = u.Sign(request)
+	if err != nil {
+		return fmt.Errorf("user failed to sign request: %w", err)
+	}
+
+	response, err := s.httpClient.Do(request)
+	if err != nil {
+		return fmt.Errorf("failed to execute request %s: %w", destination, err)
+	}
 
 	var parsedResp signResp
 
-	err = u.processResponse(&parsedResp, resp)
+	err = u.processResponse(&parsedResp, response)
 	if err != nil {
 		return err
 	}
@@ -418,42 +527,88 @@ func (s *Steps) makeSignMessageReqAuthzKMS(u *user, endpoint, message string) er
 	return nil
 }
 
-func (s *Steps) makeVerifySignatureReq(user, endpoint, tag, message string) error {
+func (s *Steps) makeVerifySignatureReq(user, endpoint, tag, message string) error { // nolint:dupl // ignore
 	u := s.users[user]
 
-	req := &verifyReq{
+	payload, err := json.Marshal(&verifyReq{
 		Signature: base64.URLEncoding.EncodeToString([]byte(u.response.body[tag])),
 		Message:   base64.URLEncoding.EncodeToString([]byte(message)),
-	}
-
-	resp, closeBody, err := s.post(u, endpoint, req)
+	})
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to marshal request payload: %w", err)
 	}
 
-	defer closeBody()
+	destination := buildURI(endpoint, u.keystoreID, u.keyID)
 
-	return u.processResponse(nil, resp)
+	request, err := http.NewRequestWithContext(
+		context2.Background(),
+		http.MethodPost,
+		destination,
+		bytes.NewReader(payload),
+	)
+	if err != nil {
+		return fmt.Errorf("failed to create http request: %w", err)
+	}
+
+	err = u.SetCapabilityInvocation(request, actionVerify)
+	if err != nil {
+		return fmt.Errorf("user failed to set zcap on request: %w", err)
+	}
+
+	err = u.Sign(request)
+	if err != nil {
+		return fmt.Errorf("user failed to sign request: %w", err)
+	}
+
+	response, err := s.httpClient.Do(request)
+	if err != nil {
+		return fmt.Errorf("failed to execute request %s: %w", destination, err)
+	}
+
+	return u.processResponse(nil, response)
 }
 
 func (s *Steps) makeEncryptMessageReq(user, endpoint, message string) error {
 	u := s.users[user]
 
-	req := &encryptReq{
+	payload, err := json.Marshal(&encryptReq{
 		Message:        base64.URLEncoding.EncodeToString([]byte(message)),
 		AdditionalData: base64.URLEncoding.EncodeToString([]byte("additional data")),
-	}
-
-	resp, closeBody, err := s.post(u, endpoint, req)
+	})
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to marshal request payload: %w", err)
 	}
 
-	defer closeBody()
+	destination := buildURI(endpoint, u.keystoreID, u.keyID)
+
+	request, err := http.NewRequestWithContext(
+		context2.Background(),
+		http.MethodPost,
+		destination,
+		bytes.NewReader(payload),
+	)
+	if err != nil {
+		return fmt.Errorf("failed to create http request: %w", err)
+	}
+
+	err = u.SetCapabilityInvocation(request, actionEncrypt)
+	if err != nil {
+		return fmt.Errorf("user failed to set zcap on request: %w", err)
+	}
+
+	err = u.Sign(request)
+	if err != nil {
+		return fmt.Errorf("user failed to sign request: %w", err)
+	}
+
+	response, err := s.httpClient.Do(request)
+	if err != nil {
+		return fmt.Errorf("failed to execute request %s: %w", destination, err)
+	}
 
 	var parsedResp encryptResp
 
-	err = u.processResponse(&parsedResp, resp)
+	err = u.processResponse(&parsedResp, response)
 	if err != nil {
 		return err
 	}
@@ -479,22 +634,45 @@ func (s *Steps) makeEncryptMessageReq(user, endpoint, message string) error {
 func (s *Steps) makeDecryptCipherReq(user, endpoint, tag string) error {
 	u := s.users[user]
 
-	req := &decryptReq{
+	payload, err := json.Marshal(&decryptReq{
 		CipherText:     base64.URLEncoding.EncodeToString([]byte(u.response.body[tag])),
 		AdditionalData: base64.URLEncoding.EncodeToString([]byte("additional data")),
 		Nonce:          base64.URLEncoding.EncodeToString([]byte(u.response.body["nonce"])),
-	}
-
-	resp, closeBody, err := s.post(u, endpoint, req)
+	})
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to marshal request payload: %w", err)
 	}
 
-	defer closeBody()
+	destination := buildURI(endpoint, u.keystoreID, u.keyID)
+
+	request, err := http.NewRequestWithContext(
+		context2.Background(),
+		http.MethodPost,
+		destination,
+		bytes.NewReader(payload),
+	)
+	if err != nil {
+		return fmt.Errorf("failed to create request: %w", err)
+	}
+
+	err = u.SetCapabilityInvocation(request, actionDecrypt)
+	if err != nil {
+		return fmt.Errorf("user failed to set zcap: %w", err)
+	}
+
+	err = u.Sign(request)
+	if err != nil {
+		return fmt.Errorf("user failed to sign request: %w", err)
+	}
+
+	response, err := s.httpClient.Do(request)
+	if err != nil {
+		return fmt.Errorf("failed to execute request %s: %w", destination, err)
+	}
 
 	var parsedResp decryptResp
 
-	err = u.processResponse(&parsedResp, resp)
+	err = u.processResponse(&parsedResp, response)
 	if err != nil {
 		return err
 	}
@@ -514,20 +692,43 @@ func (s *Steps) makeDecryptCipherReq(user, endpoint, tag string) error {
 func (s *Steps) makeComputeMACReq(user, endpoint, data string) error {
 	u := s.users[user]
 
-	req := &computeMACReq{
+	payload, err := json.Marshal(&computeMACReq{
 		Data: base64.URLEncoding.EncodeToString([]byte(data)),
-	}
-
-	resp, closeBody, err := s.post(u, endpoint, req)
+	})
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to marshal request payload: %w", err)
 	}
 
-	defer closeBody()
+	destination := buildURI(endpoint, u.keystoreID, u.keyID)
+
+	request, err := http.NewRequestWithContext(
+		context2.Background(),
+		http.MethodPost,
+		destination,
+		bytes.NewReader(payload),
+	)
+	if err != nil {
+		return fmt.Errorf("failed to create request: %w", err)
+	}
+
+	err = u.SetCapabilityInvocation(request, actionComputeMac)
+	if err != nil {
+		return fmt.Errorf("user failed to set zcap: %w", err)
+	}
+
+	err = u.Sign(request)
+	if err != nil {
+		return fmt.Errorf("user failed to sign request: %w", err)
+	}
+
+	response, err := s.httpClient.Do(request)
+	if err != nil {
+		return fmt.Errorf("failed to execute request %s: %w", destination, err)
+	}
 
 	var parsedResp computeMACResp
 
-	err = u.processResponse(&parsedResp, resp)
+	err = u.processResponse(&parsedResp, response)
 	if err != nil {
 		return err
 	}
@@ -544,30 +745,53 @@ func (s *Steps) makeComputeMACReq(user, endpoint, data string) error {
 	return nil
 }
 
-func (s *Steps) makeVerifyMACReq(user, endpoint, tag, data string) error {
+func (s *Steps) makeVerifyMACReq(user, endpoint, tag, data string) error { // nolint:dupl // ignore
 	u := s.users[user]
 
-	req := &verifyMACReq{
+	payload, err := json.Marshal(&verifyMACReq{
 		MAC:  base64.URLEncoding.EncodeToString([]byte(u.response.body[tag])),
 		Data: base64.URLEncoding.EncodeToString([]byte(data)),
-	}
-
-	resp, closeBody, err := s.post(u, endpoint, req)
+	})
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to marshal payload: %w", err)
 	}
 
-	defer closeBody()
+	destination := buildURI(endpoint, u.keystoreID, u.keyID)
 
-	return u.processResponse(nil, resp)
+	request, err := http.NewRequestWithContext(
+		context2.Background(),
+		http.MethodPost,
+		destination,
+		bytes.NewReader(payload),
+	)
+	if err != nil {
+		return fmt.Errorf("failed to create request: %w", err)
+	}
+
+	err = u.SetCapabilityInvocation(request, actionVerifyMAC)
+	if err != nil {
+		return fmt.Errorf("user failed to set zcap: %w", err)
+	}
+
+	err = u.Sign(request)
+	if err != nil {
+		return fmt.Errorf("user failed to sign request: %w", err)
+	}
+
+	response, err := s.httpClient.Do(request)
+	if err != nil {
+		return fmt.Errorf("failed to execute request %s: %w", destination, err)
+	}
+
+	return u.processResponse(nil, response)
 }
 
-func (s *Steps) makeWrapKeyReq(user, endpoint, keyID, recipient string) error {
+func (s *Steps) makeWrapKeyReq(user, endpoint, keyID, recipient string) error { // nolint:funlen // ignore
 	u := s.users[user]
 
 	recipientPubKey := u.recipientPubKeys[recipient]
 
-	req := &wrapReq{
+	payload, err := json.Marshal(&wrapReq{
 		CEK: base64.URLEncoding.EncodeToString(s.keys[keyID]),
 		APU: base64.URLEncoding.EncodeToString([]byte("sender")),
 		APV: base64.URLEncoding.EncodeToString([]byte("recipient")),
@@ -578,18 +802,41 @@ func (s *Steps) makeWrapKeyReq(user, endpoint, keyID, recipient string) error {
 			Curve: base64.URLEncoding.EncodeToString([]byte(recipientPubKey.Curve)),
 			Type:  base64.URLEncoding.EncodeToString([]byte(recipientPubKey.Type)),
 		},
-	}
-
-	resp, closeBody, err := s.post(u, endpoint, req)
+	})
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to marshal request payload: %w", err)
 	}
 
-	defer closeBody()
+	destination := buildURI(endpoint, u.keystoreID, u.keyID)
+
+	request, err := http.NewRequestWithContext(
+		context2.Background(),
+		http.MethodPost,
+		destination,
+		bytes.NewReader(payload),
+	)
+	if err != nil {
+		return fmt.Errorf("failed to create request: %w", err)
+	}
+
+	err = u.SetCapabilityInvocation(request, actionWrap)
+	if err != nil {
+		return fmt.Errorf("user failed to set zcap: %w", err)
+	}
+
+	err = u.Sign(request)
+	if err != nil {
+		return fmt.Errorf("user failed to sign request: %w", err)
+	}
+
+	response, err := s.httpClient.Do(request)
+	if err != nil {
+		return fmt.Errorf("failed to execute request %s: %w", destination, err)
+	}
 
 	var parsedResp wrapResp
 
-	err = u.processResponse(&parsedResp, resp)
+	err = u.processResponse(&parsedResp, response)
 	if err != nil {
 		return err
 	}
@@ -606,10 +853,11 @@ func (s *Steps) makeWrapKeyReq(user, endpoint, keyID, recipient string) error {
 	return nil
 }
 
-func (s *Steps) makeUnwrapKeyReq(user, endpoint, tag, sender string) error {
+func (s *Steps) makeUnwrapKeyReq(user, endpoint, tag, sender string) error { // nolint:funlen // ignore
 	u := s.users[user]
+	sdr := s.users[sender]
 
-	wrappedKeyContent := s.users[sender].response.body[tag]
+	wrappedKeyContent := sdr.response.body[tag]
 
 	var wrappedKey recipientWrappedKey
 
@@ -618,21 +866,44 @@ func (s *Steps) makeUnwrapKeyReq(user, endpoint, tag, sender string) error {
 		return err
 	}
 
-	req := &unwrapReq{
+	payload, err := json.Marshal(&unwrapReq{
 		WrappedKey: wrappedKey,
 		SenderKID:  "",
-	}
-
-	resp, closeBody, err := s.post(u, endpoint, req)
+	})
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to marshal request payload: %w", err)
 	}
 
-	defer closeBody()
+	destination := buildURI(endpoint, u.keystoreID, u.keyID)
+
+	request, err := http.NewRequestWithContext(
+		context2.Background(),
+		http.MethodPost,
+		destination,
+		bytes.NewReader(payload),
+	)
+	if err != nil {
+		return fmt.Errorf("failed to create request: %w", err)
+	}
+
+	err = u.SetCapabilityInvocation(request, actionUnwrap)
+	if err != nil {
+		return fmt.Errorf("user failed to set zcap: %w", err)
+	}
+
+	err = u.Sign(request)
+	if err != nil {
+		return fmt.Errorf("user failed to sign request: %w", err)
+	}
+
+	response, err := s.httpClient.Do(request)
+	if err != nil {
+		return fmt.Errorf("failed to execute request %s: %w", destination, err)
+	}
 
 	var parsedResp unwrapResp
 
-	err = u.processResponse(&parsedResp, resp)
+	err = u.processResponse(&parsedResp, response)
 	if err != nil {
 		return err
 	}
@@ -649,22 +920,82 @@ func (s *Steps) makeUnwrapKeyReq(user, endpoint, tag, sender string) error {
 	return nil
 }
 
-func (s *Steps) getPubKeyOfRecipient(user, recipient string) error {
+func (s *Steps) getPubKeyOfRecipient(user, recipient string) error { // nolint:funlen // ignore
 	rec := s.users[recipient]
+	u := s.users[user]
 
-	//nolint:bodyclose // defer closeBody()
-	resp, closeBody, err := s.get(rec, s.bddContext.KeyServerURL+exportKeyEndpoint)
-	if err != nil {
-		return err
+	// recipient delegates authority on the user to export their public key
+	recCapability := rec.kmsCapability
+
+	var chain []interface{}
+
+	untyped, ok := recCapability.Proof[0]["capabilityChain"].([]interface{})
+	if ok {
+		chain = append(chain, untyped...)
 	}
 
-	defer closeBody()
+	chain = append(chain, recCapability.ID)
+
+	delegatedCapability, err := zcapld.NewCapability(
+		&zcapld.Signer{
+			SignatureSuite:     ed25519signature2018.New(suite.WithSigner(rec.signer)),
+			SuiteType:          ed25519signature2018.SignatureType,
+			VerificationMethod: rec.controller,
+		},
+		zcapld.WithInvoker(u.controller),
+		zcapld.WithParent(recCapability.ID),
+		zcapld.WithInvocationTarget(recCapability.InvocationTarget.ID, recCapability.InvocationTarget.Type),
+		zcapld.WithAllowedActions(actionExportKey),
+		zcapld.WithCapabilityChain(chain...),
+	)
+	if err != nil {
+		return fmt.Errorf("failed to delegate zcap unto user: %w", err)
+	}
+
+	// recipient's key URI
+	destination := buildURI(s.bddContext.KeyServerURL+exportKeyEndpoint, rec.keystoreID, rec.keyID)
+
+	request, err := http.NewRequestWithContext(
+		context2.Background(),
+		http.MethodGet,
+		destination,
+		nil,
+	)
+	if err != nil {
+		return fmt.Errorf("failed to create request: %w", err)
+	}
+
+	compressed, err := zcapld2.CompressZCAP(delegatedCapability)
+	if err != nil {
+		return fmt.Errorf("failed to compress zcap: %w", err)
+	}
+
+	request.Header.Set(
+		zcapld.CapabilityInvocationHTTPHeader,
+		fmt.Sprintf(`zcap capability="%s",action="%s"`, compressed, actionExportKey),
+	)
+
+	hs := httpsignatures.NewHTTPSignatures(&zcapld.AriesDIDKeySecrets{})
+	hs.SetSignatureHashAlgorithm(&zcapld.AriesDIDKeySignatureHashAlgorithm{
+		Crypto: u.authCrypto,
+		KMS:    u.authKMS,
+	})
+
+	err = hs.Sign(u.controller, request)
+	if err != nil {
+		return fmt.Errorf("user failed to sign request: %w", err)
+	}
+
+	response, err := s.httpClient.Do(request) // nolint:bodyclose // ignore
+	if err != nil {
+		return fmt.Errorf("failed to execute request %s: %w", destination, err)
+	}
 
 	var parsedResp exportKeyResp
 
-	err = json.NewDecoder(resp.Body).Decode(&parsedResp)
+	err = json.NewDecoder(response.Body).Decode(&parsedResp)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to decode body; statusCode=%d: %w", response.StatusCode, err)
 	}
 
 	pubKeyBytes, err := base64.URLEncoding.DecodeString(parsedResp.PublicKey)
@@ -778,6 +1109,14 @@ func (s *Steps) post(u *user, endpoint string, body interface{}) (*http.Response
 	return resp, closeBodyFunc(resp.Body, s.logger), nil
 }
 
+func (s *Steps) send(r *http.Request) (*http.Response, error) {
+	c := &http.Client{Transport: &http.Transport{
+		TLSClientConfig: s.bddContext.TLSConfig(),
+	}}
+
+	return c.Do(r)
+}
+
 func randomBytes(size uint32) []byte {
 	buf := make([]byte, size)
 
@@ -810,4 +1149,82 @@ func closeBodyFunc(closer io.Closer, logger log.Logger) func() {
 			logger.Errorf("Failed to close response body: %s", err.Error())
 		}
 	}
+}
+
+type remoteKMS struct {
+	keystoreID string
+}
+
+func (r *remoteKMS) Create(kt kms.KeyType) (string, interface{}, error) {
+	panic("implement me")
+}
+
+func (r *remoteKMS) Get(keyID string) (interface{}, error) {
+	return keyID, nil
+}
+
+func (r *remoteKMS) Rotate(kt kms.KeyType, keyID string) (string, interface{}, error) {
+	panic("implement me")
+}
+
+func (r *remoteKMS) ExportPubKeyBytes(keyID string) ([]byte, error) {
+	panic("implement me")
+}
+
+func (r *remoteKMS) CreateAndExportPubKeyBytes(kt kms.KeyType) (string, []byte, error) {
+	panic("implement me")
+}
+
+func (r *remoteKMS) PubKeyBytesToHandle(pubKey []byte, kt kms.KeyType) (interface{}, error) {
+	panic("implement me")
+}
+
+func (r *remoteKMS) ImportPrivateKey(
+	privKey interface{}, kt kms.KeyType, opts ...kms.PrivateKeyOpts) (string, interface{}, error) {
+	panic("implement me")
+}
+
+type remoteAuthCrypto struct {
+	baseURL    string
+	httpClient *http.Client
+	user       *user
+}
+
+func (r *remoteAuthCrypto) Encrypt(msg, aad []byte, kh interface{}) ([]byte, []byte, error) {
+	panic("implement me")
+}
+
+func (r *remoteAuthCrypto) Decrypt(cipher, aad, nonce []byte, kh interface{}) ([]byte, error) {
+	panic("implement me")
+}
+
+func (r *remoteAuthCrypto) Sign(msg []byte, _ interface{}) ([]byte, error) {
+	sig, err := r.user.signer.Sign(msg)
+	if err != nil {
+		return nil, fmt.Errorf("user's signer failed to sign: %w", err)
+	}
+
+	return sig, nil
+}
+
+func (r *remoteAuthCrypto) Verify(signature, msg []byte, kh interface{}) error {
+	panic("implement me")
+}
+
+func (r *remoteAuthCrypto) ComputeMAC(data []byte, kh interface{}) ([]byte, error) {
+	panic("implement me")
+}
+
+func (r *remoteAuthCrypto) VerifyMAC(mac, data []byte, kh interface{}) error {
+	panic("implement me")
+}
+
+func (r *remoteAuthCrypto) WrapKey(cek, apu, apv []byte,
+	recPubKey *crypto.PublicKey, opts ...crypto.WrapKeyOpts) (*crypto.RecipientWrappedKey, error) {
+	panic("implement me")
+}
+
+func (r *remoteAuthCrypto) UnwrapKey(
+	recWK *crypto.RecipientWrappedKey, kh interface{}, opts ...crypto.WrapKeyOpts) ([]byte, error) {
+	panic("implement me")
 }

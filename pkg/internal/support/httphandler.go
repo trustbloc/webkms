@@ -11,8 +11,13 @@ import (
 )
 
 // NewHTTPHandler returns instance of HTTPHandler which can be used to handle http requests.
-func NewHTTPHandler(path, method string, handle http.HandlerFunc) *HTTPHandler {
-	return &HTTPHandler{path: path, method: method, handle: handle}
+func NewHTTPHandler(name, path, method string, handle http.HandlerFunc) *HTTPHandler {
+	return &HTTPHandler{
+		name:   name,
+		path:   path,
+		method: method,
+		handle: handle,
+	}
 }
 
 // HTTPHandler contains REST API handling details which can be used to build routers
@@ -21,6 +26,7 @@ type HTTPHandler struct {
 	path   string
 	method string
 	handle http.HandlerFunc
+	name   string
 }
 
 // Path returns http request path.
@@ -36,4 +42,9 @@ func (h *HTTPHandler) Method() string {
 // Handle returns http request handle func.
 func (h *HTTPHandler) Handle() http.HandlerFunc {
 	return h.handle
+}
+
+// Name of this handler.
+func (h *HTTPHandler) Name() string {
+	return h.name
 }

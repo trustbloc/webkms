@@ -25,7 +25,7 @@ func TestNewHTTPHandler(t *testing.T) {
 		handled <- true
 	}
 
-	handler := support.NewHTTPHandler(path, method, handlerFn)
+	handler := support.NewHTTPHandler(path, path, method, handlerFn)
 	require.Equal(t, path, handler.Path())
 	require.Equal(t, method, handler.Method())
 	require.NotNil(t, handler.Handle())

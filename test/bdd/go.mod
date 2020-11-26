@@ -10,6 +10,7 @@ require (
 	github.com/cucumber/godog v0.10.0
 	github.com/fsouza/go-dockerclient v1.6.6
 	github.com/hyperledger/aries-framework-go v0.1.5-0.20201124194436-a37f1c10fd4e
+	github.com/igor-pavlenko/httpsignatures-go v0.0.21
 	github.com/rs/xid v1.2.1
 	github.com/trustbloc/edge-core v0.1.5-0.20201126210935-53388acb41fc
 	github.com/trustbloc/edv v0.1.5-0.20201125123749-8cff541c50ca
