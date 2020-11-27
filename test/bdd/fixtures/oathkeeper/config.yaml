@@ -1,0 +1,38 @@
+#
+# Copyright SecureKey Technologies Inc. All Rights Reserved.
+#
+# SPDX-License-Identifier: Apache-2.0
+#
+
+serve:
+  proxy:
+    port: 4455 # run the proxy at port 4455
+  api:
+    port: 4456 # run the api at port 4456
+
+access_rules:
+  repositories:
+    - file:///oathkeeper/rules/resource-server.json
+
+# Global configuration file oathkeeper.yml
+authenticators:
+  oauth2_introspection:
+    # Set enabled to true if the authenticator should be enabled and false to disable the authenticator. Defaults to false.
+    enabled: true
+    config:
+      introspection_url: https://auth.rest.hydra.example.com:4445/oauth2/introspect
+
+authorizers:
+  allow:
+    # Set enabled to true if the authenticator should be enabled and false to disable the authenticator. Defaults to false.
+    enabled: true
+
+mutators:
+  header:
+    # Set enabled to true if the authenticator should be enabled and false to disable the authenticator. Defaults to false.
+    enabled: true
+    config:
+      headers:
+        X-User: '{{ print .Subject }}'
+  noop:
+    enabled: true

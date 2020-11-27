@@ -16,6 +16,7 @@ import (
 	"time"
 
 	"github.com/cucumber/godog"
+	authbddctx "github.com/trustbloc/hub-auth/test/bdd/pkg/context"
 
 	"github.com/trustbloc/hub-kms/test/bdd/dockerutil"
 	"github.com/trustbloc/hub-kms/test/bdd/pkg/common"
@@ -31,15 +32,8 @@ const (
 	kmsComposeFilePath     = "./fixtures/kms"
 	edvComposeFilePath     = "./fixtures/edv"
 	couchDBComposeFilePath = "./fixtures/couchdb"
+	hubAuthComposeFilePath = "./fixtures/auth"
 )
-
-// Feature of the system under test.
-type feature interface {
-	// SetContext is called before every scenario is run with a fresh new context
-	SetContext(*context.BDDContext)
-	// RegisterSteps is invoked once to register the steps on the suite
-	RegisterSteps(ctx *godog.ScenarioContext)
-}
 
 func TestMain(m *testing.M) {
 	// default is to run all tests with tag @all
@@ -79,7 +73,7 @@ func runBDDTests(tags, format string) int {
 }
 
 func initializeTestSuite(ctx *godog.TestSuiteContext) {
-	composeFiles := []string{couchDBComposeFilePath, edvComposeFilePath, kmsComposeFilePath}
+	composeFiles := []string{couchDBComposeFilePath, edvComposeFilePath, hubAuthComposeFilePath, kmsComposeFilePath}
 
 	var composition []*dockerutil.Composition
 
@@ -102,7 +96,7 @@ func initializeTestSuite(ctx *godog.TestSuiteContext) {
 
 		fmt.Println("docker-compose up ... waiting for containers to start ...")
 
-		testSleep := 10
+		testSleep := 40
 		if os.Getenv("TEST_SLEEP") != "" {
 			s, err := strconv.Atoi(os.Getenv("TEST_SLEEP"))
 			if err != nil {
@@ -131,19 +125,36 @@ func initializeTestSuite(ctx *godog.TestSuiteContext) {
 	})
 }
 
+type feature interface {
+	// SetContext is called before every scenario is run with a fresh new context.
+	SetContext(*context.BDDContext)
+	// RegisterSteps is invoked once to register the steps on the suite.
+	RegisterSteps(ctx *godog.ScenarioContext)
+}
+
 func initializeScenario(ctx *godog.ScenarioContext) {
-	features := features()
+	bddContext, err := context.NewBDDContext(caCertPath)
+	if err != nil {
+		panic(fmt.Sprintf("Failed to create a new BDD context: %s", err))
+	}
+
+	authBDDContext, err := authbddctx.NewBDDContext(caCertPath)
+	if err != nil {
+		panic(fmt.Sprintf("Failed to create a new BDD context for Auth: %s", err))
+	}
+
+	features := []feature{
+		common.NewSteps(),
+		healthcheck.NewSteps(),
+		keystore.NewSteps(),
+		kms.NewSteps(authBDDContext, bddContext.TLSConfig()),
+	}
 
 	for _, f := range features {
 		f.RegisterSteps(ctx)
 	}
 
 	ctx.BeforeScenario(func(sc *godog.Scenario) {
-		bddContext, err := context.NewBDDContext(caCertPath)
-		if err != nil {
-			panic(fmt.Sprintf("Error returned from NewBDDContext: %s", err))
-		}
-
 		for _, f := range features {
 			f.SetContext(bddContext)
 		}
@@ -174,13 +185,4 @@ func generateUUID() string {
 	id := dockerutil.GenerateBytesUUID()
 
 	return fmt.Sprintf("%x-%x-%x-%x-%x", id[0:4], id[4:6], id[6:8], id[8:10], id[10:])
-}
-
-func features() []feature {
-	return []feature{
-		common.NewSteps(),
-		healthcheck.NewSteps(),
-		keystore.NewSteps(),
-		kms.NewSteps(),
-	}
 }

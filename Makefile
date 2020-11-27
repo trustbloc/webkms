@@ -31,8 +31,13 @@ unit-test:
 	@scripts/check_unit.sh
 
 .PHONY: bdd-test
-bdd-test: clean kms-rest-docker generate-test-keys
+bdd-test: clean kms-rest-docker generate-test-keys mock-login-consent-docker
 	@scripts/check_integration.sh
+
+.PHONY: mock-login-consent-docker
+mock-login-consent-docker:
+	@echo "Building mock login consent server for BDD tests..."
+	@cd test/bdd/mock/loginconsent && docker build -f image/Dockerfile --build-arg GO_VER=$(GO_VER) --build-arg ALPINE_VER=$(ALPINE_VER) -t mockloginconsent:latest .
 
 .PHONY: kms-rest
 kms-rest:

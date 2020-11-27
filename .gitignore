@@ -29,4 +29,4 @@ coverage.out
 .build
 *.log
 
-test/bdd/fixtures/keys/tls
+test/bdd/fixtures/keys

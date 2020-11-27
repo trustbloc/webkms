@@ -9,10 +9,10 @@ package kms
 import (
 	"bytes"
 	"compress/gzip"
+	"context"
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
-	"io"
 	"io/ioutil"
 	"net/http"
 	"strings"
@@ -25,94 +25,33 @@ import (
 	zcapld2 "github.com/trustbloc/hub-kms/pkg/auth/zcapld"
 )
 
-type signer interface {
-	// Sign will sign document and return signature
-	Sign(data []byte) ([]byte, error)
-}
-
 type user struct {
 	name             string
 	controller       string
 	keystoreID       string
-	edvCapability    *zcapld.Capability
-	signer           signer
 	keyID            string
 	vaultID          string
+	subject          string
+	secret           []byte // secret share (A)
 	recipientPubKeys map[string]publicKeyWithBytesXY
 	response         *response
-	kmsCapability    *zcapld.Capability
+	signer           signer
 	authKMS          kms.KeyManager
 	authCrypto       crypto.Crypto
+	edvCapability    *zcapld.Capability
+	kmsCapability    *zcapld.Capability
 }
 
 type response struct {
-	status  string
-	headers map[string]string
-	body    map[string]string
+	status     string
+	statusCode int
+	headers    map[string]string
+	body       map[string]string
 }
 
-func (u *user) processResponse(parsedResp interface{}, resp *http.Response) error {
-	u.response = &response{
-		status: resp.Status,
-	}
-
-	err := u.processHeaders(resp.Header)
-	if err != nil {
-		return fmt.Errorf("failed to process headers: %w", err)
-	}
-
-	if parsedResp == nil {
-		return nil
-	}
-
-	return processBody(parsedResp, resp.Body)
-}
-
-func (u *user) processHeaders(header http.Header) error {
-	loc := header.Get("Location")
-	if loc != "" {
-		keystoreID, keyID := parseLocation(loc)
-
-		if keystoreID != "" {
-			u.keystoreID = keystoreID
-		}
-
-		if keyID != "" {
-			u.keyID = keyID
-		}
-	}
-
-	zcap := header.Get("X-RootCapability")
-	if zcap != "" {
-		decoded, err := base64.URLEncoding.DecodeString(zcap)
-		if err != nil {
-			return fmt.Errorf("failed to base64URL-decode zcap: %w", err)
-		}
-
-		compressed, err := gzip.NewReader(bytes.NewReader(decoded))
-		if err != nil {
-			return fmt.Errorf("failed to open gzip reader: %w", err)
-		}
-
-		uncompressed, err := ioutil.ReadAll(compressed)
-		if err != nil {
-			return fmt.Errorf("failed to gunzip zcap: %w", err)
-		}
-
-		u.kmsCapability, err = zcapld.ParseCapability(uncompressed)
-		if err != nil {
-			return fmt.Errorf("failed to parse rootcapability: %w", err)
-		}
-	}
-
-	h := make(map[string]string, len(header))
-	for k, v := range header {
-		h[k] = v[0]
-	}
-
-	u.response.headers = h
-
-	return nil
+type signer interface {
+	// Sign will sign document and return signature.
+	Sign(data []byte) ([]byte, error)
 }
 
 func (u *user) SetCapabilityInvocation(r *http.Request, action string) error {
@@ -139,11 +78,113 @@ func (u *user) Sign(r *http.Request) error {
 	return hs.Sign(u.controller, r)
 }
 
-func parseLocation(location string) (string, string) {
+func (u *user) prepareGetRequest(endpoint string) (*http.Request, error) {
+	uri := buildURI(endpoint, u.keystoreID, u.keyID)
+
+	request, err := http.NewRequestWithContext(context.Background(), http.MethodGet, uri, nil)
+	if err != nil {
+		return nil, fmt.Errorf("create http request: %w", err)
+	}
+
+	return request, nil
+}
+
+func (u *user) preparePostRequest(req interface{}, endpoint string) (*http.Request, error) {
+	uri := buildURI(endpoint, u.keystoreID, u.keyID)
+
+	payload, err := json.Marshal(req)
+	if err != nil {
+		return nil, fmt.Errorf("marshal request: %w", err)
+	}
+
+	request, err := http.NewRequestWithContext(context.Background(), http.MethodPost, uri, bytes.NewReader(payload))
+	if err != nil {
+		return nil, fmt.Errorf("create http request: %w", err)
+	}
+
+	return request, nil
+}
+
+func buildURI(endpoint, keystoreID, keyID string) string {
+	return strings.NewReplacer(
+		"{keystoreID}", keystoreID,
+		"{keyID}", keyID,
+	).Replace(endpoint)
+}
+
+func (u *user) processResponse(parsedResp interface{}, resp *http.Response) error {
+	keystoreID, keyID := parseLocationHeader(resp.Header)
+
+	if keystoreID != "" {
+		u.keystoreID = keystoreID
+	}
+
+	if keyID != "" {
+		u.keyID = keyID
+	}
+
+	u.response = &response{
+		status:     resp.Status,
+		statusCode: resp.StatusCode,
+	}
+
+	kmsCapability, err := parseRootCapabilityHeader(resp.Header)
+	if err != nil {
+		return err
+	}
+
+	if kmsCapability != nil {
+		u.kmsCapability = kmsCapability
+	}
+
+	u.response.headers = processHeaders(resp.Header)
+
+	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusCreated {
+		var errResp errorResponse
+
+		decodeErr := json.NewDecoder(resp.Body).Decode(&errResp)
+		if decodeErr != nil {
+			return fmt.Errorf("parse error response: %w", decodeErr)
+		}
+
+		u.response.body = map[string]string{
+			"errMessage": errResp.Message,
+		}
+
+		return fmt.Errorf("response status: %s", resp.Status)
+	}
+
+	if parsedResp == nil {
+		return nil
+	}
+
+	err = json.NewDecoder(resp.Body).Decode(parsedResp)
+	if err != nil {
+		return fmt.Errorf("parse response: %w", err)
+	}
+
+	return nil
+}
+
+func processHeaders(header http.Header) map[string]string {
+	headers := make(map[string]string, len(header))
+	for k, v := range header {
+		headers[k] = v[0]
+	}
+
+	return headers
+}
+
+func parseLocationHeader(header http.Header) (string, string) {
 	const (
 		keystoreIDPos = 3 // localhost:8076/kms/keystores/{keystoreID}
 		keyIDPos      = 5 // localhost:8076/kms/keystores/{keystoreID}/keys/{keyID}
 	)
+
+	location := header.Get("Location")
+	if location == "" {
+		return "", ""
+	}
 
 	s := strings.Split(location, "/")
 
@@ -160,16 +201,31 @@ func parseLocation(location string) (string, string) {
 	return keystoreID, keyID
 }
 
-func processBody(parsedResp interface{}, body io.ReadCloser) error {
-	contents, err := ioutil.ReadAll(body)
-	if err != nil {
-		return fmt.Errorf("failed to read body: %w", err)
+func parseRootCapabilityHeader(header http.Header) (*zcapld.Capability, error) {
+	zcap := header.Get("X-RootCapability")
+	if zcap == "" {
+		return nil, nil
 	}
 
-	err = json.Unmarshal(contents, parsedResp)
+	decoded, err := base64.URLEncoding.DecodeString(zcap)
 	if err != nil {
-		return fmt.Errorf("failed to unmarshal response body '%s': %w", contents, err)
+		return nil, fmt.Errorf("failed to base64URL-decode zcap: %w", err)
 	}
 
-	return nil
+	compressed, err := gzip.NewReader(bytes.NewReader(decoded))
+	if err != nil {
+		return nil, fmt.Errorf("failed to open gzip reader: %w", err)
+	}
+
+	uncompressed, err := ioutil.ReadAll(compressed)
+	if err != nil {
+		return nil, fmt.Errorf("failed to gunzip zcap: %w", err)
+	}
+
+	capability, err := zcapld.ParseCapability(uncompressed)
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse rootcapability: %w", err)
+	}
+
+	return capability, nil
 }

@@ -8,9 +8,15 @@ package bddutil
 
 import (
 	"context"
+	"crypto/rand"
+	"crypto/sha256"
 	"crypto/tls"
 	"io"
 	"net/http"
+)
+
+const (
+	keySize = sha256.Size
 )
 
 // HTTPDo makes an HTTP request.
@@ -32,4 +38,16 @@ func HTTPDo(method, url string, headers map[string]string, body io.Reader,
 	}
 
 	return httpClient.Do(req)
+}
+
+// GenerateRandomBytes generates an array of 32 random bytes.
+func GenerateRandomBytes() []byte {
+	buf := make([]byte, keySize)
+
+	_, err := rand.Read(buf)
+	if err != nil {
+		panic(err)
+	}
+
+	return buf
 }

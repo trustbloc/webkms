@@ -23,8 +23,9 @@ import (
 // BDDContext is a global context shared between different test suites in bdd tests.
 type BDDContext struct {
 	KeyServerURL      string
-	AuthzKeyServerURL string
+	AuthZKeyServerURL string
 	EDVServerURL      string
+	HubAuthURL        string
 	tlsConfig         *tls.Config
 	KeyManager        kms.KeyManager
 	Crypto            cryptoapi.Crypto
@@ -43,7 +44,7 @@ func (k kmsProvider) SecretLock() secretlock.Service {
 	return k.secretLockService
 }
 
-// NewBDDContext creates a new BDDContext.
+// NewBDDContext creates a new BDD context.
 func NewBDDContext(caCertPath string) (*BDDContext, error) {
 	rootCAs, err := tlsutils.GetCertPool(false, []string{caCertPath})
 	if err != nil {

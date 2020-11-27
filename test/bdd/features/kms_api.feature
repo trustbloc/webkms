@@ -9,10 +9,13 @@
 Feature: KMS and crypto operations
   Background:
     Given Key Server is running on "localhost" port "8076"
-      And Authz Key Server is running on "localhost" port "8077"
-      And EDV Server is running on "localhost" port "8081"
-      And "Alice" has created a data vault on EDV Server for storing keys
-      And "Bob" has created a data vault on EDV Server for storing keys
+      And AuthZ Key Server is running on "localhost" port "8077"
+      And Hub Auth is running on "localhost" port "8070"
+      And EDV is running on "localhost" port "8081"
+      And "Alice" wallet has stored secret on Hub Auth
+      And "Bob" wallet has stored secret on Hub Auth
+      And "Alice" has created a data vault on EDV for storing keys
+      And "Bob" has created a data vault on EDV for storing keys
 
   Scenario: User creates a key
     Given "Alice" has created an empty keystore on Key Server
@@ -37,7 +40,7 @@ Feature: KMS and crypto operations
 
     When  "Alice" makes an HTTP POST to "https://localhost:8076/kms/keystores/{keystoreID}/keys/{keyID}/verify" to verify "signature" for "test message"
     Then  "Alice" gets a response with HTTP status "200 OK"
-     And  "Alice" gets a response with no "errMsg"
+     And  "Alice" gets a response with no "errMessage"
 
   Scenario: User encrypts/decrypts a message
     Given "Bob" has created a keystore with "AES256GCM" key on Key Server
@@ -60,7 +63,7 @@ Feature: KMS and crypto operations
 
     When  "Alice" makes an HTTP POST to "https://localhost:8076/kms/keystores/{keystoreID}/keys/{keyID}/verifymac" to verify MAC "mac" for "test data"
     Then  "Alice" gets a response with HTTP status "200 OK"
-     And  "Alice" gets a response with no "errMsg"
+     And  "Alice" gets a response with no "errMessage"
 
   Scenario: User A wraps key for User B, User B successfully unwraps it (Anoncrypt)
     Given "Alice" has created a keystore with "ECDH256KWAES256GCM" key on Key Server
