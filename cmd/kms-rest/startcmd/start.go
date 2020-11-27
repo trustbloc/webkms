@@ -9,6 +9,7 @@ package startcmd
 import (
 	"crypto/tls"
 	"errors"
+	"fmt"
 	"net/http"
 	"strconv"
 	"strings"
@@ -38,7 +39,6 @@ import (
 	"github.com/trustbloc/hub-kms/pkg/keystore"
 	"github.com/trustbloc/hub-kms/pkg/kms"
 	"github.com/trustbloc/hub-kms/pkg/restapi/healthcheck"
-	kmsrest "github.com/trustbloc/hub-kms/pkg/restapi/kms"
 	"github.com/trustbloc/hub-kms/pkg/restapi/kms/operation"
 	lock "github.com/trustbloc/hub-kms/pkg/secretlock"
 	"github.com/trustbloc/hub-kms/pkg/secretlock/secretsplitlock"
@@ -145,6 +145,13 @@ const (
 )
 
 const (
+	enableZCAPsFlagName  = "enable-zcaps"
+	enableZCAPsFlagUsage = "Determines whether to enable zcaps authz on all endpoints (except createKeyStore)." +
+		" Default is false. " + commonEnvVarUsageText + enableZCAPsEnvKey
+	enableZCAPsEnvKey = "KMS_ZCAP_ENABLE"
+)
+
+const (
 	storageTypeMemOption     = "mem"
 	storageTypeCouchDBOption = "couchdb"
 	storageTypeEDVOption     = "edv"
@@ -232,6 +239,8 @@ func createFlags(startCmd *cobra.Command) {
 
 	startCmd.Flags().StringP(hubAuthURLFlagName, "", "", hubAuthURLFlagUsage)
 	startCmd.Flags().StringP(hubAuthAPITokenFlagName, "", "", hubAuthAPITokenFlagUsage)
+
+	startCmd.Flags().StringP(enableZCAPsFlagName, "", "", enableZCAPsFlagUsage)
 }
 
 type kmsRestParameters struct {
@@ -246,6 +255,7 @@ type kmsRestParameters struct {
 	hubAuthURL              string
 	hubAuthAPIToken         string
 	logLevel                string
+	enableZCAPs             bool
 }
 
 type tlsServeParameters struct {
@@ -312,6 +322,20 @@ func getKmsRestParameters(cmd *cobra.Command) (*kmsRestParameters, error) { //no
 		return nil, err
 	}
 
+	enableZCAPsConfig, err := cmdutils.GetUserSetVarFromString(cmd, enableZCAPsFlagName, enableZCAPsEnvKey, true)
+	if err != nil {
+		return nil, err
+	}
+
+	enableZCAPs := false
+
+	if enableZCAPsConfig != "" {
+		enableZCAPs, err = strconv.ParseBool(enableZCAPsConfig)
+		if err != nil {
+			return nil, err
+		}
+	}
+
 	return &kmsRestParameters{
 		hostURL:                 strings.TrimSpace(hostURL),
 		tlsUseSystemCertPool:    tlsUseSystemCertPool,
@@ -324,6 +348,7 @@ func getKmsRestParameters(cmd *cobra.Command) (*kmsRestParameters, error) { //no
 		hubAuthURL:              hubAuthURL,
 		hubAuthAPIToken:         hubAuthAPIToken,
 		logLevel:                logLevel,
+		enableZCAPs:             enableZCAPs,
 	}, nil
 }
 
@@ -457,10 +482,16 @@ func startKmsService(parameters *kmsRestParameters, srv Server) error {
 		return err
 	}
 
-	kmsREST := kmsrest.New(config)
+	kmsRouter := router.PathPrefix(operation.KMSBasePath).Subrouter()
 
-	for _, handler := range kmsREST.GetOperations() {
-		router.HandleFunc(handler.Path(), handler.Handle()).Methods(handler.Method())
+	kmsREST := operation.New(config)
+
+	if parameters.enableZCAPs {
+		kmsRouter.Use(kmsREST.ZCAPLDMiddleware)
+	}
+
+	for _, handler := range kmsREST.GetRESTHandlers() {
+		kmsRouter.HandleFunc(handler.Path(), handler.Handle()).Methods(handler.Method()).Name(handler.Name())
 	}
 
 	// add logspec API handlers
@@ -551,12 +582,19 @@ func prepareOperationConfig(parameters *kmsRestParameters) (*operation.Config, e
 		return nil, err
 	}
 
+	// TODO make configurable
+	ldDocLoader, err := jsonLDDocumentLoader()
+	if err != nil {
+		return nil, fmt.Errorf("failed to load jsonld document loaders: %w", err)
+	}
+
 	return &operation.Config{
 		AuthService:       authService,
 		KeystoreService:   keystoreService,
 		KMSServiceCreator: kmsServiceCreator,
 		Logger:            log.New("hub-kms/restapi"),
 		IsEDVUsed:         strings.EqualFold(parameters.keyManagerStorageParams.storageType, storageTypeEDVOption),
+		LDDocumentLoader:  ldDocLoader,
 	}, nil
 }
 
@@ -579,7 +617,12 @@ func prepareKeystoreService(parameters *kmsRestParameters, sp storage.Provider) 
 	}
 
 	kmsCreator := func(provider arieskms.Provider) (arieskms.KeyManager, error) {
-		return kms.NewLocalKMS(keyURI, provider.StorageProvider(), provider.SecretLock())
+		k, kerr := kms.NewLocalKMS(keyURI, provider.StorageProvider(), provider.SecretLock())
+		if kerr != nil {
+			return nil, fmt.Errorf("failed to create localkms: %w", kerr)
+		}
+
+		return k, nil
 	}
 
 	keystoreServiceProv := keystoreServiceProvider{

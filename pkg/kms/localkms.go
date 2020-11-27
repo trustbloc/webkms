@@ -11,6 +11,7 @@ import (
 	"crypto/rand"
 	"crypto/sha256"
 	"errors"
+	"fmt"
 
 	"github.com/hyperledger/aries-framework-go/pkg/kms/localkms"
 	"github.com/hyperledger/aries-framework-go/pkg/secretlock"
@@ -41,12 +42,12 @@ func (k kmsProvider) SecretLock() secretlock.Service {
 func NewLocalKMS(keyURI string, storageProv storage.Provider, lock secretlock.Service) (*localkms.LocalKMS, error) {
 	masterKeyReader, err := prepareMasterKeyReader(storageProv, lock, keyURI)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to prepare master key reader: %w", err)
 	}
 
 	secretLockService, err := local.NewService(masterKeyReader, lock)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to create new secret lock service: %w", err)
 	}
 
 	kmsProv := kmsProvider{

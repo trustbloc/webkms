@@ -126,6 +126,26 @@ func (s *Service) NewCapability(options ...zcapld.CapabilityOption) (*zcapld.Cap
 	return zcap, nil
 }
 
+// Resolve the capability.
+func (s *Service) Resolve(uri string) (*zcapld.Capability, error) {
+	raw, err := s.store.Get(uri)
+	if err != nil {
+		return nil, fmt.Errorf("failed to fetch zcap from storage: %w", err)
+	}
+
+	return zcapld.ParseCapability(raw)
+}
+
+// KMS returns the kms.KeyManager.
+func (s *Service) KMS() kms.KeyManager {
+	return s.keyManager
+}
+
+// Crypto returns the cryptoapi.Crypto.
+func (s *Service) Crypto() cryptoapi.Crypto {
+	return s.crypto
+}
+
 // CompressZCAP gzips the zcap, then base64URL-encodes it.
 func CompressZCAP(zcap *zcapld.Capability) (string, error) {
 	raw, err := json.Marshal(zcap)

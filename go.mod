@@ -12,6 +12,7 @@ require (
 	github.com/gorilla/mux v1.8.0
 	github.com/hyperledger/aries-framework-go v0.1.5-0.20201124194436-a37f1c10fd4e
 	github.com/igor-pavlenko/httpsignatures-go v0.0.21
+	github.com/piprate/json-gold v0.3.0
 	github.com/rs/xid v1.2.1
 	github.com/stretchr/testify v1.6.1
 	github.com/trustbloc/edge-core v0.1.5-0.20201126210935-53388acb41fc

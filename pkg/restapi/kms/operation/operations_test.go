@@ -18,6 +18,8 @@ import (
 	"testing"
 
 	"github.com/gorilla/mux"
+	"github.com/hyperledger/aries-framework-go/pkg/crypto"
+	arieskms "github.com/hyperledger/aries-framework-go/pkg/kms"
 	"github.com/stretchr/testify/require"
 	"github.com/trustbloc/edge-core/pkg/log"
 	"github.com/trustbloc/edge-core/pkg/log/mocklogger"
@@ -37,18 +39,18 @@ const (
 )
 
 const (
-	keystoresEndpoint  = "/kms/keystores"
-	keysEndpoint       = "/kms/keystores/{keystoreID}/keys"
-	capabilityEndpoint = "/kms/keystores/{keystoreID}/capability"
-	exportEndpoint     = "/kms/keystores/{keystoreID}/keys/{keyID}/export"
-	signEndpoint       = "/kms/keystores/{keystoreID}/keys/{keyID}/sign"
-	verifyEndpoint     = "/kms/keystores/{keystoreID}/keys/{keyID}/verify"
-	encryptEndpoint    = "/kms/keystores/{keystoreID}/keys/{keyID}/encrypt"
-	decryptEndpoint    = "/kms/keystores/{keystoreID}/keys/{keyID}/decrypt"
-	computeMACEndpoint = "/kms/keystores/{keystoreID}/keys/{keyID}/computemac"
-	verifyMACEndpoint  = "/kms/keystores/{keystoreID}/keys/{keyID}/verifymac"
-	wrapEndpoint       = "/kms/keystores/{keystoreID}/wrap"
-	unwrapEndpoint     = "/kms/keystores/{keystoreID}/keys/{keyID}/unwrap"
+	keystoresEndpoint  = "/keystores"
+	keysEndpoint       = "/keystores/{keystoreID}/keys"
+	capabilityEndpoint = "/keystores/{keystoreID}/capability"
+	exportEndpoint     = "/keystores/{keystoreID}/keys/{keyID}/export"
+	signEndpoint       = "/keystores/{keystoreID}/keys/{keyID}/sign"
+	verifyEndpoint     = "/keystores/{keystoreID}/keys/{keyID}/verify"
+	encryptEndpoint    = "/keystores/{keystoreID}/keys/{keyID}/encrypt"
+	decryptEndpoint    = "/keystores/{keystoreID}/keys/{keyID}/decrypt"
+	computeMACEndpoint = "/keystores/{keystoreID}/keys/{keyID}/computemac"
+	verifyMACEndpoint  = "/keystores/{keystoreID}/keys/{keyID}/verifymac"
+	wrapEndpoint       = "/keystores/{keystoreID}/wrap"
+	unwrapEndpoint     = "/keystores/{keystoreID}/keys/{keyID}/unwrap"
 )
 
 const (
@@ -1118,6 +1120,7 @@ func newConfig(opts ...optionFn) *operation.Config {
 		keystoreService: mockkeystore.NewMockService(),
 		kmsService:      mockkms.NewMockService(),
 		logger:          &mocklogger.MockLogger{},
+		authService:     &mockAuthService{},
 	}
 
 	for i := range opts {
@@ -1180,12 +1183,19 @@ func withAuthService(service authService) optionFn {
 type authService interface {
 	CreateDIDKey() (string, error)
 	NewCapability(options ...zcapld.CapabilityOption) (*zcapld.Capability, error)
+	KMS() arieskms.KeyManager
+	Crypto() crypto.Crypto
+	Resolve(string) (*zcapld.Capability, error)
 }
 
 type mockAuthService struct {
 	createDIDKeyFunc func() (string, error)
 	newCapabilityVal *zcapld.Capability
 	newCapabilityErr error
+	keyManager       arieskms.KeyManager
+	crpto            crypto.Crypto
+	resolveVal       *zcapld.Capability
+	resolveErr       error
 }
 
 func (m *mockAuthService) CreateDIDKey() (string, error) {
@@ -1198,4 +1208,16 @@ func (m *mockAuthService) CreateDIDKey() (string, error) {
 
 func (m *mockAuthService) NewCapability(options ...zcapld.CapabilityOption) (*zcapld.Capability, error) {
 	return m.newCapabilityVal, m.newCapabilityErr
+}
+
+func (m *mockAuthService) KMS() arieskms.KeyManager {
+	return m.keyManager
+}
+
+func (m *mockAuthService) Crypto() crypto.Crypto {
+	return m.crpto
+}
+
+func (m *mockAuthService) Resolve(string) (*zcapld.Capability, error) {
+	return m.resolveVal, m.resolveErr
 }

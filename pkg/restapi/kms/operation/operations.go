@@ -19,6 +19,7 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/hyperledger/aries-framework-go/pkg/crypto"
 	arieskms "github.com/hyperledger/aries-framework-go/pkg/kms"
+	"github.com/piprate/json-gold/ld"
 	"github.com/rs/xid"
 	"github.com/trustbloc/edge-core/pkg/log"
 	"github.com/trustbloc/edge-core/pkg/zcapld"
@@ -34,9 +35,9 @@ const (
 	keystoreIDQueryParam = "keystoreID"
 	keyIDQueryParam      = "keyID"
 
-	// API endpoints.
-	kmsBasePath        = "/kms"
-	keystoresEndpoint  = kmsBasePath + "/keystores"
+	// KMSBasePath is the base path for all KMS endpoints.
+	KMSBasePath        = "/kms"
+	keystoresEndpoint  = "/keystores"
 	keystoreEndpoint   = keystoresEndpoint + "/{" + keystoreIDQueryParam + "}"
 	keysEndpoint       = keystoreEndpoint + "/keys"
 	capabilityEndpoint = keystoreEndpoint + "/capability"
@@ -70,8 +71,6 @@ const (
 	createZCAPFailure       = "Failed to create zcap: %s"
 )
 
-// 	zcapld.WithAllowedActions("GenerateKey", "ExportKey", "Sign", "Verify", "Wrap", "Unwrap"),
-
 const (
 	actionCreateKey       = "createKey"
 	actionExportKey       = "exportKey"
@@ -91,16 +90,15 @@ type Handler interface {
 	Path() string
 	Method() string
 	Handle() http.HandlerFunc
+	Name() string
 }
 
 type authService interface {
 	CreateDIDKey() (string, error)
 	NewCapability(options ...zcapld.CapabilityOption) (*zcapld.Capability, error)
-}
-
-type zcapStore interface {
+	KMS() arieskms.KeyManager
+	Crypto() crypto.Crypto
 	Resolve(string) (*zcapld.Capability, error)
-	Save(*zcapld.Capability) error
 }
 
 // Operation holds dependencies for handlers.
@@ -110,7 +108,7 @@ type Operation struct {
 	logger            log.Logger
 	isEDVUsed         bool
 	authService       authService
-	zcaps             zcapStore
+	ldDocLoader       ld.DocumentLoader
 }
 
 // Config defines configuration for KMS operations.
@@ -120,7 +118,7 @@ type Config struct {
 	Logger            log.Logger
 	IsEDVUsed         bool
 	AuthService       authService
-	ZCAPStore         zcapStore
+	LDDocumentLoader  ld.DocumentLoader
 }
 
 // New returns a new Operation instance.
@@ -131,7 +129,7 @@ func New(config *Config) *Operation {
 		logger:            config.Logger,
 		isEDVUsed:         config.IsEDVUsed,
 		authService:       config.AuthService,
-		zcaps:             config.ZCAPStore,
+		ldDocLoader:       config.LDDocumentLoader,
 	}
 
 	return op
@@ -140,22 +138,24 @@ func New(config *Config) *Operation {
 // GetRESTHandlers gets handlers available for the hub-kms REST API.
 func (o *Operation) GetRESTHandlers() []Handler {
 	return []Handler{
-		support.NewHTTPHandler(keystoresEndpoint, http.MethodPost, o.createKeystoreHandler),
-		support.NewHTTPHandler(keysEndpoint, http.MethodPost, o.createKeyHandler),
-		support.NewHTTPHandler(capabilityEndpoint, http.MethodPost, o.updateCapabilityHandler),
-		support.NewHTTPHandler(exportEndpoint, http.MethodGet, o.exportKeyHandler),
-		support.NewHTTPHandler(signEndpoint, http.MethodPost, o.signHandler),
-		support.NewHTTPHandler(verifyEndpoint, http.MethodPost, o.verifyHandler),
-		support.NewHTTPHandler(encryptEndpoint, http.MethodPost, o.encryptHandler),
-		support.NewHTTPHandler(decryptEndpoint, http.MethodPost, o.decryptHandler),
-		support.NewHTTPHandler(computeMACEndpoint, http.MethodPost, o.computeMACHandler),
-		support.NewHTTPHandler(verifyMACEndpoint, http.MethodPost, o.verifyMACHandler),
-		support.NewHTTPHandler(wrapEndpoint, http.MethodPost, o.wrapHandler),
-		support.NewHTTPHandler(unwrapEndpoint, http.MethodPost, o.unwrapHandler),
+		support.NewHTTPHandler(keystoresEndpoint, keystoresEndpoint, http.MethodPost, o.createKeystoreHandler),
+		support.NewHTTPHandler(keysEndpoint, keysEndpoint, http.MethodPost, o.createKeyHandler),
+		support.NewHTTPHandler(capabilityEndpoint, capabilityEndpoint, http.MethodPost, o.updateCapabilityHandler),
+		support.NewHTTPHandler(exportEndpoint, exportEndpoint, http.MethodGet, o.exportKeyHandler),
+		support.NewHTTPHandler(signEndpoint, signEndpoint, http.MethodPost, o.signHandler),
+		support.NewHTTPHandler(verifyEndpoint, verifyEndpoint, http.MethodPost, o.verifyHandler),
+		support.NewHTTPHandler(encryptEndpoint, encryptEndpoint, http.MethodPost, o.encryptHandler),
+		support.NewHTTPHandler(decryptEndpoint, decryptEndpoint, http.MethodPost, o.decryptHandler),
+		support.NewHTTPHandler(computeMACEndpoint, computeMACEndpoint, http.MethodPost, o.computeMACHandler),
+		support.NewHTTPHandler(verifyMACEndpoint, verifyMACEndpoint, http.MethodPost, o.verifyMACHandler),
+		support.NewHTTPHandler(wrapEndpoint, wrapEndpoint, http.MethodPost, o.wrapHandler),
+		support.NewHTTPHandler(unwrapEndpoint, unwrapEndpoint, http.MethodPost, o.unwrapHandler),
 	}
 }
 
 func (o *Operation) createKeystoreHandler(rw http.ResponseWriter, req *http.Request) {
+	o.logger.Debugf("handling request: %s", req.URL.String())
+
 	var request CreateKeystoreReq
 	if ok := o.parseRequest(&request, rw, req); !ok {
 		return
@@ -205,9 +205,13 @@ func (o *Operation) createKeystoreHandler(rw http.ResponseWriter, req *http.Requ
 	rw.Header().Set("Edvdidkey", didKey)
 	rw.Header().Set("X-RootCapability", zcap)
 	rw.WriteHeader(http.StatusCreated)
+
+	o.logger.Debugf("finished handling request - keystore: %s", resource)
 }
 
 func (o *Operation) createKeyHandler(rw http.ResponseWriter, req *http.Request) {
+	o.logger.Debugf("handling request: %s", req.URL.String())
+
 	kmsService, err := o.kmsServiceCreator(req)
 	if err != nil {
 		o.writeErrorResponse(rw, http.StatusInternalServerError, createKMSServiceFailure, err)
@@ -231,6 +235,9 @@ func (o *Operation) createKeyHandler(rw http.ResponseWriter, req *http.Request) 
 
 	rw.Header().Set("Location", keyLocation(req.Host, keystoreID, keyID))
 	rw.WriteHeader(http.StatusCreated)
+
+	o.logger.Debugf("Location: %s", keyLocation(req.Host, keystoreID, keyID))
+	o.logger.Debugf("finished handling request")
 }
 
 func (o *Operation) updateCapabilityHandler(rw http.ResponseWriter, req *http.Request) {
@@ -293,6 +300,8 @@ func (o *Operation) exportKeyHandler(rw http.ResponseWriter, req *http.Request) 
 
 //nolint:dupl // better readability
 func (o *Operation) signHandler(rw http.ResponseWriter, req *http.Request) {
+	o.logger.Debugf("handling request: %s", req.URL.String())
+
 	kmsService, err := o.kmsServiceCreator(req)
 	if err != nil {
 		o.writeErrorResponse(rw, http.StatusInternalServerError, createKMSServiceFailure, err)
@@ -325,6 +334,8 @@ func (o *Operation) signHandler(rw http.ResponseWriter, req *http.Request) {
 	o.writeResponse(rw, signResp{
 		Signature: base64.URLEncoding.EncodeToString(signature),
 	})
+
+	o.logger.Debugf("finished handling request: %s", req.URL.String())
 }
 
 //nolint:dupl // better readability
@@ -688,7 +699,8 @@ func (o *Operation) parseRequest(parsedReq interface{}, rw http.ResponseWriter, 
 	return true
 }
 
-func prepareDebugOutputForRequest(req *http.Request, logger log.Logger) string {
+func prepareDebugOutputForRequest(
+	req *http.Request, logger log.Logger) string { // nolint:interfacer // don't want to pull in test packages
 	dump, err := httputil.DumpRequest(req, true)
 	if err != nil {
 		logger.Errorf("Failed to dump request: %s", err)
@@ -788,8 +800,12 @@ func marshalPublicKey(k *crypto.PublicKey) publicKey {
 
 func keystoreLocation(hostURL, keystoreID string) string {
 	// {hostURL}/kms/keystores/{keystoreID}
-	return fmt.Sprintf("%s%s", hostURL,
-		strings.ReplaceAll(keystoreEndpoint, "{keystoreID}", keystoreID))
+	return fmt.Sprintf(
+		"%s%s%s",
+		hostURL,
+		KMSBasePath,
+		strings.ReplaceAll(keystoreEndpoint, "{keystoreID}", keystoreID),
+	)
 }
 
 func keyLocation(hostURL, keystoreID, keyID string) string {
@@ -798,7 +814,7 @@ func keyLocation(hostURL, keystoreID, keyID string) string {
 		"{keystoreID}", keystoreID,
 		"{keyID}", keyID)
 
-	return fmt.Sprintf("%s%s", hostURL, r.Replace(keyEndpoint))
+	return fmt.Sprintf("%s%s%s", hostURL, KMSBasePath, r.Replace(keyEndpoint))
 }
 
 func allActions() []string {

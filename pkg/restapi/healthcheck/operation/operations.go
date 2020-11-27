@@ -40,7 +40,7 @@ func New(logger log.Logger) *Operation {
 // GetRESTHandlers gets controller API handlers available for healthcheck service.
 func (o *Operation) GetRESTHandlers() []Handler {
 	return []Handler{
-		support.NewHTTPHandler(healthCheckEndpoint, http.MethodGet, o.healthCheckHandler),
+		support.NewHTTPHandler(healthCheckEndpoint, healthCheckEndpoint, http.MethodGet, o.healthCheckHandler),
 	}
 }
 

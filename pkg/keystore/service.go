@@ -9,6 +9,7 @@ package keystore
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 
 	arieskms "github.com/hyperledger/aries-framework-go/pkg/kms"
 	"github.com/trustbloc/edge-core/pkg/storage"
@@ -53,7 +54,7 @@ func NewService(provider Provider) (Service, error) {
 
 	keyManager, err := provider.KeyManagerCreator()(provider.KeyManagerProvider())
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to create keyManager: %w", err)
 	}
 
 	return &service{
