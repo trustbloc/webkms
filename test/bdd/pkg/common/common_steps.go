@@ -41,8 +41,9 @@ func (s *Steps) SetContext(ctx *context.BDDContext) {
 // RegisterSteps defines scenario steps.
 func (s *Steps) RegisterSteps(ctx *godog.ScenarioContext) {
 	ctx.Step(`^Key Server is running on "([^"]*)" port "([^"]*)"$`, s.checkKeyServerIsRun)
-	ctx.Step(`^Authz Key Server is running on "([^"]*)" port "([^"]*)"$`, s.checkAuthzKeyServerIsRun)
-	ctx.Step(`^EDV Server is running on "([^"]*)" port "([^"]*)"$`, s.checkEDVServerIsRun)
+	ctx.Step(`^AuthZ Key Server is running on "([^"]*)" port "([^"]*)"$`, s.checkAuthzKeyServerIsRun)
+	ctx.Step(`^EDV is running on "([^"]*)" port "([^"]*)"$`, s.checkEDVServerIsRun)
+	ctx.Step(`^Hub Auth is running on "([^"]*)" port "([^"]*)"$`, s.checkHubAuthIsRun)
 }
 
 func (s *Steps) checkKeyServerIsRun(host string, port int) error {
@@ -62,7 +63,7 @@ func (s *Steps) checkAuthzKeyServerIsRun(host string, port int) error {
 		return err
 	}
 
-	s.bddContext.AuthzKeyServerURL = url
+	s.bddContext.AuthZKeyServerURL = url
 
 	return nil
 }
@@ -74,6 +75,17 @@ func (s *Steps) checkEDVServerIsRun(host string, port int) error {
 	}
 
 	s.bddContext.EDVServerURL = url
+
+	return nil
+}
+
+func (s *Steps) checkHubAuthIsRun(host string, port int) error {
+	url, err := s.healthCheck(host, port)
+	if err != nil {
+		return err
+	}
+
+	s.bddContext.HubAuthURL = url
 
 	return nil
 }

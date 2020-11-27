@@ -110,3 +110,11 @@ type publicKeyWithBytesXY struct {
 	Curve string `json:"curve,omitempty"`
 	Type  string `json:"type,omitempty"`
 }
+
+type setSecretRequest struct {
+	Secret []byte `json:"secret"`
+}
+
+type errorResponse struct {
+	Message string `json:"errMessage,omitempty"`
+}
