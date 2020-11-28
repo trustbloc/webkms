@@ -133,6 +133,81 @@ func TestMiddleware(t *testing.T) {
 	})
 }
 
+func TestCapabilityInvocationAction(t *testing.T) {
+	t.Run("returns invocation action", func(t *testing.T) {
+		testCases := []struct {
+			endpoint       string
+			expectedAction string
+		}{
+			{
+				endpoint:       keysEndpoint,
+				expectedAction: actionCreateKey,
+			},
+			{
+				endpoint:       capabilityEndpoint,
+				expectedAction: actionStoreCapability,
+			},
+			{
+				endpoint:       exportEndpoint,
+				expectedAction: actionExportKey,
+			},
+			{
+				endpoint:       signEndpoint,
+				expectedAction: actionSign,
+			},
+			{
+				endpoint:       verifyEndpoint,
+				expectedAction: actionVerify,
+			},
+			{
+				endpoint:       encryptEndpoint,
+				expectedAction: actionEncrypt,
+			},
+			{
+				endpoint:       decryptEndpoint,
+				expectedAction: actionDecrypt,
+			},
+			{
+				endpoint:       computeMACEndpoint,
+				expectedAction: actionComputeMac,
+			},
+			{
+				endpoint:       verifyMACEndpoint,
+				expectedAction: actionVerifyMAC,
+			},
+			{
+				endpoint:       wrapEndpoint,
+				expectedAction: actionWrap,
+			},
+			{
+				endpoint:       unwrapEndpoint,
+				expectedAction: actionUnwrap,
+			},
+		}
+
+		for i := range testCases {
+			test := testCases[i]
+			result, err := CapabilityInvocationAction(httptest.NewRequest(http.MethodPost, test.endpoint, nil))
+			require.NoError(t, err)
+			require.Equal(t, test.expectedAction, result)
+		}
+	})
+
+	t.Run("fails if request is a relative URL with only one path component", func(t *testing.T) {
+		request := httptest.NewRequest(http.MethodPost, "/path", nil)
+		request.URL.Path = "path"
+		_, err := CapabilityInvocationAction(request)
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "invalid path format")
+	})
+
+	t.Run("fails if endpoint is not supported", func(t *testing.T) {
+		_, err := CapabilityInvocationAction(httptest.NewRequest(http.MethodPost, "/unsupported/path", nil))
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "unsupported endpoint")
+	})
+}
+
 type mockNamer struct {
 	name string
 }
