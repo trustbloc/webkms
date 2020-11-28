@@ -9,6 +9,7 @@ package operation
 import (
 	"fmt"
 	"net/http"
+	"strings"
 
 	"github.com/gorilla/mux"
 	"github.com/hyperledger/aries-framework-go/pkg/crypto"
@@ -139,6 +140,50 @@ func expectedAction(n namer) (string, error) { // nolint:gocyclo // necessary co
 		action = actionUnwrap
 	default:
 		err = fmt.Errorf("unsupported endpoint: %s", n.GetName())
+	}
+
+	return action, err
+}
+
+// CapabilityInvocationAction returns the action to invoke on the capability given the request.
+func CapabilityInvocationAction(r *http.Request) (string, error) { // nolint:gocyclo // ignore due to switch stmt
+	idx := strings.LastIndex(r.URL.Path, "/")
+	if idx == -1 {
+		return "", fmt.Errorf("invalid path format: %s", r.URL.Path)
+	}
+
+	lastPathComponent := r.URL.Path[idx:]
+
+	var (
+		action string
+		err    error
+	)
+
+	switch lastPathComponent {
+	case keysPath:
+		action = actionCreateKey
+	case capabilityPath:
+		action = actionStoreCapability
+	case exportPath:
+		action = actionExportKey
+	case signPath:
+		action = actionSign
+	case verifyPath:
+		action = actionVerify
+	case encryptPath:
+		action = actionEncrypt
+	case decryptPath:
+		action = actionDecrypt
+	case computeMACPath:
+		action = actionComputeMac
+	case verifyMACPath:
+		action = actionVerifyMAC
+	case wrapPath:
+		action = actionWrap
+	case unwrapPath:
+		action = actionUnwrap
+	default:
+		err = fmt.Errorf("unsupported endpoint: %s", r.URL.Path)
 	}
 
 	return action, err

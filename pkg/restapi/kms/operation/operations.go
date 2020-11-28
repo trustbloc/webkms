@@ -35,22 +35,34 @@ const (
 	keystoreIDQueryParam = "keystoreID"
 	keyIDQueryParam      = "keyID"
 
+	keysPath       = "/keys"
+	capabilityPath = "/capability"
+	exportPath     = "/export"
+	signPath       = "/sign"
+	verifyPath     = "/verify"
+	encryptPath    = "/encrypt"
+	decryptPath    = "/decrypt"
+	computeMACPath = "/computemac"
+	verifyMACPath  = "/verifymac"
+	wrapPath       = "/wrap"
+	unwrapPath     = "/unwrap"
+
 	// KMSBasePath is the base path for all KMS endpoints.
 	KMSBasePath        = "/kms"
 	keystoresEndpoint  = "/keystores"
 	keystoreEndpoint   = keystoresEndpoint + "/{" + keystoreIDQueryParam + "}"
-	keysEndpoint       = keystoreEndpoint + "/keys"
-	capabilityEndpoint = keystoreEndpoint + "/capability"
+	keysEndpoint       = keystoreEndpoint + keysPath
+	capabilityEndpoint = keystoreEndpoint + capabilityPath
 	keyEndpoint        = keysEndpoint + "/{" + keyIDQueryParam + "}"
-	exportEndpoint     = keyEndpoint + "/export"
-	signEndpoint       = keyEndpoint + "/sign"
-	verifyEndpoint     = keyEndpoint + "/verify"
-	encryptEndpoint    = keyEndpoint + "/encrypt"
-	decryptEndpoint    = keyEndpoint + "/decrypt"
-	computeMACEndpoint = keyEndpoint + "/computemac"
-	verifyMACEndpoint  = keyEndpoint + "/verifymac"
-	wrapEndpoint       = keystoreEndpoint + "/wrap" // kms/keystores/{keystoreID}/wrap
-	unwrapEndpoint     = keyEndpoint + "/unwrap"    // kms/keystores/{keystoreID}/keys/{keyID}/unwrap
+	exportEndpoint     = keyEndpoint + exportPath
+	signEndpoint       = keyEndpoint + signPath
+	verifyEndpoint     = keyEndpoint + verifyPath
+	encryptEndpoint    = keyEndpoint + encryptPath
+	decryptEndpoint    = keyEndpoint + decryptPath
+	computeMACEndpoint = keyEndpoint + computeMACPath
+	verifyMACEndpoint  = keyEndpoint + verifyMACPath
+	wrapEndpoint       = keystoreEndpoint + wrapPath // kms/keystores/{keystoreID}/wrap
+	unwrapEndpoint     = keyEndpoint + unwrapPath    // kms/keystores/{keystoreID}/keys/{keyID}/unwrap
 
 	// Error messages.
 	receivedBadRequest      = "Received bad request: %s"
