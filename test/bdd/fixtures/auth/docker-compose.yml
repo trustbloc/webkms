@@ -132,28 +132,6 @@ services:
     networks:
       - couchdb_bdd_net
 
-
-  oathkeeper-proxy:
-    image: oryd/oathkeeper:v0.38.4-alpine
-    ports:
-      - "4455:4455"
-    # will add self-signed certificate to the “trusted list” because oathkeeper doesn't trust self-signed certificate
-    # https://github.com/ory/oathkeeper/issues/181
-    # remove it when using real certificate
-    command:  /bin/sh -c "cp /etc/tls/ec-cacert.pem /usr/local/share/ca-certificates/;update-ca-certificates;oathkeeper serve proxy --config /oathkeeper/config.yaml"
-    user: root
-    entrypoint: ""
-    environment:
-      - LOG_LEVEL=debug
-      - PORT=4455
-      - ISSUER_URL=https://oathkeeper-proxy:4455
-    restart: on-failure
-    volumes:
-      - ../oathkeeper:/oathkeeper
-      - ../keys/tls:/etc/tls
-    networks:
-      - couchdb_bdd_net
-
 networks:
   couchdb_bdd_net:
     external: true
