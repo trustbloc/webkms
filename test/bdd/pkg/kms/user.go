@@ -26,20 +26,24 @@ import (
 )
 
 type user struct {
-	name             string
-	controller       string
-	keystoreID       string
-	keyID            string
-	vaultID          string
-	subject          string
-	secret           []byte // secret share (A)
+	name       string
+	controller string
+
+	keystoreID string
+	keyID      string
+	vaultID    string
+
+	subject     string
+	secretShare []byte
+
 	recipientPubKeys map[string]publicKeyWithBytesXY
 	response         *response
-	signer           signer
-	authKMS          kms.KeyManager
-	authCrypto       crypto.Crypto
-	edvCapability    *zcapld.Capability
-	kmsCapability    *zcapld.Capability
+
+	signer        signer
+	authKMS       kms.KeyManager
+	authCrypto    crypto.Crypto
+	edvCapability *zcapld.Capability
+	kmsCapability *zcapld.Capability
 }
 
 type response struct {
@@ -47,11 +51,6 @@ type response struct {
 	statusCode int
 	headers    map[string]string
 	body       map[string]string
-}
-
-type signer interface {
-	// Sign will sign document and return signature.
-	Sign(data []byte) ([]byte, error)
 }
 
 func (u *user) SetCapabilityInvocation(r *http.Request, action string) error {

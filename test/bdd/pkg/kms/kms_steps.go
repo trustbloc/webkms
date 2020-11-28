@@ -16,14 +16,17 @@ import (
 	"net/url"
 
 	"github.com/cucumber/godog"
+	"github.com/hyperledger/aries-framework-go/pkg/crypto"
 	"github.com/hyperledger/aries-framework-go/pkg/doc/signature/suite"
 	"github.com/hyperledger/aries-framework-go/pkg/doc/signature/suite/ed25519signature2018"
+	"github.com/hyperledger/aries-framework-go/pkg/kms"
 	"github.com/igor-pavlenko/httpsignatures-go"
 	"github.com/trustbloc/edge-core/pkg/log"
 	"github.com/trustbloc/edge-core/pkg/zcapld"
 	authbddctx "github.com/trustbloc/hub-auth/test/bdd/pkg/context"
 
 	zcapld2 "github.com/trustbloc/hub-kms/pkg/auth/zcapld"
+	"github.com/trustbloc/hub-kms/pkg/restapi/kms/operation"
 	"github.com/trustbloc/hub-kms/test/bdd/pkg/bddutil"
 	"github.com/trustbloc/hub-kms/test/bdd/pkg/context"
 )
@@ -136,6 +139,66 @@ func (s *Steps) createKeystore(userName string) error {
 	}
 
 	return s.updateCapability(u)
+}
+
+func (s *Steps) updateCapability(u *user) error {
+	// create chain capability
+	chainCapability, err := s.createChainCapability(u)
+	if err != nil {
+		return err
+	}
+
+	chainCapabilityBytes, err := json.Marshal(chainCapability)
+	if err != nil {
+		return err
+	}
+
+	r := &operation.UpdateCapabilityReq{
+		EDVCapability: chainCapabilityBytes,
+	}
+
+	request, err := u.preparePostRequest(r, s.bddContext.KeyServerURL+capabilityEndpoint)
+	if err != nil {
+		return err
+	}
+
+	err = u.SetCapabilityInvocation(request, actionStoreCapability)
+	if err != nil {
+		return fmt.Errorf("user failed to set capability: %w", err)
+	}
+
+	err = u.Sign(request)
+	if err != nil {
+		return fmt.Errorf("user failed to sign request: %w", err)
+	}
+
+	response, err := s.httpClient.Do(request)
+	if err != nil {
+		return fmt.Errorf("http do: %w", err)
+	}
+
+	defer func() {
+		closeErr := response.Body.Close()
+		if closeErr != nil {
+			s.logger.Errorf("Failed to close response body: %s\n", closeErr.Error())
+		}
+	}()
+
+	return u.processResponse(nil, response)
+}
+
+func (s *Steps) createChainCapability(u *user) (*zcapld.Capability, error) {
+	return zcapld.NewCapability(
+		&zcapld.Signer{
+			SignatureSuite:     ed25519signature2018.New(suite.WithSigner(u.signer)),
+			SuiteType:          ed25519signature2018.SignatureType,
+			VerificationMethod: u.controller,
+		},
+		zcapld.WithParent(u.edvCapability.ID),
+		zcapld.WithInvoker(u.response.headers[edvDIDKeyHeader]),
+		zcapld.WithAllowedActions("read", "write"),
+		zcapld.WithInvocationTarget(u.vaultID, edvResource),
+		zcapld.WithCapabilityChain(u.edvCapability.Parent, u.edvCapability.ID))
 }
 
 func (s *Steps) makeCreateKeyReq(user, endpoint, keyType string) error {
@@ -281,7 +344,6 @@ func (s *Steps) makeSignMessageReq(userName, endpoint, message string) error {
 	return nil
 }
 
-//nolint:dupl // todo refactor
 func (s *Steps) makeVerifySignatureReq(userName, endpoint, tag, message string) error {
 	u := s.users[userName]
 
@@ -290,34 +352,7 @@ func (s *Steps) makeVerifySignatureReq(userName, endpoint, tag, message string) 
 		Message:   base64.URLEncoding.EncodeToString([]byte(message)),
 	}
 
-	request, err := u.preparePostRequest(r, endpoint)
-	if err != nil {
-		return err
-	}
-
-	err = u.SetCapabilityInvocation(request, actionVerify)
-	if err != nil {
-		return fmt.Errorf("user failed to set zcap on request: %w", err)
-	}
-
-	err = u.Sign(request)
-	if err != nil {
-		return fmt.Errorf("user failed to sign request: %w", err)
-	}
-
-	response, err := s.httpClient.Do(request)
-	if err != nil {
-		return fmt.Errorf("http do: %w", err)
-	}
-
-	defer func() {
-		closeErr := response.Body.Close()
-		if closeErr != nil {
-			s.logger.Errorf("Failed to close response body: %s\n", closeErr.Error())
-		}
-	}()
-
-	return u.processResponse(nil, response)
+	return s.makeVerifyReq(u, actionVerify, r, endpoint)
 }
 
 func (s *Steps) makeEncryptMessageReq(userName, endpoint, message string) error {
@@ -485,7 +520,6 @@ func (s *Steps) makeComputeMACReq(userName, endpoint, data string) error {
 	return nil
 }
 
-//nolint:dupl // todo refactor
 func (s *Steps) makeVerifyMACReq(userName, endpoint, tag, data string) error {
 	u := s.users[userName]
 
@@ -494,14 +528,18 @@ func (s *Steps) makeVerifyMACReq(userName, endpoint, tag, data string) error {
 		Data: base64.URLEncoding.EncodeToString([]byte(data)),
 	}
 
+	return s.makeVerifyReq(u, actionVerifyMAC, r, endpoint)
+}
+
+func (s *Steps) makeVerifyReq(u *user, action string, r interface{}, endpoint string) error {
 	request, err := u.preparePostRequest(r, endpoint)
 	if err != nil {
 		return err
 	}
 
-	err = u.SetCapabilityInvocation(request, actionVerifyMAC)
+	err = u.SetCapabilityInvocation(request, action)
 	if err != nil {
-		return fmt.Errorf("user failed to set zcap: %w", err)
+		return fmt.Errorf("user failed to set zcap on request: %w", err)
 	}
 
 	err = u.Sign(request)
@@ -649,63 +687,24 @@ func (s *Steps) makeUnwrapKeyReq(userName, endpoint, tag, sender string) error {
 	return nil
 }
 
-//nolint:gocyclo // todo refactor
-func (s *Steps) getPubKeyOfRecipient(userName, recipient string) error { //nolint:funlen // todo refactor
-	rec := s.users[recipient]
+func (s *Steps) getPubKeyOfRecipient(userName, recipientName string) error {
 	u := s.users[userName]
+	recipient := s.users[recipientName]
 
-	// recipient delegates authority on the user to export their public key
-	recCapability := rec.kmsCapability
-
-	var chain []interface{}
-
-	untyped, ok := recCapability.Proof[0]["capabilityChain"].([]interface{})
-	if ok {
-		chain = append(chain, untyped...)
-	}
-
-	chain = append(chain, recCapability.ID)
-
-	delegatedCapability, err := zcapld.NewCapability(
-		&zcapld.Signer{
-			SignatureSuite:     ed25519signature2018.New(suite.WithSigner(rec.signer)),
-			SuiteType:          ed25519signature2018.SignatureType,
-			VerificationMethod: rec.controller,
-		},
-		zcapld.WithInvoker(u.controller),
-		zcapld.WithParent(recCapability.ID),
-		zcapld.WithInvocationTarget(recCapability.InvocationTarget.ID, recCapability.InvocationTarget.Type),
-		zcapld.WithAllowedActions(actionExportKey),
-		zcapld.WithCapabilityChain(chain...),
-	)
-	if err != nil {
-		return fmt.Errorf("failed to delegate zcap unto user: %w", err)
-	}
-
-	request, err := rec.prepareGetRequest(s.bddContext.KeyServerURL + exportKeyEndpoint)
+	request, err := recipient.prepareGetRequest(s.bddContext.KeyServerURL + exportKeyEndpoint)
 	if err != nil {
 		return err
 	}
 
-	compressed, err := zcapld2.CompressZCAP(delegatedCapability)
+	// recipient delegates authority on the user to export their public key
+	c, err := delegateCapability(recipient.kmsCapability, recipient.signer, recipient.controller, u.controller)
 	if err != nil {
-		return fmt.Errorf("failed to compress zcap: %w", err)
+		return err
 	}
 
-	request.Header.Set(
-		zcapld.CapabilityInvocationHTTPHeader,
-		fmt.Sprintf(`zcap capability="%s",action="%s"`, compressed, actionExportKey),
-	)
-
-	hs := httpsignatures.NewHTTPSignatures(&zcapld.AriesDIDKeySecrets{})
-	hs.SetSignatureHashAlgorithm(&zcapld.AriesDIDKeySignatureHashAlgorithm{
-		Crypto: u.authCrypto,
-		KMS:    u.authKMS,
-	})
-
-	err = hs.Sign(u.controller, request)
+	err = setCapabilityHeader(request, c, u.controller, u.authKMS, u.authCrypto)
 	if err != nil {
-		return fmt.Errorf("user failed to sign request: %w", err)
+		return err
 	}
 
 	response, err := s.httpClient.Do(request)
@@ -722,7 +721,7 @@ func (s *Steps) getPubKeyOfRecipient(userName, recipient string) error { //nolin
 
 	var exportKeyResponse exportKeyResp
 
-	if respErr := rec.processResponse(&exportKeyResponse, response); respErr != nil {
+	if respErr := recipient.processResponse(&exportKeyResponse, response); respErr != nil {
 		return respErr
 	}
 
@@ -739,7 +738,62 @@ func (s *Steps) getPubKeyOfRecipient(userName, recipient string) error { //nolin
 	}
 
 	s.users[userName].recipientPubKeys = map[string]publicKeyWithBytesXY{
-		recipient: pubKey,
+		recipientName: pubKey,
+	}
+
+	return nil
+}
+
+func delegateCapability(c *zcapld.Capability, s signer, verificationMethod, invoker string) (string, error) {
+	var chain []interface{}
+
+	untyped, ok := c.Proof[0]["capabilityChain"].([]interface{})
+	if ok {
+		chain = append(chain, untyped...)
+	}
+
+	chain = append(chain, c.ID)
+
+	delegatedCapability, err := zcapld.NewCapability(
+		&zcapld.Signer{
+			SignatureSuite:     ed25519signature2018.New(suite.WithSigner(s)),
+			SuiteType:          ed25519signature2018.SignatureType,
+			VerificationMethod: verificationMethod,
+		},
+		zcapld.WithInvoker(invoker),
+		zcapld.WithParent(c.ID),
+		zcapld.WithInvocationTarget(c.InvocationTarget.ID, c.InvocationTarget.Type),
+		zcapld.WithAllowedActions(actionExportKey),
+		zcapld.WithCapabilityChain(chain...),
+	)
+	if err != nil {
+		return "", fmt.Errorf("failed to delegate zcap unto user: %w", err)
+	}
+
+	compressed, err := zcapld2.CompressZCAP(delegatedCapability)
+	if err != nil {
+		return "", fmt.Errorf("failed to compress zcap: %w", err)
+	}
+
+	return compressed, nil
+}
+
+func setCapabilityHeader(request *http.Request, capability string, controller string,
+	k kms.KeyManager, c crypto.Crypto) error {
+	request.Header.Set(
+		zcapld.CapabilityInvocationHTTPHeader,
+		fmt.Sprintf(`zcap capability="%s",action="%s"`, capability, actionExportKey),
+	)
+
+	hs := httpsignatures.NewHTTPSignatures(&zcapld.AriesDIDKeySecrets{})
+	hs.SetSignatureHashAlgorithm(&zcapld.AriesDIDKeySignatureHashAlgorithm{
+		Crypto: c,
+		KMS:    k,
+	})
+
+	err := hs.Sign(controller, request)
+	if err != nil {
+		return fmt.Errorf("user failed to sign request: %w", err)
 	}
 
 	return nil
