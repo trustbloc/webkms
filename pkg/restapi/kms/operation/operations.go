@@ -245,10 +245,17 @@ func (o *Operation) createKeyHandler(rw http.ResponseWriter, req *http.Request) 
 		return
 	}
 
-	rw.Header().Set("Location", keyLocation(req.Host, keystoreID, keyID))
+	location := keyLocation(req.Host, keystoreID, keyID)
+
+	rw.Header().Set("Location", location)
 	rw.WriteHeader(http.StatusCreated)
 
-	o.logger.Debugf("Location: %s", keyLocation(req.Host, keystoreID, keyID))
+	// refer - https://github.com/trustbloc/hub-kms/issues/114
+	o.writeResponse(rw, createKeyResp{
+		Location: location,
+	})
+
+	o.logger.Debugf("Location: %s", location)
 	o.logger.Debugf("finished handling request")
 }
 
