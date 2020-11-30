@@ -27,12 +27,13 @@ import (
 )
 
 const (
-	featuresPath           = "features"
-	caCertPath             = "fixtures/keys/tls/ec-cacert.pem"
-	kmsComposeFilePath     = "./fixtures/kms"
-	edvComposeFilePath     = "./fixtures/edv"
-	couchDBComposeFilePath = "./fixtures/couchdb"
-	hubAuthComposeFilePath = "./fixtures/auth"
+	featuresPath              = "features"
+	caCertPath                = "fixtures/keys/tls/ec-cacert.pem"
+	kmsComposeFilePath        = "./fixtures/kms"
+	edvComposeFilePath        = "./fixtures/edv"
+	couchDBComposeFilePath    = "./fixtures/couchdb"
+	hubAuthComposeFilePath    = "./fixtures/auth"
+	oathKeeperComposeFilePath = "./fixtures/oathkeeper"
 )
 
 func TestMain(m *testing.M) {
@@ -73,7 +74,13 @@ func runBDDTests(tags, format string) int {
 }
 
 func initializeTestSuite(ctx *godog.TestSuiteContext) {
-	composeFiles := []string{couchDBComposeFilePath, edvComposeFilePath, hubAuthComposeFilePath, kmsComposeFilePath}
+	composeFiles := []string{
+		couchDBComposeFilePath,
+		edvComposeFilePath,
+		hubAuthComposeFilePath,
+		kmsComposeFilePath,
+		oathKeeperComposeFilePath,
+	}
 
 	var composition []*dockerutil.Composition
 
@@ -96,7 +103,7 @@ func initializeTestSuite(ctx *godog.TestSuiteContext) {
 
 		fmt.Println("docker-compose up ... waiting for containers to start ...")
 
-		testSleep := 40
+		testSleep := 60
 		if os.Getenv("TEST_SLEEP") != "" {
 			s, err := strconv.Atoi(os.Getenv("TEST_SLEEP"))
 			if err != nil {
@@ -146,7 +153,7 @@ func initializeScenario(ctx *godog.ScenarioContext) {
 	features := []feature{
 		common.NewSteps(),
 		healthcheck.NewSteps(),
-		keystore.NewSteps(),
+		keystore.NewSteps(authBDDContext),
 		kms.NewSteps(authBDDContext, bddContext.TLSConfig()),
 	}
 

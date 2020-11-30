@@ -18,6 +18,8 @@ import (
 	"github.com/cucumber/godog"
 	"github.com/trustbloc/edge-core/pkg/log"
 	"github.com/trustbloc/edge-core/pkg/zcapld"
+	authbddctx "github.com/trustbloc/hub-auth/test/bdd/pkg/context"
+	authlogin "github.com/trustbloc/hub-auth/test/bdd/pkg/login"
 
 	"github.com/trustbloc/hub-kms/test/bdd/pkg/bddutil"
 	"github.com/trustbloc/hub-kms/test/bdd/pkg/context"
@@ -35,15 +37,19 @@ const (
 
 // Steps defines steps context for keystore operations.
 type Steps struct {
-	bddContext *context.BDDContext
-	status     string
-	headers    http.Header
-	logger     log.Logger
+	bddContext     *context.BDDContext
+	status         string
+	headers        http.Header
+	logger         log.Logger
+	authBDDContext *authbddctx.BDDContext
 }
 
 // NewSteps creates a new Steps.
-func NewSteps() *Steps {
-	return &Steps{logger: log.New("kms-rest/tests/keystore")}
+func NewSteps(authBDDContext *authbddctx.BDDContext) *Steps {
+	return &Steps{
+		authBDDContext: authBDDContext,
+		logger:         log.New("kms-rest/tests/keystore"),
+	}
 }
 
 // SetContext sets a fresh context for every scenario.
@@ -59,9 +65,21 @@ func (s *Steps) RegisterSteps(ctx *godog.ScenarioContext) {
 }
 
 func (s *Steps) sendCreateKeystoreRequest(endpoint string) error {
+	login := authlogin.NewSteps(s.authBDDContext)
+
+	_, err := login.NewWalletLogin()
+	if err != nil {
+		return fmt.Errorf("failed to login wallet: %w", err)
+	}
+
 	body := bytes.NewBuffer([]byte(createKeystoreReq))
 
-	resp, err := bddutil.HTTPDo(http.MethodPost, endpoint, headers(), body, s.bddContext.TLSConfig())
+	resp, err := bddutil.HTTPDo(
+		http.MethodPost,
+		endpoint,
+		headers(s.authBDDContext.AccessToken()),
+		body, s.bddContext.TLSConfig(),
+	)
 	if err != nil {
 		return err
 	}
@@ -124,8 +142,9 @@ func (s *Steps) checkResponse(status, locationHeader, capabilityHeader string) e
 	return nil
 }
 
-func headers() map[string]string {
+func headers(token string) map[string]string {
 	return map[string]string{
-		"Content-Type": contentType,
+		"Content-Type":  contentType,
+		"Authorization": fmt.Sprintf("Bearer %s", token),
 	}
 }

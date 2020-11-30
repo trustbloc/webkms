@@ -1,0 +1,59 @@
+[
+  {
+    "id": "auth-kms-create-keystore",
+    "upstream": {
+      "url": "https://authz-kms.example.com:8077"
+    },
+    "match": {
+      "url": "https://localhost:4455/kms/keystores",
+      "methods": ["POST"]
+    },
+    "authenticators": [{
+      "handler": "oauth2_introspection"
+    }],
+    "mutators": [{
+      "handler": "noop"
+    }],
+    "authorizer": {
+      "handler": "allow"
+    }
+  },
+  {
+    "id": "auth-kms-keystore-ops",
+    "upstream": {
+      "url": "https://authz-kms.example.com:8077"
+    },
+    "match": {
+      "url": "https://localhost:4455/kms/keystores/<*>",
+      "methods": ["POST", "GET"]
+    },
+    "authenticators": [{
+      "handler": "oauth2_introspection"
+    }],
+    "mutators": [{
+      "handler": "noop"
+    }],
+    "authorizer": {
+      "handler": "allow"
+    }
+  },
+  {
+    "id": "ops-kms-health",
+    "upstream": {
+      "url": "https://authz-kms.example.com:8077"
+    },
+    "match": {
+      "url": "http://localhost:4466/healthcheck",
+      "methods": ["GET"]
+    },
+    "authenticators": [{
+      "handler": "noop"
+    }],
+    "mutators": [{
+      "handler": "noop"
+    }],
+    "authorizer": {
+      "handler": "allow"
+    }
+  }
+]
