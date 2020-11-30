@@ -23,6 +23,10 @@ type createKeyReq struct {
 	KeyType string `json:"keyType"`
 }
 
+type createKeyResp struct {
+	Location string `json:"location"`
+}
+
 type exportKeyResp struct {
 	PublicKey string `json:"publicKey"`
 }

@@ -11,7 +11,9 @@ import (
 	"crypto/tls"
 	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"fmt"
+	"io/ioutil"
 	"net/http"
 	"net/url"
 
@@ -237,6 +239,25 @@ func (s *Steps) makeCreateKeyReq(user, endpoint, keyType string) error {
 			s.logger.Errorf("Failed to close response body: %s\n", closeErr.Error())
 		}
 	}()
+
+	respData, err := ioutil.ReadAll(response.Body)
+	if err != nil {
+		return fmt.Errorf("reading response body failed: %s", err)
+	}
+
+	s.logger.Errorf(string(respData))
+
+	var data struct {
+		Location string `json:"location"`
+	}
+
+	if err := json.Unmarshal(respData, &data); err != nil {
+		return fmt.Errorf("keystore resp err : %w", err)
+	}
+
+	if data.Location == "" {
+		return errors.New("location in resp body is nil")
+	}
 
 	return u.processResponse(nil, response)
 }
