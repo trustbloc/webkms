@@ -124,6 +124,8 @@ func (s *Steps) createKeystore(userName string) error {
 		return err
 	}
 
+	request.Header.Set("Authorization", fmt.Sprintf("Bearer %s", u.accessToken))
+
 	response, err := s.httpClient.Do(request)
 	if err != nil {
 		return fmt.Errorf("http do: %w", err)
@@ -244,8 +246,6 @@ func (s *Steps) makeCreateKeyReq(user, endpoint, keyType string) error {
 	if err != nil {
 		return fmt.Errorf("reading response body failed: %s", err)
 	}
-
-	s.logger.Errorf(string(respData))
 
 	var data struct {
 		Location string `json:"location"`

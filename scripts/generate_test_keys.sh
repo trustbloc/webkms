@@ -21,7 +21,8 @@ DNS.1 = localhost
 DNS.2 = edv.example.com
 DNS.3 = third.party.oidc.provider.example.com
 DNS.4 = auth.rest.hydra.example.com
-DNS.5 = auth.rest.example.com" >> "$tmp"
+DNS.5 = auth.rest.example.com
+DNS.6 = *.example.com" >> "$tmp"
 
 #create CA
 openssl ecparam -name prime256v1 -genkey -noout -out test/bdd/fixtures/keys/tls/ec-cakey.pem

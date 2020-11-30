@@ -28,7 +28,14 @@ const (
 	secretEndpoint = "/secret"
 )
 
-func (s *Steps) createEDVDataVault(userName string) error {
+func (s *Steps) createEDVDataVault(userName string) error { // nolint:funlen // ignore
+	login := authlogin.NewSteps(s.authBDDContext)
+
+	_, err := login.NewWalletLogin()
+	if err != nil {
+		return fmt.Errorf("failed to login wallet: %w", err)
+	}
+
 	u, ok := s.users[userName]
 	if !ok {
 		u = &user{name: userName}
@@ -36,10 +43,13 @@ func (s *Steps) createEDVDataVault(userName string) error {
 		s.users[userName] = u
 	}
 
+	u.accessToken = s.authBDDContext.AccessToken()
+
 	authzUser := &user{
 		name:        userName,
 		subject:     u.subject,
 		secretShare: u.secretShare,
+		accessToken: u.accessToken,
 	}
 
 	config, err := s.prepareDataVaultConfig(authzUser)
@@ -122,7 +132,7 @@ func (s *Steps) createKeystoreAuthzKMS(u *user) error {
 		return err
 	}
 
-	request.Header.Set("Hub-Kms-User", u.subject)
+	request.Header.Set("Authorization", fmt.Sprintf("Bearer %s", u.accessToken))
 	request.Header.Set("Hub-Kms-Secret", base64.StdEncoding.EncodeToString(u.secretShare))
 
 	response, err := s.httpClient.Do(request)
@@ -150,7 +160,7 @@ func (s *Steps) makeCreateKeyReqAuthzKMS(u *user, endpoint, keyType string) erro
 		return err
 	}
 
-	request.Header.Set("Hub-Kms-User", u.subject)
+	request.Header.Set("Authorization", fmt.Sprintf("Bearer %s", u.accessToken))
 	request.Header.Set("Hub-Kms-Secret", base64.StdEncoding.EncodeToString(u.secretShare))
 
 	response, err := s.httpClient.Do(request)
@@ -174,7 +184,7 @@ func (s *Steps) makeExportPubKeyReqAuthzKMS(u *user, endpoint string) error {
 		return err
 	}
 
-	request.Header.Set("Hub-Kms-User", u.subject)
+	request.Header.Set("Authorization", fmt.Sprintf("Bearer %s", u.accessToken))
 	request.Header.Set("Hub-Kms-Secret", base64.StdEncoding.EncodeToString(u.secretShare))
 
 	response, err := s.httpClient.Do(request)
@@ -217,7 +227,7 @@ func (s *Steps) makeSignMessageReqAuthzKMS(u *user, endpoint, message string) er
 		return err
 	}
 
-	request.Header.Set("Hub-Kms-User", u.subject)
+	request.Header.Set("Authorization", fmt.Sprintf("Bearer %s", u.accessToken))
 	request.Header.Set("Hub-Kms-Secret", base64.StdEncoding.EncodeToString(u.secretShare))
 
 	response, err := s.httpClient.Do(request)
@@ -273,6 +283,7 @@ func (s *Steps) storeSecretInHubAuth(userName string) error {
 	}
 
 	u.subject = wallet.UserData.Sub
+	u.accessToken = s.authBDDContext.AccessToken()
 
 	r := setSecretRequest{
 		Secret: secretB,

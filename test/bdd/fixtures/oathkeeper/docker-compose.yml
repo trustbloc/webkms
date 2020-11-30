@@ -1,0 +1,49 @@
+#
+# Copyright SecureKey Technologies Inc. All Rights Reserved.
+#
+# SPDX-License-Identifier: Apache-2.0
+#
+version: '2'
+
+services:
+  oathkeeper-auth-keyserver:
+    image: oryd/oathkeeper:v0.38.4-alpine
+    ports:
+      - 4455:4455
+    command: /bin/sh -c "cp /etc/tls/ec-cacert.pem /usr/local/share/ca-certificates/;update-ca-certificates;oathkeeper serve proxy --config /oathkeeper/config.yaml"
+    user: root
+    entrypoint: ""
+    environment:
+      - LOG_LEVEL=debug
+      - PORT=4455
+      - ISSUER_URL=https://oathkeeper-proxy.trustbloc.local
+      - SERVE_PROXY_TLS_KEY_PATH=/etc/tls/ec-key.pem
+      - SERVE_PROXY_TLS_CERT_PATH=/etc/tls/ec-pubCert.pem
+    volumes:
+      - ./config/auth-keyserver:/oathkeeper
+      - ../keys/tls:/etc/tls
+    networks:
+      - couchdb_bdd_net
+
+  oathkeeper-ops-keyserver:
+    image: oryd/oathkeeper:v0.38.4-alpine
+    ports:
+      - 4466:4466
+    command: /bin/sh -c "cp /etc/tls/ec-cacert.pem /usr/local/share/ca-certificates/;update-ca-certificates;oathkeeper serve proxy --config /oathkeeper/config.yaml"
+    user: root
+    entrypoint: ""
+    environment:
+      - LOG_LEVEL=debug
+      - PORT=4466
+      - ISSUER_URL=https://oathkeeper-proxy.trustbloc.local
+      - SERVE_PROXY_TLS_KEY_PATH=/etc/tls/ec-key.pem
+      - SERVE_PROXY_TLS_CERT_PATH=/etc/tls/ec-pubCert.pem
+    volumes:
+      - ./config/ops-keyserver:/oathkeeper
+      - ../keys/tls:/etc/tls
+    networks:
+      - couchdb_bdd_net
+
+networks:
+  couchdb_bdd_net:
+    external: true

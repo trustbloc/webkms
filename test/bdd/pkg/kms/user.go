@@ -44,6 +44,7 @@ type user struct {
 	authCrypto    crypto.Crypto
 	edvCapability *zcapld.Capability
 	kmsCapability *zcapld.Capability
+	accessToken   string
 }
 
 type response struct {
