@@ -7,9 +7,8 @@ SPDX-License-Identifier: Apache-2.0
 package startcmd
 
 import (
-	"bytes"
-	"context"
 	"crypto/rand"
+	"crypto/sha256"
 	"encoding/base64"
 	"fmt"
 	"io/ioutil"
@@ -17,7 +16,6 @@ import (
 	"os"
 	"testing"
 
-	"github.com/gorilla/mux"
 	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/require"
 	"github.com/trustbloc/edge-core/pkg/log"
@@ -71,9 +69,10 @@ func TestStartCmdContents(t *testing.T) {
 func TestStartCmdWithBlankArg(t *testing.T) {
 	flags := []string{
 		hostURLFlagName, logLevelFlagName,
-		tlsServeCertPathFlagName, tlsServeKeyPathFlagName,
+		tlsServeCertPathFlagName, tlsServeKeyPathFlagName, secretLockKeyPathFlagName,
 		databaseTypeFlagName, databaseURLFlagName, databasePrefixFlagName,
-		kmsDatabaseTypeFlagName, kmsDatabaseURLFlagName, kmsDatabasePrefixFlagName, kmsMasterKeyPathFlagName,
+		primaryKeyDatabaseTypeFlagName, primaryKeyDatabaseURLFlagName, primaryKeyDatabasePrefixFlagName,
+		localKMSDatabaseTypeFlagName, localKMSDatabaseURLFlagName, localKMSDatabasePrefixFlagName,
 		keyManagerStorageTypeFlagName, keyManagerStorageURLFlagName, keyManagerStoragePrefixFlagName,
 	}
 
@@ -100,7 +99,7 @@ func TestStartCmdWithMissingArg(t *testing.T) {
 
 		args := []string{
 			"--" + databaseTypeFlagName, storageTypeMemOption,
-			"--" + kmsDatabaseTypeFlagName, storageTypeMemOption,
+			"--" + localKMSDatabaseTypeFlagName, storageTypeMemOption,
 			"--" + keyManagerStorageTypeFlagName, storageTypeMemOption,
 		}
 		startCmd.SetArgs(args)
@@ -118,7 +117,8 @@ func TestStartCmdWithMissingArg(t *testing.T) {
 
 		args := []string{
 			"--" + hostURLFlagName, "hostname",
-			"--" + kmsDatabaseTypeFlagName, storageTypeMemOption,
+			"--" + primaryKeyDatabaseTypeFlagName, storageTypeMemOption,
+			"--" + localKMSDatabaseTypeFlagName, storageTypeMemOption,
 			"--" + keyManagerStorageTypeFlagName, storageTypeMemOption,
 		}
 		startCmd.SetArgs(args)
@@ -130,12 +130,13 @@ func TestStartCmdWithMissingArg(t *testing.T) {
 			err.Error())
 	})
 
-	t.Run("test missing kms-secrets-database-type arg", func(t *testing.T) {
+	t.Run("test missing primary-key-database-type arg", func(t *testing.T) {
 		startCmd := GetStartCmd(&mockServer{})
 
 		args := []string{
 			"--" + hostURLFlagName, "hostname",
 			"--" + databaseTypeFlagName, storageTypeMemOption,
+			"--" + localKMSDatabaseTypeFlagName, storageTypeMemOption,
 			"--" + keyManagerStorageTypeFlagName, storageTypeMemOption,
 		}
 		startCmd.SetArgs(args)
@@ -143,8 +144,27 @@ func TestStartCmdWithMissingArg(t *testing.T) {
 		err := startCmd.Execute()
 
 		require.Error(t, err)
-		require.Equal(t, "Neither kms-secrets-database-type (command line flag) nor "+
-			"KMS_SECRETS_DATABASE_TYPE (environment variable) have been set.",
+		require.Equal(t, "Neither primary-key-database-type (command line flag) nor "+
+			"KMS_PRIMARY_KEY_DATABASE_TYPE (environment variable) have been set.",
+			err.Error())
+	})
+
+	t.Run("test missing local-kms-database-type arg", func(t *testing.T) {
+		startCmd := GetStartCmd(&mockServer{})
+
+		args := []string{
+			"--" + hostURLFlagName, "hostname",
+			"--" + databaseTypeFlagName, storageTypeMemOption,
+			"--" + primaryKeyDatabaseTypeFlagName, storageTypeMemOption,
+			"--" + keyManagerStorageTypeFlagName, storageTypeMemOption,
+		}
+		startCmd.SetArgs(args)
+
+		err := startCmd.Execute()
+
+		require.Error(t, err)
+		require.Equal(t, "Neither local-kms-database-type (command line flag) nor "+
+			"KMS_LOCAL_KMS_DATABASE_TYPE (environment variable) have been set.",
 			err.Error())
 	})
 
@@ -154,7 +174,8 @@ func TestStartCmdWithMissingArg(t *testing.T) {
 		args := []string{
 			"--" + hostURLFlagName, "hostname",
 			"--" + databaseTypeFlagName, storageTypeMemOption,
-			"--" + kmsDatabaseTypeFlagName, storageTypeMemOption,
+			"--" + primaryKeyDatabaseTypeFlagName, storageTypeMemOption,
+			"--" + localKMSDatabaseTypeFlagName, storageTypeMemOption,
 		}
 		startCmd.SetArgs(args)
 
@@ -256,15 +277,15 @@ func TestStartCmdWithTLSCertParams(t *testing.T) {
 	})
 }
 
-func TestStartCmdWithMasterKeyPathParam(t *testing.T) {
-	t.Run("Success with valid master key file", func(t *testing.T) {
-		file, closeFunc := createMasterKeyFile(t, false)
+func TestStartCmdWithSecretLockKeyPathParam(t *testing.T) {
+	t.Run("Success with valid key file", func(t *testing.T) {
+		file, closeFunc := createKeyFile(t, false)
 		defer closeFunc()
 
 		startCmd := GetStartCmd(&mockServer{})
 
 		args := requiredArgs()
-		args = append(args, "--"+kmsMasterKeyPathFlagName, file)
+		args = append(args, "--"+secretLockKeyPathFlagName, file)
 
 		startCmd.SetArgs(args)
 
@@ -272,14 +293,14 @@ func TestStartCmdWithMasterKeyPathParam(t *testing.T) {
 		require.NoError(t, err)
 	})
 
-	t.Run("Fail with invalid master key file content", func(t *testing.T) {
-		file, closeFunc := createMasterKeyFile(t, true)
+	t.Run("Fail with invalid key file content", func(t *testing.T) {
+		file, closeFunc := createKeyFile(t, true)
 		defer closeFunc()
 
 		startCmd := GetStartCmd(&mockServer{})
 
 		args := requiredArgs()
-		args = append(args, "--"+kmsMasterKeyPathFlagName, file)
+		args = append(args, "--"+secretLockKeyPathFlagName, file)
 
 		startCmd.SetArgs(args)
 
@@ -287,11 +308,11 @@ func TestStartCmdWithMasterKeyPathParam(t *testing.T) {
 		require.Error(t, err)
 	})
 
-	t.Run("Fail with invalid kms-master-key-path arg", func(t *testing.T) {
+	t.Run("Fail with invalid secret-lock-key-path arg", func(t *testing.T) {
 		startCmd := GetStartCmd(&mockServer{})
 
 		args := requiredArgs()
-		args = append(args, "--"+kmsMasterKeyPathFlagName, "invalid")
+		args = append(args, "--"+secretLockKeyPathFlagName, "invalid")
 
 		startCmd.SetArgs(args)
 
@@ -313,77 +334,48 @@ func TestStartCmdWithHubAuthURLParam(t *testing.T) {
 }
 
 func TestStartKMSService(t *testing.T) {
-	t.Run("Fail to create operation provider", func(t *testing.T) {
-		err := startKmsService(&kmsRestParameters{
-			storageParams:    &storageParameters{storageType: "invalid"},
-			kmsStorageParams: &storageParameters{storageType: storageTypeMemOption},
-		}, &mockServer{})
+	const invalidStorageOption = "invalid"
 
-		require.Error(t, err)
-	})
-}
+	t.Run("Success with default args", func(t *testing.T) {
+		params := kmsRestParams(t)
 
-func TestPrepareOperationConfig(t *testing.T) {
-	t.Run("Success with in-memory db option", func(t *testing.T) {
-		config, err := prepareOperationConfig(&kmsRestParameters{
-			storageParams:           &storageParameters{storageType: storageTypeMemOption},
-			kmsStorageParams:        &storageParameters{storageType: storageTypeMemOption},
-			keyManagerStorageParams: &storageParameters{storageType: storageTypeMemOption},
-		})
-
+		err := startKmsService(params, &mockServer{})
 		require.NoError(t, err)
-		require.NotNil(t, config)
-		require.NotNil(t, config.KeystoreService)
-		require.NotNil(t, config.KMSServiceCreator)
-		require.NotNil(t, config.Logger)
 	})
 
-	// TODO(#53): don't depend on error message defined in external package
-	t.Run("Fail with CouchDB option", func(t *testing.T) {
-		config, err := prepareOperationConfig(&kmsRestParameters{
-			storageParams:           &storageParameters{storageType: storageTypeCouchDBOption, storageURL: "url"},
-			kmsStorageParams:        &storageParameters{storageType: storageTypeCouchDBOption, storageURL: "url"},
-			keyManagerStorageParams: &storageParameters{storageType: storageTypeCouchDBOption, storageURL: "url"},
-		})
+	t.Run("Fail with invalid storage option", func(t *testing.T) {
+		params := kmsRestParams(t)
+		params.storageParams.storageType = invalidStorageOption
 
+		err := startKmsService(params, &mockServer{})
 		require.Error(t, err)
-		require.Contains(t, err.Error(), "failure while pinging couchDB")
-		require.Nil(t, config)
 	})
 
-	t.Run("Fail with invalid db option", func(t *testing.T) {
-		config, err := prepareOperationConfig(&kmsRestParameters{
-			storageParams:           &storageParameters{storageType: "invalid"},
-			kmsStorageParams:        &storageParameters{storageType: storageTypeMemOption},
-			keyManagerStorageParams: &storageParameters{storageType: storageTypeMemOption},
-		})
+	t.Run("Fail with invalid primary key storage option", func(t *testing.T) {
+		params := kmsRestParams(t)
+		params.primaryKeyStorageParams.storageType = invalidStorageOption
 
-		require.Nil(t, config)
+		err := startKmsService(params, &mockServer{})
+		require.Error(t, err)
+	})
+
+	t.Run("Fail with invalid local kms storage option", func(t *testing.T) {
+		params := kmsRestParams(t)
+		params.localKMSStorageParams.storageType = invalidStorageOption
+
+		err := startKmsService(params, &mockServer{})
 		require.Error(t, err)
 	})
 }
 
-func TestKeyManagerStorageResolver(t *testing.T) { // TODO(#53): Rewrite this test
-	config, err := prepareOperationConfig(&kmsRestParameters{
-		storageParams:           &storageParameters{storageType: storageTypeMemOption},
-		kmsStorageParams:        &storageParameters{storageType: storageTypeMemOption},
-		keyManagerStorageParams: &storageParameters{storageType: storageTypeEDVOption},
-	})
-
-	require.NotNil(t, config)
-	require.NoError(t, err)
-
-	req, err := http.NewRequestWithContext(context.Background(), http.MethodPost, "",
-		bytes.NewBuffer([]byte(`{"passphrase":"p@ssphrase"}`)))
-	require.NoError(t, err)
-
-	req = mux.SetURLVars(req, map[string]string{
-		"keystoreID": "testKeystoreID",
-	})
-
-	srv, err := config.KMSServiceCreator(req)
-	require.Nil(t, srv)
-	require.Error(t, err)
+func requiredArgs() []string {
+	return []string{
+		"--" + hostURLFlagName, "localhost:8080",
+		"--" + databaseTypeFlagName, storageTypeMemOption,
+		"--" + primaryKeyDatabaseTypeFlagName, storageTypeMemOption,
+		"--" + localKMSDatabaseTypeFlagName, storageTypeMemOption,
+		"--" + keyManagerStorageTypeFlagName, storageTypeMemOption,
+	}
 }
 
 func buildAllArgsWithOneBlank(flags []string, blankArg string) []string {
@@ -402,13 +394,19 @@ func buildAllArgsWithOneBlank(flags []string, blankArg string) []string {
 	return args
 }
 
-func requiredArgs() []string {
-	return []string{
-		"--" + hostURLFlagName, "localhost:8080",
-		"--" + databaseTypeFlagName, storageTypeMemOption,
-		"--" + kmsDatabaseTypeFlagName, storageTypeMemOption,
-		"--" + keyManagerStorageTypeFlagName, storageTypeMemOption,
-	}
+func kmsRestParams(t *testing.T) *kmsRestParameters {
+	t.Helper()
+
+	startCmd := GetStartCmd(&mockServer{})
+
+	err := startCmd.ParseFlags(requiredArgs())
+	require.NoError(t, err)
+
+	params, err := getKmsRestParameters(startCmd)
+	require.NotNil(t, params)
+	require.NoError(t, err)
+
+	return params
 }
 
 func setEnvVars(t *testing.T) {
@@ -418,7 +416,10 @@ func setEnvVars(t *testing.T) {
 	err = os.Setenv(databaseTypeEnvKey, storageTypeMemOption)
 	require.NoError(t, err)
 
-	err = os.Setenv(kmsDatabaseTypeEnvKey, storageTypeMemOption)
+	err = os.Setenv(primaryKeyDatabaseTypeEnvKey, storageTypeMemOption)
+	require.NoError(t, err)
+
+	err = os.Setenv(localKMSDatabaseTypeEnvKey, storageTypeMemOption)
 	require.NoError(t, err)
 
 	err = os.Setenv(keyManagerStorageTypeEnvKey, storageTypeMemOption)
@@ -432,7 +433,10 @@ func unsetEnvVars(t *testing.T) {
 	err = os.Unsetenv(databaseTypeEnvKey)
 	require.NoError(t, err)
 
-	err = os.Unsetenv(kmsDatabaseTypeEnvKey)
+	err = os.Unsetenv(primaryKeyDatabaseTypeEnvKey)
+	require.NoError(t, err)
+
+	err = os.Unsetenv(localKMSDatabaseTypeEnvKey)
 	require.NoError(t, err)
 
 	err = os.Unsetenv(keyManagerStorageTypeEnvKey)
@@ -452,10 +456,10 @@ func checkFlagPropertiesCorrect(t *testing.T, cmd *cobra.Command, flagName, flag
 	require.Nil(t, flagAnnotations)
 }
 
-func createMasterKeyFile(t *testing.T, empty bool) (string, func()) {
+func createKeyFile(t *testing.T, empty bool) (string, func()) {
 	t.Helper()
 
-	f, err := ioutil.TempFile("", "service-lock.key")
+	f, err := ioutil.TempFile("", "secret-lock.key")
 	require.NoError(t, err)
 
 	closeFunc := func() {
@@ -467,27 +471,16 @@ func createMasterKeyFile(t *testing.T, empty bool) (string, func()) {
 		return f.Name(), closeFunc
 	}
 
-	const keySize = 32
-
-	key := randomBytes(keySize)
-	require.NotEmpty(t, key)
-
-	encoded := base64.URLEncoding.EncodeToString(key)
-
-	n, err := f.Write([]byte(encoded))
+	key := make([]byte, sha256.Size)
+	_, err = rand.Read(key)
 	require.NoError(t, err)
-	require.Equal(t, len(encoded), n)
+
+	encodedKey := make([]byte, base64.URLEncoding.EncodedLen(len(key)))
+	base64.URLEncoding.Encode(encodedKey, key)
+
+	n, err := f.Write(encodedKey)
+	require.NoError(t, err)
+	require.Equal(t, len(encodedKey), n)
 
 	return f.Name(), closeFunc
-}
-
-func randomBytes(size uint32) []byte {
-	buf := make([]byte, size)
-
-	_, err := rand.Read(buf)
-	if err != nil {
-		panic(err)
-	}
-
-	return buf
 }

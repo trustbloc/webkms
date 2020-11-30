@@ -7,7 +7,6 @@ SPDX-License-Identifier: Apache-2.0
 package startcmd
 
 import (
-	"crypto/tls"
 	"errors"
 	"fmt"
 	"net/http"
@@ -16,42 +15,39 @@ import (
 
 	"github.com/gorilla/mux"
 	ariescouchdbstorage "github.com/hyperledger/aries-framework-go-ext/component/storage/couchdb"
-	cryptoapi "github.com/hyperledger/aries-framework-go/pkg/crypto"
 	"github.com/hyperledger/aries-framework-go/pkg/crypto/tinkcrypto"
-	arieskms "github.com/hyperledger/aries-framework-go/pkg/kms"
-	"github.com/hyperledger/aries-framework-go/pkg/secretlock"
-	"github.com/hyperledger/aries-framework-go/pkg/secretlock/local"
-	"github.com/hyperledger/aries-framework-go/pkg/secretlock/noop"
 	ariesstorage "github.com/hyperledger/aries-framework-go/pkg/storage"
 	ariesmemstorage "github.com/hyperledger/aries-framework-go/pkg/storage/mem"
 	"github.com/rs/cors"
 	"github.com/spf13/cobra"
 	"github.com/trustbloc/edge-core/pkg/log"
 	"github.com/trustbloc/edge-core/pkg/restapi/logspec"
-	"github.com/trustbloc/edge-core/pkg/sss/base"
 	"github.com/trustbloc/edge-core/pkg/storage"
 	couchdbstore "github.com/trustbloc/edge-core/pkg/storage/couchdb"
 	"github.com/trustbloc/edge-core/pkg/storage/memstore"
 	cmdutils "github.com/trustbloc/edge-core/pkg/utils/cmd"
-	tlsutils "github.com/trustbloc/edge-core/pkg/utils/tls"
 
 	"github.com/trustbloc/hub-kms/pkg/auth/zcapld"
-	"github.com/trustbloc/hub-kms/pkg/keystore"
-	"github.com/trustbloc/hub-kms/pkg/kms"
 	"github.com/trustbloc/hub-kms/pkg/restapi/healthcheck"
 	"github.com/trustbloc/hub-kms/pkg/restapi/kms/operation"
-	lock "github.com/trustbloc/hub-kms/pkg/secretlock"
-	"github.com/trustbloc/hub-kms/pkg/secretlock/secretsplitlock"
-	"github.com/trustbloc/hub-kms/pkg/storage/edv"
 )
 
 const (
-	commonEnvVarUsageText = "Alternatively, this can be set with the following environment variable: "
-
 	hostURLFlagName  = "host-url"
 	hostURLFlagUsage = "URL to run the KMS instance on. Format: HostName:Port."
 	hostURLEnvKey    = "KMS_HOST_URL"
 
+	logLevelFlagName        = "log-level"
+	logLevelEnvKey          = "KMS_LOG_LEVEL"
+	logLevelFlagShorthand   = "l"
+	logLevelPrefixFlagUsage = "Logging level to set. Supported options: critical, error, warning, info, debug. " +
+		`Defaults to "info". ` + commonEnvVarUsageText + logLevelEnvKey
+
+	commonEnvVarUsageText = "Alternatively, this can be set with the following environment variable: "
+)
+
+// TLS options.
+const (
 	tlsSystemCertPoolFlagName      = "tls-systemcertpool"
 	tlsSystemCertPoolFlagShorthand = "s"
 	tlsSystemCertPoolFlagUsage     = "Use system certificate pool. Possible values [true] [false]. " +
@@ -72,18 +68,10 @@ const (
 	tlsServeKeyPathFlagUsage = "Path to the private key to use when serving HTTPS. " +
 		commonEnvVarUsageText + tlsServeKeyPathFlagEnvKey
 	tlsServeKeyPathFlagEnvKey = "KMS_TLS_SERVE_KEY"
+)
 
-	kmsMasterKeyPathFlagName  = "kms-master-key-path" // TODO(#101): Update "master" key term
-	kmsMasterKeyPathEnvKey    = "KMS_MASTER_KEY_PATH"
-	kmsMasterKeyPathFlagUsage = "The path to the file with master key to be used for secret lock. If missing noop " +
-		"service lock is used. " + commonEnvVarUsageText + kmsMasterKeyPathEnvKey
-
-	logLevelFlagName        = "log-level"
-	logLevelEnvKey          = "KMS_LOG_LEVEL"
-	logLevelFlagShorthand   = "l"
-	logLevelPrefixFlagUsage = "Logging level to set. Supported options: critical, error, warning, info, debug. " +
-		`Defaults to "info". ` + commonEnvVarUsageText + logLevelEnvKey
-
+// Storage for Keystore metadata.
+const (
 	databaseTypeFlagName  = "database-type"
 	databaseTypeEnvKey    = "KMS_DATABASE_TYPE"
 	databaseTypeFlagUsage = "The type of database to use for storing metadata about keystores and " +
@@ -98,22 +86,56 @@ const (
 	databasePrefixEnvKey    = "KMS_DATABASE_PREFIX"
 	databasePrefixFlagUsage = "An optional prefix to be used when creating and retrieving underlying databases. " +
 		commonEnvVarUsageText + databasePrefixEnvKey
+)
 
-	kmsDatabaseTypeFlagName  = "kms-secrets-database-type"
-	kmsDatabaseTypeEnvKey    = "KMS_SECRETS_DATABASE_TYPE"
-	kmsDatabaseTypeFlagUsage = "The type of database to use for storing KMS secrets for Keystore. " +
-		"Supported options: mem, couchdb. " + commonEnvVarUsageText + kmsDatabaseTypeEnvKey
+// Path to the file with key to be used by secret lock to protect primary key.
+const (
+	secretLockKeyPathFlagName  = "secret-lock-key-path"
+	secretLockKeyPathEnvKey    = "KMS_SECRET_LOCK_KEY_PATH" //nolint:gosec // not hard-coded credentials
+	secretLockKeyPathFlagUsage = "The path to the file with key to be used by local secret lock. If missing noop " +
+		"service lock is used. " + commonEnvVarUsageText + secretLockKeyPathEnvKey
+)
 
-	kmsDatabaseURLFlagName  = "kms-secrets-database-url"
-	kmsDatabaseURLEnvKey    = "KMS_SECRETS_DATABASE_URL"
-	kmsDatabaseURLFlagUsage = "The URL of the database for KMS secrets. Not needed if using in-memory storage. " +
-		"For CouchDB, include the username:password@ text if required. " + commonEnvVarUsageText + kmsDatabaseURLEnvKey
+// Storage for primary keys.
+const (
+	primaryKeyDatabaseTypeFlagName  = "primary-key-database-type"
+	primaryKeyDatabaseTypeEnvKey    = "KMS_PRIMARY_KEY_DATABASE_TYPE"
+	primaryKeyDatabaseTypeFlagUsage = "The type of database to use for storing primary keys. " +
+		"Supported options: mem, couchdb. " + commonEnvVarUsageText + primaryKeyDatabaseTypeEnvKey
 
-	kmsDatabasePrefixFlagName  = "kms-secrets-database-prefix"
-	kmsDatabasePrefixEnvKey    = "KMS_SECRETS_DATABASE_PREFIX"
-	kmsDatabasePrefixFlagUsage = "An optional prefix to be used when creating and retrieving the underlying " +
-		"KMS secrets database. " + commonEnvVarUsageText + kmsDatabasePrefixEnvKey
+	primaryKeyDatabaseURLFlagName  = "primary-key-database-url"
+	primaryKeyDatabaseURLEnvKey    = "KMS_PRIMARY_KEY_DATABASE_URL"
+	primaryKeyDatabaseURLFlagUsage = "The URL of the database for primary keys. Not needed if using in-memory " +
+		"storage. For CouchDB, include the username:password@ text if required. " + commonEnvVarUsageText +
+		primaryKeyDatabaseURLEnvKey
 
+	primaryKeyDatabasePrefixFlagName  = "primary-key-database-prefix"
+	primaryKeyDatabasePrefixEnvKey    = "KMS_PRIMARY_KEY_DATABASE_PREFIX"
+	primaryKeyDatabasePrefixFlagUsage = "An optional prefix to be used when creating and retrieving the underlying " +
+		"database for primary keys. " + commonEnvVarUsageText + primaryKeyDatabasePrefixEnvKey
+)
+
+// Storage for local KMS (supports Keystore).
+const (
+	localKMSDatabaseTypeFlagName  = "local-kms-database-type"
+	localKMSDatabaseTypeEnvKey    = "KMS_LOCAL_KMS_DATABASE_TYPE"
+	localKMSDatabaseTypeFlagUsage = "The type of database to use for storing local KMS secrets (e.g. keys for " +
+		"Keystore). Supported options: mem, couchdb. " + commonEnvVarUsageText + localKMSDatabaseTypeEnvKey
+
+	localKMSDatabaseURLFlagName  = "local-kms-database-url"
+	localKMSDatabaseURLEnvKey    = "KMS_LOCAL_KMS_DATABASE_URL"
+	localKMSDatabaseURLFlagUsage = "The URL of the database for local KMS. Not needed if using in-memory storage. " +
+		"For CouchDB, include the username:password@ text if required. " +
+		commonEnvVarUsageText + localKMSDatabaseURLEnvKey
+
+	localKMSDatabasePrefixFlagName  = "local-kms-database-prefix"
+	localKMSDatabasePrefixEnvKey    = "KMS_LOCAL_KMS_DATABASE_PREFIX"
+	localKMSDatabasePrefixFlagUsage = "An optional prefix to be used when creating and retrieving the underlying " +
+		"local KMS database. " + commonEnvVarUsageText + localKMSDatabasePrefixEnvKey
+)
+
+// Storage for Key Manager (KMS that works with user's keys).
+const (
 	keyManagerStorageTypeFlagName  = "key-manager-storage-type"
 	keyManagerStorageTypeEnvKey    = "KMS_KEY_MANAGER_STORAGE_TYPE"
 	keyManagerStorageTypeFlagUsage = "The type of storage to use for user's key manager. " +
@@ -129,15 +151,15 @@ const (
 	keyManagerStoragePrefixEnvKey    = "KMS_KEY_MANAGER_STORAGE_PREFIX"
 	keyManagerStoragePrefixFlagUsage = "An optional prefix to be used when creating and retrieving the " +
 		"underlying user's key manager storage. " + commonEnvVarUsageText + keyManagerStoragePrefixEnvKey
+)
 
+// Hub Auth integration parameters.
+const (
 	hubAuthURLFlagName  = "hub-auth-url"
 	hubAuthURLEnvKey    = "KMS_HUB_AUTH_URL"
 	hubAuthURLFlagUsage = "The URL of Hub Auth server to use for fetching secret share for secret lock. If not " +
 		"specified secret lock based on master key is used. " + commonEnvVarUsageText + hubAuthURLEnvKey
-)
 
-const (
-	// TODO: this is temporary until we come up with a better solution in both hub auth and hub kms.
 	hubAuthAPITokenFlagName  = "hub-auth-api-token"     //nolint:gosec // not hard-coded credentials
 	hubAuthAPITokenEnvKey    = "KMS_HUB_AUTH_API_TOKEN" //nolint:gosec // not hard-coded credentials
 	hubAuthAPITokenFlagUsage = "Static token used to protect the GET /secrets API in Hub Auth. " +
@@ -227,11 +249,15 @@ func createFlags(startCmd *cobra.Command) {
 	startCmd.Flags().StringP(databaseURLFlagName, "", "", databaseURLFlagUsage)
 	startCmd.Flags().StringP(databasePrefixFlagName, "", "", databasePrefixFlagUsage)
 
-	startCmd.Flags().StringP(kmsDatabaseTypeFlagName, "", "", kmsDatabaseTypeFlagUsage)
-	startCmd.Flags().StringP(kmsDatabaseURLFlagName, "", "", kmsDatabaseURLFlagUsage)
-	startCmd.Flags().StringP(kmsDatabasePrefixFlagName, "", "", kmsDatabasePrefixFlagUsage)
+	startCmd.Flags().StringP(secretLockKeyPathFlagName, "", "", secretLockKeyPathFlagUsage)
 
-	startCmd.Flags().StringP(kmsMasterKeyPathFlagName, "", "", kmsMasterKeyPathFlagUsage)
+	startCmd.Flags().StringP(primaryKeyDatabaseTypeFlagName, "", "", primaryKeyDatabaseTypeFlagUsage)
+	startCmd.Flags().StringP(primaryKeyDatabaseURLFlagName, "", "", primaryKeyDatabaseURLFlagUsage)
+	startCmd.Flags().StringP(primaryKeyDatabasePrefixFlagName, "", "", primaryKeyDatabasePrefixFlagUsage)
+
+	startCmd.Flags().StringP(localKMSDatabaseTypeFlagName, "", "", localKMSDatabaseTypeFlagUsage)
+	startCmd.Flags().StringP(localKMSDatabaseURLFlagName, "", "", localKMSDatabaseURLFlagUsage)
+	startCmd.Flags().StringP(localKMSDatabasePrefixFlagName, "", "", localKMSDatabasePrefixFlagUsage)
 
 	startCmd.Flags().StringP(keyManagerStorageTypeFlagName, "", "", keyManagerStorageTypeFlagUsage)
 	startCmd.Flags().StringP(keyManagerStorageURLFlagName, "", "", keyManagerStorageURLFlagUsage)
@@ -249,8 +275,9 @@ type kmsRestParameters struct {
 	tlsCACerts              []string
 	tlsServeParams          *tlsServeParameters
 	storageParams           *storageParameters
-	kmsStorageParams        *storageParameters
-	kmsMasterKeyPath        string
+	secretLockKeyPath       string
+	primaryKeyStorageParams *storageParameters
+	localKMSStorageParams   *storageParameters
 	keyManagerStorageParams *storageParameters
 	hubAuthURL              string
 	hubAuthAPIToken         string
@@ -286,18 +313,28 @@ func getKmsRestParameters(cmd *cobra.Command) (*kmsRestParameters, error) { //no
 		return nil, err
 	}
 
+	logLevel, err := cmdutils.GetUserSetVarFromString(cmd, logLevelFlagName, logLevelEnvKey, true)
+	if err != nil {
+		return nil, err
+	}
+
 	storageParams, err := getStorageParameters(cmd)
 	if err != nil {
 		return nil, err
 	}
 
-	kmsStorageParams, err := getKMSStorageParameters(cmd)
+	secretLockKeyPath, err := cmdutils.GetUserSetVarFromString(cmd, secretLockKeyPathFlagName,
+		secretLockKeyPathEnvKey, true)
 	if err != nil {
 		return nil, err
 	}
 
-	// TODO(#101): Update "master" key term
-	masterKeyPath, err := cmdutils.GetUserSetVarFromString(cmd, kmsMasterKeyPathFlagName, kmsMasterKeyPathEnvKey, true)
+	primaryKeyStorageParams, err := getPrimaryKeyStorageParameters(cmd)
+	if err != nil {
+		return nil, err
+	}
+
+	localKMSStorageParams, err := getLocalKMSStorageParameters(cmd)
 	if err != nil {
 		return nil, err
 	}
@@ -313,11 +350,6 @@ func getKmsRestParameters(cmd *cobra.Command) (*kmsRestParameters, error) { //no
 	}
 
 	hubAuthAPIToken, err := cmdutils.GetUserSetVarFromString(cmd, hubAuthAPITokenFlagName, hubAuthAPITokenEnvKey, true)
-	if err != nil {
-		return nil, err
-	}
-
-	logLevel, err := cmdutils.GetUserSetVarFromString(cmd, logLevelFlagName, logLevelEnvKey, true)
 	if err != nil {
 		return nil, err
 	}
@@ -342,8 +374,9 @@ func getKmsRestParameters(cmd *cobra.Command) (*kmsRestParameters, error) { //no
 		tlsCACerts:              tlsCACerts,
 		tlsServeParams:          tlsServeParams,
 		storageParams:           storageParams,
-		kmsStorageParams:        kmsStorageParams,
-		kmsMasterKeyPath:        masterKeyPath,
+		secretLockKeyPath:       secretLockKeyPath,
+		primaryKeyStorageParams: primaryKeyStorageParams,
+		localKMSStorageParams:   localKMSStorageParams,
 		keyManagerStorageParams: keyManagerStorageParams,
 		hubAuthURL:              hubAuthURL,
 		hubAuthAPIToken:         hubAuthAPIToken,
@@ -412,18 +445,47 @@ func getStorageParameters(cmd *cobra.Command) (*storageParameters, error) {
 	}, nil
 }
 
-func getKMSStorageParameters(cmd *cobra.Command) (*storageParameters, error) {
-	dbType, err := cmdutils.GetUserSetVarFromString(cmd, kmsDatabaseTypeFlagName, kmsDatabaseTypeEnvKey, false)
+func getPrimaryKeyStorageParameters(cmd *cobra.Command) (*storageParameters, error) {
+	storageType, err := cmdutils.GetUserSetVarFromString(cmd, primaryKeyDatabaseTypeFlagName,
+		primaryKeyDatabaseTypeEnvKey, false)
 	if err != nil {
 		return nil, err
 	}
 
-	dbURL, err := cmdutils.GetUserSetVarFromString(cmd, kmsDatabaseURLFlagName, kmsDatabaseURLEnvKey, true)
+	storageURL, err := cmdutils.GetUserSetVarFromString(cmd, primaryKeyDatabaseURLFlagName,
+		primaryKeyDatabaseURLEnvKey, true)
 	if err != nil {
 		return nil, err
 	}
 
-	dbPrefix, err := cmdutils.GetUserSetVarFromString(cmd, kmsDatabasePrefixFlagName, kmsDatabasePrefixEnvKey, true)
+	storagePrefix, err := cmdutils.GetUserSetVarFromString(cmd, primaryKeyDatabasePrefixFlagName,
+		primaryKeyDatabasePrefixEnvKey, true)
+	if err != nil {
+		return nil, err
+	}
+
+	return &storageParameters{
+		storageType:   storageType,
+		storageURL:    storageURL,
+		storagePrefix: storagePrefix,
+	}, nil
+}
+
+func getLocalKMSStorageParameters(cmd *cobra.Command) (*storageParameters, error) {
+	dbType, err := cmdutils.GetUserSetVarFromString(cmd, localKMSDatabaseTypeFlagName,
+		localKMSDatabaseTypeEnvKey, false)
+	if err != nil {
+		return nil, err
+	}
+
+	dbURL, err := cmdutils.GetUserSetVarFromString(cmd, localKMSDatabaseURLFlagName,
+		localKMSDatabaseURLEnvKey, true)
+	if err != nil {
+		return nil, err
+	}
+
+	dbPrefix, err := cmdutils.GetUserSetVarFromString(cmd, localKMSDatabasePrefixFlagName,
+		localKMSDatabasePrefixEnvKey, true)
 	if err != nil {
 		return nil, err
 	}
@@ -461,14 +523,14 @@ func getKeyManagerStorageParameters(cmd *cobra.Command) (*storageParameters, err
 	}, nil
 }
 
-func startKmsService(parameters *kmsRestParameters, srv Server) error {
-	if parameters.logLevel != "" {
-		setLogLevel(parameters.logLevel, srv)
+func startKmsService(params *kmsRestParameters, srv Server) error {
+	if params.logLevel != "" {
+		setLogLevel(params.logLevel, srv)
 	}
 
 	router := mux.NewRouter()
 
-	// add healthcheck API handlers
+	// add health check API handlers
 	healthCheckLogger := log.New("hub-kms/healthcheck")
 	healthCheckService := healthcheck.New(healthCheckLogger)
 
@@ -476,8 +538,8 @@ func startKmsService(parameters *kmsRestParameters, srv Server) error {
 		router.HandleFunc(handler.Path(), handler.Handle()).Methods(handler.Method())
 	}
 
-	// add KMS API handlers
-	config, err := prepareOperationConfig(parameters)
+	// add KMS REST API handlers
+	config, err := prepareOperationConfig(params)
 	if err != nil {
 		return err
 	}
@@ -486,7 +548,7 @@ func startKmsService(parameters *kmsRestParameters, srv Server) error {
 
 	kmsREST := operation.New(config)
 
-	if parameters.enableZCAPs {
+	if params.enableZCAPs {
 		kmsRouter.Use(kmsREST.ZCAPLDMiddleware)
 	}
 
@@ -499,12 +561,12 @@ func startKmsService(parameters *kmsRestParameters, srv Server) error {
 		router.HandleFunc(handler.Path(), handler.Handle()).Methods(handler.Method())
 	}
 
-	srv.Logger().Infof("Starting KMS on host %s", parameters.hostURL)
+	srv.Logger().Infof("Starting KMS on host %s", params.hostURL)
 
 	return srv.ListenAndServe(
-		parameters.hostURL,
-		parameters.tlsServeParams.certPath,
-		parameters.tlsServeParams.keyPath,
+		params.hostURL,
+		params.tlsServeParams.certPath,
+		params.tlsServeParams.keyPath,
 		constructCORSHandler(router))
 }
 
@@ -520,44 +582,24 @@ func setLogLevel(level string, srv Server) {
 	log.SetLevel("", logLevel)
 }
 
-type keystoreServiceProvider struct {
-	storageProvider    storage.Provider
-	keyManagerProvider arieskms.Provider
-	keyManagerCreator  arieskms.Creator
-}
-
-func (p keystoreServiceProvider) StorageProvider() storage.Provider {
-	return p.storageProvider
-}
-
-func (p keystoreServiceProvider) KeyManagerProvider() arieskms.Provider {
-	return p.keyManagerProvider
-}
-
-func (p keystoreServiceProvider) KeyManagerCreator() arieskms.Creator {
-	return p.keyManagerCreator
-}
-
-type kmsProvider struct {
-	storageProvider ariesstorage.Provider
-	secretLock      secretlock.Service
-}
-
-func (k kmsProvider) StorageProvider() ariesstorage.Provider {
-	return k.storageProvider
-}
-
-func (k kmsProvider) SecretLock() secretlock.Service {
-	return k.secretLock
-}
-
-func prepareOperationConfig(parameters *kmsRestParameters) (*operation.Config, error) {
-	storageProvider, err := getStorageProvider(parameters.storageParams)
+func prepareOperationConfig(params *kmsRestParameters) (*operation.Config, error) {
+	keystoreStorage, err := prepareStorageProvider(params.storageParams)
 	if err != nil {
 		return nil, err
 	}
 
-	keystoreService, err := prepareKeystoreService(parameters, storageProvider)
+	primaryKeyStorage, err := prepareKMSStorageProvider(params.primaryKeyStorageParams)
+	if err != nil {
+		return nil, err
+	}
+
+	localKMSStorage, err := prepareKMSStorageProvider(params.localKMSStorageParams)
+	if err != nil {
+		return nil, err
+	}
+
+	keystoreService, err := prepareKeystoreService(keystoreStorage, primaryKeyStorage, localKMSStorage,
+		params.secretLockKeyPath)
 	if err != nil {
 		return nil, err
 	}
@@ -567,17 +609,18 @@ func prepareOperationConfig(parameters *kmsRestParameters) (*operation.Config, e
 		return nil, err
 	}
 
-	km, err := keystoreService.KeyManager()
+	keyManager, err := keystoreService.KeyManager()
 	if err != nil {
 		return nil, err
 	}
 
-	authService, err := zcapld.New(km, cryptoService, storageProvider)
+	authService, err := zcapld.New(keyManager, cryptoService, keystoreStorage)
 	if err != nil {
 		return nil, err
 	}
 
-	kmsServiceCreator, err := prepareKMSServiceCreator(keystoreService, cryptoService, authService, parameters)
+	kmsServiceCreator, err := prepareKMSServiceCreator(keystoreService, cryptoService, authService,
+		primaryKeyStorage, params)
 	if err != nil {
 		return nil, err
 	}
@@ -593,123 +636,12 @@ func prepareOperationConfig(parameters *kmsRestParameters) (*operation.Config, e
 		KeystoreService:   keystoreService,
 		KMSServiceCreator: kmsServiceCreator,
 		Logger:            log.New("hub-kms/restapi"),
-		IsEDVUsed:         strings.EqualFold(parameters.keyManagerStorageParams.storageType, storageTypeEDVOption),
+		UseEDV:            strings.EqualFold(params.keyManagerStorageParams.storageType, storageTypeEDVOption),
 		LDDocumentLoader:  ldDocLoader,
 	}, nil
 }
 
-func prepareKeystoreService(parameters *kmsRestParameters, sp storage.Provider) (keystore.Service, error) {
-	const keyURI = "local-lock://keystorekms"
-
-	kmsStorageProvider, err := getKMSStorageProvider(parameters.kmsStorageParams)
-	if err != nil {
-		return nil, err
-	}
-
-	secLock, err := getMasterKeySecretLock(parameters.kmsMasterKeyPath)
-	if err != nil {
-		return nil, err
-	}
-
-	kmsProvider := &kmsProvider{
-		storageProvider: kmsStorageProvider,
-		secretLock:      secLock,
-	}
-
-	kmsCreator := func(provider arieskms.Provider) (arieskms.KeyManager, error) {
-		k, kerr := kms.NewLocalKMS(keyURI, provider.StorageProvider(), provider.SecretLock())
-		if kerr != nil {
-			return nil, fmt.Errorf("failed to create localkms: %w", kerr)
-		}
-
-		return k, nil
-	}
-
-	keystoreServiceProv := keystoreServiceProvider{
-		storageProvider:    sp,
-		keyManagerProvider: kmsProvider,
-		keyManagerCreator:  kmsCreator,
-	}
-
-	keystoreService, err := keystore.NewService(keystoreServiceProv)
-	if err != nil {
-		return nil, err
-	}
-
-	return keystoreService, nil
-}
-
-func prepareKMSServiceCreator(keystoreSrv keystore.Service, cryptoSrv cryptoapi.Crypto, signer edv.HeaderSigner,
-	params *kmsRestParameters) (kms.ServiceCreator, error) {
-	rootCAs, err := tlsutils.GetCertPool(params.tlsUseSystemCertPool, params.tlsCACerts)
-	if err != nil {
-		return nil, err
-	}
-
-	tlsConfig := &tls.Config{
-		RootCAs:    rootCAs,
-		MinVersion: tls.VersionTLS12,
-	}
-
-	return kms.NewServiceCreator(&kms.Config{
-		KeystoreService:           keystoreSrv,
-		CryptoService:             cryptoSrv,
-		KeyManagerStorageResolver: getKeyManagerStorageResolver(keystoreSrv, cryptoSrv, signer, params, tlsConfig),
-		SecretLockResolver:        getSecretLockResolver(params, tlsConfig),
-	}), nil
-}
-
-func getKeyManagerStorageResolver(keystoreSrv keystore.Service, cryptoSrv cryptoapi.Crypto, signer edv.HeaderSigner,
-	params *kmsRestParameters, tlsConfig *tls.Config) func(string) (ariesstorage.Provider, error) {
-	switch {
-	case strings.EqualFold(params.keyManagerStorageParams.storageType, storageTypeEDVOption):
-		return func(keystoreID string) (ariesstorage.Provider, error) {
-			config := &edv.Config{
-				KeystoreService: keystoreSrv,
-				CryptoService:   cryptoSrv,
-				EDVServerURL:    params.keyManagerStorageParams.storageURL,
-				KeystoreID:      keystoreID,
-				TLSConfig:       tlsConfig,
-				HeaderSigner:    signer,
-			}
-
-			return edv.NewStorageProvider(config)
-		}
-	default:
-		return func(string) (ariesstorage.Provider, error) {
-			return getKMSStorageProvider(params.keyManagerStorageParams)
-		}
-	}
-}
-
-type keySecretLockResolver struct {
-	keyPath string
-}
-
-func (r *keySecretLockResolver) Resolve(_ *http.Request) (secretlock.Service, error) {
-	return getMasterKeySecretLock(r.keyPath)
-}
-
-func getSecretLockResolver(params *kmsRestParameters, tlsConfig *tls.Config) lock.Resolver {
-	switch {
-	case params.hubAuthURL != "":
-		config := &secretsplitlock.Config{
-			HubAuthURL:      params.hubAuthURL,
-			HubAuthAPIToken: params.hubAuthAPIToken,
-			HTTPClient:      &http.Client{Transport: &http.Transport{TLSClientConfig: tlsConfig}},
-			SecretSplitter:  &base.Splitter{},
-			Logger:          log.New("hub-kms/secretsplitlock"),
-		}
-
-		return secretsplitlock.New(config)
-	default:
-		return &keySecretLockResolver{
-			keyPath: params.kmsMasterKeyPath,
-		}
-	}
-}
-
-func getStorageProvider(params *storageParameters) (storage.Provider, error) {
+func prepareStorageProvider(params *storageParameters) (storage.Provider, error) {
 	switch {
 	case strings.EqualFold(params.storageType, storageTypeMemOption):
 		return memstore.NewProvider(), nil
@@ -720,7 +652,7 @@ func getStorageProvider(params *storageParameters) (storage.Provider, error) {
 	}
 }
 
-func getKMSStorageProvider(params *storageParameters) (ariesstorage.Provider, error) {
+func prepareKMSStorageProvider(params *storageParameters) (ariesstorage.Provider, error) {
 	switch {
 	case strings.EqualFold(params.storageType, storageTypeMemOption):
 		return ariesmemstorage.NewProvider(), nil
@@ -730,20 +662,6 @@ func getKMSStorageProvider(params *storageParameters) (ariesstorage.Provider, er
 	default:
 		return nil, errors.New("KMS storage not set to a valid type")
 	}
-}
-
-// TODO(#101): Update "master" key term.
-func getMasterKeySecretLock(keyPath string) (secretlock.Service, error) {
-	if keyPath == "" {
-		return &noop.NoLock{}, nil
-	}
-
-	masterKeyReader, err := local.MasterKeyFromPath(keyPath)
-	if err != nil {
-		return nil, err
-	}
-
-	return local.NewService(masterKeyReader, nil)
 }
 
 func constructCORSHandler(handler http.Handler) http.Handler {

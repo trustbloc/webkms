@@ -35,13 +35,13 @@ func (p *MockProvider) StorageProvider() storage.Provider {
 	return p.MockStorageProvider
 }
 
-// KeyManagerProvider returns key manager Provider instance.
-func (p *MockProvider) KeyManagerProvider() arieskms.Provider {
+// KMSProvider returns KMS provider instance.
+func (p *MockProvider) KMSProvider() arieskms.Provider {
 	return p.MockKeyManagerProvider
 }
 
-// KeyManagerCreator returns key manager Creator.
-func (p *MockProvider) KeyManagerCreator() arieskms.Creator {
+// KMSCreator returns KMS creator.
+func (p *MockProvider) KMSCreator() arieskms.Creator {
 	return func(provider arieskms.Provider) (arieskms.KeyManager, error) {
 		if p.KeyManagerCreatorError != nil {
 			return nil, p.KeyManagerCreatorError

@@ -11,9 +11,16 @@
     "authenticators": [{
       "handler": "oauth2_introspection"
     }],
-    "mutators": [{
-      "handler": "noop"
-    }],
+    "mutators": [
+      {
+        "handler": "header",
+        "config": {
+          "headers": {
+            "Hub-Kms-User": "{{ print .Subject }}"
+          }
+        }
+      }
+    ],
     "authorizer": {
       "handler": "allow"
     }
@@ -30,9 +37,16 @@
     "authenticators": [{
       "handler": "oauth2_introspection"
     }],
-    "mutators": [{
-      "handler": "noop"
-    }],
+    "mutators": [
+      {
+        "handler": "header",
+        "config": {
+          "headers": {
+            "Hub-Kms-User": "{{ print .Subject }}"
+          }
+        }
+      }
+    ],
     "authorizer": {
       "handler": "allow"
     }

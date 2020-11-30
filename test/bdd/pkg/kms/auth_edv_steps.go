@@ -28,22 +28,8 @@ const (
 	secretEndpoint = "/secret"
 )
 
-func (s *Steps) createEDVDataVault(userName string) error { // nolint:funlen // ignore
-	login := authlogin.NewSteps(s.authBDDContext)
-
-	_, err := login.NewWalletLogin()
-	if err != nil {
-		return fmt.Errorf("failed to login wallet: %w", err)
-	}
-
-	u, ok := s.users[userName]
-	if !ok {
-		u = &user{name: userName}
-
-		s.users[userName] = u
-	}
-
-	u.accessToken = s.authBDDContext.AccessToken()
+func (s *Steps) createEDVDataVault(userName string) error {
+	u := s.users[userName]
 
 	authzUser := &user{
 		name:        userName,

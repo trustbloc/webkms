@@ -52,7 +52,7 @@ func NewBDDContext(caCertPath string) (*BDDContext, error) {
 	}
 
 	keyManager, err := localkms.New(
-		"local-lock://custom/master/key/",
+		"local-lock://custom-primary-key",
 		kmsProvider{storageProvider: ariesmemstorage.NewProvider(), secretLockService: &noop.NoLock{}},
 	)
 	if err != nil {

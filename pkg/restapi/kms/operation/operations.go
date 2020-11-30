@@ -118,7 +118,7 @@ type Operation struct {
 	keystoreService   keystore.Service
 	kmsServiceCreator func(req *http.Request) (kms.Service, error)
 	logger            log.Logger
-	isEDVUsed         bool
+	UseEDV            bool
 	authService       authService
 	ldDocLoader       ld.DocumentLoader
 }
@@ -128,7 +128,7 @@ type Config struct {
 	KeystoreService   keystore.Service
 	KMSServiceCreator func(req *http.Request) (kms.Service, error)
 	Logger            log.Logger
-	IsEDVUsed         bool
+	UseEDV            bool
 	AuthService       authService
 	LDDocumentLoader  ld.DocumentLoader
 }
@@ -139,7 +139,7 @@ func New(config *Config) *Operation {
 		keystoreService:   config.KeystoreService,
 		kmsServiceCreator: config.KMSServiceCreator,
 		logger:            config.Logger,
-		isEDVUsed:         config.IsEDVUsed,
+		UseEDV:            config.UseEDV,
 		authService:       config.AuthService,
 		ldDocLoader:       config.LDDocumentLoader,
 	}
@@ -182,7 +182,7 @@ func (o *Operation) createKeystoreHandler(rw http.ResponseWriter, req *http.Requ
 		keystore.WithCreatedAt(&createdAt),
 	}
 
-	if o.isEDVUsed {
+	if o.UseEDV {
 		opts = append(opts,
 			keystore.WithRecipientKeyType(arieskms.ECDH256KWAES256GCM),
 			keystore.WithMACKeyType(arieskms.HMACSHA256Tag256),
