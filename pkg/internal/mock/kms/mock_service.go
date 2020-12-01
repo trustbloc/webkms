@@ -32,6 +32,12 @@ type MockService struct {
 	VerifyMACErr    error
 	WrapKeyErr      error
 	UnwrapKeyErr    error
+	EasyValue       []byte
+	EasyOpenValue   []byte
+	SealOpenValue   []byte
+	EasyErr         error
+	EasyOpenErr     error
+	SealOpenErr     error
 }
 
 // NewMockService returns a new mock KMS service.
@@ -129,4 +135,31 @@ func (s *MockService) UnwrapKey(keystoreID, keyID string, recipientWK *crypto.Re
 	}
 
 	return s.UnwrapKeyValue, nil
+}
+
+// Easy seals a message with a provided nonce.
+func (s *MockService) Easy(keystoreID, keyID string, payload, nonce, theirPub []byte) ([]byte, error) {
+	if s.EasyErr != nil {
+		return nil, s.EasyErr
+	}
+
+	return s.EasyValue, nil
+}
+
+// EasyOpen unseals a message sealed with Easy, where the nonce is provided.
+func (s *MockService) EasyOpen(keystoreID string, cipherText, nonce, theirPub, myPub []byte) ([]byte, error) {
+	if s.EasyOpenErr != nil {
+		return nil, s.EasyOpenErr
+	}
+
+	return s.EasyOpenValue, nil
+}
+
+// SealOpen decrypts a payload encrypted with Seal.
+func (s *MockService) SealOpen(keystoreID string, cipher, myPub []byte) ([]byte, error) {
+	if s.SealOpenErr != nil {
+		return nil, s.SealOpenErr
+	}
+
+	return s.SealOpenValue, nil
 }

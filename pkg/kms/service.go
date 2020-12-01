@@ -29,6 +29,18 @@ type Service interface {
 		recipientPubKey *crypto.PublicKey) (*crypto.RecipientWrappedKey, error)
 	UnwrapKey(keystoreID, keyID string, recipientWK *crypto.RecipientWrappedKey,
 		senderPubKey *crypto.PublicKey) ([]byte, error)
+
+	// CryptoBox operations.
+	Easy(keystoreID, keyID string, payload, nonce, theirPub []byte) ([]byte, error)
+	EasyOpen(keystoreID string, cipherText, nonce, theirPub, myPub []byte) ([]byte, error)
+	SealOpen(keystoreID string, cipher, myPub []byte) ([]byte, error)
+}
+
+// CryptoBox provides an elliptic-curve-based authenticated encryption scheme (used in legacy packer).
+type CryptoBox interface {
+	Easy(payload, nonce, theirPub []byte, myKID string) ([]byte, error)
+	EasyOpen(cipherText, nonce, theirPub, myPub []byte) ([]byte, error)
+	SealOpen(cipherText, myPub []byte) ([]byte, error)
 }
 
 // Provider contains dependencies for the KMS service.
@@ -36,12 +48,14 @@ type Provider interface {
 	KeystoreService() keystore.Service
 	KeyManager() kms.KeyManager
 	Crypto() crypto.Crypto
+	CryptoBox() CryptoBox
 }
 
 type service struct {
 	keystore   keystore.Service
 	keyManager kms.KeyManager
 	crypto     crypto.Crypto
+	cryptoBox  CryptoBox
 }
 
 // NewService returns a new Service instance.
@@ -50,6 +64,7 @@ func NewService(provider Provider) Service {
 		keystore:   provider.KeystoreService(),
 		keyManager: provider.KeyManager(),
 		crypto:     provider.Crypto(),
+		cryptoBox:  provider.CryptoBox(),
 	}
 }
 

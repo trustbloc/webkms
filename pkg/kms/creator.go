@@ -62,10 +62,16 @@ func NewServiceCreator(c *Config) ServiceCreator {
 			return nil, err
 		}
 
+		cryptoBox, err := localkms.NewCryptoBox(keyManager)
+		if err != nil {
+			return nil, err
+		}
+
 		provider := kmsServiceProvider{
 			keystoreService: c.KeystoreService,
 			keyManager:      keyManager,
 			crypto:          c.CryptoService,
+			cryptoBox:       cryptoBox,
 		}
 
 		return NewService(provider), nil
@@ -89,6 +95,7 @@ type kmsServiceProvider struct {
 	keystoreService keystore.Service
 	keyManager      kms.KeyManager
 	crypto          crypto.Crypto
+	cryptoBox       CryptoBox
 }
 
 func (k kmsServiceProvider) KeystoreService() keystore.Service {
@@ -101,4 +108,8 @@ func (k kmsServiceProvider) KeyManager() kms.KeyManager {
 
 func (k kmsServiceProvider) Crypto() crypto.Crypto {
 	return k.crypto
+}
+
+func (k kmsServiceProvider) CryptoBox() CryptoBox {
+	return k.cryptoBox
 }

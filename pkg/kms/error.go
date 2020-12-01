@@ -26,6 +26,10 @@ const (
 	noPublicKeyFailure = "no public key"
 	noKeysFailure      = "no keys defined"
 	invalidKeyFailure  = "invalid key"
+
+	easyMessageFailed     = "easy message failed"
+	easyOpenMessageFailed = "easy open message failed"
+	sealOpenPayloadFailed = "seal open payload failed"
 )
 
 // ServiceError represents a KMS service error.

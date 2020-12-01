@@ -138,6 +138,12 @@ func expectedAction(n namer) (string, error) { // nolint:gocyclo // necessary co
 		action = actionWrap
 	case unwrapEndpoint:
 		action = actionUnwrap
+	case easyEndpoint:
+		action = actionEasy
+	case easyOpenEndpoint:
+		action = actionEasyOpen
+	case sealOpenEndpoint:
+		action = actionSealOpen
 	default:
 		err = fmt.Errorf("unsupported endpoint: %s", n.GetName())
 	}
@@ -182,6 +188,12 @@ func CapabilityInvocationAction(r *http.Request) (string, error) { // nolint:goc
 		action = actionWrap
 	case unwrapPath:
 		action = actionUnwrap
+	case easyPath:
+		action = actionEasy
+	case easyOpenPath:
+		action = actionEasyOpen
+	case sealOpenPath:
+		action = actionSealOpen
 	default:
 		err = fmt.Errorf("unsupported endpoint: %s", r.URL.Path)
 	}
