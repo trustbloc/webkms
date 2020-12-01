@@ -13,6 +13,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io/ioutil"
 	"net/http"
 	"net/url"
 
@@ -20,64 +21,54 @@ import (
 	"github.com/hyperledger/aries-framework-go/pkg/secretlock/local/masterlock/hkdf"
 	"github.com/trustbloc/edge-core/pkg/log"
 	"github.com/trustbloc/edge-core/pkg/sss"
+	"github.com/trustbloc/edge-core/pkg/sss/base"
 
 	"github.com/trustbloc/hub-kms/pkg/internal/support"
 )
 
 const (
-	secretHeader      = "Hub-Kms-Secret" //nolint:gosec // header with secret A
-	userHeader        = "Hub-Kms-User"   // header with a value that represent a user ("subject")
-	hubAuthSecretPath = "/secret"        // path on Hub Auth to get secret B
+	hubAuthSecretPath = "/secret" // path on Hub Auth to get secret share
 )
 
-// Config defines configuration for the secret split lock.
-type Config struct {
-	HubAuthURL      string
-	HubAuthAPIToken string
-	HTTPClient      support.HTTPClient
-	SecretSplitter  sss.SecretSplitter
-	Logger          log.Logger
+// HubAuthParams defines parameters for HubAuth to get the secret share.
+type HubAuthParams struct {
+	URL      string
+	APIToken string
+	Subject  string
 }
 
-type secretSplitLock struct {
-	hubAuthURL      string
-	hubAuthAPIToken string
-	httpClient      support.HTTPClient
-	secretSplitter  sss.SecretSplitter
-	logger          log.Logger
+// Options configures secret split lock dependencies.
+type Options struct {
+	HTTPClient     support.HTTPClient
+	SecretSplitter sss.SecretSplitter
+	Logger         log.Logger
 }
+
+// Option configures Options.
+type Option func(options *Options)
 
 // New returns a new secret split lock instance.
-func New(config *Config) *secretSplitLock { //nolint:golint // no need for secretSplitLock to be exported
-	return &secretSplitLock{
-		hubAuthURL:      config.HubAuthURL,
-		hubAuthAPIToken: config.HubAuthAPIToken,
-		httpClient:      config.HTTPClient,
-		secretSplitter:  config.SecretSplitter,
-		logger:          config.Logger,
-	}
-}
-
-// Resolver resolves secret lock for the request.
-func (s *secretSplitLock) Resolve(r *http.Request) (secretlock.Service, error) {
-	secretA := r.Header.Get(secretHeader)
-	if secretA == "" {
-		return nil, errors.New("empty secret A")
+func New(secret []byte, params *HubAuthParams, options ...Option) (secretlock.Service, error) {
+	opts := &Options{
+		HTTPClient:     http.DefaultClient,
+		SecretSplitter: &base.Splitter{},
+		Logger:         log.New("hub-kms/secretsplitlock"),
 	}
 
-	decodedSecretA, err := base64.StdEncoding.DecodeString(secretA)
+	for i := range options {
+		options[i](opts)
+	}
+
+	if secret == nil {
+		return nil, errors.New("empty secret share")
+	}
+
+	otherSecret, err := fetchSecretShare(params.URL, params.APIToken, params.Subject, opts.HTTPClient, opts.Logger)
 	if err != nil {
-		return nil, errors.New("fail to decode secret A")
+		return nil, fmt.Errorf("fetch secret share: %w", err)
 	}
 
-	sub := r.Header.Get(userHeader)
-
-	secretB, err := s.getSecretB(sub)
-	if err != nil {
-		return nil, fmt.Errorf("get secret B: %w", err)
-	}
-
-	combined, err := s.secretSplitter.Combine([][]byte{decodedSecretA, secretB})
+	combined, err := opts.SecretSplitter.Combine([][]byte{secret, otherSecret})
 	if err != nil {
 		return nil, fmt.Errorf("combine secrets: %w", err)
 	}
@@ -90,8 +81,29 @@ func (s *secretSplitLock) Resolve(r *http.Request) (secretlock.Service, error) {
 	return secLock, nil
 }
 
-func (s *secretSplitLock) getSecretB(sub string) ([]byte, error) {
-	uri := fmt.Sprintf("%s/%s?sub=%s", s.hubAuthURL, hubAuthSecretPath, url.QueryEscape(sub))
+// WithHTTPClient sets the custom HTTP client.
+func WithHTTPClient(c support.HTTPClient) Option {
+	return func(o *Options) {
+		o.HTTPClient = c
+	}
+}
+
+// WithSecretSplitter sets the custom secret splitter.
+func WithSecretSplitter(s sss.SecretSplitter) Option {
+	return func(o *Options) {
+		o.SecretSplitter = s
+	}
+}
+
+// WithLogger sets the custom logger.
+func WithLogger(l log.Logger) Option {
+	return func(o *Options) {
+		o.Logger = l
+	}
+}
+
+func fetchSecretShare(serverURL, token, sub string, httpClient support.HTTPClient, logger log.Logger) ([]byte, error) {
+	uri := fmt.Sprintf("%s%s?sub=%s", serverURL, hubAuthSecretPath, url.QueryEscape(sub))
 
 	req, err := http.NewRequestWithContext(context.Background(), http.MethodGet, uri, nil)
 	if err != nil {
@@ -99,10 +111,10 @@ func (s *secretSplitLock) getSecretB(sub string) ([]byte, error) {
 	}
 
 	req.Header.Set("authorization",
-		fmt.Sprintf("Bearer %s", base64.StdEncoding.EncodeToString([]byte(s.hubAuthAPIToken))),
+		fmt.Sprintf("Bearer %s", base64.StdEncoding.EncodeToString([]byte(token))),
 	)
 
-	resp, err := s.httpClient.Do(req)
+	resp, err := httpClient.Do(req)
 	if err != nil {
 		return nil, err
 	}
@@ -110,9 +122,18 @@ func (s *secretSplitLock) getSecretB(sub string) ([]byte, error) {
 	defer func() {
 		err = resp.Body.Close()
 		if err != nil {
-			s.logger.Errorf("failed to close response body")
+			logger.Errorf("failed to close response body")
 		}
 	}()
+
+	if resp.StatusCode != http.StatusOK {
+		body, errRead := ioutil.ReadAll(resp.Body)
+		if errRead != nil {
+			return nil, fmt.Errorf("read response body: %s", errRead)
+		}
+
+		return nil, fmt.Errorf("%s", body)
+	}
 
 	var secretResp struct {
 		Secret string `json:"secret"`

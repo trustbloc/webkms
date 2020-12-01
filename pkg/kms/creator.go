@@ -13,14 +13,15 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/hyperledger/aries-framework-go/pkg/crypto"
 	"github.com/hyperledger/aries-framework-go/pkg/kms"
+	"github.com/hyperledger/aries-framework-go/pkg/kms/localkms"
+	"github.com/hyperledger/aries-framework-go/pkg/secretlock"
 	"github.com/hyperledger/aries-framework-go/pkg/storage"
 
 	"github.com/trustbloc/hub-kms/pkg/keystore"
-	"github.com/trustbloc/hub-kms/pkg/secretlock"
 )
 
 const (
-	masterKeyURI         = "local-lock://%s"
+	primaryKeyURI        = "local-lock://%s"
 	keystoreIDQueryParam = "keystoreID"
 )
 
@@ -29,29 +30,34 @@ type ServiceCreator func(req *http.Request) (Service, error)
 
 // Config defines configuration for ServiceCreator.
 type Config struct {
-	KeystoreService           keystore.Service
-	CryptoService             crypto.Crypto
-	KeyManagerStorageResolver func(keystoreID string) (storage.Provider, error)
-	SecretLockResolver        secretlock.Resolver
+	KeystoreService    keystore.Service
+	CryptoService      crypto.Crypto
+	KMSStorageResolver func(keystoreID string) (storage.Provider, error)
+	SecretLockResolver func(keyURI string, req *http.Request) (secretlock.Service, error)
 }
 
 // NewServiceCreator returns func to create KMS Service backed by LocalKMS and passphrase-based secret lock.
 func NewServiceCreator(c *Config) ServiceCreator {
 	return func(req *http.Request) (Service, error) {
 		keystoreID := mux.Vars(req)[keystoreIDQueryParam]
-		keyURI := fmt.Sprintf(masterKeyURI, keystoreID)
+		keyURI := fmt.Sprintf(primaryKeyURI, keystoreID)
 
-		secretLock, err := c.SecretLockResolver.Resolve(req)
+		kmsStorageProvider, err := c.KMSStorageResolver(keystoreID)
 		if err != nil {
 			return nil, err
 		}
 
-		kmsStorageProvider, err := c.KeyManagerStorageResolver(keystoreID)
+		secretLock, err := c.SecretLockResolver(keyURI, req)
 		if err != nil {
 			return nil, err
 		}
 
-		keyManager, err := NewLocalKMS(keyURI, kmsStorageProvider, secretLock)
+		kmsProv := kmsProvider{
+			storageProvider: kmsStorageProvider,
+			secretLock:      secretLock,
+		}
+
+		keyManager, err := localkms.New(keyURI, kmsProv)
 		if err != nil {
 			return nil, err
 		}
@@ -64,6 +70,19 @@ func NewServiceCreator(c *Config) ServiceCreator {
 
 		return NewService(provider), nil
 	}
+}
+
+type kmsProvider struct {
+	storageProvider storage.Provider
+	secretLock      secretlock.Service
+}
+
+func (k kmsProvider) StorageProvider() storage.Provider {
+	return k.storageProvider
+}
+
+func (k kmsProvider) SecretLock() secretlock.Service {
+	return k.secretLock
 }
 
 type kmsServiceProvider struct {

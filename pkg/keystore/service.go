@@ -31,8 +31,8 @@ type Service interface {
 // Provider contains dependencies for the Keystore service.
 type Provider interface {
 	StorageProvider() storage.Provider
-	KeyManagerProvider() arieskms.Provider
-	KeyManagerCreator() arieskms.Creator
+	KMSProvider() arieskms.Provider
+	KMSCreator() arieskms.Creator
 }
 
 type service struct {
@@ -52,9 +52,9 @@ func NewService(provider Provider) (Service, error) {
 		return nil, err
 	}
 
-	keyManager, err := provider.KeyManagerCreator()(provider.KeyManagerProvider())
+	keyManager, err := provider.KMSCreator()(provider.KMSProvider())
 	if err != nil {
-		return nil, fmt.Errorf("failed to create keyManager: %w", err)
+		return nil, fmt.Errorf("failed to create key manager: %w", err)
 	}
 
 	return &service{

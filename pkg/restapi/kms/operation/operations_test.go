@@ -1109,7 +1109,7 @@ type options struct {
 	kmsService           kms.Service
 	logger               log.Logger
 	kmsServiceCreatorErr error
-	isEDVUsed            bool
+	useEDV               bool
 	authService          authService
 }
 
@@ -1131,7 +1131,7 @@ func newConfig(opts ...optionFn) *operation.Config {
 		KeystoreService:   cOpts.keystoreService,
 		KMSServiceCreator: func(_ *http.Request) (kms.Service, error) { return cOpts.kmsService, nil },
 		Logger:            cOpts.logger,
-		IsEDVUsed:         cOpts.isEDVUsed,
+		UseEDV:            cOpts.useEDV,
 		AuthService:       cOpts.authService,
 	}
 
@@ -1170,7 +1170,7 @@ func withKMSServiceCreatorErr(err error) optionFn {
 
 func withEDV() optionFn {
 	return func(o *options) {
-		o.isEDVUsed = true
+		o.useEDV = true
 	}
 }
 

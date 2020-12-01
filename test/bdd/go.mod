@@ -9,11 +9,11 @@ go 1.15
 require (
 	github.com/cucumber/godog v0.10.0
 	github.com/fsouza/go-dockerclient v1.6.6
-	github.com/hyperledger/aries-framework-go v0.1.5-0.20201127225407-a71550e3ea9f
+	github.com/hyperledger/aries-framework-go v0.1.5-0.20201130232545-14a7f210c893
 	github.com/igor-pavlenko/httpsignatures-go v0.0.21
 	github.com/rs/xid v1.2.1
 	github.com/trustbloc/edge-core v0.1.5-0.20201126210935-53388acb41fc
-	github.com/trustbloc/edv v0.1.5-0.20201126214711-ef96fd4b68b5
+	github.com/trustbloc/edv v0.1.5-0.20201130135645-cdf0ec8eb2a3
 	github.com/trustbloc/hub-auth v0.0.0-20201124144255-48d4c6f991b8 // indirect
 	github.com/trustbloc/hub-auth/test/bdd v0.0.0-20201124144255-48d4c6f991b8
 	github.com/trustbloc/hub-kms v0.0.0-00010101000000-000000000000

@@ -237,7 +237,7 @@ type options struct {
 	kmsService           kms.Service
 	logger               log.Logger
 	kmsServiceCreatorErr error
-	isEDVUsed            bool
+	useEDV               bool
 	authService          authService
 }
 
@@ -253,7 +253,7 @@ func newConfig() *Config {
 		KeystoreService:   cOpts.keystoreService,
 		KMSServiceCreator: func(_ *http.Request) (kms.Service, error) { return cOpts.kmsService, nil },
 		Logger:            cOpts.logger,
-		IsEDVUsed:         cOpts.isEDVUsed,
+		UseEDV:            cOpts.useEDV,
 		AuthService:       cOpts.authService,
 	}
 
