@@ -29,6 +29,7 @@ const (
 	testKeyID      = "keyID"
 	testKeyType    = arieskms.ED25519
 	testMessage    = "test message"
+	testCipherText = "cipher message"
 	testSignature  = "signature"
 	testAAD        = "additional data"
 	testNonce      = "nonce"

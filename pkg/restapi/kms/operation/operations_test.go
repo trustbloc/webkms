@@ -120,6 +120,24 @@ const (
 	  "wrappedKey": %s,
 	  "senderKID": "%s"
 	}`
+
+	easyReqFormat = `{
+	  "payload": "%s",
+	  "nonce": "%s",
+	  "theirPub": "%s"
+	}`
+
+	easyOpenReqFormat = `{
+	  "cipherText": "%s",
+	  "nonce": "%s",
+	  "theirPub": "%s",
+	  "myPub": "%s"
+	}`
+
+	sealOpenReqFormat = `{
+	  "cipherText": "%s",
+	  "myPub": "%s"
+	}`
 )
 
 func TestNew(t *testing.T) {

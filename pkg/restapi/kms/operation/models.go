@@ -114,3 +114,33 @@ type unwrapReq struct {
 type unwrapResp struct {
 	Key string `json:"key,omitempty"`
 }
+
+type easyReq struct {
+	Payload  string `json:"payload"`
+	Nonce    string `json:"nonce"`
+	TheirPub string `json:"theirPub"`
+}
+
+type easyResp struct {
+	CipherText string `json:"cipherText"`
+}
+
+type easyOpenReq struct {
+	CipherText string `json:"cipherText"`
+	Nonce      string `json:"nonce"`
+	TheirPub   string `json:"theirPub"`
+	MyPub      string `json:"myPub"`
+}
+
+type easyOpenResp struct {
+	PlainText string `json:"plainText"`
+}
+
+type sealOpenReq struct {
+	CipherText string `json:"cipherText"`
+	MyPub      string `json:"myPub"`
+}
+
+type sealOpenResp struct {
+	PlainText string `json:"plainText"`
+}

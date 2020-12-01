@@ -46,6 +46,9 @@ const (
 	verifyMACPath  = "/verifymac"
 	wrapPath       = "/wrap"
 	unwrapPath     = "/unwrap"
+	easyPath       = "/easy"
+	easyOpenPath   = "/easyopen"
+	sealOpenPath   = "/sealopen"
 
 	// KMSBasePath is the base path for all KMS endpoints.
 	KMSBasePath        = "/kms"
@@ -64,6 +67,10 @@ const (
 	wrapEndpoint       = keystoreEndpoint + wrapPath // kms/keystores/{keystoreID}/wrap
 	unwrapEndpoint     = keyEndpoint + unwrapPath    // kms/keystores/{keystoreID}/keys/{keyID}/unwrap
 
+	easyEndpoint     = keyEndpoint + easyPath
+	easyOpenEndpoint = keystoreEndpoint + easyOpenPath
+	sealOpenEndpoint = keystoreEndpoint + sealOpenPath
+
 	// Error messages.
 	receivedBadRequest      = "Received bad request: %s"
 	createKeystoreFailure   = "Failed to create a keystore: %s"
@@ -81,6 +88,10 @@ const (
 	wrapMessageFailure      = "Failed to wrap a key: %s"
 	unwrapMessageFailure    = "Failed to unwrap a key: %s"
 	createZCAPFailure       = "Failed to create zcap: %s"
+
+	easyMessageFailure     = "Failed to easy a message: %s"
+	easyOpenMessageFailure = "Failed to easyOpen a message: %s"
+	sealOpenPayloadFailure = "Failed to sealOpen a payload: %s"
 )
 
 const (
@@ -95,6 +106,10 @@ const (
 	actionEncrypt         = "encrypt"
 	actionDecrypt         = "decrypt"
 	actionStoreCapability = "updateEDVCapability"
+
+	actionEasy     = "easy"
+	actionEasyOpen = "easyOpen"
+	actionSealOpen = "sealOpen"
 )
 
 // Handler defines an HTTP handler for the API endpoint.
@@ -162,6 +177,10 @@ func (o *Operation) GetRESTHandlers() []Handler {
 		support.NewHTTPHandler(verifyMACEndpoint, verifyMACEndpoint, http.MethodPost, o.verifyMACHandler),
 		support.NewHTTPHandler(wrapEndpoint, wrapEndpoint, http.MethodPost, o.wrapHandler),
 		support.NewHTTPHandler(unwrapEndpoint, unwrapEndpoint, http.MethodPost, o.unwrapHandler),
+		// CryptoBox operations
+		support.NewHTTPHandler(easyEndpoint, easyEndpoint, http.MethodPost, o.easyHandler),
+		support.NewHTTPHandler(easyOpenEndpoint, easyOpenEndpoint, http.MethodPost, o.easyOpenHandler),
+		support.NewHTTPHandler(sealOpenEndpoint, sealOpenEndpoint, http.MethodPost, o.sealOpenHandler),
 	}
 }
 
@@ -441,7 +460,7 @@ func (o *Operation) encryptHandler(rw http.ResponseWriter, req *http.Request) {
 	})
 }
 
-func (o *Operation) decryptHandler(rw http.ResponseWriter, req *http.Request) {
+func (o *Operation) decryptHandler(rw http.ResponseWriter, req *http.Request) { //nolint:dupl // readability
 	kmsService, err := o.kmsServiceCreator(req)
 	if err != nil {
 		o.writeErrorResponse(rw, http.StatusInternalServerError, createKMSServiceFailure, err)
