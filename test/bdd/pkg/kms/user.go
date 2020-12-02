@@ -177,8 +177,8 @@ func processHeaders(header http.Header) map[string]string {
 
 func parseLocationHeader(header http.Header) (string, string) {
 	const (
-		keystoreIDPos = 3 // localhost:8076/kms/keystores/{keystoreID}
-		keyIDPos      = 5 // localhost:8076/kms/keystores/{keystoreID}/keys/{keyID}
+		keystoreIDPos = 5 // https://localhost:8076/kms/keystores/{keystoreID}
+		keyIDPos      = 7 // https://localhost:8076/kms/keystores/{keystoreID}/keys/{keyID}
 	)
 
 	location := header.Get("Location")

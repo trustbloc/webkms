@@ -133,9 +133,10 @@ type Operation struct {
 	keystoreService   keystore.Service
 	kmsServiceCreator func(req *http.Request) (kms.Service, error)
 	logger            log.Logger
-	UseEDV            bool
+	useEDV            bool
 	authService       authService
 	ldDocLoader       ld.DocumentLoader
+	baseURL           string
 }
 
 // Config defines configuration for KMS operations.
@@ -146,6 +147,7 @@ type Config struct {
 	UseEDV            bool
 	AuthService       authService
 	LDDocumentLoader  ld.DocumentLoader
+	BaseURL           string
 }
 
 // New returns a new Operation instance.
@@ -154,9 +156,10 @@ func New(config *Config) *Operation {
 		keystoreService:   config.KeystoreService,
 		kmsServiceCreator: config.KMSServiceCreator,
 		logger:            config.Logger,
-		UseEDV:            config.UseEDV,
+		useEDV:            config.UseEDV,
 		authService:       config.AuthService,
 		ldDocLoader:       config.LDDocumentLoader,
+		baseURL:           config.BaseURL,
 	}
 
 	return op
@@ -201,7 +204,7 @@ func (o *Operation) createKeystoreHandler(rw http.ResponseWriter, req *http.Requ
 		keystore.WithCreatedAt(&createdAt),
 	}
 
-	if o.UseEDV {
+	if o.useEDV {
 		opts = append(opts,
 			keystore.WithRecipientKeyType(arieskms.ECDH256KWAES256GCM),
 			keystore.WithMACKeyType(arieskms.HMACSHA256Tag256),
@@ -223,7 +226,7 @@ func (o *Operation) createKeystoreHandler(rw http.ResponseWriter, req *http.Requ
 		return
 	}
 
-	resource := keystoreLocation(req.Host, k.ID)
+	resource := keystoreLocation(o.baseURL, k.ID)
 
 	zcap, err := o.newCompressedZCAP(resource, k.Controller)
 	if err != nil {
@@ -264,7 +267,7 @@ func (o *Operation) createKeyHandler(rw http.ResponseWriter, req *http.Request) 
 		return
 	}
 
-	location := keyLocation(req.Host, keystoreID, keyID)
+	location := keyLocation(o.baseURL, keystoreID, keyID)
 
 	rw.Header().Set("Location", location)
 	rw.WriteHeader(http.StatusCreated)
@@ -836,23 +839,23 @@ func marshalPublicKey(k *crypto.PublicKey) publicKey {
 	}
 }
 
-func keystoreLocation(hostURL, keystoreID string) string {
-	// {hostURL}/kms/keystores/{keystoreID}
+func keystoreLocation(baseURL, keystoreID string) string {
+	// {baseURL}/kms/keystores/{keystoreID}
 	return fmt.Sprintf(
 		"%s%s%s",
-		hostURL,
+		baseURL,
 		KMSBasePath,
 		strings.ReplaceAll(keystoreEndpoint, "{keystoreID}", keystoreID),
 	)
 }
 
-func keyLocation(hostURL, keystoreID, keyID string) string {
-	// {hostURL}/kms/keystores/{keystoreID}/keys/{keyID}
+func keyLocation(baseURL, keystoreID, keyID string) string {
+	// {baseURL}/kms/keystores/{keystoreID}/keys/{keyID}
 	r := strings.NewReplacer(
 		"{keystoreID}", keystoreID,
 		"{keyID}", keyID)
 
-	return fmt.Sprintf("%s%s%s", hostURL, KMSBasePath, r.Replace(keyEndpoint))
+	return fmt.Sprintf("%s%s%s", baseURL, KMSBasePath, r.Replace(keyEndpoint))
 }
 
 func allActions() []string {
