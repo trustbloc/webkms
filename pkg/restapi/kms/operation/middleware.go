@@ -30,6 +30,7 @@ func (o *Operation) ZCAPLDMiddleware(h http.Handler) http.Handler {
 		crpto:     o.authService.Crypto(),
 		logger:    o.logger,
 		routeFunc: (&muxNamer{}).GetName,
+		baseURL:   o.baseURL,
 	}
 }
 
@@ -52,6 +53,7 @@ type mwHandler struct {
 	logger      log.Logger
 	ldDocLoader ld.DocumentLoader
 	routeFunc   func(*http.Request) namer
+	baseURL     string
 }
 
 func (h *mwHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
@@ -64,7 +66,7 @@ func (h *mwHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	resource := keystoreLocation(r.Host, mux.Vars(r)[keystoreIDQueryParam])
+	resource := keystoreLocation(h.baseURL, mux.Vars(r)[keystoreIDQueryParam])
 
 	expectations := &zcapld.InvocationExpectations{
 		Target:         resource,

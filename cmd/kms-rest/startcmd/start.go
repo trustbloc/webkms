@@ -37,6 +37,11 @@ const (
 	hostURLFlagUsage = "URL to run the KMS instance on. Format: HostName:Port."
 	hostURLEnvKey    = "KMS_HOST_URL"
 
+	baseURLFlagName  = "base-url"
+	baseURLEnvKey    = "KMS_BASE_URL"
+	baseURLFlagUsage = "Optional base URL value to prepend to a location returned in the Location header. " +
+		commonEnvVarUsageText + baseURLEnvKey
+
 	logLevelFlagName        = "log-level"
 	logLevelEnvKey          = "KMS_LOG_LEVEL"
 	logLevelFlagShorthand   = "l"
@@ -236,6 +241,7 @@ func createStartCmd(srv Server) *cobra.Command {
 
 func createFlags(startCmd *cobra.Command) {
 	startCmd.Flags().StringP(hostURLFlagName, "", "", hostURLFlagUsage)
+	startCmd.Flags().StringP(baseURLFlagName, "", "", baseURLFlagUsage)
 
 	startCmd.Flags().StringP(tlsSystemCertPoolFlagName, tlsSystemCertPoolFlagShorthand, "", tlsSystemCertPoolFlagUsage)
 	startCmd.Flags().StringArrayP(tlsCACertsFlagName, tlsCACertsFlagShorthand, []string{}, tlsCACertsFlagUsage)
@@ -271,6 +277,7 @@ func createFlags(startCmd *cobra.Command) {
 
 type kmsRestParameters struct {
 	hostURL                 string
+	baseURL                 string
 	tlsUseSystemCertPool    bool
 	tlsCACerts              []string
 	tlsServeParams          *tlsServeParameters
@@ -299,6 +306,11 @@ type storageParameters struct {
 //nolint:gocyclo // no complicated logic here.
 func getKmsRestParameters(cmd *cobra.Command) (*kmsRestParameters, error) { //nolint:funlen // better readability
 	hostURL, err := cmdutils.GetUserSetVarFromString(cmd, hostURLFlagName, hostURLEnvKey, false)
+	if err != nil {
+		return nil, err
+	}
+
+	baseURL, err := cmdutils.GetUserSetVarFromString(cmd, baseURLFlagName, baseURLEnvKey, true)
 	if err != nil {
 		return nil, err
 	}
@@ -370,6 +382,7 @@ func getKmsRestParameters(cmd *cobra.Command) (*kmsRestParameters, error) { //no
 
 	return &kmsRestParameters{
 		hostURL:                 strings.TrimSpace(hostURL),
+		baseURL:                 baseURL,
 		tlsUseSystemCertPool:    tlsUseSystemCertPool,
 		tlsCACerts:              tlsCACerts,
 		tlsServeParams:          tlsServeParams,
@@ -638,6 +651,7 @@ func prepareOperationConfig(params *kmsRestParameters) (*operation.Config, error
 		Logger:            log.New("hub-kms/restapi"),
 		UseEDV:            strings.EqualFold(params.keyManagerStorageParams.storageType, storageTypeEDVOption),
 		LDDocumentLoader:  ldDocLoader,
+		BaseURL:           params.baseURL,
 	}, nil
 }
 

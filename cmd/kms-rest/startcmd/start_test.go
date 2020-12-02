@@ -68,7 +68,7 @@ func TestStartCmdContents(t *testing.T) {
 
 func TestStartCmdWithBlankArg(t *testing.T) {
 	flags := []string{
-		hostURLFlagName, logLevelFlagName,
+		hostURLFlagName, baseURLFlagName, logLevelFlagName,
 		tlsServeCertPathFlagName, tlsServeKeyPathFlagName, secretLockKeyPathFlagName,
 		databaseTypeFlagName, databaseURLFlagName, databasePrefixFlagName,
 		primaryKeyDatabaseTypeFlagName, primaryKeyDatabaseURLFlagName, primaryKeyDatabasePrefixFlagName,
