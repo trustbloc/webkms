@@ -17,7 +17,7 @@ Feature: KMS CryptoBox operations
       And "Alice" has created a data vault on EDV for storing keys
       And "Bob" has created a data vault on EDV for storing keys
 
-  Scenario: Easy/EasyOpen
+  Scenario: User A anonymously encrypts ("easy") a payload for User B, User B decrypts ("easy open") it
     Given "Alice" has created a keystore with "ED25519" key on Key Server
       And "Bob" has created a keystore with "ED25519" key on Key Server
       And "Alice" has a public key of "Bob"
@@ -30,3 +30,13 @@ Feature: KMS CryptoBox operations
     When  "Bob" makes an HTTP POST to "https://localhost:4466/kms/keystores/{keystoreID}/easyopen" to easyOpen "cipherText" from "Alice"
     Then  "Bob" gets a response with HTTP status "200 OK"
      And  "Bob" gets a response with "plainText" with value "test payload"
+
+  Scenario: User B decrypts ("seal open") a payload that was encrypted ("seal") by User A
+    Given "Bob" has created a keystore with "ED25519" key on Key Server
+      And "Alice" has created a keystore with "ED25519" key on Key Server
+      And "Bob" has a public key of "Alice"
+      And "Bob" has sealed "test payload" for "Alice"
+
+    When  "Alice" makes an HTTP POST to "https://localhost:4466/kms/keystores/{keystoreID}/sealopen" to sealOpen "cipherText" from "Bob"
+    Then  "Alice" gets a response with HTTP status "200 OK"
+     And  "Alice" gets a response with "plainText" with value "test payload"

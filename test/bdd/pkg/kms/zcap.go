@@ -34,6 +34,7 @@ const (
 	actionStoreCapability = "updateEDVCapability"
 	actionEasy            = "easy"
 	actionEasyOpen        = "easyOpen"
+	actionSealOpen        = "sealOpen"
 )
 
 type signer interface {
@@ -58,7 +59,7 @@ func (a *authzKMSSigner) Sign(data []byte) ([]byte, error) {
 		return nil, err
 	}
 
-	return []byte(a.authzUser.response.body["signature"]), nil
+	return []byte(a.authzUser.data["signature"]), nil
 }
 
 type remoteKMS struct {

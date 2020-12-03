@@ -37,7 +37,7 @@ func TestEasyHandler(t *testing.T) {
 		op := operation.New(newConfig(withKMSService(srv)))
 		handler := getHandler(t, op, easyEndpoint, http.MethodPost)
 
-		payload := base64.URLEncoding.EncodeToString([]byte("test message"))
+		payload := base64.URLEncoding.EncodeToString([]byte("payload"))
 		nonce := base64.URLEncoding.EncodeToString([]byte("nonce"))
 		theirPub := base64.URLEncoding.EncodeToString([]byte("their pub"))
 
@@ -84,7 +84,7 @@ func TestEasyHandler(t *testing.T) {
 		op := operation.New(newConfig())
 		handler := getHandler(t, op, easyEndpoint, http.MethodPost)
 
-		payload := base64.URLEncoding.EncodeToString([]byte("test message"))
+		payload := base64.URLEncoding.EncodeToString([]byte("payload"))
 		theirPub := base64.URLEncoding.EncodeToString([]byte("their pub"))
 
 		req := buildEasyReq(t, payload, "!nonce", theirPub)
@@ -100,7 +100,7 @@ func TestEasyHandler(t *testing.T) {
 		op := operation.New(newConfig())
 		handler := getHandler(t, op, easyEndpoint, http.MethodPost)
 
-		payload := base64.URLEncoding.EncodeToString([]byte("test message"))
+		payload := base64.URLEncoding.EncodeToString([]byte("payload"))
 		nonce := base64.URLEncoding.EncodeToString([]byte("nonce"))
 
 		req := buildEasyReq(t, payload, nonce, "!theirPub")
@@ -116,7 +116,7 @@ func TestEasyHandler(t *testing.T) {
 		op := operation.New(newConfig(withKMSServiceCreatorErr(errors.New("kms service creator error"))))
 		handler := getHandler(t, op, easyEndpoint, http.MethodPost)
 
-		payload := base64.URLEncoding.EncodeToString([]byte("test message"))
+		payload := base64.URLEncoding.EncodeToString([]byte("payload"))
 		nonce := base64.URLEncoding.EncodeToString([]byte("nonce"))
 		theirPub := base64.URLEncoding.EncodeToString([]byte("their pub"))
 
@@ -136,7 +136,7 @@ func TestEasyHandler(t *testing.T) {
 		op := operation.New(newConfig(withKMSService(srv)))
 		handler := getHandler(t, op, easyEndpoint, http.MethodPost)
 
-		payload := base64.URLEncoding.EncodeToString([]byte("test message"))
+		payload := base64.URLEncoding.EncodeToString([]byte("payload"))
 		nonce := base64.URLEncoding.EncodeToString([]byte("nonce"))
 		theirPub := base64.URLEncoding.EncodeToString([]byte("their pub"))
 
@@ -158,7 +158,7 @@ func TestEasyOpenHandler(t *testing.T) {
 		op := operation.New(newConfig(withKMSService(srv)))
 		handler := getHandler(t, op, easyOpenEndpoint, http.MethodPost)
 
-		cipherText := base64.URLEncoding.EncodeToString([]byte("test message"))
+		cipherText := base64.URLEncoding.EncodeToString([]byte("cipher text"))
 		nonce := base64.URLEncoding.EncodeToString([]byte("nonce"))
 		theirPub := base64.URLEncoding.EncodeToString([]byte("their pub"))
 		myPub := base64.URLEncoding.EncodeToString([]byte("my pub"))
@@ -207,7 +207,7 @@ func TestEasyOpenHandler(t *testing.T) {
 		op := operation.New(newConfig())
 		handler := getHandler(t, op, easyOpenEndpoint, http.MethodPost)
 
-		cipherText := base64.URLEncoding.EncodeToString([]byte("test message"))
+		cipherText := base64.URLEncoding.EncodeToString([]byte("cipher text"))
 		theirPub := base64.URLEncoding.EncodeToString([]byte("their pub"))
 		myPub := base64.URLEncoding.EncodeToString([]byte("my pub"))
 
@@ -224,7 +224,7 @@ func TestEasyOpenHandler(t *testing.T) {
 		op := operation.New(newConfig())
 		handler := getHandler(t, op, easyOpenEndpoint, http.MethodPost)
 
-		cipherText := base64.URLEncoding.EncodeToString([]byte("test message"))
+		cipherText := base64.URLEncoding.EncodeToString([]byte("cipher text"))
 		nonce := base64.URLEncoding.EncodeToString([]byte("nonce"))
 		myPub := base64.URLEncoding.EncodeToString([]byte("my pub"))
 
@@ -241,7 +241,7 @@ func TestEasyOpenHandler(t *testing.T) {
 		op := operation.New(newConfig())
 		handler := getHandler(t, op, easyOpenEndpoint, http.MethodPost)
 
-		cipherText := base64.URLEncoding.EncodeToString([]byte("test message"))
+		cipherText := base64.URLEncoding.EncodeToString([]byte("cipher text"))
 		nonce := base64.URLEncoding.EncodeToString([]byte("nonce"))
 		theirPub := base64.URLEncoding.EncodeToString([]byte("their pub"))
 
@@ -258,7 +258,7 @@ func TestEasyOpenHandler(t *testing.T) {
 		op := operation.New(newConfig(withKMSServiceCreatorErr(errors.New("kms service creator error"))))
 		handler := getHandler(t, op, easyOpenEndpoint, http.MethodPost)
 
-		cipherText := base64.URLEncoding.EncodeToString([]byte("test message"))
+		cipherText := base64.URLEncoding.EncodeToString([]byte("cipher text"))
 		nonce := base64.URLEncoding.EncodeToString([]byte("nonce"))
 		theirPub := base64.URLEncoding.EncodeToString([]byte("their pub"))
 		myPub := base64.URLEncoding.EncodeToString([]byte("my pub"))
@@ -279,7 +279,7 @@ func TestEasyOpenHandler(t *testing.T) {
 		op := operation.New(newConfig(withKMSService(srv)))
 		handler := getHandler(t, op, easyOpenEndpoint, http.MethodPost)
 
-		cipherText := base64.URLEncoding.EncodeToString([]byte("test message"))
+		cipherText := base64.URLEncoding.EncodeToString([]byte("cipher text"))
 		nonce := base64.URLEncoding.EncodeToString([]byte("nonce"))
 		theirPub := base64.URLEncoding.EncodeToString([]byte("their pub"))
 		myPub := base64.URLEncoding.EncodeToString([]byte("my pub"))
@@ -302,7 +302,7 @@ func TestSealOpenHandler(t *testing.T) {
 		op := operation.New(newConfig(withKMSService(srv)))
 		handler := getHandler(t, op, sealOpenEndpoint, http.MethodPost)
 
-		cipherText := base64.URLEncoding.EncodeToString([]byte("test message"))
+		cipherText := base64.URLEncoding.EncodeToString([]byte("cipher text"))
 		myPub := base64.URLEncoding.EncodeToString([]byte("my pub"))
 
 		req := buildSealOpenReq(t, cipherText, myPub)
@@ -347,7 +347,7 @@ func TestSealOpenHandler(t *testing.T) {
 		op := operation.New(newConfig())
 		handler := getHandler(t, op, sealOpenEndpoint, http.MethodPost)
 
-		cipherText := base64.URLEncoding.EncodeToString([]byte("test message"))
+		cipherText := base64.URLEncoding.EncodeToString([]byte("cipher text"))
 
 		req := buildSealOpenReq(t, cipherText, "!myPub")
 
@@ -362,7 +362,7 @@ func TestSealOpenHandler(t *testing.T) {
 		op := operation.New(newConfig(withKMSServiceCreatorErr(errors.New("kms service creator error"))))
 		handler := getHandler(t, op, sealOpenEndpoint, http.MethodPost)
 
-		cipherText := base64.URLEncoding.EncodeToString([]byte("test message"))
+		cipherText := base64.URLEncoding.EncodeToString([]byte("cipher text"))
 		myPub := base64.URLEncoding.EncodeToString([]byte("my pub"))
 
 		req := buildSealOpenReq(t, cipherText, myPub)
@@ -381,7 +381,7 @@ func TestSealOpenHandler(t *testing.T) {
 		op := operation.New(newConfig(withKMSService(srv)))
 		handler := getHandler(t, op, sealOpenEndpoint, http.MethodPost)
 
-		cipherText := base64.URLEncoding.EncodeToString([]byte("test message"))
+		cipherText := base64.URLEncoding.EncodeToString([]byte("cipher text"))
 		myPub := base64.URLEncoding.EncodeToString([]byte("my pub"))
 
 		req := buildSealOpenReq(t, cipherText, myPub)

@@ -100,6 +100,8 @@ func (s *Steps) RegisterSteps(ctx *godog.ScenarioContext) {
 	// CryptoBox steps
 	ctx.Step(`^"([^"]*)" makes an HTTP POST to "([^"]*)" to easy "([^"]*)" for "([^"]*)"$`, s.makeEasyPayloadReq)
 	ctx.Step(`^"([^"]*)" makes an HTTP POST to "([^"]*)" to easyOpen "([^"]*)" from "([^"]*)"$`, s.makeEasyOpenReq)
+	ctx.Step(`^"([^"]*)" has sealed "([^"]*)" for "([^"]*)"$`, s.sealPayloadForRecipient)
+	ctx.Step(`^"([^"]*)" makes an HTTP POST to "([^"]*)" to sealOpen "([^"]*)" from "([^"]*)"$`, s.makeSealOpenReq)
 }
 
 func (s *Steps) createKeystoreAndKey(user, keyType string) error {
@@ -300,7 +302,7 @@ func (s *Steps) makeExportPubKeyReq(userName, endpoint string) error {
 		return err
 	}
 
-	u.response.body = map[string]string{
+	u.data = map[string]string{
 		"publicKey": string(publicKey),
 	}
 
@@ -352,7 +354,7 @@ func (s *Steps) makeSignMessageReq(userName, endpoint, message string) error { /
 		return err
 	}
 
-	u.response.body = map[string]string{
+	u.data = map[string]string{
 		"signature": string(signature),
 	}
 
@@ -363,7 +365,7 @@ func (s *Steps) makeVerifySignatureReq(userName, endpoint, tag, message string) 
 	u := s.users[userName]
 
 	r := &verifyReq{
-		Signature: base64.URLEncoding.EncodeToString([]byte(u.response.body[tag])),
+		Signature: base64.URLEncoding.EncodeToString([]byte(u.data[tag])),
 		Message:   base64.URLEncoding.EncodeToString([]byte(message)),
 	}
 
@@ -421,7 +423,7 @@ func (s *Steps) makeEncryptMessageReq(userName, endpoint, message string) error 
 		return err
 	}
 
-	u.response.body = map[string]string{
+	u.data = map[string]string{
 		"cipherText": string(cipherText),
 		"nonce":      string(nonce),
 	}
@@ -433,9 +435,9 @@ func (s *Steps) makeDecryptCipherReq(userName, endpoint, tag string) error {
 	u := s.users[userName]
 
 	r := &decryptReq{
-		CipherText:     base64.URLEncoding.EncodeToString([]byte(u.response.body[tag])),
+		CipherText:     base64.URLEncoding.EncodeToString([]byte(u.data[tag])),
 		AdditionalData: base64.URLEncoding.EncodeToString([]byte("additional data")),
-		Nonce:          base64.URLEncoding.EncodeToString([]byte(u.response.body["nonce"])),
+		Nonce:          base64.URLEncoding.EncodeToString([]byte(u.data["nonce"])),
 	}
 
 	request, err := u.preparePostRequest(r, endpoint)
@@ -476,7 +478,7 @@ func (s *Steps) makeDecryptCipherReq(userName, endpoint, tag string) error {
 		return err
 	}
 
-	u.response.body = map[string]string{
+	u.data = map[string]string{
 		"plainText": string(plainText),
 	}
 
@@ -528,7 +530,7 @@ func (s *Steps) makeComputeMACReq(userName, endpoint, data string) error { //nol
 		return err
 	}
 
-	u.response.body = map[string]string{
+	u.data = map[string]string{
 		"mac": string(mac),
 	}
 
@@ -539,7 +541,7 @@ func (s *Steps) makeVerifyMACReq(userName, endpoint, tag, data string) error {
 	u := s.users[userName]
 
 	r := &verifyMACReq{
-		MAC:  base64.URLEncoding.EncodeToString([]byte(u.response.body[tag])),
+		MAC:  base64.URLEncoding.EncodeToString([]byte(u.data[tag])),
 		Data: base64.URLEncoding.EncodeToString([]byte(data)),
 	}
 
@@ -633,7 +635,7 @@ func (s *Steps) makeWrapKeyReq(userName, endpoint, keyID, recipient string) erro
 		return err
 	}
 
-	u.response.body = map[string]string{
+	u.data = map[string]string{
 		"wrappedKey": string(wrappedKey),
 	}
 
@@ -643,7 +645,7 @@ func (s *Steps) makeWrapKeyReq(userName, endpoint, keyID, recipient string) erro
 func (s *Steps) makeUnwrapKeyReq(userName, endpoint, tag, sender string) error {
 	u := s.users[userName]
 
-	wrappedKeyContent := s.users[sender].response.body[tag]
+	wrappedKeyContent := s.users[sender].data[tag]
 
 	var wrappedKey recipientWrappedKey
 
@@ -695,7 +697,7 @@ func (s *Steps) makeUnwrapKeyReq(userName, endpoint, tag, sender string) error {
 		return err
 	}
 
-	u.response.body = map[string]string{
+	u.data = map[string]string{
 		"key": string(key),
 	}
 
@@ -853,7 +855,7 @@ func (s *Steps) checkHeaderWithValidURL(user, header string) error {
 func (s *Steps) checkRespWithNonEmptyValue(user, tag string) error {
 	u := s.users[user]
 
-	if u.response.body[tag] == "" {
+	if u.data[tag] == "" {
 		return fmt.Errorf("expected property %q to be non-empty", tag)
 	}
 
@@ -863,7 +865,7 @@ func (s *Steps) checkRespWithNonEmptyValue(user, tag string) error {
 func (s *Steps) checkRespWithNoValue(user, tag string) error {
 	u := s.users[user]
 
-	v, ok := u.response.body[tag]
+	v, ok := u.data[tag]
 	if ok {
 		return fmt.Errorf("expected no field %q, got with value: %q", tag, v)
 	}
@@ -874,8 +876,8 @@ func (s *Steps) checkRespWithNoValue(user, tag string) error {
 func (s *Steps) checkRespWithValue(user, tag, val string) error {
 	u := s.users[user]
 
-	if u.response.body[tag] != val {
-		return fmt.Errorf("expected %q to be %q, got: %q", tag, val, u.response.body[tag])
+	if u.data[tag] != val {
+		return fmt.Errorf("expected %q to be %q, got: %q", tag, val, u.data[tag])
 	}
 
 	return nil
@@ -884,7 +886,7 @@ func (s *Steps) checkRespWithValue(user, tag, val string) error {
 func (s *Steps) checkRespWithKeyContent(user, keyID string) error {
 	u := s.users[user]
 
-	key := []byte(u.response.body["key"])
+	key := []byte(u.data["key"])
 
 	if !bytes.Equal(key, s.keys[keyID]) {
 		return fmt.Errorf("expected key content to be %q, got: %q", base64.URLEncoding.EncodeToString(s.keys[keyID]),

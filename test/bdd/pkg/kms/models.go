@@ -139,3 +139,12 @@ type easyOpenReq struct {
 type easyOpenResp struct {
 	PlainText string `json:"plainText"`
 }
+
+type sealOpenReq struct {
+	CipherText string `json:"cipherText"`
+	MyPub      string `json:"myPub"`
+}
+
+type sealOpenResp struct {
+	PlainText string `json:"plainText"`
+}
