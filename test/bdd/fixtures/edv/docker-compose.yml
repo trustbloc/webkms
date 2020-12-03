@@ -12,15 +12,17 @@ services:
     image: ${EDV_REST_IMAGE}:${EDV_REST_IMAGE_TAG}
     environment:
       - EDV_HOST_URL=0.0.0.0:8081
-      - EDV_DATABASE_TYPE=${EDV_DATABASE_TYPE}
-      - EDV_DATABASE_URL=${EDV_DATABASE_URL}
-      - EDV_DATABASE_PREFIX=${EDV_DATABASE_PREFIX}
       - EDV_TLS_CERT_FILE=/etc/tls/ec-pubCert.pem
       - EDV_TLS_KEY_FILE=/etc/tls/ec-key.pem
+      - EDV_DATABASE_TYPE=couchdb
+      - EDV_DATABASE_URL=admin:password@couchdb.example.com:5984
+      - EDV_DATABASE_PREFIX=edv
+      - EDV_LOCALKMS_SECRETS_DATABASE_TYPE=couchdb
+      - EDV_LOCALKMS_SECRETS_DATABASE_URL=admin:password@couchdb.example.com:5984
+      - EDV_LOCALKMS_SECRETS_DATABASE_PREFIX=edv_kms
+      - EDV_EXTENSIONS=ReturnFullDocumentsOnQuery
+      - EDV_DATABASE_TIMEOUT=60
       - EDV_AUTH_ENABLE=true
-      - EDV_LOCALKMS_SECRETS_DATABASE_TYPE=${EDV_DATABASE_TYPE}
-      - EDV_LOCALKMS_SECRETS_DATABASE_URL=${EDV_DATABASE_URL}
-      - EDV_LOCALKMS_SECRETS_DATABASE_PREFIX=${EDV_DATABASE_PREFIX}_kms
       - EDV_LOG_LEVEL=debug
     ports:
       - 8081:8081

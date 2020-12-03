@@ -7,21 +7,20 @@ SPDX-License-Identifier: Apache-2.0
 \! echo "Configuring MySQL users...";
 
 /*
-auth rest
+hub auth
 */
-CREATE USER 'authrest'@'%' IDENTIFIED BY 'authrest-secret-pw';
-GRANT ALL PRIVILEGES ON `authrest\_%` . * TO 'authrest'@'%';
+CREATE USER 'hubauth'@'%' IDENTIFIED BY 'hubauth-secret-pw';
+GRANT ALL PRIVILEGES ON `hubauth\_%` . * TO 'hubauth'@'%';
 
 /*
-auth rest hydra
+hydra
 */
-CREATE USER 'authresthydra'@'%' IDENTIFIED BY 'authresthydra-secret-pw';
-CREATE DATABASE authresthydra;
-GRANT ALL PRIVILEGES ON authresthydra.* TO 'authresthydra'@'%';
-
+CREATE USER 'hydra'@'%' IDENTIFIED BY 'hydra-secret-pw';
+CREATE DATABASE hydra;
+GRANT ALL PRIVILEGES ON hydra.* TO 'hydra'@'%';
 
 /*
-third party oidc (hydra)
+oidc provider (hydra)
 */
 CREATE USER 'thirdpartyoidc'@'%' IDENTIFIED BY 'thirdpartyoidc-secret-pw';
 CREATE DATABASE thirdpartyoidc;
