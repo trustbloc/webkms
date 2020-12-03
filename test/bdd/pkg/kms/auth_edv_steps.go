@@ -159,7 +159,7 @@ func (s *Steps) prepareDataVaultConfig(u *user) (*models.DataVaultConfiguration,
 		return nil, fmt.Errorf("failed to export authz keystore key: %w", errExport)
 	}
 
-	pkBytes := []byte(u.response.body["publicKey"])
+	pkBytes := []byte(u.data["publicKey"])
 
 	_, didKey := fingerprint.CreateDIDKey(pkBytes)
 
@@ -260,7 +260,7 @@ func (s *Steps) makeExportPubKeyReqAuthzKMS(u *user, endpoint string) error {
 		return err
 	}
 
-	u.response.body = map[string]string{
+	u.data = map[string]string{
 		"publicKey": string(publicKey),
 	}
 
@@ -303,7 +303,7 @@ func (s *Steps) makeSignMessageReqAuthzKMS(u *user, endpoint, message string) er
 		return err
 	}
 
-	u.response.body = map[string]string{
+	u.data = map[string]string{
 		"signature": string(signature),
 	}
 

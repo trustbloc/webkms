@@ -38,7 +38,7 @@ type user struct {
 
 	recipientPubKeys map[string]*publicKeyData
 	response         *response
-	requestValues    map[string]string
+	data             map[string]string
 
 	signer        signer
 	authKMS       kms.KeyManager
@@ -57,7 +57,6 @@ type response struct {
 	status     string
 	statusCode int
 	headers    map[string]string
-	body       map[string]string
 }
 
 func (u *user) SetCapabilityInvocation(r *http.Request, action string) error {
@@ -136,7 +135,7 @@ func (u *user) processResponse(parsedResp interface{}, resp *http.Response) erro
 
 	kmsCapability, err := parseRootCapabilityHeader(resp.Header)
 	if err != nil {
-		return err
+		return fmt.Errorf("parse root capability header: %w", err)
 	}
 
 	if kmsCapability != nil {
@@ -153,7 +152,7 @@ func (u *user) processResponse(parsedResp interface{}, resp *http.Response) erro
 			return fmt.Errorf("parse error response: %w", decodeErr)
 		}
 
-		u.response.body = map[string]string{
+		u.data = map[string]string{
 			"errMessage": errResp.Message,
 		}
 
