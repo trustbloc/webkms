@@ -19,7 +19,7 @@ authenticators:
   oauth2_introspection:
     enabled: true
     config:
-      introspection_url: https://auth.rest.hydra.example.com:4445/oauth2/introspect
+      introspection_url: https://hydra.example.com:4445/oauth2/introspect
   noop:
     enabled: true
 

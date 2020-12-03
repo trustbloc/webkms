@@ -871,5 +871,8 @@ func allActions() []string {
 		actionEncrypt,
 		actionDecrypt,
 		actionStoreCapability,
+		actionEasy,
+		actionEasyOpen,
+		actionSealOpen,
 	}
 }

@@ -15,8 +15,8 @@ import (
 	"github.com/cucumber/godog"
 	"github.com/trustbloc/edge-core/pkg/log"
 
-	"github.com/trustbloc/hub-kms/test/bdd/pkg/bddutil"
 	"github.com/trustbloc/hub-kms/test/bdd/pkg/context"
+	"github.com/trustbloc/hub-kms/test/bdd/pkg/internal/bddutil"
 )
 
 const (

@@ -66,11 +66,11 @@ type verifyMACReq struct {
 }
 
 type wrapReq struct {
-	CEK             string    `json:"cek,omitempty"`
-	APU             string    `json:"apu,omitempty"`
-	APV             string    `json:"apv,omitempty"`
-	RecipientPubKey publicKey `json:"recPubKey,omitempty"`
-	SenderKID       string    `json:"senderKID,omitempty"`
+	CEK             string       `json:"cek,omitempty"`
+	APU             string       `json:"apu,omitempty"`
+	APV             string       `json:"apv,omitempty"`
+	RecipientPubKey publicKeyReq `json:"recPubKey,omitempty"`
+	SenderKID       string       `json:"senderKID,omitempty"`
 }
 
 type wrapResp struct {
@@ -78,12 +78,12 @@ type wrapResp struct {
 }
 
 type recipientWrappedKey struct {
-	KID          string    `json:"kid,omitempty"`
-	EncryptedCEK string    `json:"encryptedCEK,omitempty"`
-	EPK          publicKey `json:"epk,omitempty"`
-	Alg          string    `json:"alg,omitempty"`
-	APU          string    `json:"apu,omitempty"`
-	APV          string    `json:"apv,omitempty"`
+	KID          string       `json:"kid,omitempty"`
+	EncryptedCEK string       `json:"encryptedCEK,omitempty"`
+	EPK          publicKeyReq `json:"epk,omitempty"`
+	Alg          string       `json:"alg,omitempty"`
+	APU          string       `json:"apu,omitempty"`
+	APV          string       `json:"apv,omitempty"`
 }
 
 type unwrapReq struct {
@@ -95,7 +95,7 @@ type unwrapResp struct {
 	Key string `json:"key,omitempty"`
 }
 
-type publicKey struct {
+type publicKeyReq struct {
 	KID   string `json:"kid,omitempty"`
 	X     string `json:"x,omitempty"`
 	Y     string `json:"y,omitempty"`
@@ -103,7 +103,7 @@ type publicKey struct {
 	Type  string `json:"type,omitempty"`
 }
 
-type publicKeyWithBytesXY struct {
+type publicKey struct {
 	KID   string `json:"kid,omitempty"`
 	X     []byte `json:"x,omitempty"`
 	Y     []byte `json:"y,omitempty"`
@@ -117,4 +117,25 @@ type setSecretRequest struct {
 
 type errorResponse struct {
 	Message string `json:"errMessage,omitempty"`
+}
+
+type easyReq struct {
+	Payload  string `json:"payload"`
+	Nonce    string `json:"nonce"`
+	TheirPub string `json:"theirPub"`
+}
+
+type easyResp struct {
+	CipherText string `json:"cipherText"`
+}
+
+type easyOpenReq struct {
+	CipherText string `json:"cipherText"`
+	Nonce      string `json:"nonce"`
+	TheirPub   string `json:"theirPub"`
+	MyPub      string `json:"myPub"`
+}
+
+type easyOpenResp struct {
+	PlainText string `json:"plainText"`
 }

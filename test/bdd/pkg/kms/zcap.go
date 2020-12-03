@@ -32,6 +32,8 @@ const (
 	actionEncrypt         = "encrypt"
 	actionDecrypt         = "decrypt"
 	actionStoreCapability = "updateEDVCapability"
+	actionEasy            = "easy"
+	actionEasyOpen        = "easyOpen"
 )
 
 type signer interface {

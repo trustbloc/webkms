@@ -19,9 +19,9 @@ subjectAltName = @alt_names
 [alt_names]
 DNS.1 = localhost
 DNS.2 = edv.example.com
-DNS.3 = third.party.oidc.provider.example.com
-DNS.4 = auth.rest.hydra.example.com
-DNS.5 = auth.rest.example.com
+DNS.3 = oidc.provider.example.com
+DNS.4 = hydra.example.com
+DNS.5 = hub-auth.example.com
 DNS.6 = *.example.com" >> "$tmp"
 
 #create CA

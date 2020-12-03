@@ -29,8 +29,8 @@ import (
 
 	zcapld2 "github.com/trustbloc/hub-kms/pkg/auth/zcapld"
 	"github.com/trustbloc/hub-kms/pkg/restapi/kms/operation"
-	"github.com/trustbloc/hub-kms/test/bdd/pkg/bddutil"
 	"github.com/trustbloc/hub-kms/test/bdd/pkg/context"
+	"github.com/trustbloc/hub-kms/test/bdd/pkg/internal/cryptoutil"
 )
 
 const (
@@ -58,7 +58,7 @@ func NewSteps(authBDDContext *authbddctx.BDDContext, tlsConfig *tls.Config) *Ste
 		httpClient:     &http.Client{Transport: &http.Transport{TLSClientConfig: tlsConfig}},
 		logger:         log.New("kms-rest/tests/kms"),
 		users:          map[string]*user{},
-		keys:           map[string][]byte{"testCEK": bddutil.GenerateRandomBytes()},
+		keys:           map[string][]byte{"testCEK": cryptoutil.GenerateKey()},
 	}
 }
 
@@ -97,6 +97,9 @@ func (s *Steps) RegisterSteps(ctx *godog.ScenarioContext) {
 	ctx.Step(`^"([^"]*)" has a public key of "([^"]*)"$`, s.getPubKeyOfRecipient)
 	ctx.Step(`^"([^"]*)" makes an HTTP POST to "([^"]*)" to wrap "([^"]*)" for "([^"]*)"$`, s.makeWrapKeyReq)
 	ctx.Step(`^"([^"]*)" makes an HTTP POST to "([^"]*)" to unwrap "([^"]*)" from "([^"]*)"$`, s.makeUnwrapKeyReq)
+	// CryptoBox steps
+	ctx.Step(`^"([^"]*)" makes an HTTP POST to "([^"]*)" to easy "([^"]*)" for "([^"]*)"$`, s.makeEasyPayloadReq)
+	ctx.Step(`^"([^"]*)" makes an HTTP POST to "([^"]*)" to easyOpen "([^"]*)" from "([^"]*)"$`, s.makeEasyOpenReq)
 }
 
 func (s *Steps) createKeystoreAndKey(user, keyType string) error {
@@ -109,10 +112,7 @@ func (s *Steps) createKeystoreAndKey(user, keyType string) error {
 }
 
 func (s *Steps) createKeystore(userName string) error {
-	u, ok := s.users[userName]
-	if !ok {
-		return fmt.Errorf("no user with name %s exist", userName)
-	}
+	u := s.users[userName]
 
 	r := &createKeystoreReq{
 		Controller: u.controller,
@@ -206,10 +206,7 @@ func (s *Steps) createChainCapability(u *user) (*zcapld.Capability, error) {
 }
 
 func (s *Steps) makeCreateKeyReq(user, endpoint, keyType string) error {
-	u, ok := s.users[user]
-	if !ok {
-		return fmt.Errorf("no user with name %s exist", user)
-	}
+	u := s.users[user]
 
 	r := &createKeyReq{
 		KeyType: keyType,
@@ -310,11 +307,8 @@ func (s *Steps) makeExportPubKeyReq(userName, endpoint string) error {
 	return nil
 }
 
-func (s *Steps) makeSignMessageReq(userName, endpoint, message string) error {
-	u, ok := s.users[userName]
-	if !ok {
-		return fmt.Errorf("no user with name %s exist", userName)
-	}
+func (s *Steps) makeSignMessageReq(userName, endpoint, message string) error { //nolint:dupl // ignore
+	u := s.users[userName]
 
 	r := &signReq{
 		Message: base64.URLEncoding.EncodeToString([]byte(message)),
@@ -489,7 +483,7 @@ func (s *Steps) makeDecryptCipherReq(userName, endpoint, tag string) error {
 	return nil
 }
 
-func (s *Steps) makeComputeMACReq(userName, endpoint, data string) error {
+func (s *Steps) makeComputeMACReq(userName, endpoint, data string) error { //nolint:dupl // ignore
 	u := s.users[userName]
 
 	r := &computeMACReq{
@@ -586,13 +580,13 @@ func (s *Steps) makeVerifyReq(u *user, action string, r interface{}, endpoint st
 func (s *Steps) makeWrapKeyReq(userName, endpoint, keyID, recipient string) error {
 	u := s.users[userName]
 
-	recipientPubKey := u.recipientPubKeys[recipient]
+	recipientPubKey := u.recipientPubKeys[recipient].parsedKey
 
 	r := &wrapReq{
 		CEK: base64.URLEncoding.EncodeToString(s.keys[keyID]),
 		APU: base64.URLEncoding.EncodeToString([]byte("sender")),
 		APV: base64.URLEncoding.EncodeToString([]byte("recipient")),
-		RecipientPubKey: publicKey{
+		RecipientPubKey: publicKeyReq{
 			KID:   base64.URLEncoding.EncodeToString([]byte(recipientPubKey.KID)),
 			X:     base64.URLEncoding.EncodeToString(recipientPubKey.X),
 			Y:     base64.URLEncoding.EncodeToString(recipientPubKey.Y),
@@ -710,7 +704,11 @@ func (s *Steps) makeUnwrapKeyReq(userName, endpoint, tag, sender string) error {
 
 func (s *Steps) getPubKeyOfRecipient(userName, recipientName string) error {
 	u := s.users[userName]
-	recipient := s.users[recipientName]
+
+	recipient, ok := s.users[recipientName]
+	if !ok {
+		return fmt.Errorf("no recipient with name %s exist", recipientName)
+	}
 
 	request, err := recipient.prepareGetRequest(s.bddContext.KeyServerURL + exportKeyEndpoint)
 	if err != nil {
@@ -746,23 +744,34 @@ func (s *Steps) getPubKeyOfRecipient(userName, recipientName string) error {
 		return respErr
 	}
 
-	pubKeyBytes, err := base64.URLEncoding.DecodeString(exportKeyResponse.PublicKey)
+	keyBytes, err := base64.URLEncoding.DecodeString(exportKeyResponse.PublicKey)
 	if err != nil {
 		return err
 	}
 
-	pubKey := publicKeyWithBytesXY{}
-
-	err = json.Unmarshal(pubKeyBytes, &pubKey)
-	if err != nil {
-		return err
+	keyData := &publicKeyData{
+		rawBytes: keyBytes,
 	}
 
-	s.users[userName].recipientPubKeys = map[string]publicKeyWithBytesXY{
-		recipientName: pubKey,
+	if key, ok := parsePublicKey(keyBytes); ok {
+		keyData.parsedKey = key
+	}
+
+	u.recipientPubKeys = map[string]*publicKeyData{
+		recipientName: keyData,
 	}
 
 	return nil
+}
+
+func parsePublicKey(rawBytes []byte) (*publicKey, bool) {
+	// depending on key type, raw bytes might not represent publicKey structure
+	var k publicKey
+	if err := json.Unmarshal(rawBytes, &k); err != nil {
+		return nil, false
+	}
+
+	return &k, true
 }
 
 func delegateCapability(c *zcapld.Capability, s signer, verificationMethod, invoker string) (string, error) {

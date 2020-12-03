@@ -36,8 +36,9 @@ type user struct {
 	subject     string
 	secretShare []byte
 
-	recipientPubKeys map[string]publicKeyWithBytesXY
+	recipientPubKeys map[string]*publicKeyData
 	response         *response
+	requestValues    map[string]string
 
 	signer        signer
 	authKMS       kms.KeyManager
@@ -45,6 +46,11 @@ type user struct {
 	edvCapability *zcapld.Capability
 	kmsCapability *zcapld.Capability
 	accessToken   string
+}
+
+type publicKeyData struct {
+	rawBytes  []byte
+	parsedKey *publicKey
 }
 
 type response struct {

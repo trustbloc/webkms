@@ -1,0 +1,11 @@
+#
+# Copyright SecureKey Technologies Inc. All Rights Reserved.
+#
+# SPDX-License-Identifier: Apache-2.0
+#
+
+providers:
+  mockbank:
+    url: https://oidc.provider.example.com:5555/
+    clientID: hub-auth
+    clientSecret: hub-auth-secret

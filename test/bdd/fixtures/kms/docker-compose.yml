@@ -29,7 +29,7 @@ services:
       - KMS_KEY_MANAGER_STORAGE_TYPE=couchdb
       - KMS_KEY_MANAGER_STORAGE_URL=admin:password@couchdb.example.com:5984
       - KMS_KEY_MANAGER_STORAGE_PREFIX=authzkmskm
-      - KMS_HUB_AUTH_URL=https://auth.rest.example.com:8070
+      - KMS_HUB_AUTH_URL=https://hub-auth.example.com:8070
       - KMS_HUB_AUTH_API_TOKEN=test_token
       - KMS_LOG_LEVEL=debug
     ports:
