@@ -18,7 +18,6 @@ import (
 	"github.com/hyperledger/aries-framework-go/pkg/crypto/tinkcrypto"
 	ariesstorage "github.com/hyperledger/aries-framework-go/pkg/storage"
 	ariesmemstorage "github.com/hyperledger/aries-framework-go/pkg/storage/mem"
-	"github.com/rs/cors"
 	"github.com/spf13/cobra"
 	"github.com/trustbloc/edge-core/pkg/log"
 	"github.com/trustbloc/edge-core/pkg/restapi/logspec"
@@ -580,7 +579,7 @@ func startKmsService(params *kmsRestParameters, srv Server) error {
 		params.hostURL,
 		params.tlsServeParams.certPath,
 		params.tlsServeParams.keyPath,
-		constructCORSHandler(router))
+		router)
 }
 
 func setLogLevel(level string, srv Server) {
@@ -676,13 +675,4 @@ func prepareKMSStorageProvider(params *storageParameters) (ariesstorage.Provider
 	default:
 		return nil, errors.New("KMS storage not set to a valid type")
 	}
-}
-
-func constructCORSHandler(handler http.Handler) http.Handler {
-	return cors.New(
-		cors.Options{
-			AllowedMethods: []string{http.MethodGet, http.MethodPost, http.MethodOptions},
-			AllowedHeaders: []string{"*"},
-		},
-	).Handler(handler)
 }
