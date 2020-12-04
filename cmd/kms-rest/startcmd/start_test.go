@@ -333,6 +333,32 @@ func TestStartCmdWithHubAuthURLParam(t *testing.T) {
 	require.NoError(t, err)
 }
 
+func TestStartCmdWithEnableCORSParam(t *testing.T) {
+	t.Run("Success with CORS enabled", func(t *testing.T) {
+		startCmd := GetStartCmd(&mockServer{})
+
+		args := requiredArgs()
+		args = append(args, "--"+enableCORSFlagName, "true")
+
+		startCmd.SetArgs(args)
+
+		err := startCmd.Execute()
+		require.NoError(t, err)
+	})
+
+	t.Run("Fail with invalid enable-cors param", func(t *testing.T) {
+		startCmd := GetStartCmd(&mockServer{})
+
+		args := requiredArgs()
+		args = append(args, "--"+enableCORSFlagName, "invalid")
+
+		startCmd.SetArgs(args)
+
+		err := startCmd.Execute()
+		require.Error(t, err)
+	})
+}
+
 func TestStartKMSService(t *testing.T) {
 	const invalidStorageOption = "invalid"
 

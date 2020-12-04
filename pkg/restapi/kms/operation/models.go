@@ -8,8 +8,7 @@ package operation
 
 import "encoding/json"
 
-// CreateKeystoreReq create key store request.
-type CreateKeystoreReq struct {
+type createKeystoreReq struct {
 	Controller string `json:"controller"`
 	VaultID    string `json:"vaultID,omitempty"`
 }
@@ -143,4 +142,8 @@ type sealOpenReq struct {
 
 type sealOpenResp struct {
 	PlainText string `json:"plainText"`
+}
+
+type errorResp struct {
+	Message string `json:"errMessage,omitempty"`
 }

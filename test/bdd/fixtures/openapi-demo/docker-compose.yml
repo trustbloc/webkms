@@ -1,0 +1,53 @@
+#
+# Copyright IBM Corp, SecureKey Technologies Inc. All Rights Reserved.
+#
+# SPDX-License-Identifier: Apache-2.0
+#
+version: '2'
+
+services:
+
+  openapi.demo.com:
+    container_name: openapi.demo.com
+    image: swaggerapi/swagger-ui
+    environment:
+      - SWAGGER_JSON=/specs/openapi-${OPEN_API_HOST}.yml
+      - BASE_URL=/openapi
+    ports:
+      - 8089:8080
+    volumes:
+      - ./specs:/specs
+    networks:
+      - couchdb_bdd_net
+
+  kms.example.com:
+    container_name: kms.example.com
+    image: ${KMS_REST_IMAGE}:latest
+    environment:
+      - KMS_HOST_URL=0.0.0.0:8080
+      - KMS_DATABASE_TYPE=couchdb
+      - KMS_DATABASE_URL=admin:password@couchdb.example.com:5984
+      - KMS_DATABASE_PREFIX=keystore
+      - KMS_PRIMARY_KEY_DATABASE_TYPE=couchdb
+      - KMS_PRIMARY_KEY_DATABASE_URL=admin:password@couchdb.example.com:5984
+      - KMS_PRIMARY_KEY_DATABASE_PREFIX=kmspk
+      - KMS_LOCAL_KMS_DATABASE_TYPE=couchdb
+      - KMS_LOCAL_KMS_DATABASE_URL=admin:password@couchdb.example.com:5984
+      - KMS_LOCAL_KMS_DATABASE_PREFIX=kmslocal
+      - KMS_KEY_MANAGER_STORAGE_TYPE=couchdb
+      - KMS_KEY_MANAGER_STORAGE_URL=admin:password@couchdb.example.com:5984
+      - KMS_KEY_MANAGER_STORAGE_PREFIX=kmskm
+      - KMS_ZCAP_ENABLE=false
+      - KMS_CORS_ENABLE=true
+      - KMS_LOG_LEVEL=debug
+    ports:
+      - 8080:8080
+    entrypoint: ""
+    # TODO add retry for couchdb
+    command: /bin/sh -c "sleep 5;kms-rest start"
+    networks:
+      - couchdb_bdd_net
+
+networks:
+  couchdb_bdd_net:
+    external: true

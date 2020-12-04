@@ -13,6 +13,13 @@ import (
 	"github.com/gorilla/mux"
 )
 
+// swagger:route POST /kms/keystores/{keystoreID}/keys/{keyID}/easy crypto-box easyReq
+//
+// Encrypts (anonymously) a payload.
+//
+// Responses:
+//        200: easyResp
+//    default: errorResp
 func (o *Operation) easyHandler(rw http.ResponseWriter, req *http.Request) { //nolint:dupl // readability
 	kmsService, err := o.kmsServiceCreator(req)
 	if err != nil {
@@ -62,6 +69,13 @@ func (o *Operation) easyHandler(rw http.ResponseWriter, req *http.Request) { //n
 	})
 }
 
+// swagger:route POST /kms/keystores/{keystoreID}/easyopen crypto-box easyOpenReq
+//
+// Decrypts (easy open) a payload.
+//
+// Responses:
+//        200: easyOpenResp
+//    default: errorResp
 func (o *Operation) easyOpenHandler(rw http.ResponseWriter, req *http.Request) {
 	kmsService, err := o.kmsServiceCreator(req)
 	if err != nil {
@@ -117,6 +131,13 @@ func (o *Operation) easyOpenHandler(rw http.ResponseWriter, req *http.Request) {
 	})
 }
 
+// swagger:route POST /kms/keystores/{keystoreID}/sealopen crypto-box sealOpenReq
+//
+// Decrypts ("seal open") a payload.
+//
+// Responses:
+//        200: sealOpenResp
+//    default: errorResp
 func (o *Operation) sealOpenHandler(rw http.ResponseWriter, req *http.Request) {
 	kmsService, err := o.kmsServiceCreator(req)
 	if err != nil {
