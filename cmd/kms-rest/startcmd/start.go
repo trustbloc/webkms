@@ -18,6 +18,7 @@ import (
 	"github.com/hyperledger/aries-framework-go/pkg/crypto/tinkcrypto"
 	ariesstorage "github.com/hyperledger/aries-framework-go/pkg/storage"
 	ariesmemstorage "github.com/hyperledger/aries-framework-go/pkg/storage/mem"
+	"github.com/rs/cors"
 	"github.com/spf13/cobra"
 	"github.com/trustbloc/edge-core/pkg/log"
 	"github.com/trustbloc/edge-core/pkg/restapi/logspec"
@@ -175,6 +176,11 @@ const (
 	enableZCAPsFlagUsage = "Determines whether to enable zcaps authz on all endpoints (except createKeyStore)." +
 		" Default is false. " + commonEnvVarUsageText + enableZCAPsEnvKey
 	enableZCAPsEnvKey = "KMS_ZCAP_ENABLE"
+
+	enableCORSFlagName  = "enable-cors"
+	enableCORSFlagUsage = "Enable CORS. Possible values [true] [false]. " +
+		"Defaults to false if not set. " + commonEnvVarUsageText + corsEnableEnvKey
+	corsEnableEnvKey = "KMS_CORS_ENABLE"
 )
 
 const (
@@ -272,6 +278,7 @@ func createFlags(startCmd *cobra.Command) {
 	startCmd.Flags().StringP(hubAuthAPITokenFlagName, "", "", hubAuthAPITokenFlagUsage)
 
 	startCmd.Flags().StringP(enableZCAPsFlagName, "", "", enableZCAPsFlagUsage)
+	startCmd.Flags().StringP(enableCORSFlagName, "", "", enableCORSFlagUsage)
 }
 
 type kmsRestParameters struct {
@@ -289,6 +296,7 @@ type kmsRestParameters struct {
 	hubAuthAPIToken         string
 	logLevel                string
 	enableZCAPs             bool
+	enableCORS              bool
 }
 
 type tlsServeParameters struct {
@@ -379,6 +387,11 @@ func getKmsRestParameters(cmd *cobra.Command) (*kmsRestParameters, error) { //no
 		}
 	}
 
+	enableCORS, err := getEnableCORS(cmd)
+	if err != nil {
+		return nil, err
+	}
+
 	return &kmsRestParameters{
 		hostURL:                 strings.TrimSpace(hostURL),
 		baseURL:                 baseURL,
@@ -394,6 +407,7 @@ func getKmsRestParameters(cmd *cobra.Command) (*kmsRestParameters, error) { //no
 		hubAuthAPIToken:         hubAuthAPIToken,
 		logLevel:                logLevel,
 		enableZCAPs:             enableZCAPs,
+		enableCORS:              enableCORS,
 	}, nil
 }
 
@@ -432,6 +446,23 @@ func getServeTLS(cmd *cobra.Command) (*tlsServeParameters, error) {
 		certPath: tlsCertPath,
 		keyPath:  tlsKeyPath,
 	}, nil
+}
+
+func getEnableCORS(cmd *cobra.Command) (bool, error) {
+	enableCORSString := cmdutils.GetUserSetOptionalVarFromString(cmd, enableCORSFlagName, corsEnableEnvKey)
+
+	enableCORS := false
+
+	if enableCORSString != "" {
+		var err error
+		enableCORS, err = strconv.ParseBool(enableCORSString)
+
+		if err != nil {
+			return false, err
+		}
+	}
+
+	return enableCORS, nil
 }
 
 func getStorageParameters(cmd *cobra.Command) (*storageParameters, error) {
@@ -575,11 +606,18 @@ func startKmsService(params *kmsRestParameters, srv Server) error {
 
 	srv.Logger().Infof("Starting KMS on host %s", params.hostURL)
 
+	var handler http.Handler
+	if params.enableCORS {
+		handler = constructCORSHandler(router)
+	} else {
+		handler = router
+	}
+
 	return srv.ListenAndServe(
 		params.hostURL,
 		params.tlsServeParams.certPath,
 		params.tlsServeParams.keyPath,
-		router)
+		handler)
 }
 
 func setLogLevel(level string, srv Server) {
@@ -652,6 +690,15 @@ func prepareOperationConfig(params *kmsRestParameters) (*operation.Config, error
 		LDDocumentLoader:  ldDocLoader,
 		BaseURL:           params.baseURL,
 	}, nil
+}
+
+func constructCORSHandler(handler http.Handler) http.Handler {
+	return cors.New(
+		cors.Options{
+			AllowedMethods: []string{http.MethodGet, http.MethodPost, http.MethodOptions},
+			AllowedHeaders: []string{"*"},
+		},
+	).Handler(handler)
 }
 
 func prepareStorageProvider(params *storageParameters) (storage.Provider, error) {

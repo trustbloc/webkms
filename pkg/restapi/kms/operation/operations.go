@@ -187,10 +187,17 @@ func (o *Operation) GetRESTHandlers() []Handler {
 	}
 }
 
+// swagger:route POST /kms/keystores keystore createKeystoreReq
+//
+// Creates a new Keystore.
+//
+// Responses:
+//        201: createKeystoreResp
+//    default: errorResp
 func (o *Operation) createKeystoreHandler(rw http.ResponseWriter, req *http.Request) {
 	o.logger.Debugf("handling request: %s", req.URL.String())
 
-	var request CreateKeystoreReq
+	var request createKeystoreReq
 	if ok := o.parseRequest(&request, rw, req); !ok {
 		return
 	}
@@ -243,6 +250,13 @@ func (o *Operation) createKeystoreHandler(rw http.ResponseWriter, req *http.Requ
 	o.logger.Debugf("finished handling request - keystore: %s", resource)
 }
 
+// swagger:route POST /kms/keystores/{keystoreID}/keys kms createKeyReq
+//
+// Creates a new key.
+//
+// Responses:
+//        201: createKeyResp
+//    default: errorResp
 func (o *Operation) createKeyHandler(rw http.ResponseWriter, req *http.Request) {
 	o.logger.Debugf("handling request: %s", req.URL.String())
 
@@ -281,6 +295,13 @@ func (o *Operation) createKeyHandler(rw http.ResponseWriter, req *http.Request) 
 	o.logger.Debugf("finished handling request")
 }
 
+// swagger:route POST /kms/keystores/{keystoreID}/capability zcap updateCapabilityReq
+//
+// Updates ZCAP capabilities.
+//
+// Responses:
+//        201: emptyRes
+//    default: errorResp
 func (o *Operation) updateCapabilityHandler(rw http.ResponseWriter, req *http.Request) {
 	var request UpdateCapabilityReq
 	if ok := o.parseRequest(&request, rw, req); !ok {
@@ -314,6 +335,13 @@ func (o *Operation) updateCapabilityHandler(rw http.ResponseWriter, req *http.Re
 	rw.WriteHeader(http.StatusOK)
 }
 
+// swagger:route GET /kms/keystores/{keystoreID}/keys/{keyID} kms exportKeyReq
+//
+// Exports a public key.
+//
+// Responses:
+//        200: exportKeyResp
+//    default: errorResp
 func (o *Operation) exportKeyHandler(rw http.ResponseWriter, req *http.Request) {
 	o.logger.Debugf(prepareDebugOutputForRequest(req, o.logger))
 
@@ -339,8 +367,14 @@ func (o *Operation) exportKeyHandler(rw http.ResponseWriter, req *http.Request) 
 	})
 }
 
-//nolint:dupl // better readability
-func (o *Operation) signHandler(rw http.ResponseWriter, req *http.Request) {
+// swagger:route POST /kms/keystores/{keystoreID}/keys/{keyID}/sign kms signReq
+//
+// Signs a message.
+//
+// Responses:
+//        200: signResp
+//    default: errorResp
+func (o *Operation) signHandler(rw http.ResponseWriter, req *http.Request) { //nolint:dupl // better readability
 	o.logger.Debugf("handling request: %s", req.URL.String())
 
 	kmsService, err := o.kmsServiceCreator(req)
@@ -379,8 +413,14 @@ func (o *Operation) signHandler(rw http.ResponseWriter, req *http.Request) {
 	o.logger.Debugf("finished handling request: %s", req.URL.String())
 }
 
-//nolint:dupl // better readability
-func (o *Operation) verifyHandler(rw http.ResponseWriter, req *http.Request) {
+// swagger:route POST /kms/keystores/{keystoreID}/keys/{keyID}/verify kms verifyReq
+//
+// Verifies a signature for the message.
+//
+// Responses:
+//        200: emptyRes
+//    default: errorResp
+func (o *Operation) verifyHandler(rw http.ResponseWriter, req *http.Request) { //nolint:dupl // better readability
 	kmsService, err := o.kmsServiceCreator(req)
 	if err != nil {
 		o.writeErrorResponse(rw, http.StatusInternalServerError, createKMSServiceFailure, err)
@@ -420,6 +460,13 @@ func (o *Operation) verifyHandler(rw http.ResponseWriter, req *http.Request) {
 	rw.WriteHeader(http.StatusOK)
 }
 
+// swagger:route POST /kms/keystores/{keystoreID}/keys/{keyID}/encrypt kms encryptReq
+//
+// Encrypts a message.
+//
+// Responses:
+//        200: encryptResp
+//    default: errorResp
 func (o *Operation) encryptHandler(rw http.ResponseWriter, req *http.Request) {
 	kmsService, err := o.kmsServiceCreator(req)
 	if err != nil {
@@ -463,6 +510,13 @@ func (o *Operation) encryptHandler(rw http.ResponseWriter, req *http.Request) {
 	})
 }
 
+// swagger:route POST /kms/keystores/{keystoreID}/keys/{keyID}/decrypt kms decryptReq
+//
+// Decrypts a cipher.
+//
+// Responses:
+//        200: decryptResp
+//    default: errorResp
 func (o *Operation) decryptHandler(rw http.ResponseWriter, req *http.Request) { //nolint:dupl // readability
 	kmsService, err := o.kmsServiceCreator(req)
 	if err != nil {
@@ -512,8 +566,14 @@ func (o *Operation) decryptHandler(rw http.ResponseWriter, req *http.Request) { 
 	})
 }
 
-//nolint:dupl // better readability
-func (o *Operation) computeMACHandler(rw http.ResponseWriter, req *http.Request) {
+// swagger:route POST /kms/keystores/{keystoreID}/keys/{keyID}/computemac kms computeMACReq
+//
+// Computes MAC for data.
+//
+// Responses:
+//        200: computeMACResp
+//    default: errorResp
+func (o *Operation) computeMACHandler(rw http.ResponseWriter, req *http.Request) { //nolint:dupl // better readability
 	kmsService, err := o.kmsServiceCreator(req)
 	if err != nil {
 		o.writeErrorResponse(rw, http.StatusInternalServerError, createKMSServiceFailure, err)
@@ -548,8 +608,14 @@ func (o *Operation) computeMACHandler(rw http.ResponseWriter, req *http.Request)
 	})
 }
 
-//nolint:dupl // better readability
-func (o *Operation) verifyMACHandler(rw http.ResponseWriter, req *http.Request) {
+// swagger:route POST /kms/keystores/{keystoreID}/keys/{keyID}/verifymac kms verifyMACReq
+//
+// Verifies MAC for data.
+//
+// Responses:
+//        200: emptyRes
+//    default: errorResp
+func (o *Operation) verifyMACHandler(rw http.ResponseWriter, req *http.Request) { //nolint:dupl // better readability
 	kmsService, err := o.kmsServiceCreator(req)
 	if err != nil {
 		o.writeErrorResponse(rw, http.StatusInternalServerError, createKMSServiceFailure, err)
@@ -589,6 +655,13 @@ func (o *Operation) verifyMACHandler(rw http.ResponseWriter, req *http.Request) 
 	rw.WriteHeader(http.StatusOK)
 }
 
+// swagger:route POST /kms/keystores/{keystoreID}/wrap kms wrapReq
+//
+// Wraps CEK for the recipient.
+//
+// Responses:
+//        200: wrapResp
+//    default: errorResp
 func (o *Operation) wrapHandler(rw http.ResponseWriter, req *http.Request) {
 	kmsService, err := o.kmsServiceCreator(req)
 	if err != nil {
@@ -649,8 +722,14 @@ func (o *Operation) wrapHandler(rw http.ResponseWriter, req *http.Request) {
 	}})
 }
 
-//nolint:funlen // readability
-func (o *Operation) unwrapHandler(rw http.ResponseWriter, req *http.Request) {
+// swagger:route POST /kms/keystores/{keystoreID}/keys/{keyID}/unwrap kms unwrapReq
+//
+// Unwraps a key.
+//
+// Responses:
+//        200: unwrapResp
+//    default: errorResp
+func (o *Operation) unwrapHandler(rw http.ResponseWriter, req *http.Request) { //nolint:funlen // readability
 	kmsService, err := o.kmsServiceCreator(req)
 	if err != nil {
 		o.writeErrorResponse(rw, http.StatusInternalServerError, createKMSServiceFailure, err)
@@ -750,16 +829,12 @@ func prepareDebugOutputForRequest(
 	return string(dump)
 }
 
-type errorResponse struct {
-	Message string `json:"errMessage,omitempty"`
-}
-
 func (o *Operation) writeErrorResponse(rw http.ResponseWriter, status int, messageFormat string, err error) {
 	o.logger.Errorf(messageFormat, err)
 
 	rw.WriteHeader(status)
 
-	e := json.NewEncoder(rw).Encode(errorResponse{
+	e := json.NewEncoder(rw).Encode(errorResp{
 		Message: fmt.Sprintf(messageFormat, kms.UserErrorMessage(err)),
 	})
 

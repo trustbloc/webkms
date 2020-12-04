@@ -30,3 +30,4 @@ coverage.out
 *.log
 
 test/bdd/fixtures/keys
+test/bdd/fixtures/openapi-demo/specs/
