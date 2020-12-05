@@ -46,6 +46,7 @@ type Config struct {
 	EDVServerURL    string
 	KeystoreID      string
 	HeaderSigner    HeaderSigner
+	CacheProvider   storage.Provider
 }
 
 // NewStorageProvider returns a new EDV storage provider instance.
@@ -55,20 +56,6 @@ func NewStorageProvider(c *Config) (storage.Provider, error) {
 		return nil, err
 	}
 
-	restProvider, err := c.createRESTProvider(k)
-	if err != nil {
-		return nil, err
-	}
-
-	encryptedFormatter, err := c.createEncryptedFormatter(k)
-	if err != nil {
-		return nil, err
-	}
-
-	return formattedstore.NewFormattedProvider(restProvider, encryptedFormatter, true), nil
-}
-
-func (c *Config) createRESTProvider(k *keystore.Keystore) (*edv.RESTProvider, error) {
 	macKH, err := c.KeystoreService.GetKeyHandle(k.MACKeyID)
 	if err != nil {
 		return nil, err
@@ -76,10 +63,23 @@ func (c *Config) createRESTProvider(k *keystore.Keystore) (*edv.RESTProvider, er
 
 	macCrypto := edv.NewMACCrypto(macKH, c.CryptoService)
 
-	edvServerURL := c.EDVServerURL + edvEndpointPathRoot
+	restProvider, err := c.createRESTProvider(k, macCrypto)
+	if err != nil {
+		return nil, err
+	}
 
+	encryptedFormatter, err := c.createEncryptedFormatter(k, macCrypto)
+	if err != nil {
+		return nil, err
+	}
+
+	return formattedstore.NewFormattedProvider(restProvider, encryptedFormatter, true,
+		formattedstore.WithCacheProvider(c.CacheProvider)), nil
+}
+
+func (c *Config) createRESTProvider(k *keystore.Keystore, macCrypto *edv.MACCrypto) (*edv.RESTProvider, error) {
 	p, err := edv.NewRESTProvider(
-		edvServerURL,
+		c.EDVServerURL+edvEndpointPathRoot,
 		k.VaultID,
 		macCrypto,
 		edv.WithTLSConfig(c.TLSConfig),
@@ -102,7 +102,8 @@ func (c *Config) signHeader(req *http.Request, edvCapability []byte) (*http.Head
 	return nil, nil
 }
 
-func (c *Config) createEncryptedFormatter(k *keystore.Keystore) (*edv.EncryptedFormatter, error) {
+func (c *Config) createEncryptedFormatter(k *keystore.Keystore,
+	macCrypto *edv.MACCrypto) (*edv.EncryptedFormatter, error) {
 	recipientKH, err := c.KeystoreService.GetKeyHandle(k.RecipientKeyID)
 	if err != nil {
 		return nil, err
@@ -130,7 +131,7 @@ func (c *Config) createEncryptedFormatter(k *keystore.Keystore) (*edv.EncryptedF
 
 	decrypter := jose.NewJWEDecrypt(nil, c.CryptoService, keyManager)
 
-	return edv.NewEncryptedFormatter(encrypter, decrypter), nil
+	return edv.NewEncryptedFormatter(encrypter, decrypter, macCrypto), nil
 }
 
 func recipientPublicKey(kh interface{}, kID string) (*crypto.PublicKey, []byte, error) {

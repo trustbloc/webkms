@@ -18,6 +18,7 @@ import (
 
 	"github.com/trustbloc/hub-kms/pkg/keystore"
 	"github.com/trustbloc/hub-kms/pkg/kms"
+	"github.com/trustbloc/hub-kms/pkg/storage/cache/gcache"
 	"github.com/trustbloc/hub-kms/pkg/storage/edv"
 )
 
@@ -33,7 +34,7 @@ func prepareKMSServiceCreator(keystoreSrv keystore.Service, cryptoSrv cryptoapi.
 		MinVersion: tls.VersionTLS12,
 	}
 
-	storageResolver := prepareStorageResolver(keystoreSrv, cryptoSrv, signer,
+	storageResolver := prepareStorageResolver(keystoreSrv, cryptoSrv, signer, gcache.NewProvider(),
 		params.keyManagerStorageParams, tlsConfig)
 
 	return kms.NewServiceCreator(&kms.Config{
@@ -45,7 +46,8 @@ func prepareKMSServiceCreator(keystoreSrv keystore.Service, cryptoSrv cryptoapi.
 }
 
 func prepareStorageResolver(keystoreSrv keystore.Service, cryptoSrv cryptoapi.Crypto, signer edv.HeaderSigner,
-	storageParams *storageParameters, tlsConfig *tls.Config) func(string) (ariesstorage.Provider, error) {
+	cacheProvider ariesstorage.Provider, storageParams *storageParameters,
+	tlsConfig *tls.Config) func(string) (ariesstorage.Provider, error) {
 	switch {
 	case strings.EqualFold(storageParams.storageType, storageTypeEDVOption):
 		return func(keystoreID string) (ariesstorage.Provider, error) {
@@ -56,6 +58,7 @@ func prepareStorageResolver(keystoreSrv keystore.Service, cryptoSrv cryptoapi.Cr
 				EDVServerURL:    storageParams.storageURL,
 				KeystoreID:      keystoreID,
 				TLSConfig:       tlsConfig,
+				CacheProvider:   cacheProvider,
 			}
 
 			return edv.NewStorageProvider(config)
