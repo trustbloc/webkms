@@ -16,7 +16,11 @@ import (
 	"io/ioutil"
 	"net/http"
 	"net/url"
+	"strings"
+	"sync"
+	"time"
 
+	"github.com/bluele/gcache"
 	"github.com/hyperledger/aries-framework-go/pkg/secretlock"
 	"github.com/hyperledger/aries-framework-go/pkg/secretlock/local/masterlock/hkdf"
 	"github.com/trustbloc/edge-core/pkg/log"
@@ -28,6 +32,11 @@ import (
 
 const (
 	hubAuthSecretPath = "/secret" // path on Hub Auth to get secret share
+)
+
+var (
+	cache  gcache.Cache // nolint:gochecknoglobals // this cache instance is global
+	doOnce sync.Once    // nolint:gochecknoglobals // this doOnce instance is for the global cache
 )
 
 // HubAuthParams defines parameters for HubAuth to get the secret share.
@@ -59,13 +68,35 @@ func New(secret []byte, params *HubAuthParams, options ...Option) (secretlock.Se
 		options[i](opts)
 	}
 
+	doOnce.Do(func() {
+		opts.Logger.Infof("Initializing cache...")
+		cache = gcache.New(0).
+			LoaderFunc(func(key interface{}) (interface{}, error) {
+				uriAndToken := strings.Split(fmt.Sprintf("%s", key), "&")
+
+				return fetchSecretShare(uriAndToken[0], uriAndToken[1], opts.HTTPClient, opts.Logger)
+			}).
+			Expiration(time.Minute).
+			Build()
+
+		opts.Logger.Infof("Initializing cache done.")
+	})
+
 	if secret == nil {
 		return nil, errors.New("empty secret share")
 	}
 
-	otherSecret, err := fetchSecretShare(params.URL, params.APIToken, params.Subject, opts.HTTPClient, opts.Logger)
+	uri := fmt.Sprintf("%s%s?sub=%s", params.URL, hubAuthSecretPath, url.QueryEscape(params.Subject))
+	token := fmt.Sprintf("Bearer %s", base64.StdEncoding.EncodeToString([]byte(params.APIToken)))
+
+	cachedSecret, err := cache.Get(uri + "&" + token)
 	if err != nil {
 		return nil, fmt.Errorf("fetch secret share: %w", err)
+	}
+
+	otherSecret, ok := cachedSecret.([]byte)
+	if !ok {
+		return nil, errors.New("fetch secret share from cache is not of type []byte")
 	}
 
 	combined, err := opts.SecretSplitter.Combine([][]byte{secret, otherSecret})
@@ -102,17 +133,13 @@ func WithLogger(l log.Logger) Option {
 	}
 }
 
-func fetchSecretShare(serverURL, token, sub string, httpClient support.HTTPClient, logger log.Logger) ([]byte, error) {
-	uri := fmt.Sprintf("%s%s?sub=%s", serverURL, hubAuthSecretPath, url.QueryEscape(sub))
-
+func fetchSecretShare(uri, token string, httpClient support.HTTPClient, logger log.Logger) ([]byte, error) {
 	req, err := http.NewRequestWithContext(context.Background(), http.MethodGet, uri, nil)
 	if err != nil {
 		return nil, err
 	}
 
-	req.Header.Set("authorization",
-		fmt.Sprintf("Bearer %s", base64.StdEncoding.EncodeToString([]byte(token))),
-	)
+	req.Header.Set("authorization", token)
 
 	resp, err := httpClient.Do(req)
 	if err != nil {
