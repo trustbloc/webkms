@@ -46,7 +46,7 @@ services:
     image: ${KMS_REST_IMAGE}:latest
     environment:
       - KMS_HOST_URL=0.0.0.0:8076
-      - KMS_BASE_URL=https://kms.example.com:8077
+      - KMS_BASE_URL=https://kms.example.com:8076
       - KMS_TLS_CACERTS=/etc/tls/ec-cacert.pem
       - KMS_TLS_SERVE_CERT=/etc/tls/ec-pubCert.pem
       - KMS_TLS_SERVE_KEY=/etc/tls/ec-key.pem
@@ -62,6 +62,7 @@ services:
       - KMS_LOCAL_KMS_DATABASE_PREFIX=kmslocal
       - KMS_KEY_MANAGER_STORAGE_TYPE=edv
       - KMS_KEY_MANAGER_STORAGE_URL=https://edv.example.com:8081
+      - KMS_CACHE_EXPIRATION=10m
       - KMS_ZCAP_ENABLE=true
       - KMS_LOG_LEVEL=debug
     ports:

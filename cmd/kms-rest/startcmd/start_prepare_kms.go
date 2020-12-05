@@ -10,6 +10,7 @@ import (
 	"crypto/tls"
 	"net/http"
 	"strings"
+	"time"
 
 	cryptoapi "github.com/hyperledger/aries-framework-go/pkg/crypto"
 	"github.com/hyperledger/aries-framework-go/pkg/secretlock"
@@ -18,6 +19,7 @@ import (
 
 	"github.com/trustbloc/hub-kms/pkg/keystore"
 	"github.com/trustbloc/hub-kms/pkg/kms"
+	"github.com/trustbloc/hub-kms/pkg/storage/cache"
 	"github.com/trustbloc/hub-kms/pkg/storage/edv"
 )
 
@@ -33,7 +35,18 @@ func prepareKMSServiceCreator(keystoreSrv keystore.Service, cryptoSrv cryptoapi.
 		MinVersion: tls.VersionTLS12,
 	}
 
-	storageResolver := prepareStorageResolver(keystoreSrv, cryptoSrv, signer,
+	var cacheProvider ariesstorage.Provider
+
+	if params.cacheExpiration != "" {
+		exp, err := time.ParseDuration(params.cacheExpiration)
+		if err != nil {
+			return nil, err
+		}
+
+		cacheProvider = cache.NewProvider(cache.WithExpiration(exp))
+	}
+
+	storageResolver := prepareStorageResolver(keystoreSrv, cryptoSrv, signer, cacheProvider,
 		params.keyManagerStorageParams, tlsConfig)
 
 	return kms.NewServiceCreator(&kms.Config{
@@ -45,7 +58,8 @@ func prepareKMSServiceCreator(keystoreSrv keystore.Service, cryptoSrv cryptoapi.
 }
 
 func prepareStorageResolver(keystoreSrv keystore.Service, cryptoSrv cryptoapi.Crypto, signer edv.HeaderSigner,
-	storageParams *storageParameters, tlsConfig *tls.Config) func(string) (ariesstorage.Provider, error) {
+	cacheProvider ariesstorage.Provider, storageParams *storageParameters,
+	tlsConfig *tls.Config) func(string) (ariesstorage.Provider, error) {
 	switch {
 	case strings.EqualFold(storageParams.storageType, storageTypeEDVOption):
 		return func(keystoreID string) (ariesstorage.Provider, error) {
@@ -56,6 +70,7 @@ func prepareStorageResolver(keystoreSrv keystore.Service, cryptoSrv cryptoapi.Cr
 				EDVServerURL:    storageParams.storageURL,
 				KeystoreID:      keystoreID,
 				TLSConfig:       tlsConfig,
+				CacheProvider:   cacheProvider,
 			}
 
 			return edv.NewStorageProvider(config)

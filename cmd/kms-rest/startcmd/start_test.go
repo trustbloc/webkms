@@ -359,6 +359,32 @@ func TestStartCmdWithEnableCORSParam(t *testing.T) {
 	})
 }
 
+func TestStartCmdWithCacheExpirationParam(t *testing.T) {
+	t.Run("Success with cache-expiration set", func(t *testing.T) {
+		startCmd := GetStartCmd(&mockServer{})
+
+		args := requiredArgs()
+		args = append(args, "--"+cacheExpirationFlagName, "10m")
+
+		startCmd.SetArgs(args)
+
+		err := startCmd.Execute()
+		require.NoError(t, err)
+	})
+
+	t.Run("Fail with invalid cache-expiration duration string", func(t *testing.T) {
+		startCmd := GetStartCmd(&mockServer{})
+
+		args := requiredArgs()
+		args = append(args, "--"+cacheExpirationFlagName, "invalid")
+
+		startCmd.SetArgs(args)
+
+		err := startCmd.Execute()
+		require.Error(t, err)
+	})
+}
+
 func TestStartKMSService(t *testing.T) {
 	const invalidStorageOption = "invalid"
 
