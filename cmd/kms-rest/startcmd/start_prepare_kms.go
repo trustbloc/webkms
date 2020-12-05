@@ -53,7 +53,7 @@ func prepareKMSServiceCreator(keystoreSrv keystore.Service, cryptoSrv cryptoapi.
 		KeystoreService:    keystoreSrv,
 		CryptoService:      cryptoSrv,
 		KMSStorageResolver: storageResolver,
-		SecretLockResolver: prepareSecretLockResolver(params, primaryKeyStorage, tlsConfig),
+		SecretLockResolver: prepareSecretLockResolver(params, primaryKeyStorage, cacheProvider, tlsConfig),
 	}), nil
 }
 
@@ -82,12 +82,12 @@ func prepareStorageResolver(keystoreSrv keystore.Service, cryptoSrv cryptoapi.Cr
 	}
 }
 
-func prepareSecretLockResolver(params *kmsRestParameters, primaryKeyStorage ariesstorage.Provider,
+func prepareSecretLockResolver(params *kmsRestParameters, primaryKeyStorage, cacheProvider ariesstorage.Provider,
 	tlsConfig *tls.Config) func(keyURI string, req *http.Request) (secretlock.Service, error) {
 	switch {
 	case params.hubAuthURL != "":
 		return func(keyURI string, req *http.Request) (secretlock.Service, error) {
-			return prepareSecretSplitLock(primaryKeyStorage, req, tlsConfig, keyURI,
+			return prepareSecretSplitLock(primaryKeyStorage, req, tlsConfig, cacheProvider, keyURI,
 				params.hubAuthURL, params.hubAuthAPIToken)
 		}
 	default:

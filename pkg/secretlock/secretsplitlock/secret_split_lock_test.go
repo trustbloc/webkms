@@ -16,7 +16,9 @@ import (
 	"net/http"
 	"testing"
 
+	mockstorage "github.com/hyperledger/aries-framework-go/pkg/mock/storage"
 	"github.com/hyperledger/aries-framework-go/pkg/secretlock"
+	"github.com/hyperledger/aries-framework-go/pkg/storage"
 	"github.com/stretchr/testify/require"
 	"github.com/trustbloc/edge-core/pkg/log"
 	"github.com/trustbloc/edge-core/pkg/log/mocklogger"
@@ -53,7 +55,7 @@ func TestNew(t *testing.T) {
 
 		require.Nil(t, secretLock)
 		require.Error(t, err)
-		require.Contains(t, err.Error(), "fetch secret share: response error")
+		require.Contains(t, err.Error(), "get secret share: response error")
 	})
 
 	t.Run("Fail to fetch secret share: read body error", func(t *testing.T) {
@@ -61,7 +63,7 @@ func TestNew(t *testing.T) {
 
 		require.Nil(t, secretLock)
 		require.Error(t, err)
-		require.Contains(t, err.Error(), "fetch secret share: read error")
+		require.Contains(t, err.Error(), "get secret share: read error")
 	})
 
 	t.Run("Fail to fetch secret share: read body error when status not OK", func(t *testing.T) {
@@ -78,7 +80,7 @@ func TestNew(t *testing.T) {
 
 		require.Nil(t, secretLock)
 		require.Error(t, err)
-		require.Contains(t, err.Error(), "fetch secret share: read response body:")
+		require.Contains(t, err.Error(), "get secret share: read response body:")
 	})
 
 	t.Run("Fail to fetch secret share: error message in response", func(t *testing.T) {
@@ -95,7 +97,7 @@ func TestNew(t *testing.T) {
 
 		require.Nil(t, secretLock)
 		require.Error(t, err)
-		require.Contains(t, err.Error(), "fetch secret share: unauthorized")
+		require.Contains(t, err.Error(), "get secret share: unauthorized")
 	})
 
 	t.Run("Fail to fetch secret share: secret decode error", func(t *testing.T) {
@@ -103,7 +105,7 @@ func TestNew(t *testing.T) {
 
 		require.Nil(t, secretLock)
 		require.Error(t, err)
-		require.Contains(t, err.Error(), "fetch secret share: illegal base64 data")
+		require.Contains(t, err.Error(), "get secret share: illegal base64 data")
 	})
 
 	t.Run("Error: combine secrets", func(t *testing.T) {
@@ -150,6 +152,72 @@ func TestNew(t *testing.T) {
 		require.NotNil(t, secretLock)
 		require.NoError(t, err)
 		require.Contains(t, logger.ErrorLogContents, "failed to close response body")
+	})
+
+	t.Run("Secret share found in the cache", func(t *testing.T) {
+		cacheProvider := mockstorage.NewMockStoreProvider()
+		cacheProvider.Store.Store["subject"] = []byte("other secret share")
+
+		secretLock, err := newSecretSplitLock(t, withCacheProvider(cacheProvider))
+
+		require.NotNil(t, secretLock)
+		require.NoError(t, err)
+	})
+
+	t.Run("Cache miss", func(t *testing.T) {
+		cacheProvider := mockstorage.NewMockStoreProvider()
+		cacheProvider.Store.ErrGet = storage.ErrDataNotFound
+
+		secretLock, err := newSecretSplitLock(t, withCacheProvider(cacheProvider))
+
+		require.NotNil(t, secretLock)
+		require.NoError(t, err)
+	})
+
+	t.Run("Error: open cache store", func(t *testing.T) {
+		cacheProvider := mockstorage.NewMockStoreProvider()
+		cacheProvider.ErrOpenStoreHandle = errors.New("open error")
+
+		secretLock, err := newSecretSplitLock(t, withCacheProvider(cacheProvider))
+
+		require.Nil(t, secretLock)
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "open cache store: open error")
+	})
+
+	t.Run("Error: put into cache store", func(t *testing.T) {
+		cacheProvider := mockstorage.NewMockStoreProvider()
+		cacheProvider.Store.ErrGet = storage.ErrDataNotFound
+		cacheProvider.Store.ErrPut = errors.New("put error")
+
+		secretLock, err := newSecretSplitLock(t, withCacheProvider(cacheProvider))
+
+		require.Nil(t, secretLock)
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "save to cache: put error")
+	})
+
+	t.Run("Error: get from cache store", func(t *testing.T) {
+		cacheProvider := mockstorage.NewMockStoreProvider()
+		cacheProvider.Store.ErrGet = errors.New("get error")
+
+		secretLock, err := newSecretSplitLock(t, withCacheProvider(cacheProvider))
+
+		require.Nil(t, secretLock)
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "get from cache: get error")
+	})
+
+	t.Run("Fetch error after cache miss", func(t *testing.T) {
+		cacheProvider := mockstorage.NewMockStoreProvider()
+		cacheProvider.Store.ErrGet = storage.ErrDataNotFound
+
+		secretLock, err := newSecretSplitLock(t, withCacheProvider(cacheProvider),
+			withResponseBody(ioutil.NopCloser(&failingReader{})))
+
+		require.Nil(t, secretLock)
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "get secret share: read error")
 	})
 }
 
@@ -200,6 +268,7 @@ type options struct {
 	httpClient       support.HTTPClient
 	secretSplitter   sss.SecretSplitter
 	logger           log.Logger
+	cacheProvider    storage.Provider
 }
 
 type optionFn func(opts *options)
@@ -248,11 +317,18 @@ func newSecretSplitLock(t *testing.T, opts ...optionFn) (secretlock.Service, err
 		Subject:  "subject",
 	}
 
-	return secretsplitlock.New(cOpts.secret, params,
+	o := []secretsplitlock.Option{
 		secretsplitlock.WithHTTPClient(cOpts.httpClient),
 		secretsplitlock.WithSecretSplitter(cOpts.secretSplitter),
 		secretsplitlock.WithLogger(cOpts.logger),
-	)
+		secretsplitlock.WithCacheProvider(cOpts.cacheProvider),
+	}
+
+	if cOpts.cacheProvider != nil {
+		o = append(o, secretsplitlock.WithCacheProvider(cOpts.cacheProvider))
+	}
+
+	return secretsplitlock.New(cOpts.secret, params, o...)
 }
 
 func withSecret(secret []byte) optionFn {
@@ -288,5 +364,11 @@ func withSecretSplitter(splitter sss.SecretSplitter) optionFn {
 func withLogger(logger log.Logger) optionFn {
 	return func(o *options) {
 		o.logger = logger
+	}
+}
+
+func withCacheProvider(cacheProvider storage.Provider) optionFn {
+	return func(o *options) {
+		o.cacheProvider = cacheProvider
 	}
 }
