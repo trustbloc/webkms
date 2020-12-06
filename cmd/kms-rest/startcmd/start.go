@@ -18,6 +18,7 @@ import (
 	"github.com/hyperledger/aries-framework-go/pkg/crypto/tinkcrypto"
 	ariesstorage "github.com/hyperledger/aries-framework-go/pkg/storage"
 	ariesmemstorage "github.com/hyperledger/aries-framework-go/pkg/storage/mem"
+	servertiming "github.com/mitchellh/go-server-timing"
 	"github.com/rs/cors"
 	"github.com/spf13/cobra"
 	"github.com/trustbloc/edge-core/pkg/log"
@@ -617,7 +618,7 @@ func startKmsService(params *kmsRestParameters, srv Server) error {
 		params.hostURL,
 		params.tlsServeParams.certPath,
 		params.tlsServeParams.keyPath,
-		handler)
+		servertiming.Middleware(handler, nil))
 }
 
 func setLogLevel(level string, srv Server) {

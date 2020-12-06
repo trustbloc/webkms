@@ -10,6 +10,7 @@ require (
 	github.com/gorilla/mux v1.8.0
 	github.com/hyperledger/aries-framework-go v0.1.5-0.20201202081826-f11d5c44d1fb
 	github.com/hyperledger/aries-framework-go-ext/component/storage/couchdb v0.0.0-20201119153638-fc5d5e680587
+	github.com/mitchellh/go-server-timing v1.0.1
 	github.com/piprate/json-gold v0.3.0
 	github.com/rs/cors v1.7.0
 	github.com/spf13/cobra v1.1.1

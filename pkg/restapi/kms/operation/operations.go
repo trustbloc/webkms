@@ -19,6 +19,7 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/hyperledger/aries-framework-go/pkg/crypto"
 	arieskms "github.com/hyperledger/aries-framework-go/pkg/kms"
+	servertiming "github.com/mitchellh/go-server-timing"
 	"github.com/piprate/json-gold/ld"
 	"github.com/rs/xid"
 	"github.com/trustbloc/edge-core/pkg/log"
@@ -260,6 +261,10 @@ func (o *Operation) createKeystoreHandler(rw http.ResponseWriter, req *http.Requ
 func (o *Operation) createKeyHandler(rw http.ResponseWriter, req *http.Request) {
 	o.logger.Debugf("handling request: %s", req.URL.String())
 
+	timing := servertiming.FromContext(req.Context())
+
+	m := timing.NewMetric("create key").Start()
+
 	kmsService, err := o.kmsServiceCreator(req)
 	if err != nil {
 		o.writeErrorResponse(rw, http.StatusInternalServerError, createKMSServiceFailure, err)
@@ -285,6 +290,8 @@ func (o *Operation) createKeyHandler(rw http.ResponseWriter, req *http.Request) 
 
 	rw.Header().Set("Location", location)
 	rw.WriteHeader(http.StatusCreated)
+
+	m.Stop()
 
 	// refer - https://github.com/trustbloc/hub-kms/issues/114
 	o.writeResponse(rw, createKeyResp{
@@ -345,6 +352,10 @@ func (o *Operation) updateCapabilityHandler(rw http.ResponseWriter, req *http.Re
 func (o *Operation) exportKeyHandler(rw http.ResponseWriter, req *http.Request) {
 	o.logger.Debugf(prepareDebugOutputForRequest(req, o.logger))
 
+	timing := servertiming.FromContext(req.Context())
+
+	m := timing.NewMetric("export key").Start()
+
 	kmsService, err := o.kmsServiceCreator(req)
 	if err != nil {
 		o.writeErrorResponse(rw, http.StatusInternalServerError, createKMSServiceFailure, err)
@@ -362,6 +373,8 @@ func (o *Operation) exportKeyHandler(rw http.ResponseWriter, req *http.Request) 
 		return
 	}
 
+	m.Stop()
+
 	o.writeResponse(rw, exportKeyResp{
 		PublicKey: base64.URLEncoding.EncodeToString(bytes),
 	})
@@ -375,6 +388,10 @@ func (o *Operation) exportKeyHandler(rw http.ResponseWriter, req *http.Request) 
 //        200: signResp
 //    default: errorResp
 func (o *Operation) signHandler(rw http.ResponseWriter, req *http.Request) { //nolint:dupl // better readability
+	timing := servertiming.FromContext(req.Context())
+
+	m := timing.NewMetric("sign").Start()
+
 	o.logger.Debugf("handling request: %s", req.URL.String())
 
 	kmsService, err := o.kmsServiceCreator(req)
@@ -405,6 +422,8 @@ func (o *Operation) signHandler(rw http.ResponseWriter, req *http.Request) { //n
 
 		return
 	}
+
+	m.Stop()
 
 	o.writeResponse(rw, signResp{
 		Signature: base64.URLEncoding.EncodeToString(signature),
@@ -574,6 +593,10 @@ func (o *Operation) decryptHandler(rw http.ResponseWriter, req *http.Request) { 
 //        200: computeMACResp
 //    default: errorResp
 func (o *Operation) computeMACHandler(rw http.ResponseWriter, req *http.Request) { //nolint:dupl // better readability
+	timing := servertiming.FromContext(req.Context())
+
+	m := timing.NewMetric("compute mac").Start()
+
 	kmsService, err := o.kmsServiceCreator(req)
 	if err != nil {
 		o.writeErrorResponse(rw, http.StatusInternalServerError, createKMSServiceFailure, err)
@@ -602,6 +625,8 @@ func (o *Operation) computeMACHandler(rw http.ResponseWriter, req *http.Request)
 
 		return
 	}
+
+	m.Stop()
 
 	o.writeResponse(rw, computeMACResp{
 		MAC: base64.URLEncoding.EncodeToString(mac),
