@@ -11,7 +11,6 @@ import (
 	"github.com/hyperledger/aries-framework-go/pkg/crypto"
 	"github.com/hyperledger/aries-framework-go/pkg/crypto/tinkcrypto/primitive/composite/keyio"
 	"github.com/hyperledger/aries-framework-go/pkg/kms"
-
 	"github.com/trustbloc/hub-kms/pkg/keystore"
 )
 

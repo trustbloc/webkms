@@ -18,6 +18,7 @@ import (
 	"github.com/hyperledger/aries-framework-go/pkg/crypto/tinkcrypto"
 	ariesstorage "github.com/hyperledger/aries-framework-go/pkg/storage"
 	ariesmemstorage "github.com/hyperledger/aries-framework-go/pkg/storage/mem"
+	servertiming "github.com/mitchellh/go-server-timing"
 	"github.com/rs/cors"
 	"github.com/spf13/cobra"
 	"github.com/trustbloc/edge-core/pkg/log"
@@ -26,7 +27,6 @@ import (
 	couchdbstore "github.com/trustbloc/edge-core/pkg/storage/couchdb"
 	"github.com/trustbloc/edge-core/pkg/storage/memstore"
 	cmdutils "github.com/trustbloc/edge-core/pkg/utils/cmd"
-
 	"github.com/trustbloc/hub-kms/pkg/auth/zcapld"
 	"github.com/trustbloc/hub-kms/pkg/restapi/healthcheck"
 	"github.com/trustbloc/hub-kms/pkg/restapi/kms/operation"
@@ -617,7 +617,7 @@ func startKmsService(params *kmsRestParameters, srv Server) error {
 		params.hostURL,
 		params.tlsServeParams.certPath,
 		params.tlsServeParams.keyPath,
-		handler)
+		servertiming.Middleware(handler, nil))
 }
 
 func setLogLevel(level string, srv Server) {
