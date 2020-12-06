@@ -158,6 +158,14 @@ const (
 		"underlying user's key manager storage. " + commonEnvVarUsageText + keyManagerStoragePrefixEnvKey
 )
 
+// Cache expiration (currently used for EDV calls).
+const (
+	cacheExpirationFlagName  = "cache-expiration"
+	cacheExpirationEnvKey    = "KMS_CACHE_EXPIRATION"
+	cacheExpirationFlagUsage = "An optional value for cache expiration. If not set caching is disabled. Supports " +
+		"valid duration strings, e.g. 10m, 60s, etc." + commonEnvVarUsageText + cacheExpirationEnvKey
+)
+
 // Hub Auth integration parameters.
 const (
 	hubAuthURLFlagName  = "hub-auth-url"
@@ -274,6 +282,8 @@ func createFlags(startCmd *cobra.Command) {
 	startCmd.Flags().StringP(keyManagerStorageURLFlagName, "", "", keyManagerStorageURLFlagUsage)
 	startCmd.Flags().StringP(keyManagerStoragePrefixFlagName, "", "", keyManagerStoragePrefixFlagUsage)
 
+	startCmd.Flags().StringP(cacheExpirationFlagName, "", "", cacheExpirationFlagUsage)
+
 	startCmd.Flags().StringP(hubAuthURLFlagName, "", "", hubAuthURLFlagUsage)
 	startCmd.Flags().StringP(hubAuthAPITokenFlagName, "", "", hubAuthAPITokenFlagUsage)
 
@@ -292,6 +302,7 @@ type kmsRestParameters struct {
 	primaryKeyStorageParams *storageParameters
 	localKMSStorageParams   *storageParameters
 	keyManagerStorageParams *storageParameters
+	cacheExpiration         string
 	hubAuthURL              string
 	hubAuthAPIToken         string
 	logLevel                string
@@ -363,6 +374,11 @@ func getKmsRestParameters(cmd *cobra.Command) (*kmsRestParameters, error) { //no
 		return nil, err
 	}
 
+	cacheExpiration, err := cmdutils.GetUserSetVarFromString(cmd, cacheExpirationFlagName, cacheExpirationEnvKey, true)
+	if err != nil {
+		return nil, err
+	}
+
 	hubAuthURL, err := cmdutils.GetUserSetVarFromString(cmd, hubAuthURLFlagName, hubAuthURLEnvKey, true)
 	if err != nil {
 		return nil, err
@@ -403,6 +419,7 @@ func getKmsRestParameters(cmd *cobra.Command) (*kmsRestParameters, error) { //no
 		primaryKeyStorageParams: primaryKeyStorageParams,
 		localKMSStorageParams:   localKMSStorageParams,
 		keyManagerStorageParams: keyManagerStorageParams,
+		cacheExpiration:         cacheExpiration,
 		hubAuthURL:              hubAuthURL,
 		hubAuthAPIToken:         hubAuthAPIToken,
 		logLevel:                logLevel,
