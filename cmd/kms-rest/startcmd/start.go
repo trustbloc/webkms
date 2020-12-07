@@ -693,9 +693,9 @@ func prepareOperationConfig(params *kmsRestParameters) (*operation.Config, error
 	}
 
 	// TODO make configurable
-	ldDocLoader, err := jsonLDDocumentLoader()
+	cachedLDContext, err := loadLDContext()
 	if err != nil {
-		return nil, fmt.Errorf("failed to load jsonld document loaders: %w", err)
+		return nil, fmt.Errorf("failed to load jsonld context: %w", err)
 	}
 
 	return &operation.Config{
@@ -704,7 +704,7 @@ func prepareOperationConfig(params *kmsRestParameters) (*operation.Config, error
 		KMSServiceCreator: kmsServiceCreator,
 		Logger:            log.New("hub-kms/restapi"),
 		UseEDV:            strings.EqualFold(params.keyManagerStorageParams.storageType, storageTypeEDVOption),
-		LDDocumentLoader:  ldDocLoader,
+		CachedLDDocs:      cachedLDContext,
 		BaseURL:           params.baseURL,
 	}, nil
 }

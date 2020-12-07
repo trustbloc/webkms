@@ -7,9 +7,9 @@ SPDX-License-Identifier: Apache-2.0
 package startcmd
 
 import (
+	"fmt"
 	"strings"
 
-	"github.com/hyperledger/aries-framework-go/pkg/doc/verifiable"
 	"github.com/piprate/json-gold/ld"
 )
 
@@ -127,9 +127,7 @@ const (
 `
 )
 
-func jsonLDDocumentLoader() (*ld.CachingDocumentLoader, error) {
-	loader := verifiable.CachingJSONLDLoader()
-
+func loadLDContext() (map[string]*ld.RemoteDocument, error) {
 	contexts := []struct {
 		vocab   string
 		content string
@@ -144,22 +142,21 @@ func jsonLDDocumentLoader() (*ld.CachingDocumentLoader, error) {
 		},
 	}
 
+	cached := make(map[string]*ld.RemoteDocument)
+
 	for i := range contexts {
-		if err := addJSONLDCachedContext(loader, contexts[i].vocab, contexts[i].content); err != nil {
-			return nil, err
+		ctx := contexts[i]
+
+		reader, err := ld.DocumentFromReader(strings.NewReader(ctx.content))
+		if err != nil {
+			return nil, fmt.Errorf("failed to load cached ld context: %w", err)
+		}
+
+		cached[ctx.vocab] = &ld.RemoteDocument{
+			DocumentURL: ctx.vocab,
+			Document:    reader,
 		}
 	}
 
-	return loader, nil
-}
-
-func addJSONLDCachedContext(loader *ld.CachingDocumentLoader, contextURL, contextContent string) error {
-	reader, err := ld.DocumentFromReader(strings.NewReader(contextContent))
-	if err != nil {
-		return err
-	}
-
-	loader.AddDocument(contextURL, reader)
-
-	return nil
+	return cached, nil
 }
