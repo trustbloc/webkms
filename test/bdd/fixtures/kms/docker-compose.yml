@@ -31,6 +31,7 @@ services:
       - KMS_KEY_MANAGER_STORAGE_PREFIX=authzkmskm
       - KMS_HUB_AUTH_URL=https://hub-auth.example.com:8070
       - KMS_HUB_AUTH_API_TOKEN=test_token
+      - KMS_CACHE_EXPIRATION=10m
       - KMS_LOG_LEVEL=debug
     ports:
       - 8077:8077

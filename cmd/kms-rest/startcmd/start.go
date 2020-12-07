@@ -158,7 +158,7 @@ const (
 		"underlying user's key manager storage. " + commonEnvVarUsageText + keyManagerStoragePrefixEnvKey
 )
 
-// Cache expiration (currently used for EDV calls).
+// Cache expiration (used for EDV and Hub Auth calls).
 const (
 	cacheExpirationFlagName  = "cache-expiration"
 	cacheExpirationEnvKey    = "KMS_CACHE_EXPIRATION"
