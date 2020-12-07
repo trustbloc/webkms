@@ -35,7 +35,10 @@ func prepareKMSServiceCreator(keystoreSrv keystore.Service, cryptoSrv cryptoapi.
 		MinVersion: tls.VersionTLS12,
 	}
 
-	var cacheProvider ariesstorage.Provider
+	var (
+		cacheProvider   ariesstorage.Provider
+		cacheExpiration time.Duration
+	)
 
 	if params.cacheExpiration != "" {
 		exp, err := time.ParseDuration(params.cacheExpiration)
@@ -44,6 +47,7 @@ func prepareKMSServiceCreator(keystoreSrv keystore.Service, cryptoSrv cryptoapi.
 		}
 
 		cacheProvider = cache.NewProvider(cache.WithExpiration(exp))
+		cacheExpiration = exp
 	}
 
 	storageResolver := prepareStorageResolver(keystoreSrv, cryptoSrv, signer, cacheProvider,
@@ -54,6 +58,7 @@ func prepareKMSServiceCreator(keystoreSrv keystore.Service, cryptoSrv cryptoapi.
 		CryptoService:      cryptoSrv,
 		KMSStorageResolver: storageResolver,
 		SecretLockResolver: prepareSecretLockResolver(params, primaryKeyStorage, cacheProvider, tlsConfig),
+		CacheExpiration:    cacheExpiration,
 	}), nil
 }
 

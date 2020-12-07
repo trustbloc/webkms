@@ -9,13 +9,16 @@ package kms
 import (
 	"fmt"
 	"net/http"
+	"time"
 
+	"github.com/bluele/gcache"
 	"github.com/gorilla/mux"
 	"github.com/hyperledger/aries-framework-go/pkg/crypto"
 	"github.com/hyperledger/aries-framework-go/pkg/kms"
 	"github.com/hyperledger/aries-framework-go/pkg/kms/localkms"
 	"github.com/hyperledger/aries-framework-go/pkg/secretlock"
 	"github.com/hyperledger/aries-framework-go/pkg/storage"
+	"github.com/trustbloc/edge-core/pkg/log"
 
 	"github.com/trustbloc/hub-kms/pkg/keystore"
 )
@@ -34,13 +37,29 @@ type Config struct {
 	CryptoService      crypto.Crypto
 	KMSStorageResolver func(keystoreID string) (storage.Provider, error)
 	SecretLockResolver func(keyURI string, req *http.Request) (secretlock.Service, error)
+	CacheExpiration    time.Duration
 }
+
+// TODO(#134): Improve caching solution for KMS creator service.
+var (
+	cache  = gcache.New(0).Build()              //nolint:gochecknoglobals // todo refactor
+	logger = log.New("hub-kms/service-creator") //nolint:gochecknoglobals // todo refactor
+)
 
 // NewServiceCreator returns func to create KMS Service backed by LocalKMS and passphrase-based secret lock.
 func NewServiceCreator(c *Config) ServiceCreator {
 	return func(req *http.Request) (Service, error) {
 		keystoreID := mux.Vars(req)[keystoreIDQueryParam]
 		keyURI := fmt.Sprintf(primaryKeyURI, keystoreID)
+
+		if c.CacheExpiration != 0 {
+			cachedService, err := cache.Get(keystoreID)
+			if err == nil {
+				logger.Infof("service for keystore %q resolved from the cache", keystoreID)
+
+				return cachedService.(Service), nil
+			}
+		}
 
 		kmsStorageProvider, err := c.KMSStorageResolver(keystoreID)
 		if err != nil {
@@ -74,7 +93,18 @@ func NewServiceCreator(c *Config) ServiceCreator {
 			cryptoBox:       cryptoBox,
 		}
 
-		return NewService(provider), nil
+		srv := NewService(provider)
+
+		if c.CacheExpiration != 0 {
+			err = cache.SetWithExpire(keystoreID, srv, c.CacheExpiration)
+			if err != nil {
+				logger.Errorf("failed to save into the cache: %s", err)
+			}
+
+			logger.Infof("service for keystore %q added to the cache", keystoreID)
+		}
+
+		return srv, nil
 	}
 }
 
