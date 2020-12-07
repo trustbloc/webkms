@@ -2,7 +2,7 @@
 
 ## Build the image
 
-Build the docker image for `kms-rest` by running the following make target from the project root directory:
+Build the docker image for `kms-rest` by running the following `make` target from the project root directory:
 
 ```sh
 $ make kms-rest-docker

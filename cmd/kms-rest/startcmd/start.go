@@ -34,12 +34,12 @@ import (
 
 const (
 	hostURLFlagName  = "host-url"
-	hostURLFlagUsage = "URL to run the KMS instance on. Format: HostName:Port."
+	hostURLFlagUsage = "The URL to run the KMS instance on. Format: HostName:Port."
 	hostURLEnvKey    = "KMS_HOST_URL"
 
 	baseURLFlagName  = "base-url"
 	baseURLEnvKey    = "KMS_BASE_URL"
-	baseURLFlagUsage = "Optional base URL value to prepend to a location returned in the Location header. " +
+	baseURLFlagUsage = "An optional base URL value to prepend to a location returned in the Location header. " +
 		commonEnvVarUsageText + baseURLEnvKey
 
 	logLevelFlagName        = "log-level"
@@ -65,12 +65,12 @@ const (
 	tlsCACertsEnvKey        = "KMS_TLS_CACERTS"
 
 	tlsServeCertPathFlagName  = "tls-serve-cert"
-	tlsServeCertPathFlagUsage = "Path to the server certificate to use when serving HTTPS. " +
+	tlsServeCertPathFlagUsage = "The path to the server certificate to use when serving HTTPS. " +
 		commonEnvVarUsageText + tlsServeCertPathEnvKey
 	tlsServeCertPathEnvKey = "KMS_TLS_SERVE_CERT"
 
 	tlsServeKeyPathFlagName  = "tls-serve-key"
-	tlsServeKeyPathFlagUsage = "Path to the private key to use when serving HTTPS. " +
+	tlsServeKeyPathFlagUsage = "The path to the private key to use when serving HTTPS. " +
 		commonEnvVarUsageText + tlsServeKeyPathFlagEnvKey
 	tlsServeKeyPathFlagEnvKey = "KMS_TLS_SERVE_KEY"
 )
@@ -89,7 +89,7 @@ const (
 
 	databasePrefixFlagName  = "database-prefix"
 	databasePrefixEnvKey    = "KMS_DATABASE_PREFIX"
-	databasePrefixFlagUsage = "An optional prefix to be used when creating and retrieving underlying databases. " +
+	databasePrefixFlagUsage = "An optional prefix to be used when creating and retrieving the underlying database. " +
 		commonEnvVarUsageText + databasePrefixEnvKey
 )
 
@@ -143,19 +143,19 @@ const (
 const (
 	keyManagerStorageTypeFlagName  = "key-manager-storage-type"
 	keyManagerStorageTypeEnvKey    = "KMS_KEY_MANAGER_STORAGE_TYPE"
-	keyManagerStorageTypeFlagUsage = "The type of storage to use for user's key manager. " +
-		"Supported options: mem, couchdb, edv. " + commonEnvVarUsageText + keyManagerStorageTypeEnvKey
+	keyManagerStorageTypeFlagUsage = "The type of storage to use for key manager. Supported options: mem, couchdb, " +
+		"edv. " + commonEnvVarUsageText + keyManagerStorageTypeEnvKey
 
 	keyManagerStorageURLFlagName  = "key-manager-storage-url"
 	keyManagerStorageURLEnvKey    = "KMS_KEY_MANAGER_STORAGE_URL"
-	keyManagerStorageURLFlagUsage = "The URL of storage for user's key manager. Not needed if using in-memory " +
-		"storage. For CouchDB, include the username:password@ text if required. " + commonEnvVarUsageText +
+	keyManagerStorageURLFlagUsage = "The URL of storage for key manager. Not needed if using in-memory storage. " +
+		"For CouchDB, include the username:password@ text if required. " + commonEnvVarUsageText +
 		keyManagerStorageURLEnvKey
 
 	keyManagerStoragePrefixFlagName  = "key-manager-storage-prefix"
 	keyManagerStoragePrefixEnvKey    = "KMS_KEY_MANAGER_STORAGE_PREFIX"
-	keyManagerStoragePrefixFlagUsage = "An optional prefix to be used when creating and retrieving the " +
-		"underlying user's key manager storage. " + commonEnvVarUsageText + keyManagerStoragePrefixEnvKey
+	keyManagerStoragePrefixFlagUsage = "An optional prefix to be used when creating and retrieving the underlying " +
+		"key manager storage. " + commonEnvVarUsageText + keyManagerStoragePrefixEnvKey
 )
 
 // Cache expiration (used for EDV and Hub Auth calls).
@@ -163,7 +163,7 @@ const (
 	cacheExpirationFlagName  = "cache-expiration"
 	cacheExpirationEnvKey    = "KMS_CACHE_EXPIRATION"
 	cacheExpirationFlagUsage = "An optional value for cache expiration. If not set caching is disabled. Supports " +
-		"valid duration strings, e.g. 10m, 60s, etc." + commonEnvVarUsageText + cacheExpirationEnvKey
+		"valid duration strings, e.g. 10m, 60s, etc. " + commonEnvVarUsageText + cacheExpirationEnvKey
 )
 
 // Hub Auth integration parameters.
@@ -171,22 +171,22 @@ const (
 	hubAuthURLFlagName  = "hub-auth-url"
 	hubAuthURLEnvKey    = "KMS_HUB_AUTH_URL"
 	hubAuthURLFlagUsage = "The URL of Hub Auth server to use for fetching secret share for secret lock. If not " +
-		"specified secret lock based on master key is used. " + commonEnvVarUsageText + hubAuthURLEnvKey
+		"specified secret lock based on primary key is used. " + commonEnvVarUsageText + hubAuthURLEnvKey
 
 	hubAuthAPITokenFlagName  = "hub-auth-api-token"     //nolint:gosec // not hard-coded credentials
 	hubAuthAPITokenEnvKey    = "KMS_HUB_AUTH_API_TOKEN" //nolint:gosec // not hard-coded credentials
-	hubAuthAPITokenFlagUsage = "Static token used to protect the GET /secrets API in Hub Auth. " +
+	hubAuthAPITokenFlagUsage = "A static token used to protect the GET /secrets API in Hub Auth. " +
 		commonEnvVarUsageText + hubAuthAPITokenEnvKey
 )
 
 const (
 	enableZCAPsFlagName  = "enable-zcaps"
-	enableZCAPsFlagUsage = "Determines whether to enable zcaps authz on all endpoints (except createKeyStore)." +
-		" Default is false. " + commonEnvVarUsageText + enableZCAPsEnvKey
+	enableZCAPsFlagUsage = "Enables ZCAPs authz on all endpoints (except createKeyStore). Default is false. " +
+		commonEnvVarUsageText + enableZCAPsEnvKey
 	enableZCAPsEnvKey = "KMS_ZCAP_ENABLE"
 
 	enableCORSFlagName  = "enable-cors"
-	enableCORSFlagUsage = "Enable CORS. Possible values [true] [false]. " +
+	enableCORSFlagUsage = "Enables CORS. Possible values [true] [false]. " +
 		"Defaults to false if not set. " + commonEnvVarUsageText + corsEnableEnvKey
 	corsEnableEnvKey = "KMS_CORS_ENABLE"
 )

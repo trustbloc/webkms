@@ -15,6 +15,7 @@ The TrustBloc hub-kms is an implementation of the remote Key Management System. 
 - [Build](docs/build.md)
 - [Run via CLI](docs/kms_rest_cli.md)
 - [Run as a Docker container](docs/kms_rest_docker.md)
+- [OpenAPI spec and demo](docs/openapi.md)
 
 ## Contributing
 Thank you for your interest in contributing. Please see our [community contribution guidelines](https://github.com/trustbloc/community/blob/master/CONTRIBUTING.md) for more information.
