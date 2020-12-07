@@ -12,6 +12,7 @@ import (
 	"errors"
 	"net/http"
 	"testing"
+	"time"
 
 	"github.com/gorilla/mux"
 	mockcrypto "github.com/hyperledger/aries-framework-go/pkg/mock/crypto"
@@ -29,6 +30,29 @@ func TestNewKMSServiceCreator(t *testing.T) {
 	t.Run("Success", func(t *testing.T) {
 		creator := kms.NewServiceCreator(newConfig())
 		req := buildReq(t)
+
+		srv, err := creator(req)
+
+		require.NotNil(t, srv)
+		require.NoError(t, err)
+	})
+
+	t.Run("Success with cache miss", func(t *testing.T) {
+		creator := kms.NewServiceCreator(newConfig(withCacheExpiration(time.Minute)))
+		req := buildReq(t)
+
+		srv, err := creator(req)
+
+		require.NotNil(t, srv)
+		require.NoError(t, err)
+	})
+
+	t.Run("Success with cache hit", func(t *testing.T) {
+		creator := kms.NewServiceCreator(newConfig(withCacheExpiration(time.Minute)))
+		req := buildReq(t)
+
+		_, err := creator(req) // cache service
+		require.NoError(t, err)
 
 		srv, err := creator(req)
 
@@ -101,6 +125,7 @@ type options struct {
 	secretLock            secretlock.Service
 	secretLockResolverErr error
 	kmsStorageResolverErr error
+	cacheExpiration       time.Duration
 }
 
 type optionFn func(opts *options)
@@ -128,6 +153,7 @@ func newConfig(opts ...optionFn) *kms.Config {
 		CryptoService:      &mockcrypto.Crypto{},
 		KMSStorageResolver: func(string) (storage.Provider, error) { return cOpts.storageProvider, nil },
 		SecretLockResolver: func(string, *http.Request) (secretlock.Service, error) { return cOpts.secretLock, nil },
+		CacheExpiration:    cOpts.cacheExpiration,
 	}
 
 	if cOpts.kmsStorageResolverErr != nil {
@@ -160,5 +186,11 @@ func withKMSStorageResolverErr(err error) optionFn {
 func withSecretLockResolverErr(err error) optionFn {
 	return func(o *options) {
 		o.secretLockResolverErr = err
+	}
+}
+
+func withCacheExpiration(exp time.Duration) optionFn {
+	return func(o *options) {
+		o.cacheExpiration = exp
 	}
 }
