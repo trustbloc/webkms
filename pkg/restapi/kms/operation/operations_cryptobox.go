@@ -71,7 +71,7 @@ func (o *Operation) easyHandler(rw http.ResponseWriter, req *http.Request) { //n
 
 // swagger:route POST /kms/keystores/{keystoreID}/easyopen crypto-box easyOpenReq
 //
-// Decrypts (easy open) a payload.
+// Decrypts ("easy open") a payload.
 //
 // Responses:
 //        200: easyOpenResp
