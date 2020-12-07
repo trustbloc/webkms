@@ -12,7 +12,6 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"net/http/httputil"
 	"strings"
 	"time"
 
@@ -343,7 +342,7 @@ func (o *Operation) updateCapabilityHandler(rw http.ResponseWriter, req *http.Re
 //        200: exportKeyResp
 //    default: errorResp
 func (o *Operation) exportKeyHandler(rw http.ResponseWriter, req *http.Request) {
-	o.logger.Debugf(prepareDebugOutputForRequest(req, o.logger))
+	o.logger.Debugf("handle request: url=%s", req.RequestURI)
 
 	kmsService, err := o.kmsServiceCreator(req)
 	if err != nil {
@@ -808,7 +807,7 @@ func (o *Operation) unwrapHandler(rw http.ResponseWriter, req *http.Request) { /
 }
 
 func (o *Operation) parseRequest(parsedReq interface{}, rw http.ResponseWriter, req *http.Request) bool {
-	o.logger.Debugf(prepareDebugOutputForRequest(req, o.logger))
+	o.logger.Debugf("handle request: url=%s", req.RequestURI)
 
 	if err := json.NewDecoder(req.Body).Decode(&parsedReq); err != nil {
 		o.writeErrorResponse(rw, http.StatusBadRequest, receivedBadRequest, err)
@@ -817,16 +816,6 @@ func (o *Operation) parseRequest(parsedReq interface{}, rw http.ResponseWriter, 
 	}
 
 	return true
-}
-
-func prepareDebugOutputForRequest(
-	req *http.Request, logger log.Logger) string { // nolint:interfacer // don't want to pull in test packages
-	dump, err := httputil.DumpRequest(req, true)
-	if err != nil {
-		logger.Errorf("Failed to dump request: %s", err)
-	}
-
-	return string(dump)
 }
 
 func (o *Operation) writeErrorResponse(rw http.ResponseWriter, status int, messageFormat string, err error) {
