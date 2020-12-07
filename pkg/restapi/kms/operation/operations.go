@@ -134,7 +134,7 @@ type Operation struct {
 	logger            log.Logger
 	useEDV            bool
 	authService       authService
-	ldDocLoader       ld.DocumentLoader
+	cachedLDDocs      map[string]*ld.RemoteDocument
 	baseURL           string
 }
 
@@ -145,7 +145,7 @@ type Config struct {
 	Logger            log.Logger
 	UseEDV            bool
 	AuthService       authService
-	LDDocumentLoader  ld.DocumentLoader
+	CachedLDDocs      map[string]*ld.RemoteDocument
 	BaseURL           string
 }
 
@@ -157,7 +157,7 @@ func New(config *Config) *Operation {
 		logger:            config.Logger,
 		useEDV:            config.UseEDV,
 		authService:       config.AuthService,
-		ldDocLoader:       config.LDDocumentLoader,
+		cachedLDDocs:      config.CachedLDDocs,
 		baseURL:           config.BaseURL,
 	}
 

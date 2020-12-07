@@ -15,6 +15,7 @@ import (
 	"github.com/hyperledger/aries-framework-go/pkg/crypto"
 	"github.com/hyperledger/aries-framework-go/pkg/doc/signature/suite"
 	"github.com/hyperledger/aries-framework-go/pkg/doc/signature/suite/ed25519signature2018"
+	"github.com/hyperledger/aries-framework-go/pkg/doc/verifiable"
 	"github.com/hyperledger/aries-framework-go/pkg/kms"
 	"github.com/piprate/json-gold/ld"
 	"github.com/trustbloc/edge-core/pkg/log"
@@ -24,13 +25,14 @@ import (
 // ZCAPLDMiddleware returns the ZCAPLD middleware that authorizes requests.
 func (o *Operation) ZCAPLDMiddleware(h http.Handler) http.Handler {
 	return &mwHandler{
-		next:      h,
-		zcaps:     o.authService,
-		keys:      o.authService.KMS(),
-		crpto:     o.authService.Crypto(),
-		logger:    o.logger,
-		routeFunc: (&muxNamer{}).GetName,
-		baseURL:   o.baseURL,
+		next:         h,
+		zcaps:        o.authService,
+		keys:         o.authService.KMS(),
+		crpto:        o.authService.Crypto(),
+		logger:       o.logger,
+		routeFunc:    (&muxNamer{}).GetName,
+		baseURL:      o.baseURL,
+		cachedLDDocs: o.cachedLDDocs,
 	}
 }
 
@@ -46,14 +48,14 @@ func (m *muxNamer) GetName(r *http.Request) namer {
 }
 
 type mwHandler struct {
-	next        http.Handler
-	zcaps       zcapld.CapabilityResolver
-	keys        kms.KeyManager
-	crpto       crypto.Crypto
-	logger      log.Logger
-	ldDocLoader ld.DocumentLoader
-	routeFunc   func(*http.Request) namer
-	baseURL     string
+	next         http.Handler
+	zcaps        zcapld.CapabilityResolver
+	keys         kms.KeyManager
+	crpto        crypto.Crypto
+	logger       log.Logger
+	cachedLDDocs map[string]*ld.RemoteDocument
+	routeFunc    func(*http.Request) namer
+	baseURL      string
 }
 
 func (h *mwHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
@@ -83,6 +85,12 @@ func (h *mwHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	cachingDL := verifiable.CachingJSONLDLoader()
+
+	for _, d := range h.cachedLDDocs {
+		cachingDL.AddDocument(d.ContextURL, d.Document)
+	}
+
 	// TODO make KeyResolver configurable
 	// TODO make signature suites configurable
 	zcapld.NewHTTPSigAuthHandler(
@@ -93,7 +101,7 @@ func (h *mwHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 				zcapld.WithSignatureSuites(
 					ed25519signature2018.New(suite.WithVerifier(ed25519signature2018.NewPublicKeyVerifier())),
 				),
-				zcapld.WithLDDocumentLoaders(h.ldDocLoader),
+				zcapld.WithLDDocumentLoaders(cachingDL),
 			},
 			Secrets:     &zcapld.AriesDIDKeySecrets{},
 			ErrConsumer: h.logError,
