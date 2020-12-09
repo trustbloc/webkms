@@ -8,11 +8,10 @@ package keystore
 
 import (
 	"encoding/json"
-	"errors"
 	"fmt"
 
-	arieskms "github.com/hyperledger/aries-framework-go/pkg/kms"
-	"github.com/trustbloc/edge-core/pkg/storage"
+	"github.com/hyperledger/aries-framework-go/pkg/kms"
+	"github.com/hyperledger/aries-framework-go/pkg/storage"
 )
 
 const (
@@ -25,28 +24,23 @@ type Service interface {
 	Get(keystoreID string) (*Keystore, error)
 	Save(k *Keystore) error
 	GetKeyHandle(keyID string) (interface{}, error)
-	KeyManager() (arieskms.KeyManager, error)
+	KeyManager() (kms.KeyManager, error)
 }
 
 // Provider contains dependencies for the Keystore service.
 type Provider interface {
 	StorageProvider() storage.Provider
-	KMSProvider() arieskms.Provider
-	KMSCreator() arieskms.Creator
+	KMSProvider() kms.Provider
+	KMSCreator() kms.Creator
 }
 
 type service struct {
 	store      storage.Store
-	keyManager arieskms.KeyManager
+	keyManager kms.KeyManager
 }
 
 // NewService returns a new Service instance.
 func NewService(provider Provider) (Service, error) {
-	err := provider.StorageProvider().CreateStore(storeName)
-	if err != nil && !errors.Is(err, storage.ErrDuplicateStore) {
-		return nil, err
-	}
-
 	store, err := provider.StorageProvider().OpenStore(storeName)
 	if err != nil {
 		return nil, err
@@ -161,6 +155,6 @@ func (s *service) GetKeyHandle(keyID string) (interface{}, error) {
 }
 
 // KeyManager returns KeyManager that the Keystore service was initialized with.
-func (s *service) KeyManager() (arieskms.KeyManager, error) {
+func (s *service) KeyManager() (kms.KeyManager, error) {
 	return s.keyManager, nil
 }

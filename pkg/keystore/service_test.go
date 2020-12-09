@@ -16,7 +16,6 @@ import (
 	"github.com/google/tink/go/signature"
 	arieskms "github.com/hyperledger/aries-framework-go/pkg/kms"
 	"github.com/stretchr/testify/require"
-	"github.com/trustbloc/edge-core/pkg/storage"
 
 	mock "github.com/trustbloc/hub-kms/pkg/internal/mock/keystore"
 	"github.com/trustbloc/hub-kms/pkg/keystore"
@@ -36,26 +35,6 @@ func TestNewService(t *testing.T) {
 
 		require.NotNil(t, srv)
 		require.NoError(t, err)
-	})
-
-	t.Run("Success: duplicate store during creation", func(t *testing.T) {
-		provider := mock.NewMockProvider()
-		provider.MockStorageProvider.ErrCreateStore = storage.ErrDuplicateStore
-
-		srv, err := keystore.NewService(mock.NewMockProvider())
-
-		require.NotNil(t, srv)
-		require.NoError(t, err)
-	})
-
-	t.Run("Error: create store error other than ErrDuplicateStore", func(t *testing.T) {
-		provider := mock.NewMockProvider()
-		provider.MockStorageProvider.ErrCreateStore = errors.New("create store error")
-
-		srv, err := keystore.NewService(provider)
-
-		require.Nil(t, srv)
-		require.Error(t, err)
 	})
 
 	t.Run("Error: open store", func(t *testing.T) {

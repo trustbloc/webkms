@@ -14,7 +14,7 @@ require (
 	github.com/rs/cors v1.7.0
 	github.com/spf13/cobra v1.1.1
 	github.com/stretchr/testify v1.6.1
-	github.com/trustbloc/edge-core v0.1.5-0.20201126210935-53388acb41fc
+	github.com/trustbloc/edge-core v0.1.5
 	github.com/trustbloc/hub-kms v0.0.0-00010101000000-000000000000
 	golang.org/x/net v0.0.0-20201207224615-747e23833adb // indirect
 )

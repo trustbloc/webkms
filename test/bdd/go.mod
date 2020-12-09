@@ -16,7 +16,7 @@ require (
 	github.com/trustbloc/edge-core v0.1.5
 	github.com/trustbloc/edv v0.1.5
 	github.com/trustbloc/hub-auth v0.1.5 // indirect
-	github.com/trustbloc/hub-auth/test/bdd v0.0.0-20201204204840-e904628d7854
+	github.com/trustbloc/hub-auth/test/bdd v0.0.0-20201208022224-413a3517d5d5
 	github.com/trustbloc/hub-kms v0.0.0-00010101000000-000000000000
 )
 

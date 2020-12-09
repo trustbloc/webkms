@@ -9,11 +9,10 @@ package startcmd
 import (
 	"fmt"
 
-	arieskms "github.com/hyperledger/aries-framework-go/pkg/kms"
+	"github.com/hyperledger/aries-framework-go/pkg/kms"
 	"github.com/hyperledger/aries-framework-go/pkg/kms/localkms"
 	"github.com/hyperledger/aries-framework-go/pkg/secretlock"
-	ariesstorage "github.com/hyperledger/aries-framework-go/pkg/storage"
-	"github.com/trustbloc/edge-core/pkg/storage"
+	"github.com/hyperledger/aries-framework-go/pkg/storage"
 
 	"github.com/trustbloc/hub-kms/pkg/keystore"
 )
@@ -22,7 +21,7 @@ const (
 	keystorePrimaryKeyURI = "local-lock://keystorekms"
 )
 
-func prepareKeystoreService(keystoreStorage storage.Provider, localKMSStorage, primaryKeyStorage ariesstorage.Provider,
+func prepareKeystoreService(keystoreStorage storage.Provider, localKMSStorage, primaryKeyStorage storage.Provider,
 	secretLockKeyPath string) (keystore.Service, error) {
 	secretLock, err := preparePrimaryKeyLock(primaryKeyStorage, secretLockKeyPath)
 	if err != nil {
@@ -34,7 +33,7 @@ func prepareKeystoreService(keystoreStorage storage.Provider, localKMSStorage, p
 		secretLock:      secretLock,
 	}
 
-	kmsCreator := func(provider arieskms.Provider) (arieskms.KeyManager, error) {
+	kmsCreator := func(provider kms.Provider) (kms.KeyManager, error) {
 		k, kerr := localkms.New(keystorePrimaryKeyURI, provider)
 		if kerr != nil {
 			return nil, fmt.Errorf("failed to create localkms: %w", kerr)
@@ -58,11 +57,11 @@ func prepareKeystoreService(keystoreStorage storage.Provider, localKMSStorage, p
 }
 
 type kmsProvider struct {
-	storageProvider ariesstorage.Provider
+	storageProvider storage.Provider
 	secretLock      secretlock.Service
 }
 
-func (k kmsProvider) StorageProvider() ariesstorage.Provider {
+func (k kmsProvider) StorageProvider() storage.Provider {
 	return k.storageProvider
 }
 
@@ -72,18 +71,18 @@ func (k kmsProvider) SecretLock() secretlock.Service {
 
 type keystoreServiceProvider struct {
 	storageProvider storage.Provider
-	kmsProvider     arieskms.Provider
-	kmsCreator      arieskms.Creator
+	kmsProvider     kms.Provider
+	kmsCreator      kms.Creator
 }
 
 func (p keystoreServiceProvider) StorageProvider() storage.Provider {
 	return p.storageProvider
 }
 
-func (p keystoreServiceProvider) KMSProvider() arieskms.Provider {
+func (p keystoreServiceProvider) KMSProvider() kms.Provider {
 	return p.kmsProvider
 }
 
-func (p keystoreServiceProvider) KMSCreator() arieskms.Creator {
+func (p keystoreServiceProvider) KMSCreator() kms.Creator {
 	return p.kmsCreator
 }

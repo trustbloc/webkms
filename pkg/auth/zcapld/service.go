@@ -10,7 +10,6 @@ import (
 	"compress/gzip"
 	"encoding/base64"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"net/http"
 
@@ -19,9 +18,9 @@ import (
 	"github.com/hyperledger/aries-framework-go/pkg/doc/signature/suite/ed25519signature2018"
 	"github.com/hyperledger/aries-framework-go/pkg/doc/util/signature"
 	"github.com/hyperledger/aries-framework-go/pkg/kms"
+	"github.com/hyperledger/aries-framework-go/pkg/storage"
 	"github.com/hyperledger/aries-framework-go/pkg/vdr/fingerprint"
 	"github.com/igor-pavlenko/httpsignatures-go"
-	"github.com/trustbloc/edge-core/pkg/storage"
 	"github.com/trustbloc/edge-core/pkg/zcapld"
 )
 
@@ -38,7 +37,7 @@ type Service struct {
 
 // New return zcap service.
 func New(keyManager kms.KeyManager, crypto cryptoapi.Crypto, sp storage.Provider) (*Service, error) {
-	store, err := openStore(sp)
+	store, err := sp.OpenStore(zcapsStoreName)
 	if err != nil {
 		return nil, fmt.Errorf("failed to open store: %w", err)
 	}
@@ -174,13 +173,4 @@ func didKeyURL(pubKeyBytes []byte) string {
 	_, didKeyURL := fingerprint.CreateDIDKey(pubKeyBytes)
 
 	return didKeyURL
-}
-
-func openStore(p storage.Provider) (storage.Store, error) {
-	err := p.CreateStore(zcapsStoreName)
-	if err != nil && !errors.Is(err, storage.ErrDuplicateStore) {
-		return nil, fmt.Errorf("failed to create store %s: %w", zcapsStoreName, err)
-	}
-
-	return p.OpenStore(zcapsStoreName)
 }

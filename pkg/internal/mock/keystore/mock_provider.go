@@ -7,26 +7,26 @@ SPDX-License-Identifier: Apache-2.0
 package keystore
 
 import (
-	arieskms "github.com/hyperledger/aries-framework-go/pkg/kms"
-	"github.com/hyperledger/aries-framework-go/pkg/mock/kms"
-	"github.com/trustbloc/edge-core/pkg/storage"
-	"github.com/trustbloc/edge-core/pkg/storage/mockstore"
+	"github.com/hyperledger/aries-framework-go/pkg/kms"
+	mockkms "github.com/hyperledger/aries-framework-go/pkg/mock/kms"
+	mockstorage "github.com/hyperledger/aries-framework-go/pkg/mock/storage"
+	"github.com/hyperledger/aries-framework-go/pkg/storage"
 )
 
 // MockProvider is a mock Provider for the Keystore service.
 type MockProvider struct {
-	MockStorageProvider    *mockstore.Provider
-	MockKeyManagerProvider *kms.Provider
-	MockKeyManager         *kms.KeyManager
+	MockStorageProvider    *mockstorage.MockStoreProvider
+	MockKeyManagerProvider *mockkms.Provider
+	MockKeyManager         *mockkms.KeyManager
 	KeyManagerCreatorError error
 }
 
 // NewMockProvider returns a new mock Provider for the Keystore service.
 func NewMockProvider() *MockProvider {
 	return &MockProvider{
-		MockStorageProvider:    mockstore.NewMockStoreProvider(),
-		MockKeyManagerProvider: &kms.Provider{},
-		MockKeyManager:         &kms.KeyManager{},
+		MockStorageProvider:    mockstorage.NewMockStoreProvider(),
+		MockKeyManagerProvider: &mockkms.Provider{},
+		MockKeyManager:         &mockkms.KeyManager{},
 	}
 }
 
@@ -36,13 +36,13 @@ func (p *MockProvider) StorageProvider() storage.Provider {
 }
 
 // KMSProvider returns KMS provider instance.
-func (p *MockProvider) KMSProvider() arieskms.Provider {
+func (p *MockProvider) KMSProvider() kms.Provider {
 	return p.MockKeyManagerProvider
 }
 
 // KMSCreator returns KMS creator.
-func (p *MockProvider) KMSCreator() arieskms.Creator {
-	return func(provider arieskms.Provider) (arieskms.KeyManager, error) {
+func (p *MockProvider) KMSCreator() kms.Creator {
+	return func(provider kms.Provider) (kms.KeyManager, error) {
 		if p.KeyManagerCreatorError != nil {
 			return nil, p.KeyManagerCreatorError
 		}
