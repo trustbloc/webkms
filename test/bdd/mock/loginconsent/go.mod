@@ -8,6 +8,7 @@ go 1.15
 
 require (
 	github.com/gorilla/mux v1.8.0
+	github.com/hyperledger/aries-framework-go v0.1.5
 	github.com/ory/hydra-client-go v1.8.5
-	github.com/trustbloc/edge-core v0.1.4
+	github.com/trustbloc/edge-core v0.1.5
 )

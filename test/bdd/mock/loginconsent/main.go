@@ -13,9 +13,9 @@ import (
 	"net/url"
 	"os"
 
+	"github.com/hyperledger/aries-framework-go/pkg/storage"
+	"github.com/hyperledger/aries-framework-go/pkg/storage/mem"
 	"github.com/trustbloc/edge-core/pkg/log"
-	"github.com/trustbloc/edge-core/pkg/storage"
-	"github.com/trustbloc/edge-core/pkg/storage/memstore"
 	tlsutils "github.com/trustbloc/edge-core/pkg/utils/tls"
 )
 
@@ -82,12 +82,7 @@ func loadConfig() (*config, error) {
 		return nil, fmt.Errorf("env variable LISTEN_ADDR required")
 	}
 
-	prov := memstore.NewProvider()
-
-	err = prov.CreateStore("bdd_tests")
-	if err != nil {
-		return nil, fmt.Errorf("could not create memory store: %w", err)
-	}
+	prov := mem.NewProvider()
 
 	store, err := prov.OpenStore("bdd_tests")
 	if err != nil {

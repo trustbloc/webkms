@@ -14,17 +14,14 @@ import (
 	"strings"
 
 	"github.com/gorilla/mux"
-	ariescouchdbstorage "github.com/hyperledger/aries-framework-go-ext/component/storage/couchdb"
+	"github.com/hyperledger/aries-framework-go-ext/component/storage/couchdb"
 	"github.com/hyperledger/aries-framework-go/pkg/crypto/tinkcrypto"
-	ariesstorage "github.com/hyperledger/aries-framework-go/pkg/storage"
-	ariesmemstorage "github.com/hyperledger/aries-framework-go/pkg/storage/mem"
+	"github.com/hyperledger/aries-framework-go/pkg/storage"
+	"github.com/hyperledger/aries-framework-go/pkg/storage/mem"
 	"github.com/rs/cors"
 	"github.com/spf13/cobra"
 	"github.com/trustbloc/edge-core/pkg/log"
 	"github.com/trustbloc/edge-core/pkg/restapi/logspec"
-	"github.com/trustbloc/edge-core/pkg/storage"
-	couchdbstore "github.com/trustbloc/edge-core/pkg/storage/couchdb"
-	"github.com/trustbloc/edge-core/pkg/storage/memstore"
 	cmdutils "github.com/trustbloc/edge-core/pkg/utils/cmd"
 
 	"github.com/trustbloc/hub-kms/pkg/auth/zcapld"
@@ -721,21 +718,20 @@ func constructCORSHandler(handler http.Handler) http.Handler {
 func prepareStorageProvider(params *storageParameters) (storage.Provider, error) {
 	switch {
 	case strings.EqualFold(params.storageType, storageTypeMemOption):
-		return memstore.NewProvider(), nil
+		return mem.NewProvider(), nil
 	case strings.EqualFold(params.storageType, storageTypeCouchDBOption):
-		return couchdbstore.NewProvider(params.storageURL, couchdbstore.WithDBPrefix(params.storagePrefix))
+		return couchdb.NewProvider(params.storageURL, couchdb.WithDBPrefix(params.storagePrefix))
 	default:
 		return nil, errors.New("database not set to a valid type")
 	}
 }
 
-func prepareKMSStorageProvider(params *storageParameters) (ariesstorage.Provider, error) {
+func prepareKMSStorageProvider(params *storageParameters) (storage.Provider, error) {
 	switch {
 	case strings.EqualFold(params.storageType, storageTypeMemOption):
-		return ariesmemstorage.NewProvider(), nil
+		return mem.NewProvider(), nil
 	case strings.EqualFold(params.storageType, storageTypeCouchDBOption):
-		return ariescouchdbstorage.NewProvider(
-			params.storageURL, ariescouchdbstorage.WithDBPrefix(params.storagePrefix))
+		return couchdb.NewProvider(params.storageURL, couchdb.WithDBPrefix(params.storagePrefix))
 	default:
 		return nil, errors.New("KMS storage not set to a valid type")
 	}
