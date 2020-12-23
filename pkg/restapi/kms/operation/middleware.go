@@ -20,6 +20,7 @@ import (
 	"github.com/piprate/json-gold/ld"
 	"github.com/trustbloc/edge-core/pkg/log"
 	"github.com/trustbloc/edge-core/pkg/zcapld"
+	"go.opentelemetry.io/otel/label"
 )
 
 // ZCAPLDMiddleware returns the ZCAPLD middleware that authorizes requests.
@@ -58,12 +59,21 @@ type mwHandler struct {
 	baseURL      string
 }
 
-func (h *mwHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+func (h *mwHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) { //nolint:funlen // TODO refactor
+	ctx, span := tracer.Start(r.Context(), "ZCAPLDMiddleware")
+	defer span.End()
+
+	span.SetAttributes(label.String("http.host", r.Host))
+	span.SetAttributes(label.String("http.method", r.Method))
+	span.SetAttributes(label.String("http.url", r.URL.String()))
+
 	h.logger.Debugf("handling request: %s", r.URL.String())
 
 	// this one is protected with OAuth2
 	if h.routeFunc(r).GetName() == keystoresEndpoint {
-		h.next.ServeHTTP(w, r)
+		h.next.ServeHTTP(w, r.WithContext(ctx))
+
+		span.AddEvent(fmt.Sprintf("handling request %q completed", r.URL.String()))
 
 		return
 	}
@@ -91,6 +101,8 @@ func (h *mwHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		cachingDL.AddDocument(d.ContextURL, d.Document)
 	}
 
+	span.AddEvent("populating cache for JSON-LD documents completed")
+
 	// TODO make KeyResolver configurable
 	// TODO make signature suites configurable
 	zcapld.NewHTTPSigAuthHandler(
@@ -110,7 +122,9 @@ func (h *mwHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		},
 		expectations,
 		h.next.ServeHTTP,
-	).ServeHTTP(w, r)
+	).ServeHTTP(w, r.WithContext(ctx))
+
+	span.AddEvent(fmt.Sprintf("handling request %q completed", r.URL.String()))
 
 	h.logger.Debugf("finished handling request: %s", r.URL.String())
 }

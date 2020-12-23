@@ -8,10 +8,12 @@ package zcapld
 import (
 	"bytes"
 	"compress/gzip"
+	"context"
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"time"
 
 	cryptoapi "github.com/hyperledger/aries-framework-go/pkg/crypto"
 	"github.com/hyperledger/aries-framework-go/pkg/doc/signature/suite"
@@ -22,6 +24,9 @@ import (
 	"github.com/hyperledger/aries-framework-go/pkg/vdr/fingerprint"
 	"github.com/igor-pavlenko/httpsignatures-go"
 	"github.com/trustbloc/edge-core/pkg/zcapld"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/label"
+	"go.opentelemetry.io/otel/trace"
 )
 
 const (
@@ -34,6 +39,8 @@ type Service struct {
 	crypto     cryptoapi.Crypto
 	store      storage.Store
 }
+
+var tracer = otel.Tracer("hub-kms/zcapld") //nolint:gochecknoglobals // ignore
 
 // New return zcap service.
 func New(keyManager kms.KeyManager, crypto cryptoapi.Crypto, sp storage.Provider) (*Service, error) {
@@ -50,11 +57,19 @@ func New(keyManager kms.KeyManager, crypto cryptoapi.Crypto, sp storage.Provider
 }
 
 // CreateDIDKey create did key.
-func (s *Service) CreateDIDKey() (string, error) {
+func (s *Service) CreateDIDKey(ctx context.Context) (string, error) {
+	_, span := tracer.Start(ctx, "zcapld:CreateDIDKey")
+	defer span.End()
+
+	start := time.Now()
+
 	signer, err := signature.NewCryptoSigner(s.crypto, s.keyManager, kms.ED25519)
 	if err != nil {
 		return "", fmt.Errorf("failed to create crypto signer: %w", err)
 	}
+
+	span.AddEvent("signature.NewCryptoSigner completed",
+		trace.WithAttributes(label.String("duration", time.Since(start).String())))
 
 	return didKeyURL(signer.PublicKeyBytes()), nil
 }
@@ -94,11 +109,21 @@ func (s *Service) SignHeader(req *http.Request, capabilityBytes []byte) (*http.H
 }
 
 // NewCapability creates a new capability and puts it in storage.
-func (s *Service) NewCapability(options ...zcapld.CapabilityOption) (*zcapld.Capability, error) {
+func (s *Service) NewCapability(ctx context.Context, options ...zcapld.CapabilityOption) (*zcapld.Capability, error) {
+	_, span := tracer.Start(ctx, "zcapld:NewCapability")
+	defer span.End()
+
+	start := time.Now()
+
 	signer, err := signature.NewCryptoSigner(s.crypto, s.keyManager, kms.ED25519)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create a new signer: %w", err)
 	}
+
+	span.AddEvent("signature.NewCryptoSigner completed",
+		trace.WithAttributes(label.String("duration", time.Since(start).String())))
+
+	startNewCapability := time.Now()
 
 	zcap, err := zcapld.NewCapability(
 		&zcapld.Signer{
@@ -112,15 +137,23 @@ func (s *Service) NewCapability(options ...zcapld.CapabilityOption) (*zcapld.Cap
 		return nil, fmt.Errorf("failed to create zcap: %w", err)
 	}
 
+	span.AddEvent("zcapld.NewCapability completed",
+		trace.WithAttributes(label.String("duration", time.Since(startNewCapability).String())))
+
 	raw, err := json.Marshal(zcap)
 	if err != nil {
 		return nil, fmt.Errorf("failed to marshal zcap: %w", err)
 	}
 
+	startPut := time.Now()
+
 	err = s.store.Put(zcap.ID, raw)
 	if err != nil {
 		return nil, fmt.Errorf("failed to store zcap: %w", err)
 	}
+
+	span.AddEvent("store.Put completed",
+		trace.WithAttributes(label.String("duration", time.Since(startPut).String())))
 
 	return zcap, nil
 }

@@ -23,6 +23,11 @@ import (
 	"github.com/trustbloc/edge-core/pkg/log"
 	"github.com/trustbloc/edge-core/pkg/restapi/logspec"
 	cmdutils "github.com/trustbloc/edge-core/pkg/utils/cmd"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/exporters/trace/jaeger"
+	"go.opentelemetry.io/otel/propagation"
+	sdktrace "go.opentelemetry.io/otel/sdk/trace"
+	"go.opentelemetry.io/otel/trace"
 
 	"github.com/trustbloc/hub-kms/pkg/auth/zcapld"
 	"github.com/trustbloc/hub-kms/pkg/restapi/healthcheck"
@@ -189,10 +194,19 @@ const (
 )
 
 const (
+	jaegerURLFlagName  = "jaeger-url"
+	jaegerURLFlagUsage = "The URL of Jaeger endpoint to use for sending trace data. If not specified " +
+		"noop implementation is used. " + commonEnvVarUsageText + jaegerURLFlagName
+	jaegerURLEnvKey = "KMS_JAEGER_URL"
+)
+
+const (
 	storageTypeMemOption     = "mem"
 	storageTypeCouchDBOption = "couchdb"
 	storageTypeEDVOption     = "edv"
 )
+
+var tracer = otel.Tracer("hub-kms/startcmd") //nolint:gochecknoglobals // ignore
 
 // Server represents an HTTP server.
 type Server interface {
@@ -286,6 +300,8 @@ func createFlags(startCmd *cobra.Command) {
 
 	startCmd.Flags().StringP(enableZCAPsFlagName, "", "", enableZCAPsFlagUsage)
 	startCmd.Flags().StringP(enableCORSFlagName, "", "", enableCORSFlagUsage)
+
+	startCmd.Flags().StringP(jaegerURLFlagName, "", "", jaegerURLFlagUsage)
 }
 
 type kmsRestParameters struct {
@@ -305,6 +321,7 @@ type kmsRestParameters struct {
 	logLevel                string
 	enableZCAPs             bool
 	enableCORS              bool
+	jaegerURL               string
 }
 
 type tlsServeParameters struct {
@@ -405,6 +422,11 @@ func getKmsRestParameters(cmd *cobra.Command) (*kmsRestParameters, error) { //no
 		return nil, err
 	}
 
+	jaegerURL, err := cmdutils.GetUserSetVarFromString(cmd, jaegerURLFlagName, jaegerURLEnvKey, true)
+	if err != nil {
+		return nil, err
+	}
+
 	return &kmsRestParameters{
 		hostURL:                 strings.TrimSpace(hostURL),
 		baseURL:                 baseURL,
@@ -422,6 +444,7 @@ func getKmsRestParameters(cmd *cobra.Command) (*kmsRestParameters, error) { //no
 		logLevel:                logLevel,
 		enableZCAPs:             enableZCAPs,
 		enableCORS:              enableCORS,
+		jaegerURL:               jaegerURL,
 	}, nil
 }
 
@@ -585,6 +608,15 @@ func startKmsService(params *kmsRestParameters, srv Server) error {
 		setLogLevel(params.logLevel, srv)
 	}
 
+	tracerFlush, err := initTracer(params.jaegerURL)
+	if err != nil {
+		return err
+	}
+
+	defer tracerFlush()
+
+	otel.SetTextMapPropagator(propagation.TraceContext{})
+
 	router := mux.NewRouter()
 
 	// add health check API handlers
@@ -644,6 +676,24 @@ func setLogLevel(level string, srv Server) {
 	}
 
 	log.SetLevel("", logLevel)
+}
+
+// initTracer creates a new trace provider instance and registers it as global trace provider.
+func initTracer(jaegerURL string) (func(), error) {
+	if jaegerURL == "" {
+		return func() {
+			trace.NewNoopTracerProvider()
+		}, nil
+	}
+
+	// create and install Jaeger export pipeline
+	return jaeger.InstallNewPipeline(
+		jaeger.WithCollectorEndpoint(jaegerURL),
+		jaeger.WithProcess(jaeger.Process{
+			ServiceName: "hub-kms",
+		}),
+		jaeger.WithSDK(&sdktrace.Config{DefaultSampler: sdktrace.AlwaysSample()}),
+	)
 }
 
 func prepareOperationConfig(params *kmsRestParameters) (*operation.Config, error) {

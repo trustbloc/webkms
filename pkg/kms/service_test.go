@@ -7,6 +7,7 @@ SPDX-License-Identifier: Apache-2.0
 package kms_test
 
 import (
+	"context"
 	"errors"
 	"testing"
 
@@ -56,7 +57,7 @@ func TestCreateKey(t *testing.T) {
 		srv := kms.NewService(provider)
 		require.NotNil(t, srv)
 
-		keyID, err := srv.CreateKey(testKeystoreID, testKeyType)
+		keyID, err := srv.CreateKey(context.Background(), testKeystoreID, testKeyType)
 		require.Equal(t, testKeyID, keyID)
 		require.NoError(t, err)
 
@@ -70,7 +71,7 @@ func TestCreateKey(t *testing.T) {
 		srv := kms.NewService(provider)
 		require.NotNil(t, srv)
 
-		keyID, err := srv.CreateKey(testKeystoreID, testKeyType)
+		keyID, err := srv.CreateKey(context.Background(), testKeystoreID, testKeyType)
 
 		require.Empty(t, keyID)
 		require.Error(t, err)
@@ -84,7 +85,7 @@ func TestCreateKey(t *testing.T) {
 		srv := kms.NewService(provider)
 		require.NotNil(t, srv)
 
-		keyID, err := srv.CreateKey(testKeystoreID, testKeyType)
+		keyID, err := srv.CreateKey(context.Background(), testKeystoreID, testKeyType)
 
 		require.Empty(t, keyID)
 		require.Error(t, err)
@@ -104,7 +105,7 @@ func TestCreateKey(t *testing.T) {
 		srv := kms.NewService(provider)
 		require.NotNil(t, srv)
 
-		keyID, err := srv.CreateKey(testKeystoreID, testKeyType)
+		keyID, err := srv.CreateKey(context.Background(), testKeystoreID, testKeyType)
 
 		require.Empty(t, keyID)
 		require.Error(t, err)
@@ -126,7 +127,7 @@ func TestExportKey(t *testing.T) {
 		srv := kms.NewService(provider)
 		require.NotNil(t, srv)
 
-		pub, err := srv.ExportKey(testKeystoreID, testKeyID)
+		pub, err := srv.ExportKey(context.Background(), testKeystoreID, testKeyID)
 
 		require.NotEmpty(t, pub)
 		require.NoError(t, err)
@@ -139,7 +140,7 @@ func TestExportKey(t *testing.T) {
 		srv := kms.NewService(provider)
 		require.NotNil(t, srv)
 
-		pub, err := srv.ExportKey(testKeystoreID, testKeyID)
+		pub, err := srv.ExportKey(context.Background(), testKeystoreID, testKeyID)
 
 		require.Empty(t, pub)
 		require.Error(t, err)
@@ -157,7 +158,7 @@ func TestExportKey(t *testing.T) {
 		srv := kms.NewService(provider)
 		require.NotNil(t, srv)
 
-		pub, err := srv.ExportKey(testKeystoreID, testKeyID)
+		pub, err := srv.ExportKey(context.Background(), testKeystoreID, testKeyID)
 
 		require.Empty(t, pub)
 		require.Error(t, err)
@@ -176,7 +177,7 @@ func TestExportKey(t *testing.T) {
 		srv := kms.NewService(provider)
 		require.NotNil(t, srv)
 
-		pub, err := srv.ExportKey(testKeystoreID, "invalidKeyID")
+		pub, err := srv.ExportKey(context.Background(), testKeystoreID, "invalidKeyID")
 
 		require.Empty(t, pub)
 		require.Error(t, err)
@@ -196,7 +197,7 @@ func TestExportKey(t *testing.T) {
 		srv := kms.NewService(provider)
 		require.NotNil(t, srv)
 
-		pub, err := srv.ExportKey(testKeystoreID, testKeyID)
+		pub, err := srv.ExportKey(context.Background(), testKeystoreID, testKeyID)
 
 		require.Empty(t, pub)
 		require.Error(t, err)
@@ -218,7 +219,7 @@ func TestSign(t *testing.T) {
 		srv := kms.NewService(provider)
 		require.NotNil(t, srv)
 
-		sig, err := srv.Sign(testKeystoreID, testKeyID, []byte(testMessage))
+		sig, err := srv.Sign(context.Background(), testKeystoreID, testKeyID, []byte(testMessage))
 
 		require.NotEmpty(t, sig)
 		require.NoError(t, err)
@@ -231,7 +232,7 @@ func TestSign(t *testing.T) {
 		srv := kms.NewService(provider)
 		require.NotNil(t, srv)
 
-		sig, err := srv.Sign(testKeystoreID, testKeyID, []byte(testMessage))
+		sig, err := srv.Sign(context.Background(), testKeystoreID, testKeyID, []byte(testMessage))
 
 		require.Empty(t, sig)
 		require.Error(t, err)
@@ -249,7 +250,7 @@ func TestSign(t *testing.T) {
 		srv := kms.NewService(provider)
 		require.NotNil(t, srv)
 
-		sig, err := srv.Sign(testKeystoreID, testKeyID, []byte(testMessage))
+		sig, err := srv.Sign(context.Background(), testKeystoreID, testKeyID, []byte(testMessage))
 
 		require.Empty(t, sig)
 		require.Error(t, err)
@@ -268,7 +269,7 @@ func TestSign(t *testing.T) {
 		srv := kms.NewService(provider)
 		require.NotNil(t, srv)
 
-		sig, err := srv.Sign(testKeystoreID, "invalidKeyID", []byte(testMessage))
+		sig, err := srv.Sign(context.Background(), testKeystoreID, "invalidKeyID", []byte(testMessage))
 
 		require.Empty(t, sig)
 		require.Error(t, err)
@@ -288,7 +289,7 @@ func TestSign(t *testing.T) {
 		srv := kms.NewService(provider)
 		require.NotNil(t, srv)
 
-		sig, err := srv.Sign(testKeystoreID, testKeyID, []byte(testMessage))
+		sig, err := srv.Sign(context.Background(), testKeystoreID, testKeyID, []byte(testMessage))
 
 		require.Empty(t, sig)
 		require.Error(t, err)
@@ -308,7 +309,7 @@ func TestSign(t *testing.T) {
 		srv := kms.NewService(provider)
 		require.NotNil(t, srv)
 
-		sig, err := srv.Sign(testKeystoreID, testKeyID, []byte(testMessage))
+		sig, err := srv.Sign(context.Background(), testKeystoreID, testKeyID, []byte(testMessage))
 
 		require.Empty(t, sig)
 		require.Error(t, err)
@@ -333,7 +334,7 @@ func TestVerify(t *testing.T) {
 		srv := kms.NewService(provider)
 		require.NotNil(t, srv)
 
-		err = srv.Verify(testKeystoreID, testKeyID, []byte(testSignature), []byte(testMessage))
+		err = srv.Verify(context.Background(), testKeystoreID, testKeyID, []byte(testSignature), []byte(testMessage))
 		require.NoError(t, err)
 	})
 
@@ -344,7 +345,7 @@ func TestVerify(t *testing.T) {
 		srv := kms.NewService(provider)
 		require.NotNil(t, srv)
 
-		err := srv.Verify(testKeystoreID, testKeyID, []byte(testSignature), []byte(testMessage))
+		err := srv.Verify(context.Background(), testKeystoreID, testKeyID, []byte(testSignature), []byte(testMessage))
 		require.Error(t, err)
 		require.Equal(t, "get keystore failed: get keystore error", err.Error())
 	})
@@ -360,7 +361,7 @@ func TestVerify(t *testing.T) {
 		srv := kms.NewService(provider)
 		require.NotNil(t, srv)
 
-		err := srv.Verify(testKeystoreID, testKeyID, []byte(testSignature), []byte(testMessage))
+		err := srv.Verify(context.Background(), testKeystoreID, testKeyID, []byte(testSignature), []byte(testMessage))
 		require.Error(t, err)
 		require.Equal(t, "no keys defined", err.Error())
 	})
@@ -377,7 +378,9 @@ func TestVerify(t *testing.T) {
 		srv := kms.NewService(provider)
 		require.NotNil(t, srv)
 
-		err := srv.Verify(testKeystoreID, "invalidKeyID", []byte(testSignature), []byte(testMessage))
+		err := srv.Verify(context.Background(), testKeystoreID, "invalidKeyID", []byte(testSignature),
+			[]byte(testMessage))
+
 		require.Error(t, err)
 		require.Equal(t, "invalid key", err.Error())
 	})
@@ -395,7 +398,7 @@ func TestVerify(t *testing.T) {
 		srv := kms.NewService(provider)
 		require.NotNil(t, srv)
 
-		err := srv.Verify(testKeystoreID, testKeyID, []byte(testSignature), []byte(testMessage))
+		err := srv.Verify(context.Background(), testKeystoreID, testKeyID, []byte(testSignature), []byte(testMessage))
 		require.Error(t, err)
 		require.Equal(t, "get key failed: get key error", err.Error())
 	})
@@ -416,7 +419,7 @@ func TestVerify(t *testing.T) {
 		srv := kms.NewService(provider)
 		require.NotNil(t, srv)
 
-		err = srv.Verify(testKeystoreID, testKeyID, []byte(testSignature), []byte(testMessage))
+		err = srv.Verify(context.Background(), testKeystoreID, testKeyID, []byte(testSignature), []byte(testMessage))
 		require.Error(t, err)
 	})
 
@@ -437,7 +440,7 @@ func TestVerify(t *testing.T) {
 		srv := kms.NewService(provider)
 		require.NotNil(t, srv)
 
-		err = srv.Verify(testKeystoreID, testKeyID, []byte(testSignature), []byte(testMessage))
+		err = srv.Verify(context.Background(), testKeystoreID, testKeyID, []byte(testSignature), []byte(testMessage))
 		require.Error(t, err)
 		require.Equal(t, "verify signature failed: verify msg: invalid signature", err.Error())
 	})
@@ -459,7 +462,7 @@ func TestVerify(t *testing.T) {
 		srv := kms.NewService(provider)
 		require.NotNil(t, srv)
 
-		err = srv.Verify(testKeystoreID, testKeyID, []byte(testSignature), []byte(testMessage))
+		err = srv.Verify(context.Background(), testKeystoreID, testKeyID, []byte(testSignature), []byte(testMessage))
 		require.Error(t, err)
 	})
 }
@@ -479,7 +482,9 @@ func TestEncrypt(t *testing.T) {
 		srv := kms.NewService(provider)
 		require.NotNil(t, srv)
 
-		cipher, nonce, err := srv.Encrypt(testKeystoreID, testKeyID, []byte(testMessage), []byte(testAAD))
+		cipher, nonce, err := srv.Encrypt(context.Background(), testKeystoreID, testKeyID, []byte(testMessage),
+			[]byte(testAAD))
+
 		require.NoError(t, err)
 		require.NotEmpty(t, cipher)
 		require.NotEmpty(t, nonce)
@@ -492,7 +497,8 @@ func TestEncrypt(t *testing.T) {
 		srv := kms.NewService(provider)
 		require.NotNil(t, srv)
 
-		cipher, nonce, err := srv.Encrypt(testKeystoreID, testKeyID, []byte(testMessage), []byte(testAAD))
+		cipher, nonce, err := srv.Encrypt(context.Background(), testKeystoreID, testKeyID, []byte(testMessage),
+			[]byte(testAAD))
 
 		require.Empty(t, cipher)
 		require.Empty(t, nonce)
@@ -511,7 +517,8 @@ func TestEncrypt(t *testing.T) {
 		srv := kms.NewService(provider)
 		require.NotNil(t, srv)
 
-		cipher, nonce, err := srv.Encrypt(testKeystoreID, testKeyID, []byte(testMessage), []byte(testAAD))
+		cipher, nonce, err := srv.Encrypt(context.Background(), testKeystoreID, testKeyID, []byte(testMessage),
+			[]byte(testAAD))
 
 		require.Empty(t, cipher)
 		require.Empty(t, nonce)
@@ -531,7 +538,8 @@ func TestEncrypt(t *testing.T) {
 		srv := kms.NewService(provider)
 		require.NotNil(t, srv)
 
-		cipher, nonce, err := srv.Encrypt(testKeystoreID, "invalidKeyID", []byte(testMessage), []byte(testAAD))
+		cipher, nonce, err := srv.Encrypt(context.Background(), testKeystoreID, "invalidKeyID", []byte(testMessage),
+			[]byte(testAAD))
 
 		require.Empty(t, cipher)
 		require.Empty(t, nonce)
@@ -552,7 +560,8 @@ func TestEncrypt(t *testing.T) {
 		srv := kms.NewService(provider)
 		require.NotNil(t, srv)
 
-		cipher, nonce, err := srv.Encrypt(testKeystoreID, testKeyID, []byte(testMessage), []byte(testAAD))
+		cipher, nonce, err := srv.Encrypt(context.Background(), testKeystoreID, testKeyID, []byte(testMessage),
+			[]byte(testAAD))
 
 		require.Empty(t, cipher)
 		require.Empty(t, nonce)
@@ -573,7 +582,8 @@ func TestEncrypt(t *testing.T) {
 		srv := kms.NewService(provider)
 		require.NotNil(t, srv)
 
-		cipher, nonce, err := srv.Encrypt(testKeystoreID, testKeyID, []byte(testMessage), []byte(testAAD))
+		cipher, nonce, err := srv.Encrypt(context.Background(), testKeystoreID, testKeyID, []byte(testMessage),
+			[]byte(testAAD))
 
 		require.Empty(t, cipher)
 		require.Empty(t, nonce)
@@ -596,7 +606,8 @@ func TestDecrypt(t *testing.T) {
 		srv := kms.NewService(provider)
 		require.NotNil(t, srv)
 
-		plain, err := srv.Decrypt(testKeystoreID, testKeyID, []byte(testMessage), []byte(testAAD), []byte(testNonce))
+		plain, err := srv.Decrypt(context.Background(), testKeystoreID, testKeyID, []byte(testMessage),
+			[]byte(testAAD), []byte(testNonce))
 
 		require.NotEmpty(t, plain)
 		require.NoError(t, err)
@@ -609,7 +620,8 @@ func TestDecrypt(t *testing.T) {
 		srv := kms.NewService(provider)
 		require.NotNil(t, srv)
 
-		plain, err := srv.Decrypt(testKeystoreID, testKeyID, []byte(testMessage), []byte(testAAD), []byte(testNonce))
+		plain, err := srv.Decrypt(context.Background(), testKeystoreID, testKeyID, []byte(testMessage),
+			[]byte(testAAD), []byte(testNonce))
 
 		require.Empty(t, plain)
 		require.Error(t, err)
@@ -627,7 +639,8 @@ func TestDecrypt(t *testing.T) {
 		srv := kms.NewService(provider)
 		require.NotNil(t, srv)
 
-		plain, err := srv.Decrypt(testKeystoreID, testKeyID, []byte(testMessage), []byte(testAAD), []byte(testNonce))
+		plain, err := srv.Decrypt(context.Background(), testKeystoreID, testKeyID, []byte(testMessage),
+			[]byte(testAAD), []byte(testNonce))
 
 		require.Empty(t, plain)
 		require.Error(t, err)
@@ -646,7 +659,8 @@ func TestDecrypt(t *testing.T) {
 		srv := kms.NewService(provider)
 		require.NotNil(t, srv)
 
-		plain, err := srv.Decrypt(testKeystoreID, "invalidKeyID", []byte(testMessage), []byte(testAAD), []byte(testNonce))
+		plain, err := srv.Decrypt(context.Background(), testKeystoreID, "invalidKeyID", []byte(testMessage),
+			[]byte(testAAD), []byte(testNonce))
 
 		require.Empty(t, plain)
 		require.Error(t, err)
@@ -666,7 +680,8 @@ func TestDecrypt(t *testing.T) {
 		srv := kms.NewService(provider)
 		require.NotNil(t, srv)
 
-		plain, err := srv.Decrypt(testKeystoreID, testKeyID, []byte(testMessage), []byte(testAAD), []byte(testNonce))
+		plain, err := srv.Decrypt(context.Background(), testKeystoreID, testKeyID, []byte(testMessage),
+			[]byte(testAAD), []byte(testNonce))
 
 		require.Empty(t, plain)
 		require.Error(t, err)
@@ -686,7 +701,8 @@ func TestDecrypt(t *testing.T) {
 		srv := kms.NewService(provider)
 		require.NotNil(t, srv)
 
-		plain, err := srv.Decrypt(testKeystoreID, testKeyID, []byte(testMessage), []byte(testAAD), []byte(testNonce))
+		plain, err := srv.Decrypt(context.Background(), testKeystoreID, testKeyID, []byte(testMessage),
+			[]byte(testAAD), []byte(testNonce))
 
 		require.Empty(t, plain)
 		require.Error(t, err)
@@ -708,7 +724,7 @@ func TestComputeMAC(t *testing.T) {
 		srv := kms.NewService(provider)
 		require.NotNil(t, srv)
 
-		sig, err := srv.ComputeMAC(testKeystoreID, testKeyID, []byte(testMessage))
+		sig, err := srv.ComputeMAC(context.Background(), testKeystoreID, testKeyID, []byte(testMessage))
 
 		require.NotEmpty(t, sig)
 		require.NoError(t, err)
@@ -721,7 +737,7 @@ func TestComputeMAC(t *testing.T) {
 		srv := kms.NewService(provider)
 		require.NotNil(t, srv)
 
-		sig, err := srv.ComputeMAC(testKeystoreID, testKeyID, []byte(testMessage))
+		sig, err := srv.ComputeMAC(context.Background(), testKeystoreID, testKeyID, []byte(testMessage))
 
 		require.Empty(t, sig)
 		require.Error(t, err)
@@ -739,7 +755,7 @@ func TestComputeMAC(t *testing.T) {
 		srv := kms.NewService(provider)
 		require.NotNil(t, srv)
 
-		sig, err := srv.ComputeMAC(testKeystoreID, testKeyID, []byte(testMessage))
+		sig, err := srv.ComputeMAC(context.Background(), testKeystoreID, testKeyID, []byte(testMessage))
 
 		require.Empty(t, sig)
 		require.Error(t, err)
@@ -758,7 +774,7 @@ func TestComputeMAC(t *testing.T) {
 		srv := kms.NewService(provider)
 		require.NotNil(t, srv)
 
-		sig, err := srv.ComputeMAC(testKeystoreID, "invalidKeyID", []byte(testMessage))
+		sig, err := srv.ComputeMAC(context.Background(), testKeystoreID, "invalidKeyID", []byte(testMessage))
 
 		require.Empty(t, sig)
 		require.Error(t, err)
@@ -778,7 +794,7 @@ func TestComputeMAC(t *testing.T) {
 		srv := kms.NewService(provider)
 		require.NotNil(t, srv)
 
-		sig, err := srv.ComputeMAC(testKeystoreID, testKeyID, []byte(testMessage))
+		sig, err := srv.ComputeMAC(context.Background(), testKeystoreID, testKeyID, []byte(testMessage))
 
 		require.Empty(t, sig)
 		require.Error(t, err)
@@ -798,7 +814,7 @@ func TestComputeMAC(t *testing.T) {
 		srv := kms.NewService(provider)
 		require.NotNil(t, srv)
 
-		sig, err := srv.ComputeMAC(testKeystoreID, testKeyID, []byte(testMessage))
+		sig, err := srv.ComputeMAC(context.Background(), testKeystoreID, testKeyID, []byte(testMessage))
 
 		require.Empty(t, sig)
 		require.Error(t, err)
@@ -823,7 +839,7 @@ func TestVerifyMAC(t *testing.T) {
 		srv := kms.NewService(provider)
 		require.NotNil(t, srv)
 
-		err = srv.VerifyMAC(testKeystoreID, testKeyID, []byte(testMAC), []byte(testMessage))
+		err = srv.VerifyMAC(context.Background(), testKeystoreID, testKeyID, []byte(testMAC), []byte(testMessage))
 		require.NoError(t, err)
 	})
 
@@ -834,7 +850,7 @@ func TestVerifyMAC(t *testing.T) {
 		srv := kms.NewService(provider)
 		require.NotNil(t, srv)
 
-		err := srv.VerifyMAC(testKeystoreID, testKeyID, []byte(testMAC), []byte(testMessage))
+		err := srv.VerifyMAC(context.Background(), testKeystoreID, testKeyID, []byte(testMAC), []byte(testMessage))
 		require.Error(t, err)
 		require.Equal(t, "get keystore failed: get keystore error", err.Error())
 	})
@@ -850,7 +866,7 @@ func TestVerifyMAC(t *testing.T) {
 		srv := kms.NewService(provider)
 		require.NotNil(t, srv)
 
-		err := srv.VerifyMAC(testKeystoreID, testKeyID, []byte(testMAC), []byte(testMessage))
+		err := srv.VerifyMAC(context.Background(), testKeystoreID, testKeyID, []byte(testMAC), []byte(testMessage))
 		require.Error(t, err)
 		require.Equal(t, "no keys defined", err.Error())
 	})
@@ -867,7 +883,7 @@ func TestVerifyMAC(t *testing.T) {
 		srv := kms.NewService(provider)
 		require.NotNil(t, srv)
 
-		err := srv.VerifyMAC(testKeystoreID, "invalidKeyID", []byte(testMAC), []byte(testMessage))
+		err := srv.VerifyMAC(context.Background(), testKeystoreID, "invalidKeyID", []byte(testMAC), []byte(testMessage))
 		require.Error(t, err)
 		require.Equal(t, "invalid key", err.Error())
 	})
@@ -885,7 +901,7 @@ func TestVerifyMAC(t *testing.T) {
 		srv := kms.NewService(provider)
 		require.NotNil(t, srv)
 
-		err := srv.VerifyMAC(testKeystoreID, testKeyID, []byte(testMAC), []byte(testMessage))
+		err := srv.VerifyMAC(context.Background(), testKeystoreID, testKeyID, []byte(testMAC), []byte(testMessage))
 		require.Error(t, err)
 		require.Equal(t, "get key failed: get key error", err.Error())
 	})
@@ -909,7 +925,7 @@ func TestVerifyMAC(t *testing.T) {
 		srv := kms.NewService(provider)
 		require.NotNil(t, srv)
 
-		err = srv.VerifyMAC(testKeystoreID, testKeyID, []byte(testMAC), []byte(testMessage))
+		err = srv.VerifyMAC(context.Background(), testKeystoreID, testKeyID, []byte(testMAC), []byte(testMessage))
 		require.Error(t, err)
 		require.Equal(t, "verify MAC failed: verify MAC error", err.Error())
 	})
@@ -923,7 +939,7 @@ func TestWrapKey_Anoncrypt(t *testing.T) {
 		srv := kms.NewService(provider)
 		require.NotNil(t, srv)
 
-		key, err := srv.WrapKey(testKeystoreID, "", []byte("cek"), []byte("apu"), []byte("apv"),
+		key, err := srv.WrapKey(context.Background(), testKeystoreID, "", []byte("cek"), []byte("apu"), []byte("apv"),
 			&crypto.PublicKey{})
 
 		require.NotNil(t, key)
@@ -937,7 +953,7 @@ func TestWrapKey_Anoncrypt(t *testing.T) {
 		srv := kms.NewService(provider)
 		require.NotNil(t, srv)
 
-		key, err := srv.WrapKey(testKeystoreID, "", []byte("cek"), []byte("apu"), []byte("apv"),
+		key, err := srv.WrapKey(context.Background(), testKeystoreID, "", []byte("cek"), []byte("apu"), []byte("apv"),
 			&crypto.PublicKey{})
 
 		require.Nil(t, key)
@@ -961,7 +977,7 @@ func TestWrapKey_Authcrypt(t *testing.T) {
 		srv := kms.NewService(provider)
 		require.NotNil(t, srv)
 
-		key, err := srv.WrapKey(testKeystoreID, testKeyID, []byte("cek"), []byte("apu"), []byte("apv"),
+		key, err := srv.WrapKey(context.Background(), testKeystoreID, testKeyID, []byte("cek"), []byte("apu"), []byte("apv"),
 			&crypto.PublicKey{})
 
 		require.NotNil(t, key)
@@ -975,7 +991,7 @@ func TestWrapKey_Authcrypt(t *testing.T) {
 		srv := kms.NewService(provider)
 		require.NotNil(t, srv)
 
-		key, err := srv.WrapKey(testKeystoreID, testKeyID, []byte("cek"), []byte("apu"), []byte("apv"),
+		key, err := srv.WrapKey(context.Background(), testKeystoreID, testKeyID, []byte("cek"), []byte("apu"), []byte("apv"),
 			&crypto.PublicKey{})
 
 		require.Nil(t, key)
@@ -994,7 +1010,7 @@ func TestWrapKey_Authcrypt(t *testing.T) {
 		srv := kms.NewService(provider)
 		require.NotNil(t, srv)
 
-		key, err := srv.WrapKey(testKeystoreID, testKeyID, []byte("cek"), []byte("apu"), []byte("apv"),
+		key, err := srv.WrapKey(context.Background(), testKeystoreID, testKeyID, []byte("cek"), []byte("apu"), []byte("apv"),
 			&crypto.PublicKey{})
 
 		require.Nil(t, key)
@@ -1014,8 +1030,8 @@ func TestWrapKey_Authcrypt(t *testing.T) {
 		srv := kms.NewService(provider)
 		require.NotNil(t, srv)
 
-		key, err := srv.WrapKey(testKeystoreID, "invalid", []byte("cek"), []byte("apu"), []byte("apv"),
-			&crypto.PublicKey{})
+		key, err := srv.WrapKey(context.Background(), testKeystoreID, "invalid", []byte("cek"), []byte("apu"),
+			[]byte("apv"), &crypto.PublicKey{})
 
 		require.Nil(t, key)
 		require.Error(t, err)
@@ -1035,8 +1051,8 @@ func TestWrapKey_Authcrypt(t *testing.T) {
 		srv := kms.NewService(provider)
 		require.NotNil(t, srv)
 
-		key, err := srv.WrapKey(testKeystoreID, testKeyID, []byte("cek"), []byte("apu"), []byte("apv"),
-			&crypto.PublicKey{})
+		key, err := srv.WrapKey(context.Background(), testKeystoreID, testKeyID, []byte("cek"), []byte("apu"),
+			[]byte("apv"), &crypto.PublicKey{})
 
 		require.Nil(t, key)
 		require.Error(t, err)
@@ -1056,8 +1072,8 @@ func TestWrapKey_Authcrypt(t *testing.T) {
 		srv := kms.NewService(provider)
 		require.NotNil(t, srv)
 
-		key, err := srv.WrapKey(testKeystoreID, testKeyID, []byte("cek"), []byte("apu"), []byte("apv"),
-			&crypto.PublicKey{})
+		key, err := srv.WrapKey(context.Background(), testKeystoreID, testKeyID, []byte("cek"), []byte("apu"),
+			[]byte("apv"), &crypto.PublicKey{})
 
 		require.Nil(t, key)
 		require.Error(t, err)
@@ -1080,7 +1096,7 @@ func TestUnwrapKey_Anoncrypt(t *testing.T) {
 		srv := kms.NewService(provider)
 		require.NotNil(t, srv)
 
-		key, err := srv.UnwrapKey(testKeystoreID, testKeyID, &crypto.RecipientWrappedKey{}, nil)
+		key, err := srv.UnwrapKey(context.Background(), testKeystoreID, testKeyID, &crypto.RecipientWrappedKey{}, nil)
 
 		require.NotNil(t, key)
 		require.NoError(t, err)
@@ -1093,7 +1109,7 @@ func TestUnwrapKey_Anoncrypt(t *testing.T) {
 		srv := kms.NewService(provider)
 		require.NotNil(t, srv)
 
-		key, err := srv.UnwrapKey(testKeystoreID, testKeyID, &crypto.RecipientWrappedKey{}, nil)
+		key, err := srv.UnwrapKey(context.Background(), testKeystoreID, testKeyID, &crypto.RecipientWrappedKey{}, nil)
 
 		require.Nil(t, key)
 		require.Error(t, err)
@@ -1111,7 +1127,7 @@ func TestUnwrapKey_Anoncrypt(t *testing.T) {
 		srv := kms.NewService(provider)
 		require.NotNil(t, srv)
 
-		key, err := srv.UnwrapKey(testKeystoreID, testKeyID, &crypto.RecipientWrappedKey{}, nil)
+		key, err := srv.UnwrapKey(context.Background(), testKeystoreID, testKeyID, &crypto.RecipientWrappedKey{}, nil)
 
 		require.Nil(t, key)
 		require.Error(t, err)
@@ -1130,7 +1146,7 @@ func TestUnwrapKey_Anoncrypt(t *testing.T) {
 		srv := kms.NewService(provider)
 		require.NotNil(t, srv)
 
-		key, err := srv.UnwrapKey(testKeystoreID, "", &crypto.RecipientWrappedKey{}, nil)
+		key, err := srv.UnwrapKey(context.Background(), testKeystoreID, "", &crypto.RecipientWrappedKey{}, nil)
 
 		require.Nil(t, key)
 		require.Error(t, err)
@@ -1150,7 +1166,7 @@ func TestUnwrapKey_Anoncrypt(t *testing.T) {
 		srv := kms.NewService(provider)
 		require.NotNil(t, srv)
 
-		key, err := srv.UnwrapKey(testKeystoreID, testKeyID, &crypto.RecipientWrappedKey{}, nil)
+		key, err := srv.UnwrapKey(context.Background(), testKeystoreID, testKeyID, &crypto.RecipientWrappedKey{}, nil)
 
 		require.Nil(t, key)
 		require.Error(t, err)
@@ -1170,7 +1186,7 @@ func TestUnwrapKey_Anoncrypt(t *testing.T) {
 		srv := kms.NewService(provider)
 		require.NotNil(t, srv)
 
-		key, err := srv.UnwrapKey(testKeystoreID, testKeyID, &crypto.RecipientWrappedKey{}, nil)
+		key, err := srv.UnwrapKey(context.Background(), testKeystoreID, testKeyID, &crypto.RecipientWrappedKey{}, nil)
 
 		require.Nil(t, key)
 		require.Error(t, err)
@@ -1199,7 +1215,8 @@ func TestUnwrapKey_Authcrypt(t *testing.T) {
 		senderPubKey, err := keyio.ExtractPrimaryPublicKey(senderKH)
 		require.NoError(t, err)
 
-		key, err := srv.UnwrapKey(testKeystoreID, testKeyID, &crypto.RecipientWrappedKey{}, senderPubKey)
+		key, err := srv.UnwrapKey(context.Background(), testKeystoreID, testKeyID,
+			&crypto.RecipientWrappedKey{}, senderPubKey)
 
 		require.NotNil(t, key)
 		require.NoError(t, err)
@@ -1217,7 +1234,8 @@ func TestUnwrapKey_Authcrypt(t *testing.T) {
 		srv := kms.NewService(provider)
 		require.NotNil(t, srv)
 
-		key, err := srv.UnwrapKey(testKeystoreID, testKeyID, &crypto.RecipientWrappedKey{}, &crypto.PublicKey{})
+		key, err := srv.UnwrapKey(context.Background(), testKeystoreID, testKeyID,
+			&crypto.RecipientWrappedKey{}, &crypto.PublicKey{})
 
 		require.Nil(t, key)
 		require.Error(t, err)
@@ -1242,7 +1260,8 @@ func TestUnwrapKey_Authcrypt(t *testing.T) {
 		senderPubKey, err := keyio.ExtractPrimaryPublicKey(senderKH)
 		require.NoError(t, err)
 
-		key, err := srv.UnwrapKey(testKeystoreID, testKeyID, &crypto.RecipientWrappedKey{}, senderPubKey)
+		key, err := srv.UnwrapKey(context.Background(), testKeystoreID, testKeyID,
+			&crypto.RecipientWrappedKey{}, senderPubKey)
 
 		require.Nil(t, key)
 		require.Error(t, err)

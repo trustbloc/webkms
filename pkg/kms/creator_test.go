@@ -148,16 +148,19 @@ func newConfig(opts ...optionFn) *kms.Config {
 		opts[i](cOpts)
 	}
 
+	kmsStorageResolver := func(context.Context, string) (storage.Provider, error) { return cOpts.storageProvider, nil }
+	secretLockResolver := func(string, *http.Request) (secretlock.Service, error) { return cOpts.secretLock, nil }
+
 	config := &kms.Config{
 		KeystoreService:    mockkeystore.NewMockService(),
 		CryptoService:      &mockcrypto.Crypto{},
-		KMSStorageResolver: func(string) (storage.Provider, error) { return cOpts.storageProvider, nil },
-		SecretLockResolver: func(string, *http.Request) (secretlock.Service, error) { return cOpts.secretLock, nil },
+		KMSStorageResolver: kmsStorageResolver,
+		SecretLockResolver: secretLockResolver,
 		CacheExpiration:    cOpts.cacheExpiration,
 	}
 
 	if cOpts.kmsStorageResolverErr != nil {
-		config.KMSStorageResolver = func(string) (storage.Provider, error) {
+		config.KMSStorageResolver = func(context.Context, string) (storage.Provider, error) {
 			return nil, cOpts.kmsStorageResolverErr
 		}
 	}

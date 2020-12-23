@@ -7,6 +7,7 @@ SPDX-License-Identifier: Apache-2.0
 package startcmd
 
 import (
+	"context"
 	"crypto/tls"
 	"net/http"
 	"strings"
@@ -64,10 +65,10 @@ func prepareKMSServiceCreator(keystoreSrv keystore.Service, cryptoSrv cryptoapi.
 
 func prepareStorageResolver(keystoreSrv keystore.Service, cryptoSrv cryptoapi.Crypto, signer edv.HeaderSigner,
 	cacheProvider ariesstorage.Provider, storageParams *storageParameters,
-	tlsConfig *tls.Config) func(string) (ariesstorage.Provider, error) {
+	tlsConfig *tls.Config) func(ctx context.Context, keystoreID string) (ariesstorage.Provider, error) {
 	switch {
 	case strings.EqualFold(storageParams.storageType, storageTypeEDVOption):
-		return func(keystoreID string) (ariesstorage.Provider, error) {
+		return func(ctx context.Context, keystoreID string) (ariesstorage.Provider, error) {
 			config := &edv.Config{
 				KeystoreService: keystoreSrv,
 				CryptoService:   cryptoSrv,
@@ -78,10 +79,10 @@ func prepareStorageResolver(keystoreSrv keystore.Service, cryptoSrv cryptoapi.Cr
 				CacheProvider:   cacheProvider,
 			}
 
-			return edv.NewStorageProvider(config)
+			return edv.NewStorageProvider(ctx, config)
 		}
 	default:
-		return func(string) (ariesstorage.Provider, error) {
+		return func(context.Context, string) (ariesstorage.Provider, error) {
 			return prepareKMSStorageProvider(storageParams)
 		}
 	}

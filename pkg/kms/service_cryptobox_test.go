@@ -7,6 +7,7 @@ SPDX-License-Identifier: Apache-2.0
 package kms_test
 
 import (
+	"context"
 	"errors"
 	"testing"
 
@@ -36,7 +37,7 @@ func TestEasy(t *testing.T) {
 		srv := kms.NewService(provider)
 		require.NotNil(t, srv)
 
-		cipher, err := srv.Easy(testKeystoreID, testKeyID, []byte(testMessage), []byte(testNonce),
+		cipher, err := srv.Easy(context.Background(), testKeystoreID, testKeyID, []byte(testMessage), []byte(testNonce),
 			[]byte(testTheirPub))
 
 		require.NotEmpty(t, cipher)
@@ -51,7 +52,7 @@ func TestEasy(t *testing.T) {
 		srv := kms.NewService(provider)
 		require.NotNil(t, srv)
 
-		cipher, err := srv.Easy(testKeystoreID, testKeyID, []byte(testMessage), []byte(testNonce),
+		cipher, err := srv.Easy(context.Background(), testKeystoreID, testKeyID, []byte(testMessage), []byte(testNonce),
 			[]byte(testTheirPub))
 
 		require.Empty(t, cipher)
@@ -71,7 +72,7 @@ func TestEasy(t *testing.T) {
 		srv := kms.NewService(provider)
 		require.NotNil(t, srv)
 
-		cipher, err := srv.Easy(testKeystoreID, testKeyID, []byte(testMessage), []byte(testNonce),
+		cipher, err := srv.Easy(context.Background(), testKeystoreID, testKeyID, []byte(testMessage), []byte(testNonce),
 			[]byte(testTheirPub))
 
 		require.Empty(t, cipher)
@@ -92,8 +93,8 @@ func TestEasy(t *testing.T) {
 		srv := kms.NewService(provider)
 		require.NotNil(t, srv)
 
-		cipher, err := srv.Easy(testKeystoreID, "invalidKeyID", []byte(testMessage), []byte(testNonce),
-			[]byte(testTheirPub))
+		cipher, err := srv.Easy(context.Background(), testKeystoreID, "invalidKeyID", []byte(testMessage),
+			[]byte(testNonce), []byte(testTheirPub))
 
 		require.Empty(t, cipher)
 		require.Error(t, err)
@@ -113,7 +114,7 @@ func TestEasy(t *testing.T) {
 		srv := kms.NewService(provider)
 		require.NotNil(t, srv)
 
-		cipher, err := srv.Easy(testKeystoreID, testKeyID, []byte(testMessage), []byte(testNonce),
+		cipher, err := srv.Easy(context.Background(), testKeystoreID, testKeyID, []byte(testMessage), []byte(testNonce),
 			[]byte(testTheirPub))
 
 		require.Empty(t, cipher)
@@ -135,8 +136,8 @@ func TestEasyOpen(t *testing.T) {
 		srv := kms.NewService(provider)
 		require.NotNil(t, srv)
 
-		plain, err := srv.EasyOpen(testKeystoreID, []byte(testCipherText), []byte(testNonce), []byte(testTheirPub),
-			[]byte(testMyPub))
+		plain, err := srv.EasyOpen(context.Background(), testKeystoreID, []byte(testCipherText), []byte(testNonce),
+			[]byte(testTheirPub), []byte(testMyPub))
 
 		require.NotEmpty(t, plain)
 		require.NoError(t, err)
@@ -150,8 +151,8 @@ func TestEasyOpen(t *testing.T) {
 		srv := kms.NewService(provider)
 		require.NotNil(t, srv)
 
-		plain, err := srv.EasyOpen(testKeystoreID, []byte(testCipherText), []byte(testNonce), []byte(testTheirPub),
-			[]byte(testMyPub))
+		plain, err := srv.EasyOpen(context.Background(), testKeystoreID, []byte(testCipherText), []byte(testNonce),
+			[]byte(testTheirPub), []byte(testMyPub))
 
 		require.Empty(t, plain)
 		require.Error(t, err)
@@ -170,8 +171,8 @@ func TestEasyOpen(t *testing.T) {
 		srv := kms.NewService(provider)
 		require.NotNil(t, srv)
 
-		plain, err := srv.EasyOpen(testKeystoreID, []byte(testCipherText), []byte(testNonce), []byte(testTheirPub),
-			[]byte(testMyPub))
+		plain, err := srv.EasyOpen(context.Background(), testKeystoreID, []byte(testCipherText), []byte(testNonce),
+			[]byte(testTheirPub), []byte(testMyPub))
 
 		require.Empty(t, plain)
 		require.Error(t, err)
@@ -192,7 +193,7 @@ func TestSealOpen(t *testing.T) {
 		srv := kms.NewService(provider)
 		require.NotNil(t, srv)
 
-		plain, err := srv.SealOpen(testKeystoreID, []byte(testCipherText), []byte(testMyPub))
+		plain, err := srv.SealOpen(context.Background(), testKeystoreID, []byte(testCipherText), []byte(testMyPub))
 
 		require.NotEmpty(t, plain)
 		require.NoError(t, err)
@@ -206,7 +207,7 @@ func TestSealOpen(t *testing.T) {
 		srv := kms.NewService(provider)
 		require.NotNil(t, srv)
 
-		plain, err := srv.SealOpen(testKeystoreID, []byte(testCipherText), []byte(testMyPub))
+		plain, err := srv.SealOpen(context.Background(), testKeystoreID, []byte(testCipherText), []byte(testMyPub))
 
 		require.Empty(t, plain)
 		require.Error(t, err)
@@ -225,7 +226,7 @@ func TestSealOpen(t *testing.T) {
 		srv := kms.NewService(provider)
 		require.NotNil(t, srv)
 
-		plain, err := srv.SealOpen(testKeystoreID, []byte(testCipherText), []byte(testMyPub))
+		plain, err := srv.SealOpen(context.Background(), testKeystoreID, []byte(testCipherText), []byte(testMyPub))
 
 		require.Empty(t, plain)
 		require.Error(t, err)

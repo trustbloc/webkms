@@ -166,7 +166,7 @@ func TestCreateKeystoreHandler(t *testing.T) {
 		srv.CreateKeystoreValue = &keystore.Keystore{ID: testKeystoreID}
 
 		op := operation.New(newConfig(withKeystoreService(srv), withEDV(),
-			withAuthService(&mockAuthService{createDIDKeyFunc: func() (string, error) {
+			withAuthService(&mockAuthService{createDIDKeyFunc: func(context.Context) (string, error) {
 				return "", fmt.Errorf("failed to create did key")
 			}}))) // TODO(#53): Improve reliability
 		handler := getHandler(t, op, keystoresEndpoint, http.MethodPost)
@@ -1199,15 +1199,15 @@ func withAuthService(service authService) optionFn {
 }
 
 type authService interface {
-	CreateDIDKey() (string, error)
-	NewCapability(options ...zcapld.CapabilityOption) (*zcapld.Capability, error)
+	CreateDIDKey(context.Context) (string, error)
+	NewCapability(context.Context, ...zcapld.CapabilityOption) (*zcapld.Capability, error)
 	KMS() arieskms.KeyManager
 	Crypto() crypto.Crypto
 	Resolve(string) (*zcapld.Capability, error)
 }
 
 type mockAuthService struct {
-	createDIDKeyFunc func() (string, error)
+	createDIDKeyFunc func(context.Context) (string, error)
 	newCapabilityVal *zcapld.Capability
 	newCapabilityErr error
 	keyManager       arieskms.KeyManager
@@ -1216,15 +1216,15 @@ type mockAuthService struct {
 	resolveErr       error
 }
 
-func (m *mockAuthService) CreateDIDKey() (string, error) {
+func (m *mockAuthService) CreateDIDKey(ctx context.Context) (string, error) {
 	if m.createDIDKeyFunc != nil {
-		return m.createDIDKeyFunc()
+		return m.createDIDKeyFunc(ctx)
 	}
 
 	return "", nil
 }
 
-func (m *mockAuthService) NewCapability(options ...zcapld.CapabilityOption) (*zcapld.Capability, error) {
+func (m *mockAuthService) NewCapability(context.Context, ...zcapld.CapabilityOption) (*zcapld.Capability, error) {
 	return m.newCapabilityVal, m.newCapabilityErr
 }
 

@@ -56,6 +56,9 @@ func preparePrimaryKeyLock(primaryKeyStorage ariesstorage.Provider, keyPath stri
 
 func prepareSecretSplitLock(primaryKeyStorage ariesstorage.Provider, req *http.Request, tlsConfig *tls.Config,
 	cacheProvider ariesstorage.Provider, keyURI, hubAuthURL, hubAuthAPIToken string) (secretlock.Service, error) {
+	_, span := tracer.Start(req.Context(), "prepareSecretSplitLock")
+	defer span.End()
+
 	secret := req.Header.Get(secretHeader)
 	if secret == "" {
 		return nil, errors.New("empty secret share in the header")

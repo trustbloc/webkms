@@ -7,6 +7,8 @@ SPDX-License-Identifier: Apache-2.0
 package kms
 
 import (
+	"context"
+
 	"github.com/hyperledger/aries-framework-go/pkg/crypto"
 	"github.com/hyperledger/aries-framework-go/pkg/kms"
 )
@@ -46,7 +48,7 @@ func NewMockService() *MockService {
 }
 
 // CreateKey creates a new key.
-func (s *MockService) CreateKey(keystoreID string, kt kms.KeyType) (string, error) {
+func (s *MockService) CreateKey(context.Context, string, kms.KeyType) (string, error) {
 	if s.CreateKeyErr != nil {
 		return "", s.CreateKeyErr
 	}
@@ -55,7 +57,7 @@ func (s *MockService) CreateKey(keystoreID string, kt kms.KeyType) (string, erro
 }
 
 // ExportKey exports a public key.
-func (s *MockService) ExportKey(keystoreID, keyID string) ([]byte, error) {
+func (s *MockService) ExportKey(context.Context, string, string) ([]byte, error) {
 	if s.ExportKeyErr != nil {
 		return nil, s.ExportKeyErr
 	}
@@ -64,7 +66,7 @@ func (s *MockService) ExportKey(keystoreID, keyID string) ([]byte, error) {
 }
 
 // Sign signs a message.
-func (s *MockService) Sign(keystoreID, keyID string, msg []byte) ([]byte, error) {
+func (s *MockService) Sign(context.Context, string, string, []byte) ([]byte, error) {
 	if s.SignErr != nil {
 		return nil, s.SignErr
 	}
@@ -73,7 +75,7 @@ func (s *MockService) Sign(keystoreID, keyID string, msg []byte) ([]byte, error)
 }
 
 // Verify verifies a signature for the given message.
-func (s *MockService) Verify(keystoreID, keyID string, sig, msg []byte) error {
+func (s *MockService) Verify(context.Context, string, string, []byte, []byte) error {
 	if s.VerifyErr != nil {
 		return s.VerifyErr
 	}
@@ -82,7 +84,7 @@ func (s *MockService) Verify(keystoreID, keyID string, sig, msg []byte) error {
 }
 
 // Encrypt encrypts a message with aad.
-func (s *MockService) Encrypt(keystoreID, keyID string, msg, aad []byte) ([]byte, []byte, error) {
+func (s *MockService) Encrypt(context.Context, string, string, []byte, []byte) ([]byte, []byte, error) {
 	if s.EncryptErr != nil {
 		return nil, nil, s.EncryptErr
 	}
@@ -91,7 +93,7 @@ func (s *MockService) Encrypt(keystoreID, keyID string, msg, aad []byte) ([]byte
 }
 
 // Decrypt decrypts a cipher with aad and given nonce.
-func (s *MockService) Decrypt(keystoreID, keyID string, cipher, aad, nonce []byte) ([]byte, error) {
+func (s *MockService) Decrypt(context.Context, string, string, []byte, []byte, []byte) ([]byte, error) {
 	if s.DecryptErr != nil {
 		return nil, s.DecryptErr
 	}
@@ -100,7 +102,7 @@ func (s *MockService) Decrypt(keystoreID, keyID string, cipher, aad, nonce []byt
 }
 
 // ComputeMAC computes message authentication code (MAC) for data.
-func (s *MockService) ComputeMAC(keystoreID, keyID string, data []byte) ([]byte, error) {
+func (s *MockService) ComputeMAC(context.Context, string, string, []byte) ([]byte, error) {
 	if s.ComputeMACErr != nil {
 		return nil, s.ComputeMACErr
 	}
@@ -109,7 +111,7 @@ func (s *MockService) ComputeMAC(keystoreID, keyID string, data []byte) ([]byte,
 }
 
 // VerifyMAC determines if mac is a correct authentication code (MAC) for data.
-func (s *MockService) VerifyMAC(keystoreID, keyID string, mac, data []byte) error {
+func (s *MockService) VerifyMAC(context.Context, string, string, []byte, []byte) error {
 	if s.VerifyMACErr != nil {
 		return s.VerifyMACErr
 	}
@@ -118,8 +120,8 @@ func (s *MockService) VerifyMAC(keystoreID, keyID string, mac, data []byte) erro
 }
 
 // WrapKey wraps cek for the recipient with public key 'recipientPubKey'.
-func (s *MockService) WrapKey(keystoreID, keyID string, cek, apu, apv []byte,
-	recipientPubKey *crypto.PublicKey) (*crypto.RecipientWrappedKey, error) {
+func (s *MockService) WrapKey(context.Context, string, string, []byte, []byte, []byte,
+	*crypto.PublicKey) (*crypto.RecipientWrappedKey, error) {
 	if s.WrapKeyErr != nil {
 		return nil, s.WrapKeyErr
 	}
@@ -128,8 +130,8 @@ func (s *MockService) WrapKey(keystoreID, keyID string, cek, apu, apv []byte,
 }
 
 // UnwrapKey unwraps a key in recipientWK.
-func (s *MockService) UnwrapKey(keystoreID, keyID string, recipientWK *crypto.RecipientWrappedKey,
-	senderPubKey *crypto.PublicKey) ([]byte, error) {
+func (s *MockService) UnwrapKey(context.Context, string, string, *crypto.RecipientWrappedKey,
+	*crypto.PublicKey) ([]byte, error) {
 	if s.UnwrapKeyErr != nil {
 		return nil, s.UnwrapKeyErr
 	}
@@ -138,7 +140,7 @@ func (s *MockService) UnwrapKey(keystoreID, keyID string, recipientWK *crypto.Re
 }
 
 // Easy seals a message with a provided nonce.
-func (s *MockService) Easy(keystoreID, keyID string, payload, nonce, theirPub []byte) ([]byte, error) {
+func (s *MockService) Easy(context.Context, string, string, []byte, []byte, []byte) ([]byte, error) {
 	if s.EasyErr != nil {
 		return nil, s.EasyErr
 	}
@@ -147,7 +149,7 @@ func (s *MockService) Easy(keystoreID, keyID string, payload, nonce, theirPub []
 }
 
 // EasyOpen unseals a message sealed with Easy, where the nonce is provided.
-func (s *MockService) EasyOpen(keystoreID string, cipherText, nonce, theirPub, myPub []byte) ([]byte, error) {
+func (s *MockService) EasyOpen(context.Context, string, []byte, []byte, []byte, []byte) ([]byte, error) {
 	if s.EasyOpenErr != nil {
 		return nil, s.EasyOpenErr
 	}
@@ -156,7 +158,7 @@ func (s *MockService) EasyOpen(keystoreID string, cipherText, nonce, theirPub, m
 }
 
 // SealOpen decrypts a payload encrypted with Seal.
-func (s *MockService) SealOpen(keystoreID string, cipher, myPub []byte) ([]byte, error) {
+func (s *MockService) SealOpen(context.Context, string, []byte, []byte) ([]byte, error) {
 	if s.SealOpenErr != nil {
 		return nil, s.SealOpenErr
 	}

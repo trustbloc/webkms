@@ -33,6 +33,7 @@ services:
       - KMS_HUB_AUTH_API_TOKEN=test_token
       - KMS_CACHE_EXPIRATION=10m
       - KMS_LOG_LEVEL=debug
+      - KMS_JAEGER_URL=http://jaeger.example.com:14268/api/traces
     ports:
       - 8077:8077
     entrypoint: ""
@@ -66,6 +67,7 @@ services:
       - KMS_CACHE_EXPIRATION=10m
       - KMS_ZCAP_ENABLE=true
       - KMS_LOG_LEVEL=debug
+      - KMS_JAEGER_URL=http://jaeger.example.com:14268/api/traces
     ports:
       - 8076:8076
     entrypoint: ""

@@ -7,6 +7,7 @@ SPDX-License-Identifier: Apache-2.0
 package operation // nolint:testpackage // mocking internal implementation details
 
 import (
+	"context"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -276,7 +277,7 @@ type mockAuthService struct {
 	resolveErr       error
 }
 
-func (m *mockAuthService) CreateDIDKey() (string, error) {
+func (m *mockAuthService) CreateDIDKey(context.Context) (string, error) {
 	if m.createDIDKeyFunc != nil {
 		return m.createDIDKeyFunc()
 	}
@@ -284,7 +285,7 @@ func (m *mockAuthService) CreateDIDKey() (string, error) {
 	return "", nil
 }
 
-func (m *mockAuthService) NewCapability(options ...zcapld.CapabilityOption) (*zcapld.Capability, error) {
+func (m *mockAuthService) NewCapability(context.Context, ...zcapld.CapabilityOption) (*zcapld.Capability, error) {
 	return m.newCapabilityVal, m.newCapabilityErr
 }
 

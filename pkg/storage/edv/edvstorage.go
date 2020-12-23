@@ -8,10 +8,12 @@ package edv
 
 import (
 	"bytes"
+	"context"
 	"crypto/tls"
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"time"
 
 	"github.com/google/tink/go/keyset"
 	"github.com/hyperledger/aries-framework-go/pkg/crypto"
@@ -20,6 +22,9 @@ import (
 	"github.com/hyperledger/aries-framework-go/pkg/storage"
 	"github.com/hyperledger/aries-framework-go/pkg/storage/edv"
 	"github.com/hyperledger/aries-framework-go/pkg/storage/formattedstore"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/label"
+	"go.opentelemetry.io/otel/trace"
 
 	"github.com/trustbloc/hub-kms/pkg/keystore"
 )
@@ -49,29 +54,54 @@ type Config struct {
 	CacheProvider   storage.Provider
 }
 
+var tracer = otel.Tracer("hub-kms/edv") //nolint:gochecknoglobals // ignore
+
 // NewStorageProvider returns a new EDV storage provider instance.
-func NewStorageProvider(c *Config) (storage.Provider, error) {
-	k, err := c.KeystoreService.Get(c.KeystoreID)
+func NewStorageProvider(ctx context.Context, c *Config) (storage.Provider, error) {
+	trCtx, span := tracer.Start(ctx, "edv:NewStorageProvider")
+	defer span.End()
+
+	startGetKeystore := time.Now()
+
+	k, err := c.KeystoreService.Get(trCtx, c.KeystoreID)
 	if err != nil {
 		return nil, err
 	}
 
-	macKH, err := c.KeystoreService.GetKeyHandle(k.MACKeyID)
+	span.AddEvent("keystore fetched",
+		trace.WithAttributes(label.String("duration", time.Since(startGetKeystore).String())))
+
+	startGetKeyHandle := time.Now()
+
+	macKH, err := c.KeystoreService.GetKeyHandle(trCtx, k.MACKeyID)
 	if err != nil {
 		return nil, err
 	}
+
+	span.AddEvent("mac key fetched",
+		trace.WithAttributes(label.String("duration", time.Since(startGetKeyHandle).String())))
 
 	macCrypto := edv.NewMACCrypto(macKH, c.CryptoService)
+
+	startCreateProvider := time.Now()
 
 	restProvider, err := c.createRESTProvider(k, macCrypto)
 	if err != nil {
 		return nil, err
 	}
 
-	encryptedFormatter, err := c.createEncryptedFormatter(k, macCrypto)
+	span.AddEvent("rest provider created",
+		trace.WithAttributes(label.String("duration", time.Since(startCreateProvider).String())))
+
+	startCreateFormatter := time.Now()
+
+	encryptedFormatter, err := c.createEncryptedFormatter(trCtx, k, macCrypto)
 	if err != nil {
 		return nil, err
 	}
+
+	span.AddEvent("encrypted formatter created",
+		trace.WithAttributes(label.String("duration", time.Since(startCreateFormatter).String())))
 
 	return formattedstore.NewFormattedProvider(restProvider, encryptedFormatter, true,
 		formattedstore.WithCacheProvider(c.CacheProvider)), nil
@@ -95,6 +125,11 @@ func (c *Config) createRESTProvider(k *keystore.Keystore, macCrypto *edv.MACCryp
 }
 
 func (c *Config) signHeader(req *http.Request, edvCapability []byte) (*http.Header, error) {
+	_, span := tracer.Start(req.Context(), "edv:signHeader")
+	defer span.End()
+
+	span.SetAttributes(label.String("http.url", req.URL.String()))
+
 	if len(edvCapability) != 0 {
 		return c.HeaderSigner.SignHeader(req, edvCapability)
 	}
@@ -102,27 +137,45 @@ func (c *Config) signHeader(req *http.Request, edvCapability []byte) (*http.Head
 	return nil, nil
 }
 
-func (c *Config) createEncryptedFormatter(k *keystore.Keystore,
+func (c *Config) createEncryptedFormatter(ctx context.Context, k *keystore.Keystore,
 	macCrypto *edv.MACCrypto) (*edv.EncryptedFormatter, error) {
-	recipientKH, err := c.KeystoreService.GetKeyHandle(k.RecipientKeyID)
+	trCtx, span := tracer.Start(ctx, "edv:createEncryptedFormatter")
+	defer span.End()
+
+	startGetKeyHandle := time.Now()
+
+	recipientKH, err := c.KeystoreService.GetKeyHandle(trCtx, k.RecipientKeyID)
 	if err != nil {
 		return nil, err
 	}
+
+	span.AddEvent("recipient key fetched",
+		trace.WithAttributes(label.String("duration", time.Since(startGetKeyHandle).String())))
+
+	startRecPubKey := time.Now()
 
 	pubKey, b, err := recipientPublicKey(recipientKH, k.RecipientKeyID)
 	if err != nil {
 		return nil, err
 	}
 
+	span.AddEvent("recipient public key prepared",
+		trace.WithAttributes(label.String("duration", time.Since(startRecPubKey).String())))
+
 	err = json.Unmarshal(b, pubKey)
 	if err != nil {
 		return nil, fmt.Errorf("unmarshal bytes to a public key: %w", err)
 	}
 
+	startNewJWEEncrypt := time.Now()
+
 	encrypter, err := jose.NewJWEEncrypt(encAlg, encType, "", nil, []*crypto.PublicKey{pubKey}, c.CryptoService)
 	if err != nil {
 		return nil, fmt.Errorf("create JWEEncrypt: %w", err)
 	}
+
+	span.AddEvent("jose.NewJWEEncrypt completed",
+		trace.WithAttributes(label.String("duration", time.Since(startNewJWEEncrypt).String())))
 
 	keyManager, err := c.KeystoreService.KeyManager()
 	if err != nil {

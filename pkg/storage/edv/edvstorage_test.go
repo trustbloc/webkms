@@ -7,9 +7,11 @@ SPDX-License-Identifier: Apache-2.0
 package edv //nolint:testpackage // need to test local methods
 
 import (
+	"context"
 	"crypto/tls"
 	"errors"
 	"net/http"
+	"net/url"
 	"testing"
 
 	"github.com/google/tink/go/keyset"
@@ -44,7 +46,7 @@ func TestSignHeader(t *testing.T) {
 		c.HeaderSigner = &mockHeaderSigner{
 			signErr: expected,
 		}
-		h, err := c.signHeader(&http.Request{Header: make(map[string][]string)}, []byte("{}"))
+		h, err := c.signHeader(&http.Request{Header: make(map[string][]string), URL: &url.URL{}}, []byte("{}"))
 
 		require.Error(t, err)
 		require.True(t, errors.Is(err, expected))
@@ -62,7 +64,7 @@ func TestSignHeader(t *testing.T) {
 		srv.GetKeyHandleValue = kh
 
 		c := buildConfig(srv)
-		h, err := c.signHeader(&http.Request{Header: make(map[string][]string)}, nil)
+		h, err := c.signHeader(&http.Request{Header: make(map[string][]string), URL: &url.URL{}}, nil)
 
 		require.NoError(t, err)
 		require.Nil(t, h)
@@ -80,7 +82,7 @@ func TestNewProvider(t *testing.T) {
 		}
 		srv.GetKeyHandleValue = kh
 
-		p, err := NewStorageProvider(buildConfig(srv))
+		p, err := NewStorageProvider(context.Background(), buildConfig(srv))
 
 		require.NotNil(t, p)
 		require.NoError(t, err)
@@ -90,7 +92,7 @@ func TestNewProvider(t *testing.T) {
 		srv := mockkeystore.NewMockService()
 		srv.GetErr = errors.New("get err")
 
-		p, err := NewStorageProvider(buildConfig(srv))
+		p, err := NewStorageProvider(context.Background(), buildConfig(srv))
 
 		require.Nil(t, p)
 		require.Error(t, err)
@@ -103,7 +105,7 @@ func TestNewProvider(t *testing.T) {
 		}
 		srv.GetKeyHandleErr = errors.New("get key handle error")
 
-		p, err := NewStorageProvider(buildConfig(srv))
+		p, err := NewStorageProvider(context.Background(), buildConfig(srv))
 
 		require.Nil(t, p)
 		require.Error(t, err)
@@ -123,7 +125,7 @@ func TestNewProvider(t *testing.T) {
 			KeystoreID:      testKeystoreID,
 		}
 
-		p, err := NewStorageProvider(config)
+		p, err := NewStorageProvider(context.Background(), config)
 
 		require.Nil(t, p)
 		require.Error(t, err)
@@ -139,7 +141,7 @@ func TestNewProvider(t *testing.T) {
 		}
 		srv.GetKeyHandleValue = kh
 
-		p, err := NewStorageProvider(buildConfig(srv))
+		p, err := NewStorageProvider(context.Background(), buildConfig(srv))
 
 		require.Nil(t, p)
 		require.Error(t, err)
@@ -155,7 +157,7 @@ func TestNewProvider(t *testing.T) {
 		}
 		srv.GetKeyHandleValue = kh
 
-		p, err := NewStorageProvider(buildConfig(srv))
+		p, err := NewStorageProvider(context.Background(), buildConfig(srv))
 
 		require.Nil(t, p)
 		require.Error(t, err)
@@ -172,7 +174,7 @@ func TestNewProvider(t *testing.T) {
 		srv.GetKeyHandleValue = kh
 		srv.KeyManagerErr = errors.New("get key manager error")
 
-		p, err := NewStorageProvider(buildConfig(srv))
+		p, err := NewStorageProvider(context.Background(), buildConfig(srv))
 
 		require.Nil(t, p)
 		require.Error(t, err)
