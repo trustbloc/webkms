@@ -8,9 +8,9 @@ go 1.15
 
 require (
 	github.com/gorilla/mux v1.8.0
-	github.com/hyperledger/aries-framework-go v0.1.5
-	github.com/hyperledger/aries-framework-go-ext/component/storage/couchdb v0.0.0-20201119153638-fc5d5e680587
-	github.com/piprate/json-gold v0.3.0
+	github.com/hyperledger/aries-framework-go v0.1.6-0.20201223142031-ac4ce368a9c8
+	github.com/hyperledger/aries-framework-go-ext/component/storage/couchdb v0.0.0-20201210203117-e17b615af85d
+	github.com/piprate/json-gold v0.3.1-0.20201222165305-f4ce31c02ca3
 	github.com/rs/cors v1.7.0
 	github.com/spf13/cobra v1.1.1
 	github.com/stretchr/testify v1.6.1
@@ -19,12 +19,9 @@ require (
 	go.opentelemetry.io/otel v0.15.0
 	go.opentelemetry.io/otel/exporters/trace/jaeger v0.15.0
 	go.opentelemetry.io/otel/sdk v0.15.0
-	golang.org/x/net v0.0.0-20201207224615-747e23833adb // indirect
+	golang.org/x/net v0.0.0-20201224014010-6772e930b67b // indirect
 	golang.org/x/sync v0.0.0-20201207232520-09787c993a3a // indirect
 	google.golang.org/api v0.36.0 // indirect
 )
 
-replace (
-	github.com/kilic/bls12-381 => github.com/trustbloc/bls12-381 v0.0.0-20201104214312-31de2a204df8
-	github.com/trustbloc/hub-kms => ../..
-)
+replace github.com/trustbloc/hub-kms => ../..
