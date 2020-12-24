@@ -7,6 +7,7 @@ SPDX-License-Identifier: Apache-2.0
 package keystore_test
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"testing"
@@ -78,7 +79,7 @@ func TestCreate(t *testing.T) {
 			keystore.WithCreatedAt(&createdAt),
 		}
 
-		keystoreID, err := srv.Create(opts...)
+		keystoreID, err := srv.Create(context.Background(), opts...)
 
 		require.NotEmpty(t, keystoreID)
 		require.NoError(t, err)
@@ -92,7 +93,9 @@ func TestCreate(t *testing.T) {
 		require.NotNil(t, srv)
 		require.NoError(t, err)
 
-		keystoreID, err := srv.Create(keystore.WithID(testKeystoreID), keystore.WithDelegateKeyType(testKeyType))
+		keystoreID, err := srv.Create(context.Background(),
+			keystore.WithID(testKeystoreID),
+			keystore.WithDelegateKeyType(testKeyType))
 
 		require.Empty(t, keystoreID)
 		require.Error(t, err)
@@ -106,7 +109,9 @@ func TestCreate(t *testing.T) {
 		require.NotNil(t, srv)
 		require.NoError(t, err)
 
-		keystoreID, err := srv.Create(keystore.WithID(testKeystoreID), keystore.WithRecipientKeyType(testKeyType))
+		keystoreID, err := srv.Create(context.Background(),
+			keystore.WithID(testKeystoreID),
+			keystore.WithRecipientKeyType(testKeyType))
 
 		require.Empty(t, keystoreID)
 		require.Error(t, err)
@@ -120,7 +125,9 @@ func TestCreate(t *testing.T) {
 		require.NotNil(t, srv)
 		require.NoError(t, err)
 
-		keystoreID, err := srv.Create(keystore.WithID(testKeystoreID), keystore.WithMACKeyType(testKeyType))
+		keystoreID, err := srv.Create(context.Background(),
+			keystore.WithID(testKeystoreID),
+			keystore.WithMACKeyType(testKeyType))
 
 		require.Empty(t, keystoreID)
 		require.Error(t, err)
@@ -134,7 +141,7 @@ func TestCreate(t *testing.T) {
 		require.NotNil(t, srv)
 		require.NoError(t, err)
 
-		keystoreID, err := srv.Create(keystore.WithID(testKeystoreID))
+		keystoreID, err := srv.Create(context.Background(), keystore.WithID(testKeystoreID))
 		require.Empty(t, keystoreID)
 		require.Error(t, err)
 	})
@@ -149,7 +156,7 @@ func TestGet(t *testing.T) {
 		require.NotNil(t, srv)
 		require.NoError(t, err)
 
-		k, err := srv.Get(testKeystoreID)
+		k, err := srv.Get(context.Background(), testKeystoreID)
 
 		require.NotNil(t, k)
 		require.NoError(t, err)
@@ -163,7 +170,7 @@ func TestGet(t *testing.T) {
 		require.NotNil(t, srv)
 		require.NoError(t, err)
 
-		k, err := srv.Get(testKeystoreID)
+		k, err := srv.Get(context.Background(), testKeystoreID)
 
 		require.Nil(t, k)
 		require.Error(t, err)
@@ -177,7 +184,7 @@ func TestSave(t *testing.T) {
 		require.NoError(t, err)
 
 		k := testKeystore()
-		err = srv.Save(&k)
+		err = srv.Save(context.Background(), &k)
 		require.NoError(t, err)
 	})
 
@@ -190,7 +197,7 @@ func TestSave(t *testing.T) {
 		require.NoError(t, err)
 
 		k := testKeystore()
-		err = srv.Save(&k)
+		err = srv.Save(context.Background(), &k)
 		require.Error(t, err)
 	})
 }
@@ -207,7 +214,7 @@ func TestGetKeyHandle(t *testing.T) {
 		require.NotNil(t, srv)
 		require.NoError(t, err)
 
-		kh, err := srv.GetKeyHandle(testKeyID)
+		kh, err := srv.GetKeyHandle(context.Background(), testKeyID)
 		require.NotNil(t, kh)
 		require.NoError(t, err)
 	})
@@ -220,7 +227,7 @@ func TestGetKeyHandle(t *testing.T) {
 		require.NotNil(t, srv)
 		require.NoError(t, err)
 
-		kh, err := srv.GetKeyHandle(testKeyID)
+		kh, err := srv.GetKeyHandle(context.Background(), testKeyID)
 		require.Nil(t, kh)
 		require.Error(t, err)
 	})

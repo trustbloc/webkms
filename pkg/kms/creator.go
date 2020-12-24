@@ -7,6 +7,7 @@ SPDX-License-Identifier: Apache-2.0
 package kms
 
 import (
+	"context"
 	"fmt"
 	"net/http"
 	"time"
@@ -19,6 +20,8 @@ import (
 	"github.com/hyperledger/aries-framework-go/pkg/secretlock"
 	"github.com/hyperledger/aries-framework-go/pkg/storage"
 	"github.com/trustbloc/edge-core/pkg/log"
+	"go.opentelemetry.io/otel/label"
+	"go.opentelemetry.io/otel/trace"
 
 	"github.com/trustbloc/hub-kms/pkg/keystore"
 )
@@ -35,7 +38,7 @@ type ServiceCreator func(req *http.Request) (Service, error)
 type Config struct {
 	KeystoreService    keystore.Service
 	CryptoService      crypto.Crypto
-	KMSStorageResolver func(keystoreID string) (storage.Provider, error)
+	KMSStorageResolver func(ctx context.Context, keystoreID string) (storage.Provider, error)
 	SecretLockResolver func(keyURI string, req *http.Request) (secretlock.Service, error)
 	CacheExpiration    time.Duration
 }
@@ -47,29 +50,44 @@ var (
 )
 
 // NewServiceCreator returns func to create KMS Service backed by LocalKMS and passphrase-based secret lock.
-func NewServiceCreator(c *Config) ServiceCreator {
+func NewServiceCreator(c *Config) ServiceCreator { //nolint:funlen // TODO refactor
 	return func(req *http.Request) (Service, error) {
+		ctx, span := tracer.Start(req.Context(), "kms:NewServiceCreator")
+		defer span.End()
+
 		keystoreID := mux.Vars(req)[keystoreIDQueryParam]
 		keyURI := fmt.Sprintf(primaryKeyURI, keystoreID)
 
 		if c.CacheExpiration != 0 {
 			cachedService, err := cache.Get(keystoreID)
 			if err == nil {
+				span.AddEvent(fmt.Sprintf("service for keystore %q resolved from cache", keystoreID))
+
 				logger.Infof("service for keystore %q resolved from the cache", keystoreID)
 
 				return cachedService.(Service), nil
 			}
 		}
 
-		kmsStorageProvider, err := c.KMSStorageResolver(keystoreID)
+		start := time.Now()
+
+		kmsStorageProvider, err := c.KMSStorageResolver(ctx, keystoreID)
 		if err != nil {
 			return nil, err
 		}
 
-		secretLock, err := c.SecretLockResolver(keyURI, req)
+		span.AddEvent("KMSStorageResolver completed",
+			trace.WithAttributes(label.String("duration", time.Since(start).String())))
+
+		startSecLock := time.Now()
+
+		secretLock, err := c.SecretLockResolver(keyURI, req.WithContext(ctx))
 		if err != nil {
 			return nil, err
 		}
+
+		span.AddEvent("SecretLockResolver completed",
+			trace.WithAttributes(label.String("duration", time.Since(startSecLock).String())))
 
 		kmsProv := kmsProvider{
 			storageProvider: kmsStorageProvider,
@@ -100,6 +118,8 @@ func NewServiceCreator(c *Config) ServiceCreator {
 			if err != nil {
 				logger.Errorf("failed to save into the cache: %s", err)
 			}
+
+			span.AddEvent(fmt.Sprintf("service for keystore %q added to cache", keystoreID))
 
 			logger.Infof("service for keystore %q added to the cache", keystoreID)
 		}

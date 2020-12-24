@@ -19,6 +19,7 @@ import (
 	mockstorage "github.com/hyperledger/aries-framework-go/pkg/mock/storage"
 	"github.com/stretchr/testify/require"
 	zcapld2 "github.com/trustbloc/edge-core/pkg/zcapld"
+	"golang.org/x/net/context"
 
 	"github.com/trustbloc/hub-kms/pkg/auth/zcapld"
 )
@@ -44,7 +45,7 @@ func TestService_CreateDIDKey(t *testing.T) {
 		)
 		require.NoError(t, err)
 
-		didKey, err := svc.CreateDIDKey()
+		didKey, err := svc.CreateDIDKey(context.Background())
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "failed to create")
 		require.Empty(t, didKey)
@@ -54,7 +55,7 @@ func TestService_CreateDIDKey(t *testing.T) {
 		svc, err := zcapld.New(&mockkms.KeyManager{}, &mockcrypto.Crypto{}, &mockstorage.MockStoreProvider{})
 		require.NoError(t, err)
 
-		didKey, err := svc.CreateDIDKey()
+		didKey, err := svc.CreateDIDKey(context.Background())
 		require.NoError(t, err)
 		require.NotEmpty(t, didKey)
 	})
@@ -96,6 +97,7 @@ func TestService_NewCapability(t *testing.T) {
 		)
 		require.NoError(t, err)
 		result, err := svc.NewCapability(
+			context.Background(),
 			zcapld2.WithInvoker(invoker),
 			zcapld2.WithInvocationTarget(target, "urn:kms:keystore"),
 			zcapld2.WithAllowedActions(allowedAction...),
@@ -113,7 +115,7 @@ func TestService_NewCapability(t *testing.T) {
 			&mockstorage.MockStoreProvider{},
 		)
 		require.NoError(t, err)
-		_, err = svc.NewCapability()
+		_, err = svc.NewCapability(context.Background())
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "failed to create a new signer")
 	})
@@ -125,7 +127,7 @@ func TestService_NewCapability(t *testing.T) {
 			&mockstorage.MockStoreProvider{},
 		)
 		require.NoError(t, err)
-		_, err = svc.NewCapability()
+		_, err = svc.NewCapability(context.Background())
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "failed to create zcap")
 	})
@@ -140,7 +142,7 @@ func TestService_NewCapability(t *testing.T) {
 			}},
 		)
 		require.NoError(t, err)
-		_, err = svc.NewCapability()
+		_, err = svc.NewCapability(context.Background())
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "failed to store zcap")
 	})
@@ -158,7 +160,7 @@ func TestService_Resolve(t *testing.T) {
 		)
 		require.NoError(t, err)
 
-		zcap, err := svc.NewCapability()
+		zcap, err := svc.NewCapability(context.Background())
 		require.NotNil(t, zcap)
 		require.NoError(t, err)
 

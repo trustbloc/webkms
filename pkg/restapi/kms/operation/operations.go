@@ -7,6 +7,7 @@ SPDX-License-Identifier: Apache-2.0
 package operation
 
 import (
+	"context"
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
@@ -22,6 +23,9 @@ import (
 	"github.com/rs/xid"
 	"github.com/trustbloc/edge-core/pkg/log"
 	"github.com/trustbloc/edge-core/pkg/zcapld"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/label"
+	"go.opentelemetry.io/otel/trace"
 
 	zcapld2 "github.com/trustbloc/hub-kms/pkg/auth/zcapld"
 	"github.com/trustbloc/hub-kms/pkg/internal/support"
@@ -120,8 +124,8 @@ type Handler interface {
 }
 
 type authService interface {
-	CreateDIDKey() (string, error)
-	NewCapability(options ...zcapld.CapabilityOption) (*zcapld.Capability, error)
+	CreateDIDKey(context.Context) (string, error)
+	NewCapability(ctx context.Context, options ...zcapld.CapabilityOption) (*zcapld.Capability, error)
 	KMS() arieskms.KeyManager
 	Crypto() crypto.Crypto
 	Resolve(string) (*zcapld.Capability, error)
@@ -148,6 +152,8 @@ type Config struct {
 	CachedLDDocs      map[string]*ld.RemoteDocument
 	BaseURL           string
 }
+
+var tracer = otel.Tracer("hub-kms/operation") //nolint:gochecknoglobals // ignore
 
 // New returns a new Operation instance.
 func New(config *Config) *Operation {
@@ -193,7 +199,10 @@ func (o *Operation) GetRESTHandlers() []Handler {
 // Responses:
 //        201: createKeystoreResp
 //    default: errorResp
-func (o *Operation) createKeystoreHandler(rw http.ResponseWriter, req *http.Request) {
+func (o *Operation) createKeystoreHandler(rw http.ResponseWriter, req *http.Request) { //nolint:funlen // TODO refactor
+	ctx, span := traceSpan(req, "createKeystoreHandler")
+	defer span.End()
+
 	o.logger.Debugf("handling request: %s", req.URL.String())
 
 	var request createKeystoreReq
@@ -218,14 +227,16 @@ func (o *Operation) createKeystoreHandler(rw http.ResponseWriter, req *http.Requ
 		)
 	}
 
-	k, err := o.keystoreService.Create(opts...)
+	k, err := o.keystoreService.Create(ctx, opts...)
 	if err != nil {
 		o.writeErrorResponse(rw, http.StatusInternalServerError, createKeystoreFailure, err)
 
 		return
 	}
 
-	didKey, err := o.authService.CreateDIDKey()
+	span.SetAttributes(label.String("keystoreID", k.ID))
+
+	didKey, err := o.authService.CreateDIDKey(ctx)
 	if err != nil {
 		o.writeErrorResponse(rw, http.StatusInternalServerError, createKeystoreFailure, err)
 
@@ -234,12 +245,17 @@ func (o *Operation) createKeystoreHandler(rw http.ResponseWriter, req *http.Requ
 
 	resource := keystoreLocation(o.baseURL, k.ID)
 
-	zcap, err := o.newCompressedZCAP(resource, k.Controller)
+	start := time.Now()
+
+	zcap, err := o.newCompressedZCAP(ctx, resource, k.Controller)
 	if err != nil {
 		o.writeErrorResponse(rw, http.StatusInternalServerError, createZCAPFailure, err)
 
 		return
 	}
+
+	span.AddEvent("newCompressedZCAP completed",
+		trace.WithAttributes(label.String("duration", time.Since(start).String())))
 
 	rw.Header().Set("Location", resource)
 	rw.Header().Set("Edvdidkey", didKey)
@@ -257,14 +273,22 @@ func (o *Operation) createKeystoreHandler(rw http.ResponseWriter, req *http.Requ
 //        201: createKeyResp
 //    default: errorResp
 func (o *Operation) createKeyHandler(rw http.ResponseWriter, req *http.Request) {
+	ctx, span := traceSpan(req, "createKeyHandler")
+	defer span.End()
+
 	o.logger.Debugf("handling request: %s", req.URL.String())
 
-	kmsService, err := o.kmsServiceCreator(req)
+	start := time.Now()
+
+	kmsService, err := o.kmsServiceCreator(req.WithContext(ctx))
 	if err != nil {
 		o.writeErrorResponse(rw, http.StatusInternalServerError, createKMSServiceFailure, err)
 
 		return
 	}
+
+	span.AddEvent("kmsServiceCreator completed",
+		trace.WithAttributes(label.String("duration", time.Since(start).String())))
 
 	var request createKeyReq
 	if ok := o.parseRequest(&request, rw, req); !ok {
@@ -273,12 +297,16 @@ func (o *Operation) createKeyHandler(rw http.ResponseWriter, req *http.Request) 
 
 	keystoreID := mux.Vars(req)[keystoreIDQueryParam]
 
-	keyID, err := kmsService.CreateKey(keystoreID, arieskms.KeyType(request.KeyType))
+	span.SetAttributes(label.String("keystoreID", keystoreID))
+
+	keyID, err := kmsService.CreateKey(ctx, keystoreID, arieskms.KeyType(request.KeyType))
 	if err != nil {
 		o.writeErrorResponse(rw, http.StatusInternalServerError, createKeyFailure, err)
 
 		return
 	}
+
+	span.SetAttributes(label.String("keyID", keyID))
 
 	location := keyLocation(o.baseURL, keystoreID, keyID)
 
@@ -302,6 +330,9 @@ func (o *Operation) createKeyHandler(rw http.ResponseWriter, req *http.Request) 
 //        201: emptyRes
 //    default: errorResp
 func (o *Operation) updateCapabilityHandler(rw http.ResponseWriter, req *http.Request) {
+	ctx, span := traceSpan(req, "updateCapabilityHandler")
+	defer span.End()
+
 	var request UpdateCapabilityReq
 	if ok := o.parseRequest(&request, rw, req); !ok {
 		return
@@ -316,7 +347,9 @@ func (o *Operation) updateCapabilityHandler(rw http.ResponseWriter, req *http.Re
 
 	keystoreID := mux.Vars(req)[keystoreIDQueryParam]
 
-	ks, err := o.keystoreService.Get(keystoreID)
+	span.SetAttributes(label.String("keystoreID", keystoreID))
+
+	ks, err := o.keystoreService.Get(ctx, keystoreID)
 	if err != nil {
 		o.writeErrorResponse(rw, http.StatusInternalServerError, getKeystoreFailure, err)
 
@@ -325,7 +358,7 @@ func (o *Operation) updateCapabilityHandler(rw http.ResponseWriter, req *http.Re
 
 	ks.EDVCapability = request.EDVCapability
 
-	if err := o.keystoreService.Save(ks); err != nil {
+	if err := o.keystoreService.Save(ctx, ks); err != nil {
 		o.writeErrorResponse(rw, http.StatusInternalServerError, saveKeystoreFailure, err)
 
 		return
@@ -342,19 +375,30 @@ func (o *Operation) updateCapabilityHandler(rw http.ResponseWriter, req *http.Re
 //        200: exportKeyResp
 //    default: errorResp
 func (o *Operation) exportKeyHandler(rw http.ResponseWriter, req *http.Request) {
+	ctx, span := traceSpan(req, "exportKeyHandler")
+	defer span.End()
+
 	o.logger.Debugf("handle request: url=%s", req.RequestURI)
 
-	kmsService, err := o.kmsServiceCreator(req)
+	start := time.Now()
+
+	kmsService, err := o.kmsServiceCreator(req.WithContext(ctx))
 	if err != nil {
 		o.writeErrorResponse(rw, http.StatusInternalServerError, createKMSServiceFailure, err)
 
 		return
 	}
 
+	span.AddEvent("kmsServiceCreator completed",
+		trace.WithAttributes(label.String("duration", time.Since(start).String())))
+
 	keystoreID := mux.Vars(req)[keystoreIDQueryParam]
 	keyID := mux.Vars(req)[keyIDQueryParam]
 
-	bytes, err := kmsService.ExportKey(keystoreID, keyID)
+	span.SetAttributes(label.String("keystoreID", keystoreID))
+	span.SetAttributes(label.String("keyID", keyID))
+
+	bytes, err := kmsService.ExportKey(ctx, keystoreID, keyID)
 	if err != nil {
 		o.writeErrorResponse(rw, http.StatusInternalServerError, exportKeyFailure, err)
 
@@ -374,14 +418,22 @@ func (o *Operation) exportKeyHandler(rw http.ResponseWriter, req *http.Request) 
 //        200: signResp
 //    default: errorResp
 func (o *Operation) signHandler(rw http.ResponseWriter, req *http.Request) { //nolint:dupl // better readability
+	ctx, span := traceSpan(req, "signHandler")
+	defer span.End()
+
 	o.logger.Debugf("handling request: %s", req.URL.String())
 
-	kmsService, err := o.kmsServiceCreator(req)
+	start := time.Now()
+
+	kmsService, err := o.kmsServiceCreator(req.WithContext(ctx))
 	if err != nil {
 		o.writeErrorResponse(rw, http.StatusInternalServerError, createKMSServiceFailure, err)
 
 		return
 	}
+
+	span.AddEvent("kmsServiceCreator completed",
+		trace.WithAttributes(label.String("duration", time.Since(start).String())))
 
 	var request signReq
 	if ok := o.parseRequest(&request, rw, req); !ok {
@@ -391,6 +443,9 @@ func (o *Operation) signHandler(rw http.ResponseWriter, req *http.Request) { //n
 	keystoreID := mux.Vars(req)[keystoreIDQueryParam]
 	keyID := mux.Vars(req)[keyIDQueryParam]
 
+	span.SetAttributes(label.String("keystoreID", keystoreID))
+	span.SetAttributes(label.String("keyID", keyID))
+
 	message, err := base64.URLEncoding.DecodeString(request.Message)
 	if err != nil {
 		o.writeErrorResponse(rw, http.StatusBadRequest, receivedBadRequest, err)
@@ -398,7 +453,7 @@ func (o *Operation) signHandler(rw http.ResponseWriter, req *http.Request) { //n
 		return
 	}
 
-	signature, err := kmsService.Sign(keystoreID, keyID, message)
+	signature, err := kmsService.Sign(ctx, keystoreID, keyID, message)
 	if err != nil {
 		o.writeErrorResponse(rw, http.StatusInternalServerError, signMessageFailure, err)
 
@@ -420,12 +475,20 @@ func (o *Operation) signHandler(rw http.ResponseWriter, req *http.Request) { //n
 //        200: emptyRes
 //    default: errorResp
 func (o *Operation) verifyHandler(rw http.ResponseWriter, req *http.Request) { //nolint:dupl // better readability
-	kmsService, err := o.kmsServiceCreator(req)
+	ctx, span := traceSpan(req, "verifyHandler")
+	defer span.End()
+
+	start := time.Now()
+
+	kmsService, err := o.kmsServiceCreator(req.WithContext(ctx))
 	if err != nil {
 		o.writeErrorResponse(rw, http.StatusInternalServerError, createKMSServiceFailure, err)
 
 		return
 	}
+
+	span.AddEvent("kmsServiceCreator completed",
+		trace.WithAttributes(label.String("duration", time.Since(start).String())))
 
 	var request verifyReq
 	if ok := o.parseRequest(&request, rw, req); !ok {
@@ -434,6 +497,9 @@ func (o *Operation) verifyHandler(rw http.ResponseWriter, req *http.Request) { /
 
 	keystoreID := mux.Vars(req)[keystoreIDQueryParam]
 	keyID := mux.Vars(req)[keyIDQueryParam]
+
+	span.SetAttributes(label.String("keystoreID", keystoreID))
+	span.SetAttributes(label.String("keyID", keyID))
 
 	signature, err := base64.URLEncoding.DecodeString(request.Signature)
 	if err != nil {
@@ -449,7 +515,7 @@ func (o *Operation) verifyHandler(rw http.ResponseWriter, req *http.Request) { /
 		return
 	}
 
-	err = kmsService.Verify(keystoreID, keyID, signature, message)
+	err = kmsService.Verify(ctx, keystoreID, keyID, signature, message)
 	if err != nil {
 		o.writeErrorResponse(rw, http.StatusInternalServerError, verifyMessageFailure, err)
 
@@ -467,12 +533,20 @@ func (o *Operation) verifyHandler(rw http.ResponseWriter, req *http.Request) { /
 //        200: encryptResp
 //    default: errorResp
 func (o *Operation) encryptHandler(rw http.ResponseWriter, req *http.Request) {
-	kmsService, err := o.kmsServiceCreator(req)
+	ctx, span := traceSpan(req, "encryptHandler")
+	defer span.End()
+
+	start := time.Now()
+
+	kmsService, err := o.kmsServiceCreator(req.WithContext(ctx))
 	if err != nil {
 		o.writeErrorResponse(rw, http.StatusInternalServerError, createKMSServiceFailure, err)
 
 		return
 	}
+
+	span.AddEvent("kmsServiceCreator completed",
+		trace.WithAttributes(label.String("duration", time.Since(start).String())))
 
 	var request encryptReq
 	if ok := o.parseRequest(&request, rw, req); !ok {
@@ -481,6 +555,9 @@ func (o *Operation) encryptHandler(rw http.ResponseWriter, req *http.Request) {
 
 	keystoreID := mux.Vars(req)[keystoreIDQueryParam]
 	keyID := mux.Vars(req)[keyIDQueryParam]
+
+	span.SetAttributes(label.String("keystoreID", keystoreID))
+	span.SetAttributes(label.String("keyID", keyID))
 
 	message, err := base64.URLEncoding.DecodeString(request.Message)
 	if err != nil {
@@ -496,7 +573,7 @@ func (o *Operation) encryptHandler(rw http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	cipherText, nonce, err := kmsService.Encrypt(keystoreID, keyID, message, aad)
+	cipherText, nonce, err := kmsService.Encrypt(ctx, keystoreID, keyID, message, aad)
 	if err != nil {
 		o.writeErrorResponse(rw, http.StatusInternalServerError, encryptMessageFailure, err)
 
@@ -517,12 +594,20 @@ func (o *Operation) encryptHandler(rw http.ResponseWriter, req *http.Request) {
 //        200: decryptResp
 //    default: errorResp
 func (o *Operation) decryptHandler(rw http.ResponseWriter, req *http.Request) { //nolint:dupl // readability
-	kmsService, err := o.kmsServiceCreator(req)
+	ctx, span := traceSpan(req, "decryptHandler")
+	defer span.End()
+
+	start := time.Now()
+
+	kmsService, err := o.kmsServiceCreator(req.WithContext(ctx))
 	if err != nil {
 		o.writeErrorResponse(rw, http.StatusInternalServerError, createKMSServiceFailure, err)
 
 		return
 	}
+
+	span.AddEvent("kmsServiceCreator completed",
+		trace.WithAttributes(label.String("duration", time.Since(start).String())))
 
 	var request decryptReq
 	if ok := o.parseRequest(&request, rw, req); !ok {
@@ -531,6 +616,9 @@ func (o *Operation) decryptHandler(rw http.ResponseWriter, req *http.Request) { 
 
 	keystoreID := mux.Vars(req)[keystoreIDQueryParam]
 	keyID := mux.Vars(req)[keyIDQueryParam]
+
+	span.SetAttributes(label.String("keystoreID", keystoreID))
+	span.SetAttributes(label.String("keyID", keyID))
 
 	cipherText, err := base64.URLEncoding.DecodeString(request.CipherText)
 	if err != nil {
@@ -553,7 +641,7 @@ func (o *Operation) decryptHandler(rw http.ResponseWriter, req *http.Request) { 
 		return
 	}
 
-	plainText, err := kmsService.Decrypt(keystoreID, keyID, cipherText, aad, nonce)
+	plainText, err := kmsService.Decrypt(ctx, keystoreID, keyID, cipherText, aad, nonce)
 	if err != nil {
 		o.writeErrorResponse(rw, http.StatusInternalServerError, decryptMessageFailure, err)
 
@@ -573,12 +661,20 @@ func (o *Operation) decryptHandler(rw http.ResponseWriter, req *http.Request) { 
 //        200: computeMACResp
 //    default: errorResp
 func (o *Operation) computeMACHandler(rw http.ResponseWriter, req *http.Request) { //nolint:dupl // better readability
-	kmsService, err := o.kmsServiceCreator(req)
+	ctx, span := traceSpan(req, "computeMACHandler")
+	defer span.End()
+
+	start := time.Now()
+
+	kmsService, err := o.kmsServiceCreator(req.WithContext(ctx))
 	if err != nil {
 		o.writeErrorResponse(rw, http.StatusInternalServerError, createKMSServiceFailure, err)
 
 		return
 	}
+
+	span.AddEvent("kmsServiceCreator completed",
+		trace.WithAttributes(label.String("duration", time.Since(start).String())))
 
 	var request computeMACReq
 	if ok := o.parseRequest(&request, rw, req); !ok {
@@ -588,6 +684,9 @@ func (o *Operation) computeMACHandler(rw http.ResponseWriter, req *http.Request)
 	keystoreID := mux.Vars(req)[keystoreIDQueryParam]
 	keyID := mux.Vars(req)[keyIDQueryParam]
 
+	span.SetAttributes(label.String("keystoreID", keystoreID))
+	span.SetAttributes(label.String("keyID", keyID))
+
 	data, err := base64.URLEncoding.DecodeString(request.Data)
 	if err != nil {
 		o.writeErrorResponse(rw, http.StatusBadRequest, receivedBadRequest, err)
@@ -595,7 +694,7 @@ func (o *Operation) computeMACHandler(rw http.ResponseWriter, req *http.Request)
 		return
 	}
 
-	mac, err := kmsService.ComputeMAC(keystoreID, keyID, data)
+	mac, err := kmsService.ComputeMAC(ctx, keystoreID, keyID, data)
 	if err != nil {
 		o.writeErrorResponse(rw, http.StatusInternalServerError, computeMACFailure, err)
 
@@ -615,12 +714,20 @@ func (o *Operation) computeMACHandler(rw http.ResponseWriter, req *http.Request)
 //        200: emptyRes
 //    default: errorResp
 func (o *Operation) verifyMACHandler(rw http.ResponseWriter, req *http.Request) { //nolint:dupl // better readability
-	kmsService, err := o.kmsServiceCreator(req)
+	ctx, span := traceSpan(req, "verifyMACHandler")
+	defer span.End()
+
+	start := time.Now()
+
+	kmsService, err := o.kmsServiceCreator(req.WithContext(ctx))
 	if err != nil {
 		o.writeErrorResponse(rw, http.StatusInternalServerError, createKMSServiceFailure, err)
 
 		return
 	}
+
+	span.AddEvent("kmsServiceCreator completed",
+		trace.WithAttributes(label.String("duration", time.Since(start).String())))
 
 	var request verifyMACReq
 	if ok := o.parseRequest(&request, rw, req); !ok {
@@ -629,6 +736,9 @@ func (o *Operation) verifyMACHandler(rw http.ResponseWriter, req *http.Request) 
 
 	keystoreID := mux.Vars(req)[keystoreIDQueryParam]
 	keyID := mux.Vars(req)[keyIDQueryParam]
+
+	span.SetAttributes(label.String("keystoreID", keystoreID))
+	span.SetAttributes(label.String("keyID", keyID))
 
 	mac, err := base64.URLEncoding.DecodeString(request.MAC)
 	if err != nil {
@@ -644,7 +754,7 @@ func (o *Operation) verifyMACHandler(rw http.ResponseWriter, req *http.Request) 
 		return
 	}
 
-	err = kmsService.VerifyMAC(keystoreID, keyID, mac, data)
+	err = kmsService.VerifyMAC(ctx, keystoreID, keyID, mac, data)
 	if err != nil {
 		o.writeErrorResponse(rw, http.StatusInternalServerError, verifyMACFailure, err)
 
@@ -661,13 +771,21 @@ func (o *Operation) verifyMACHandler(rw http.ResponseWriter, req *http.Request) 
 // Responses:
 //        200: wrapResp
 //    default: errorResp
-func (o *Operation) wrapHandler(rw http.ResponseWriter, req *http.Request) {
-	kmsService, err := o.kmsServiceCreator(req)
+func (o *Operation) wrapHandler(rw http.ResponseWriter, req *http.Request) { //nolint:funlen // TODO refactor
+	ctx, span := traceSpan(req, "wrapHandler")
+	defer span.End()
+
+	start := time.Now()
+
+	kmsService, err := o.kmsServiceCreator(req.WithContext(ctx))
 	if err != nil {
 		o.writeErrorResponse(rw, http.StatusInternalServerError, createKMSServiceFailure, err)
 
 		return
 	}
+
+	span.AddEvent("kmsServiceCreator completed",
+		trace.WithAttributes(label.String("duration", time.Since(start).String())))
 
 	var request wrapReq
 	if ok := o.parseRequest(&request, rw, req); !ok {
@@ -675,6 +793,8 @@ func (o *Operation) wrapHandler(rw http.ResponseWriter, req *http.Request) {
 	}
 
 	keystoreID := mux.Vars(req)[keystoreIDQueryParam]
+
+	span.SetAttributes(label.String("keystoreID", keystoreID))
 
 	cek, err := base64.URLEncoding.DecodeString(request.CEK)
 	if err != nil {
@@ -704,7 +824,7 @@ func (o *Operation) wrapHandler(rw http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	wrappedKey, err := kmsService.WrapKey(keystoreID, request.SenderKID, cek, apu, apv, recPubKey)
+	wrappedKey, err := kmsService.WrapKey(ctx, keystoreID, request.SenderKID, cek, apu, apv, recPubKey)
 	if err != nil {
 		o.writeErrorResponse(rw, http.StatusInternalServerError, wrapMessageFailure, err)
 
@@ -729,12 +849,20 @@ func (o *Operation) wrapHandler(rw http.ResponseWriter, req *http.Request) {
 //        200: unwrapResp
 //    default: errorResp
 func (o *Operation) unwrapHandler(rw http.ResponseWriter, req *http.Request) { //nolint:funlen // readability
-	kmsService, err := o.kmsServiceCreator(req)
+	ctx, span := traceSpan(req, "unwrapHandler")
+	defer span.End()
+
+	start := time.Now()
+
+	kmsService, err := o.kmsServiceCreator(req.WithContext(ctx))
 	if err != nil {
 		o.writeErrorResponse(rw, http.StatusInternalServerError, createKMSServiceFailure, err)
 
 		return
 	}
+
+	span.AddEvent("kmsServiceCreator completed",
+		trace.WithAttributes(label.String("duration", time.Since(start).String())))
 
 	var request unwrapReq
 	if ok := o.parseRequest(&request, rw, req); !ok {
@@ -743,6 +871,9 @@ func (o *Operation) unwrapHandler(rw http.ResponseWriter, req *http.Request) { /
 
 	keystoreID := mux.Vars(req)[keystoreIDQueryParam]
 	keyID := mux.Vars(req)[keyIDQueryParam]
+
+	span.SetAttributes(label.String("keystoreID", keystoreID))
+	span.SetAttributes(label.String("keyID", keyID))
 
 	kid, err := base64.URLEncoding.DecodeString(request.WrappedKey.KID)
 	if err != nil {
@@ -796,7 +927,7 @@ func (o *Operation) unwrapHandler(rw http.ResponseWriter, req *http.Request) { /
 	}
 
 	// TODO(#90): Implement support for Authcrypt unwrapping
-	cek, err := kmsService.UnwrapKey(keystoreID, keyID, recipientWK, nil)
+	cek, err := kmsService.UnwrapKey(ctx, keystoreID, keyID, recipientWK, nil)
 	if err != nil {
 		o.writeErrorResponse(rw, http.StatusInternalServerError, unwrapMessageFailure, err)
 
@@ -804,6 +935,16 @@ func (o *Operation) unwrapHandler(rw http.ResponseWriter, req *http.Request) { /
 	}
 
 	o.writeResponse(rw, unwrapResp{Key: base64.URLEncoding.EncodeToString(cek)})
+}
+
+func traceSpan(req *http.Request, spanName string) (context.Context, trace.Span) {
+	ctx, span := tracer.Start(req.Context(), spanName)
+
+	span.SetAttributes(label.String("http.host", req.Host))
+	span.SetAttributes(label.String("http.method", req.Method))
+	span.SetAttributes(label.String("http.url", req.URL.String()))
+
+	return ctx, span
 }
 
 func (o *Operation) parseRequest(parsedReq interface{}, rw http.ResponseWriter, req *http.Request) bool {
@@ -839,8 +980,8 @@ func (o *Operation) writeResponse(rw io.Writer, v interface{}) {
 	}
 }
 
-func (o *Operation) newCompressedZCAP(resource, controller string) (string, error) {
-	zcap, err := o.authService.NewCapability(
+func (o *Operation) newCompressedZCAP(ctx context.Context, resource, controller string) (string, error) {
+	zcap, err := o.authService.NewCapability(ctx,
 		zcapld.WithInvocationTarget(resource, "urn:kms:keystore"),
 		zcapld.WithInvoker(controller),
 		zcapld.WithID(resource),

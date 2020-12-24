@@ -7,11 +7,16 @@ SPDX-License-Identifier: Apache-2.0
 package keystore
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
+	"time"
 
 	"github.com/hyperledger/aries-framework-go/pkg/kms"
 	"github.com/hyperledger/aries-framework-go/pkg/storage"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/label"
+	"go.opentelemetry.io/otel/trace"
 )
 
 const (
@@ -20,10 +25,10 @@ const (
 
 // Service provides functionality for working with Keystore.
 type Service interface {
-	Create(options ...Option) (*Keystore, error)
-	Get(keystoreID string) (*Keystore, error)
-	Save(k *Keystore) error
-	GetKeyHandle(keyID string) (interface{}, error)
+	Create(ctx context.Context, options ...Option) (*Keystore, error)
+	Get(ctx context.Context, keystoreID string) (*Keystore, error)
+	Save(ctx context.Context, k *Keystore) error
+	GetKeyHandle(ctx context.Context, keyID string) (interface{}, error)
 	KeyManager() (kms.KeyManager, error)
 }
 
@@ -38,6 +43,8 @@ type service struct {
 	store      storage.Store
 	keyManager kms.KeyManager
 }
+
+var tracer = otel.Tracer("hub-kms/keystore") //nolint:gochecknoglobals // ignore
 
 // NewService returns a new Service instance.
 func NewService(provider Provider) (Service, error) {
@@ -58,7 +65,10 @@ func NewService(provider Provider) (Service, error) {
 }
 
 // Create creates a new Keystore.
-func (s *service) Create(options ...Option) (*Keystore, error) {
+func (s *service) Create(ctx context.Context, options ...Option) (*Keystore, error) { //nolint:funlen // TODO refactor
+	_, span := tracer.Start(ctx, "keystore:Create")
+	defer span.End()
+
 	opts := &Options{}
 
 	for i := range options {
@@ -73,28 +83,43 @@ func (s *service) Create(options ...Option) (*Keystore, error) {
 	}
 
 	if opts.DelegateKeyType != "" {
+		start := time.Now()
+
 		keyID, _, err := s.keyManager.Create(opts.DelegateKeyType)
 		if err != nil {
 			return nil, err
 		}
 
+		span.AddEvent("delegate key created",
+			trace.WithAttributes(label.String("duration", time.Since(start).String())))
+
 		k.DelegateKeyID = keyID
 	}
 
 	if opts.RecipientKeyType != "" {
+		start := time.Now()
+
 		keyID, _, err := s.keyManager.Create(opts.RecipientKeyType)
 		if err != nil {
 			return nil, err
 		}
 
+		span.AddEvent("recipient key created",
+			trace.WithAttributes(label.String("duration", time.Since(start).String())))
+
 		k.RecipientKeyID = keyID
 	}
 
 	if opts.MACKeyType != "" {
+		start := time.Now()
+
 		keyID, _, err := s.keyManager.Create(opts.MACKeyType)
 		if err != nil {
 			return nil, err
 		}
+
+		span.AddEvent("mac key created",
+			trace.WithAttributes(label.String("duration", time.Since(start).String())))
 
 		k.MACKeyID = keyID
 	}
@@ -104,16 +129,24 @@ func (s *service) Create(options ...Option) (*Keystore, error) {
 		return nil, err
 	}
 
+	startPut := time.Now()
+
 	err = s.store.Put(k.ID, bytes)
 	if err != nil {
 		return nil, err
 	}
 
+	span.AddEvent("store.Put completed",
+		trace.WithAttributes(label.String("duration", time.Since(startPut).String())))
+
 	return k, nil
 }
 
 // Get retrieves Keystore by ID.
-func (s *service) Get(keystoreID string) (*Keystore, error) {
+func (s *service) Get(ctx context.Context, keystoreID string) (*Keystore, error) {
+	_, span := tracer.Start(ctx, "keystore:Get")
+	defer span.End()
+
 	bytes, err := s.store.Get(keystoreID)
 	if err != nil {
 		return nil, err
@@ -130,7 +163,10 @@ func (s *service) Get(keystoreID string) (*Keystore, error) {
 }
 
 // Save stores Keystore.
-func (s *service) Save(k *Keystore) error {
+func (s *service) Save(ctx context.Context, k *Keystore) error {
+	_, span := tracer.Start(ctx, "keystore:Save")
+	defer span.End()
+
 	bytes, err := json.Marshal(k)
 	if err != nil {
 		return err
@@ -145,7 +181,10 @@ func (s *service) Save(k *Keystore) error {
 }
 
 // GetKeyHandle retrieves key handle by keyID.
-func (s *service) GetKeyHandle(keyID string) (interface{}, error) {
+func (s *service) GetKeyHandle(ctx context.Context, keyID string) (interface{}, error) {
+	_, span := tracer.Start(ctx, "keystore:GetKeyHandle")
+	defer span.End()
+
 	kh, err := s.keyManager.Get(keyID)
 	if err != nil {
 		return nil, err

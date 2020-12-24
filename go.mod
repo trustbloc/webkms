@@ -17,6 +17,8 @@ require (
 	github.com/rs/xid v1.2.1
 	github.com/stretchr/testify v1.6.1
 	github.com/trustbloc/edge-core v0.1.5
+	go.opentelemetry.io/otel v0.15.0
+	golang.org/x/net v0.0.0-20201202161906-c7110b5ffcbb
 )
 
 replace github.com/kilic/bls12-381 => github.com/trustbloc/bls12-381 v0.0.0-20201104214312-31de2a204df8

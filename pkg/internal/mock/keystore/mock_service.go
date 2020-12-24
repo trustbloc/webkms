@@ -7,6 +7,8 @@ SPDX-License-Identifier: Apache-2.0
 package keystore
 
 import (
+	"context"
+
 	"github.com/google/tink/go/keyset"
 	"github.com/hyperledger/aries-framework-go/pkg/kms"
 	mockkms "github.com/hyperledger/aries-framework-go/pkg/mock/kms"
@@ -33,7 +35,7 @@ func NewMockService() *MockService {
 }
 
 // Create creates a new Keystore.
-func (s *MockService) Create(options ...keystore.Option) (*keystore.Keystore, error) {
+func (s *MockService) Create(context.Context, ...keystore.Option) (*keystore.Keystore, error) {
 	if s.CreateErr != nil {
 		return nil, s.CreateErr
 	}
@@ -42,7 +44,7 @@ func (s *MockService) Create(options ...keystore.Option) (*keystore.Keystore, er
 }
 
 // Get retrieves Keystore by ID.
-func (s *MockService) Get(keystoreID string) (*keystore.Keystore, error) {
+func (s *MockService) Get(context.Context, string) (*keystore.Keystore, error) {
 	if s.GetErr != nil {
 		return nil, s.GetErr
 	}
@@ -51,7 +53,7 @@ func (s *MockService) Get(keystoreID string) (*keystore.Keystore, error) {
 }
 
 // Save stores Keystore.
-func (s *MockService) Save(k *keystore.Keystore) error {
+func (s *MockService) Save(context.Context, *keystore.Keystore) error {
 	if s.SaveErr != nil {
 		return s.SaveErr
 	}
@@ -60,7 +62,7 @@ func (s *MockService) Save(k *keystore.Keystore) error {
 }
 
 // GetKeyHandle retrieves key handle by keyID.
-func (s *MockService) GetKeyHandle(keyID string) (interface{}, error) {
+func (s *MockService) GetKeyHandle(context.Context, string) (interface{}, error) {
 	if s.GetKeyHandleErr != nil {
 		return nil, s.GetKeyHandleErr
 	}

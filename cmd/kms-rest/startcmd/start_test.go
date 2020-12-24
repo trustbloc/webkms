@@ -385,6 +385,18 @@ func TestStartCmdWithCacheExpirationParam(t *testing.T) {
 	})
 }
 
+func TestStartCmdWithJaegerURLParam(t *testing.T) {
+	startCmd := GetStartCmd(&mockServer{})
+
+	args := requiredArgs()
+	args = append(args, "--"+jaegerURLFlagName, "http://example.com")
+
+	startCmd.SetArgs(args)
+
+	err := startCmd.Execute()
+	require.NoError(t, err)
+}
+
 func TestStartKMSService(t *testing.T) {
 	const invalidStorageOption = "invalid"
 
