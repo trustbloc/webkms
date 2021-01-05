@@ -11,9 +11,9 @@ IS_RELEASE=false
 
 # Project Parameters
 SOURCE_REPO=hub-kms
-BASE_KMS_PKG_NAME=kms-rest
-RELEASE_REPO=docker.pkg.github.com/trustbloc/${SOURCE_REPO}
-SNAPSHOT_REPO=docker.pkg.github.com/trustbloc-cicd/snapshot
+BASE_KMS_PKG_NAME=kms
+RELEASE_REPO=ghcr.io/trustbloc
+SNAPSHOT_REPO=ghcr.io/trustbloc-cicd
 
 if [ ${IS_RELEASE} = false ]
 then
@@ -25,5 +25,5 @@ else
   PROJECT_PKG_REPO=${RELEASE_REPO}
 fi
 
-export KMS_REST_TAG=$PROJECT_VERSION
-export KMS_REST_PKG=${PROJECT_PKG_REPO}/${BASE_KMS_PKG_NAME}
+export KMS_TAG=$PROJECT_VERSION
+export KMS_PKG=${PROJECT_PKG_REPO}/${BASE_KMS_PKG_NAME}

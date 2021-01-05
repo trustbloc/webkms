@@ -78,11 +78,11 @@ jobs:
           }
           trap logout EXIT
           source ci/version_var.sh
-          echo $DOCKER_PASSWORD | docker login docker.pkg.github.com --username $DOCKER_USER --password-stdin
+          echo $DOCKER_PASSWORD | docker login ghcr.io --username $DOCKER_USER --password-stdin
 
-          make kms-rest-docker
-          docker tag docker.pkg.github.com/trustbloc/hub-kms/kms-rest:latest ${KMS_REST_PKG}:${KMS_REST_TAG}
-          docker push ${KMS_REST_PKG}:${KMS_REST_TAG}
+          make kms-docker
+          docker tag ghcr.io/trustbloc/kms:latest ${KMS_PKG}:${KMS_TAG}
+          docker push ${KMS_PKG}:${KMS_TAG}
         env:
           DOCKER_USER: $(DOCKER_USER)
           DOCKER_PASSWORD: $(DOCKER_PASSWORD)
