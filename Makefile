@@ -5,8 +5,8 @@
 KMS_REST_PATH=cmd/kms-rest
 
 # Namespace for the agent images
-DOCKER_OUTPUT_NS   ?= docker.pkg.github.com
-KMS_REST_IMAGE_NAME   ?= trustbloc/hub-kms/kms-rest
+DOCKER_OUTPUT_NS   ?= ghcr.io
+KMS_IMAGE_NAME   ?= trustbloc/kms
 
 # OpenAPI spec
 OPENAPI_DOCKER_IMG=quay.io/goswagger/swagger
@@ -36,7 +36,7 @@ unit-test:
 	@scripts/check_unit.sh
 
 .PHONY: bdd-test
-bdd-test: clean kms-rest-docker generate-test-keys mock-login-consent-docker
+bdd-test: clean kms-docker generate-test-keys mock-login-consent-docker
 	@scripts/check_integration.sh
 
 .PHONY: mock-login-consent-docker
@@ -50,10 +50,10 @@ kms-rest:
 	@mkdir -p ./.build/bin
 	@cd ${KMS_REST_PATH} && go build -o ../../.build/bin/kms-rest main.go
 
-.PHONY: kms-rest-docker
-kms-rest-docker:
+.PHONY: kms-docker
+kms-docker:
 	@echo "Building kms rest docker image"
-	@docker build -f ./images/kms-rest/Dockerfile --no-cache -t $(DOCKER_OUTPUT_NS)/$(KMS_REST_IMAGE_NAME):latest \
+	@docker build -f ./images/kms-rest/Dockerfile --no-cache -t $(DOCKER_OUTPUT_NS)/$(KMS_IMAGE_NAME):latest \
 	--build-arg GO_VER=$(GO_VER) \
 	--build-arg ALPINE_VER=$(ALPINE_VER) .
 
@@ -74,7 +74,7 @@ generate-openapi-spec: clean
 	scripts/generate-openapi-spec.sh
 
 .PHONY: generate-openapi-demo-specs
-generate-openapi-demo-specs: clean generate-openapi-spec kms-rest-docker
+generate-openapi-demo-specs: clean generate-openapi-spec kms-docker
 	@echo "Generate demo KMS rest controller API specifications using Open API"
 	@SPEC_PATH=${OPENAPI_SPEC_PATH} OPENAPI_DEMO_PATH=test/bdd/fixtures/openapi-demo \
     	DOCKER_IMAGE=$(OPENAPI_DOCKER_IMG) DOCKER_IMAGE_VERSION=$(OPENAPI_DOCKER_IMG_VERSION)  \
