@@ -48,16 +48,8 @@ jobs:
       - template: azp-dependencies.yml
       - checkout: self
       - bash: |
-          function logout {
-            docker logout
-          }
-          trap logout EXIT
-          echo $DOCKER_PASSWORD | docker login docker.pkg.github.com --username $DOCKER_USER --password-stdin
           echo '127.0.0.1 oidc.provider.example.com' | sudo tee -a /etc/hosts
           make bdd-test
-        env:
-          DOCKER_USER: $(DOCKER_USER)
-          DOCKER_PASSWORD: $(DOCKER_PASSWORD)
         displayName: Run BDD tests
 
   - job: Publish

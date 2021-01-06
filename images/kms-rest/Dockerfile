@@ -23,6 +23,8 @@ FROM golang as hub-kms
 RUN make kms-rest
 
 FROM alpine:${ALPINE_VER} as base
+LABEL org.opencontainers.image.source https://github.com/trustbloc/kms
+
 COPY --from=hub-kms /go/src/github.com/trustbloc/hub-kms/.build/bin/kms-rest /usr/local/bin
 
 # set up nsswitch.conf for Go's "netgo" implementation
