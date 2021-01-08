@@ -7,15 +7,23 @@ SPDX-License-Identifier: Apache-2.0
 package startcmd
 
 import (
+	"crypto/tls"
 	"errors"
 	"fmt"
 	"net/http"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/gorilla/mux"
 	"github.com/hyperledger/aries-framework-go-ext/component/storage/couchdb"
+	"github.com/hyperledger/aries-framework-go/pkg/crypto"
 	"github.com/hyperledger/aries-framework-go/pkg/crypto/tinkcrypto"
+	arieskms "github.com/hyperledger/aries-framework-go/pkg/kms"
+	"github.com/hyperledger/aries-framework-go/pkg/kms/localkms"
+	"github.com/hyperledger/aries-framework-go/pkg/secretlock"
+	"github.com/hyperledger/aries-framework-go/pkg/secretlock/local"
+	"github.com/hyperledger/aries-framework-go/pkg/secretlock/noop"
 	"github.com/hyperledger/aries-framework-go/pkg/storage"
 	"github.com/hyperledger/aries-framework-go/pkg/storage/mem"
 	"github.com/rs/cors"
@@ -23,6 +31,7 @@ import (
 	"github.com/trustbloc/edge-core/pkg/log"
 	"github.com/trustbloc/edge-core/pkg/restapi/logspec"
 	cmdutils "github.com/trustbloc/edge-core/pkg/utils/cmd"
+	tlsutils "github.com/trustbloc/edge-core/pkg/utils/tls"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/exporters/trace/jaeger"
 	"go.opentelemetry.io/otel/propagation"
@@ -30,8 +39,12 @@ import (
 	"go.opentelemetry.io/otel/trace"
 
 	"github.com/trustbloc/hub-kms/pkg/auth/zcapld"
+	"github.com/trustbloc/hub-kms/pkg/kms"
 	"github.com/trustbloc/hub-kms/pkg/restapi/healthcheck"
 	"github.com/trustbloc/hub-kms/pkg/restapi/kms/operation"
+	lock "github.com/trustbloc/hub-kms/pkg/secretlock"
+	"github.com/trustbloc/hub-kms/pkg/storage/cache"
+	"github.com/trustbloc/hub-kms/pkg/storage/edv"
 )
 
 const (
@@ -206,7 +219,9 @@ const (
 	storageTypeEDVOption     = "edv"
 )
 
-var tracer = otel.Tracer("hub-kms/startcmd") //nolint:gochecknoglobals // ignore
+const (
+	keystorePrimaryKeyURI = "local-lock://keystorekms"
+)
 
 // Server represents an HTTP server.
 type Server interface {
@@ -697,23 +712,22 @@ func initTracer(jaegerURL string) (func(), error) {
 }
 
 func prepareOperationConfig(params *kmsRestParameters) (*operation.Config, error) {
-	keystoreStorage, err := prepareStorageProvider(params.storageParams)
+	storageProvider, err := prepareStorageProvider(params.storageParams)
 	if err != nil {
 		return nil, err
 	}
 
-	primaryKeyStorage, err := prepareKMSStorageProvider(params.primaryKeyStorageParams)
+	primaryKeyStorageProvider, err := prepareKMSStorageProvider(params.primaryKeyStorageParams)
 	if err != nil {
 		return nil, err
 	}
 
-	localKMSStorage, err := prepareKMSStorageProvider(params.localKMSStorageParams)
+	primaryKeyLock, err := preparePrimaryKeyLock(primaryKeyStorageProvider, params.secretLockKeyPath)
 	if err != nil {
 		return nil, err
 	}
 
-	keystoreService, err := prepareKeystoreService(keystoreStorage, primaryKeyStorage, localKMSStorage,
-		params.secretLockKeyPath)
+	localKMS, err := prepareLocalKMS(primaryKeyLock, params)
 	if err != nil {
 		return nil, err
 	}
@@ -723,18 +737,13 @@ func prepareOperationConfig(params *kmsRestParameters) (*operation.Config, error
 		return nil, err
 	}
 
-	keyManager, err := keystoreService.KeyManager()
+	authService, err := zcapld.New(localKMS, cryptoService, storageProvider)
 	if err != nil {
 		return nil, err
 	}
 
-	authService, err := zcapld.New(keyManager, cryptoService, keystoreStorage)
-	if err != nil {
-		return nil, err
-	}
-
-	kmsServiceCreator, err := prepareKMSServiceCreator(keystoreService, cryptoService, authService,
-		primaryKeyStorage, params)
+	kmsService, err := prepareKMSService(storageProvider, primaryKeyStorageProvider, primaryKeyLock,
+		localKMS, cryptoService, authService, params)
 	if err != nil {
 		return nil, err
 	}
@@ -746,14 +755,146 @@ func prepareOperationConfig(params *kmsRestParameters) (*operation.Config, error
 	}
 
 	return &operation.Config{
-		AuthService:       authService,
-		KeystoreService:   keystoreService,
-		KMSServiceCreator: kmsServiceCreator,
-		Logger:            log.New("hub-kms/restapi"),
-		UseEDV:            strings.EqualFold(params.keyManagerStorageParams.storageType, storageTypeEDVOption),
-		CachedLDDocs:      cachedLDContext,
-		BaseURL:           params.baseURL,
+		AuthService:  authService,
+		KMSService:   kmsService,
+		Logger:       log.New("hub-kms/restapi"),
+		Tracer:       otel.Tracer("hub-kms"),
+		CachedLDDocs: cachedLDContext,
+		BaseURL:      params.baseURL,
+		CryptoBoxCreator: func(keyManager arieskms.KeyManager) (arieskms.CryptoBox, error) {
+			return localkms.NewCryptoBox(keyManager)
+		},
 	}, nil
+}
+
+type secretLockProvider struct {
+	storageProvider storage.Provider
+	secretLock      secretlock.Service
+}
+
+func (p *secretLockProvider) StorageProvider() storage.Provider {
+	return p.storageProvider
+}
+
+func (p *secretLockProvider) SecretLock() secretlock.Service {
+	return p.secretLock
+}
+
+func preparePrimaryKeyLock(primaryKeyStorage storage.Provider, keyPath string) (secretlock.Service, error) {
+	if keyPath == "" {
+		return &noop.NoLock{}, nil
+	}
+
+	primaryKeyReader, err := local.MasterKeyFromPath(keyPath)
+	if err != nil {
+		return nil, err
+	}
+
+	secLock, err := local.NewService(primaryKeyReader, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	secLockProvider := &secretLockProvider{
+		storageProvider: primaryKeyStorage,
+		secretLock:      secLock,
+	}
+
+	secretLock, err := lock.New(keystorePrimaryKeyURI, secLockProvider)
+	if err != nil {
+		return nil, err
+	}
+
+	return secretLock, nil
+}
+
+type kmsProvider struct {
+	storageProvider storage.Provider
+	secretLock      secretlock.Service
+}
+
+func (k kmsProvider) StorageProvider() storage.Provider {
+	return k.storageProvider
+}
+
+func (k kmsProvider) SecretLock() secretlock.Service {
+	return k.secretLock
+}
+
+func prepareLocalKMS(primaryKeyLock secretlock.Service, params *kmsRestParameters) (arieskms.KeyManager, error) {
+	storageProvider, err := prepareKMSStorageProvider(params.localKMSStorageParams)
+	if err != nil {
+		return nil, err
+	}
+
+	provider := &kmsProvider{
+		storageProvider: storageProvider,
+		secretLock:      primaryKeyLock,
+	}
+
+	return localkms.New(keystorePrimaryKeyURI, provider)
+}
+
+func prepareKMSService(storageProvider, primaryKeyStorageProvider storage.Provider, primaryKeyLock secretlock.Service,
+	localKMS arieskms.KeyManager, cryptoService crypto.Crypto, signer edv.HeaderSigner,
+	params *kmsRestParameters) (kms.Service, error) {
+	var (
+		cacheProvider             storage.Provider
+		keyManagerStorageProvider storage.Provider
+		edvServerURL              string
+	)
+
+	if params.cacheExpiration != "" {
+		exp, err := time.ParseDuration(params.cacheExpiration)
+		if err != nil {
+			return nil, err
+		}
+
+		cacheProvider = cache.NewProvider(cache.WithExpiration(exp))
+	}
+
+	if params.keyManagerStorageParams.storageType == storageTypeEDVOption {
+		edvServerURL = params.keyManagerStorageParams.storageURL
+	} else {
+		p, err := prepareKMSStorageProvider(params.keyManagerStorageParams)
+		if err != nil {
+			return nil, err
+		}
+
+		keyManagerStorageProvider = p
+	}
+
+	rootCAs, err := tlsutils.GetCertPool(params.tlsUseSystemCertPool, params.tlsCACerts)
+	if err != nil {
+		return nil, err
+	}
+
+	tlsConfig := &tls.Config{RootCAs: rootCAs, MinVersion: tls.VersionTLS12}
+
+	httpClient := &http.Client{
+		Transport: &http.Transport{
+			TLSClientConfig: tlsConfig,
+		},
+	}
+
+	config := &kms.Config{
+		StorageProvider:           storageProvider,
+		CacheProvider:             cacheProvider,
+		KeyManagerStorageProvider: keyManagerStorageProvider,
+		LocalKMS:                  localKMS,
+		CryptoService:             cryptoService,
+		HeaderSigner:              signer,
+		PrimaryKeyStorageProvider: primaryKeyStorageProvider,
+		PrimaryKeyLock:            primaryKeyLock,
+		CreateSecretLockFunc:      lock.New,
+		EDVServerURL:              edvServerURL,
+		HubAuthURL:                params.hubAuthURL,
+		HubAuthAPIToken:           params.hubAuthAPIToken,
+		HTTPClient:                httpClient,
+		TLSConfig:                 tlsConfig,
+	}
+
+	return kms.NewService(config)
 }
 
 func constructCORSHandler(handler http.Handler) http.Handler {

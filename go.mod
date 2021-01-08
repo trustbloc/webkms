@@ -8,6 +8,7 @@ go 1.15
 
 require (
 	github.com/bluele/gcache v0.0.0-20190518031135-bc40bd653833
+	github.com/cenkalti/backoff/v4 v4.1.0 // indirect
 	github.com/google/tink/go v1.5.0
 	github.com/google/uuid v1.1.2
 	github.com/gorilla/mux v1.8.0

@@ -31,10 +31,8 @@ const (
 
 func TestEasyHandler(t *testing.T) {
 	t.Run("Success", func(t *testing.T) {
-		srv := mockkms.NewMockService()
-		srv.EasyValue = []byte("cipher text")
-
-		op := operation.New(newConfig(withKMSService(srv)))
+		cb := &mockCryptoBox{EasyValue: []byte("cipher text")}
+		op := operation.New(newConfig(withCryptoBox(cb)))
 		handler := getHandler(t, op, easyEndpoint, http.MethodPost)
 
 		payload := base64.URLEncoding.EncodeToString([]byte("payload"))
@@ -112,8 +110,10 @@ func TestEasyHandler(t *testing.T) {
 		require.Contains(t, rr.Body.String(), "Received bad request")
 	})
 
-	t.Run("Failed to create a KMS service", func(t *testing.T) {
-		op := operation.New(newConfig(withKMSServiceCreatorErr(errors.New("kms service creator error"))))
+	t.Run("Failed to resolve a keystore", func(t *testing.T) {
+		svc := &mockkms.MockService{ResolveKeystoreErr: errors.New("resolve keystore error")}
+
+		op := operation.New(newConfig(withKMSService(svc)))
 		handler := getHandler(t, op, easyEndpoint, http.MethodPost)
 
 		payload := base64.URLEncoding.EncodeToString([]byte("payload"))
@@ -126,14 +126,29 @@ func TestEasyHandler(t *testing.T) {
 		handler.Handle().ServeHTTP(rr, req)
 
 		require.Equal(t, http.StatusInternalServerError, rr.Code)
-		require.Contains(t, rr.Body.String(), "Failed to create a KMS service: kms service creator error")
+		require.Contains(t, rr.Body.String(), "Failed to resolve a keystore: resolve keystore error")
+	})
+
+	t.Run("Failed to create a CryptoBox instance", func(t *testing.T) {
+		op := operation.New(newConfig(withCryptoBoxCreatorErr(errors.New("creator error"))))
+		handler := getHandler(t, op, easyEndpoint, http.MethodPost)
+
+		payload := base64.URLEncoding.EncodeToString([]byte("payload"))
+		nonce := base64.URLEncoding.EncodeToString([]byte("nonce"))
+		theirPub := base64.URLEncoding.EncodeToString([]byte("their pub"))
+
+		req := buildEasyReq(t, payload, nonce, theirPub)
+
+		rr := httptest.NewRecorder()
+		handler.Handle().ServeHTTP(rr, req)
+
+		require.Equal(t, http.StatusInternalServerError, rr.Code)
+		require.Contains(t, rr.Body.String(), "Failed to easy a message: creator error")
 	})
 
 	t.Run("Failed to easy a message", func(t *testing.T) {
-		srv := mockkms.NewMockService()
-		srv.EasyErr = errors.New("easy error")
-
-		op := operation.New(newConfig(withKMSService(srv)))
+		cb := &mockCryptoBox{EasyErr: errors.New("easy error")}
+		op := operation.New(newConfig(withCryptoBox(cb)))
 		handler := getHandler(t, op, easyEndpoint, http.MethodPost)
 
 		payload := base64.URLEncoding.EncodeToString([]byte("payload"))
@@ -152,10 +167,8 @@ func TestEasyHandler(t *testing.T) {
 
 func TestEasyOpenHandler(t *testing.T) {
 	t.Run("Success", func(t *testing.T) {
-		srv := mockkms.NewMockService()
-		srv.EasyOpenValue = []byte("plain text")
-
-		op := operation.New(newConfig(withKMSService(srv)))
+		cb := &mockCryptoBox{EasyOpenValue: []byte("plain text")}
+		op := operation.New(newConfig(withCryptoBox(cb)))
 		handler := getHandler(t, op, easyOpenEndpoint, http.MethodPost)
 
 		cipherText := base64.URLEncoding.EncodeToString([]byte("cipher text"))
@@ -254,8 +267,10 @@ func TestEasyOpenHandler(t *testing.T) {
 		require.Contains(t, rr.Body.String(), "Received bad request")
 	})
 
-	t.Run("Failed to create a KMS service", func(t *testing.T) {
-		op := operation.New(newConfig(withKMSServiceCreatorErr(errors.New("kms service creator error"))))
+	t.Run("Failed to resolve a keystore", func(t *testing.T) {
+		svc := &mockkms.MockService{ResolveKeystoreErr: errors.New("resolve keystore error")}
+
+		op := operation.New(newConfig(withKMSService(svc)))
 		handler := getHandler(t, op, easyOpenEndpoint, http.MethodPost)
 
 		cipherText := base64.URLEncoding.EncodeToString([]byte("cipher text"))
@@ -269,14 +284,30 @@ func TestEasyOpenHandler(t *testing.T) {
 		handler.Handle().ServeHTTP(rr, req)
 
 		require.Equal(t, http.StatusInternalServerError, rr.Code)
-		require.Contains(t, rr.Body.String(), "Failed to create a KMS service: kms service creator error")
+		require.Contains(t, rr.Body.String(), "Failed to resolve a keystore: resolve keystore error")
+	})
+
+	t.Run("Failed to create a CryptoBox instance", func(t *testing.T) {
+		op := operation.New(newConfig(withCryptoBoxCreatorErr(errors.New("creator error"))))
+		handler := getHandler(t, op, easyOpenEndpoint, http.MethodPost)
+
+		cipherText := base64.URLEncoding.EncodeToString([]byte("cipher text"))
+		nonce := base64.URLEncoding.EncodeToString([]byte("nonce"))
+		theirPub := base64.URLEncoding.EncodeToString([]byte("their pub"))
+		myPub := base64.URLEncoding.EncodeToString([]byte("my pub"))
+
+		req := buildEasyOpenReq(t, cipherText, nonce, theirPub, myPub)
+
+		rr := httptest.NewRecorder()
+		handler.Handle().ServeHTTP(rr, req)
+
+		require.Equal(t, http.StatusInternalServerError, rr.Code)
+		require.Contains(t, rr.Body.String(), "Failed to easyOpen a message: creator error")
 	})
 
 	t.Run("Failed to easy open a message", func(t *testing.T) {
-		srv := mockkms.NewMockService()
-		srv.EasyOpenErr = errors.New("easy open error")
-
-		op := operation.New(newConfig(withKMSService(srv)))
+		cb := &mockCryptoBox{EasyOpenErr: errors.New("easy open error")}
+		op := operation.New(newConfig(withCryptoBox(cb)))
 		handler := getHandler(t, op, easyOpenEndpoint, http.MethodPost)
 
 		cipherText := base64.URLEncoding.EncodeToString([]byte("cipher text"))
@@ -296,10 +327,8 @@ func TestEasyOpenHandler(t *testing.T) {
 
 func TestSealOpenHandler(t *testing.T) {
 	t.Run("Success", func(t *testing.T) {
-		srv := mockkms.NewMockService()
-		srv.SealOpenValue = []byte("plain text")
-
-		op := operation.New(newConfig(withKMSService(srv)))
+		cb := &mockCryptoBox{SealOpenValue: []byte("plain text")}
+		op := operation.New(newConfig(withCryptoBox(cb)))
 		handler := getHandler(t, op, sealOpenEndpoint, http.MethodPost)
 
 		cipherText := base64.URLEncoding.EncodeToString([]byte("cipher text"))
@@ -358,8 +387,10 @@ func TestSealOpenHandler(t *testing.T) {
 		require.Contains(t, rr.Body.String(), "Received bad request")
 	})
 
-	t.Run("Failed to create a KMS service", func(t *testing.T) {
-		op := operation.New(newConfig(withKMSServiceCreatorErr(errors.New("kms service creator error"))))
+	t.Run("Failed to resolve a keystore", func(t *testing.T) {
+		svc := &mockkms.MockService{ResolveKeystoreErr: errors.New("resolve keystore error")}
+
+		op := operation.New(newConfig(withKMSService(svc)))
 		handler := getHandler(t, op, sealOpenEndpoint, http.MethodPost)
 
 		cipherText := base64.URLEncoding.EncodeToString([]byte("cipher text"))
@@ -371,14 +402,28 @@ func TestSealOpenHandler(t *testing.T) {
 		handler.Handle().ServeHTTP(rr, req)
 
 		require.Equal(t, http.StatusInternalServerError, rr.Code)
-		require.Contains(t, rr.Body.String(), "Failed to create a KMS service: kms service creator error")
+		require.Contains(t, rr.Body.String(), "Failed to resolve a keystore: resolve keystore error")
+	})
+
+	t.Run("Failed to create a CryptoBox instance", func(t *testing.T) {
+		op := operation.New(newConfig(withCryptoBoxCreatorErr(errors.New("creator error"))))
+		handler := getHandler(t, op, sealOpenEndpoint, http.MethodPost)
+
+		cipherText := base64.URLEncoding.EncodeToString([]byte("cipher text"))
+		myPub := base64.URLEncoding.EncodeToString([]byte("my pub"))
+
+		req := buildSealOpenReq(t, cipherText, myPub)
+
+		rr := httptest.NewRecorder()
+		handler.Handle().ServeHTTP(rr, req)
+
+		require.Equal(t, http.StatusInternalServerError, rr.Code)
+		require.Contains(t, rr.Body.String(), "Failed to sealOpen a payload: creator error")
 	})
 
 	t.Run("Failed to seal open a payload", func(t *testing.T) {
-		srv := mockkms.NewMockService()
-		srv.SealOpenErr = errors.New("seal open error")
-
-		op := operation.New(newConfig(withKMSService(srv)))
+		cb := &mockCryptoBox{SealOpenErr: errors.New("seal open error")}
+		op := operation.New(newConfig(withCryptoBox(cb)))
 		handler := getHandler(t, op, sealOpenEndpoint, http.MethodPost)
 
 		cipherText := base64.URLEncoding.EncodeToString([]byte("cipher text"))

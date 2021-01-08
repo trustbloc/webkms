@@ -26,8 +26,8 @@ import (
 
 func TestWrapHandler(t *testing.T) {
 	t.Run("Success", func(t *testing.T) {
-		srv := mockkms.NewMockService()
-		srv.WrapKeyValue = &crypto.RecipientWrappedKey{}
+		srv := mockKMSService()
+		srv.WrapValue = &crypto.RecipientWrappedKey{}
 
 		op := operation.New(newConfig(withKMSService(srv)))
 		handler := getHandler(t, op, wrapEndpoint, http.MethodPost)
@@ -53,22 +53,11 @@ func TestWrapHandler(t *testing.T) {
 		require.Contains(t, rr.Body.String(), "Received bad request: EOF")
 	})
 
-	t.Run("Failed to create a KMS service", func(t *testing.T) {
-		op := operation.New(newConfig(withKMSServiceCreatorErr(errors.New("kms service creator error"))))
-		handler := getHandler(t, op, wrapEndpoint, http.MethodPost)
-
-		rr := httptest.NewRecorder()
-		handler.Handle().ServeHTTP(rr, buildWrapReq(t))
-
-		require.Equal(t, http.StatusInternalServerError, rr.Code)
-		require.Contains(t, rr.Body.String(), "Failed to create a KMS service: kms service creator error")
-	})
-
 	t.Run("Failed to wrap a key", func(t *testing.T) {
-		srv := mockkms.NewMockService()
-		srv.WrapKeyErr = errors.New("wrap key error")
+		svc := mockKMSService()
+		svc.WrapError = errors.New("wrap key error")
 
-		op := operation.New(newConfig(withKMSService(srv)))
+		op := operation.New(newConfig(withKMSService(svc)))
 		handler := getHandler(t, op, wrapEndpoint, http.MethodPost)
 
 		rr := httptest.NewRecorder()
@@ -98,8 +87,8 @@ func TestWrapHandler_BadRequestEncoding(t *testing.T) {
 		opt := tt.reqOpt
 
 		t.Run("Received bad request: bad encoded "+tt.name, func(t *testing.T) {
-			srv := mockkms.NewMockService()
-			srv.WrapKeyValue = &crypto.RecipientWrappedKey{}
+			srv := &mockkms.MockService{}
+			srv.WrapValue = &crypto.RecipientWrappedKey{}
 
 			op := operation.New(newConfig(withKMSService(srv)))
 			handler := getHandler(t, op, wrapEndpoint, http.MethodPost)

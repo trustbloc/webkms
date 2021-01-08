@@ -19,9 +19,7 @@ import (
 	"github.com/trustbloc/edge-core/pkg/log/mocklogger"
 	"github.com/trustbloc/edge-core/pkg/zcapld"
 
-	mockkeystore "github.com/trustbloc/hub-kms/pkg/internal/mock/keystore"
 	mockkms "github.com/trustbloc/hub-kms/pkg/internal/mock/kms"
-	"github.com/trustbloc/hub-kms/pkg/keystore"
 	"github.com/trustbloc/hub-kms/pkg/kms"
 )
 
@@ -234,34 +232,22 @@ func (h *handler) ServeHTTP(_ http.ResponseWriter, r *http.Request) {
 }
 
 type options struct {
-	keystoreService      keystore.Service
-	kmsService           kms.Service
-	logger               log.Logger
-	kmsServiceCreatorErr error
-	useEDV               bool
-	authService          authService
+	authService authService
+	kmsService  kms.Service
+	logger      log.Logger
 }
 
 func newConfig() *Config {
 	cOpts := &options{
-		keystoreService: mockkeystore.NewMockService(),
-		kmsService:      mockkms.NewMockService(),
-		logger:          &mocklogger.MockLogger{},
-		authService:     &mockAuthService{},
+		authService: &mockAuthService{},
+		kmsService:  &mockkms.MockService{},
+		logger:      &mocklogger.MockLogger{},
 	}
 
 	config := &Config{
-		KeystoreService:   cOpts.keystoreService,
-		KMSServiceCreator: func(_ *http.Request) (kms.Service, error) { return cOpts.kmsService, nil },
-		Logger:            cOpts.logger,
-		UseEDV:            cOpts.useEDV,
-		AuthService:       cOpts.authService,
-	}
-
-	if cOpts.kmsServiceCreatorErr != nil {
-		config.KMSServiceCreator = func(_ *http.Request) (kms.Service, error) {
-			return nil, cOpts.kmsServiceCreatorErr
-		}
+		AuthService: cOpts.authService,
+		KMSService:  cOpts.kmsService,
+		Logger:      cOpts.logger,
 	}
 
 	return config
