@@ -23,20 +23,22 @@ import (
 // Responses:
 //        200: easyResp
 //    default: errorResp
-func (o *Operation) easyHandler(rw http.ResponseWriter, req *http.Request) { //nolint:dupl // readability
-	ctx, span := tracer.Start(req.Context(), "easyHandler")
+func (o *Operation) easyHandler(rw http.ResponseWriter, req *http.Request) { //nolint:funlen // TODO refactor
+	ctx, span := o.tracer.Start(req.Context(), "easyHandler")
 	defer span.End()
+
+	o.logger.Debugf("handling request: %s", req.URL.String())
 
 	start := time.Now()
 
-	kmsService, err := o.kmsServiceCreator(req.WithContext(ctx))
+	k, err := o.kmsService.ResolveKeystore(req.WithContext(ctx))
 	if err != nil {
-		o.writeErrorResponse(rw, http.StatusInternalServerError, createKMSServiceFailure, err)
+		o.writeErrorResponse(rw, http.StatusInternalServerError, resolveKeystoreFailure, err)
 
 		return
 	}
 
-	span.AddEvent("kmsServiceCreator completed",
+	span.AddEvent("ResolveKeystore completed",
 		trace.WithAttributes(label.String("duration", time.Since(start).String())))
 
 	var request easyReq
@@ -71,7 +73,14 @@ func (o *Operation) easyHandler(rw http.ResponseWriter, req *http.Request) { //n
 		return
 	}
 
-	cipherText, err := kmsService.Easy(ctx, keystoreID, keyID, payload, nonce, theirPub)
+	cryptoBox, err := o.cryptoBoxCreator(k.KeyManager())
+	if err != nil {
+		o.writeErrorResponse(rw, http.StatusInternalServerError, easyMessageFailure, err)
+
+		return
+	}
+
+	cipherText, err := cryptoBox.Easy(payload, nonce, theirPub, keyID)
 	if err != nil {
 		o.writeErrorResponse(rw, http.StatusInternalServerError, easyMessageFailure, err)
 
@@ -91,19 +100,21 @@ func (o *Operation) easyHandler(rw http.ResponseWriter, req *http.Request) { //n
 //        200: easyOpenResp
 //    default: errorResp
 func (o *Operation) easyOpenHandler(rw http.ResponseWriter, req *http.Request) { //nolint:funlen // TODO refactor
-	ctx, span := tracer.Start(req.Context(), "easyOpenHandler")
+	ctx, span := o.tracer.Start(req.Context(), "easyOpenHandler")
 	defer span.End()
+
+	o.logger.Debugf("handling request: %s", req.URL.String())
 
 	start := time.Now()
 
-	kmsService, err := o.kmsServiceCreator(req.WithContext(ctx))
+	k, err := o.kmsService.ResolveKeystore(req.WithContext(ctx))
 	if err != nil {
-		o.writeErrorResponse(rw, http.StatusInternalServerError, createKMSServiceFailure, err)
+		o.writeErrorResponse(rw, http.StatusInternalServerError, resolveKeystoreFailure, err)
 
 		return
 	}
 
-	span.AddEvent("kmsServiceCreator completed",
+	span.AddEvent("ResolveKeystore completed",
 		trace.WithAttributes(label.String("duration", time.Since(start).String())))
 
 	var request easyOpenReq
@@ -143,7 +154,14 @@ func (o *Operation) easyOpenHandler(rw http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	plainText, err := kmsService.EasyOpen(ctx, keystoreID, cipherText, nonce, theirPub, myPub)
+	cryptoBox, err := o.cryptoBoxCreator(k.KeyManager())
+	if err != nil {
+		o.writeErrorResponse(rw, http.StatusInternalServerError, easyOpenMessageFailure, err)
+
+		return
+	}
+
+	plainText, err := cryptoBox.EasyOpen(cipherText, nonce, theirPub, myPub)
 	if err != nil {
 		o.writeErrorResponse(rw, http.StatusInternalServerError, easyOpenMessageFailure, err)
 
@@ -163,19 +181,21 @@ func (o *Operation) easyOpenHandler(rw http.ResponseWriter, req *http.Request) {
 //        200: sealOpenResp
 //    default: errorResp
 func (o *Operation) sealOpenHandler(rw http.ResponseWriter, req *http.Request) {
-	ctx, span := tracer.Start(req.Context(), "sealOpenHandler")
+	ctx, span := o.tracer.Start(req.Context(), "sealOpenHandler")
 	defer span.End()
+
+	o.logger.Debugf("handling request: %s", req.URL.String())
 
 	start := time.Now()
 
-	kmsService, err := o.kmsServiceCreator(req.WithContext(ctx))
+	k, err := o.kmsService.ResolveKeystore(req.WithContext(ctx))
 	if err != nil {
-		o.writeErrorResponse(rw, http.StatusInternalServerError, createKMSServiceFailure, err)
+		o.writeErrorResponse(rw, http.StatusInternalServerError, resolveKeystoreFailure, err)
 
 		return
 	}
 
-	span.AddEvent("kmsServiceCreator completed",
+	span.AddEvent("ResolveKeystore completed",
 		trace.WithAttributes(label.String("duration", time.Since(start).String())))
 
 	var request sealOpenReq
@@ -201,7 +221,14 @@ func (o *Operation) sealOpenHandler(rw http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	plainText, err := kmsService.SealOpen(ctx, keystoreID, cipherText, myPub)
+	cryptoBox, err := o.cryptoBoxCreator(k.KeyManager())
+	if err != nil {
+		o.writeErrorResponse(rw, http.StatusInternalServerError, sealOpenPayloadFailure, err)
+
+		return
+	}
+
+	plainText, err := cryptoBox.SealOpen(cipherText, myPub)
 	if err != nil {
 		o.writeErrorResponse(rw, http.StatusInternalServerError, sealOpenPayloadFailure, err)
 

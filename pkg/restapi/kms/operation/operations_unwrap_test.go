@@ -20,16 +20,17 @@ import (
 	"github.com/hyperledger/aries-framework-go/pkg/crypto"
 	"github.com/stretchr/testify/require"
 
+	"github.com/trustbloc/hub-kms/pkg/internal/mock/keystore"
 	mockkms "github.com/trustbloc/hub-kms/pkg/internal/mock/kms"
 	"github.com/trustbloc/hub-kms/pkg/restapi/kms/operation"
 )
 
 func TestUnwrapHandler(t *testing.T) {
 	t.Run("Success", func(t *testing.T) {
-		srv := mockkms.NewMockService()
-		srv.UnwrapKeyValue = []byte("unwrap key value")
+		svc := mockKMSService()
+		svc.UnwrapValue = []byte("unwrap key value")
 
-		op := operation.New(newConfig(withKMSService(srv)))
+		op := operation.New(newConfig(withKMSService(svc)))
 		handler := getHandler(t, op, unwrapEndpoint, http.MethodPost)
 
 		rr := httptest.NewRecorder()
@@ -53,22 +54,38 @@ func TestUnwrapHandler(t *testing.T) {
 		require.Contains(t, rr.Body.String(), "Received bad request: EOF")
 	})
 
-	t.Run("Failed to create a KMS service", func(t *testing.T) {
-		op := operation.New(newConfig(withKMSServiceCreatorErr(errors.New("kms service creator error"))))
+	t.Run("Failed to resolve a keystore", func(t *testing.T) {
+		svc := &mockkms.MockService{ResolveKeystoreErr: errors.New("resolve keystore error")}
+
+		op := operation.New(newConfig(withKMSService(svc)))
 		handler := getHandler(t, op, unwrapEndpoint, http.MethodPost)
 
 		rr := httptest.NewRecorder()
 		handler.Handle().ServeHTTP(rr, buildUnwrapReq(t))
 
 		require.Equal(t, http.StatusInternalServerError, rr.Code)
-		require.Contains(t, rr.Body.String(), "Failed to create a KMS service: kms service creator error")
+		require.Contains(t, rr.Body.String(), "Failed to resolve a keystore: resolve keystore error")
+	})
+
+	t.Run("Failed to get key handle", func(t *testing.T) {
+		svc := mockKMSService()
+		svc.ResolveKeystoreValue = &keystore.MockKeystore{GetKeyHandleErr: errors.New("get key handle error")}
+
+		op := operation.New(newConfig(withKMSService(svc)))
+		handler := getHandler(t, op, unwrapEndpoint, http.MethodPost)
+
+		rr := httptest.NewRecorder()
+		handler.Handle().ServeHTTP(rr, buildUnwrapReq(t))
+
+		require.Equal(t, http.StatusInternalServerError, rr.Code)
+		require.Contains(t, rr.Body.String(), "Failed to unwrap a key: get key handle error")
 	})
 
 	t.Run("Failed to unwrap a key", func(t *testing.T) {
-		srv := mockkms.NewMockService()
-		srv.UnwrapKeyErr = errors.New("unwrap key error")
+		svc := mockKMSService()
+		svc.UnwrapError = errors.New("unwrap key error")
 
-		op := operation.New(newConfig(withKMSService(srv)))
+		op := operation.New(newConfig(withKMSService(svc)))
 		handler := getHandler(t, op, unwrapEndpoint, http.MethodPost)
 
 		rr := httptest.NewRecorder()
@@ -100,8 +117,8 @@ func TestUnwrapHandler_BadRequestEncoding(t *testing.T) {
 		opt := tt.reqOpt
 
 		t.Run("Received bad request: bad encoded "+tt.name, func(t *testing.T) {
-			srv := mockkms.NewMockService()
-			srv.WrapKeyValue = &crypto.RecipientWrappedKey{}
+			srv := &mockkms.MockService{}
+			srv.WrapValue = &crypto.RecipientWrappedKey{}
 
 			op := operation.New(newConfig(withKMSService(srv)))
 			handler := getHandler(t, op, unwrapEndpoint, http.MethodPost)

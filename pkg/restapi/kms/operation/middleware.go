@@ -20,8 +20,11 @@ import (
 	"github.com/piprate/json-gold/ld"
 	"github.com/trustbloc/edge-core/pkg/log"
 	"github.com/trustbloc/edge-core/pkg/zcapld"
+	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/label"
 )
+
+var tracer = otel.Tracer("hub-kms/operation") //nolint:gochecknoglobals // ignore
 
 // ZCAPLDMiddleware returns the ZCAPLD middleware that authorizes requests.
 func (o *Operation) ZCAPLDMiddleware(h http.Handler) http.Handler {

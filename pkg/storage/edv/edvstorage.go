@@ -19,14 +19,13 @@ import (
 	"github.com/hyperledger/aries-framework-go/pkg/crypto"
 	"github.com/hyperledger/aries-framework-go/pkg/crypto/tinkcrypto/primitive/composite/keyio"
 	"github.com/hyperledger/aries-framework-go/pkg/doc/jose"
+	"github.com/hyperledger/aries-framework-go/pkg/kms"
 	"github.com/hyperledger/aries-framework-go/pkg/storage"
 	"github.com/hyperledger/aries-framework-go/pkg/storage/edv"
 	"github.com/hyperledger/aries-framework-go/pkg/storage/formattedstore"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/label"
 	"go.opentelemetry.io/otel/trace"
-
-	"github.com/trustbloc/hub-kms/pkg/keystore"
 )
 
 const (
@@ -43,15 +42,18 @@ type HeaderSigner interface {
 	SignHeader(*http.Request, []byte) (*http.Header, error)
 }
 
-// Config defines configuration for the SDS storage provider.
+// Config defines configuration for the EDV storage provider.
 type Config struct {
-	KeystoreService keystore.Service
-	CryptoService   crypto.Crypto
-	TLSConfig       *tls.Config
-	EDVServerURL    string
-	KeystoreID      string
-	HeaderSigner    HeaderSigner
-	CacheProvider   storage.Provider
+	KeyManager     kms.KeyManager
+	CryptoService  crypto.Crypto
+	HeaderSigner   HeaderSigner
+	CacheProvider  storage.Provider
+	TLSConfig      *tls.Config
+	EDVCapability  json.RawMessage
+	EDVServerURL   string
+	VaultID        string
+	RecipientKeyID string
+	MACKeyID       string
 }
 
 var tracer = otel.Tracer("hub-kms/edv") //nolint:gochecknoglobals // ignore
@@ -61,31 +63,21 @@ func NewStorageProvider(ctx context.Context, c *Config) (storage.Provider, error
 	trCtx, span := tracer.Start(ctx, "edv:NewStorageProvider")
 	defer span.End()
 
-	startGetKeystore := time.Now()
+	startGetMACKeyHandle := time.Now()
 
-	k, err := c.KeystoreService.Get(trCtx, c.KeystoreID)
-	if err != nil {
-		return nil, err
-	}
-
-	span.AddEvent("keystore fetched",
-		trace.WithAttributes(label.String("duration", time.Since(startGetKeystore).String())))
-
-	startGetKeyHandle := time.Now()
-
-	macKH, err := c.KeystoreService.GetKeyHandle(trCtx, k.MACKeyID)
+	macKH, err := c.KeyManager.Get(c.MACKeyID)
 	if err != nil {
 		return nil, err
 	}
 
 	span.AddEvent("mac key fetched",
-		trace.WithAttributes(label.String("duration", time.Since(startGetKeyHandle).String())))
+		trace.WithAttributes(label.String("duration", time.Since(startGetMACKeyHandle).String())))
 
 	macCrypto := edv.NewMACCrypto(macKH, c.CryptoService)
 
 	startCreateProvider := time.Now()
 
-	restProvider, err := c.createRESTProvider(k, macCrypto)
+	restProvider, err := c.createRESTProvider(macCrypto)
 	if err != nil {
 		return nil, err
 	}
@@ -95,7 +87,7 @@ func NewStorageProvider(ctx context.Context, c *Config) (storage.Provider, error
 
 	startCreateFormatter := time.Now()
 
-	encryptedFormatter, err := c.createEncryptedFormatter(trCtx, k, macCrypto)
+	encryptedFormatter, err := c.createEncryptedFormatter(trCtx, macCrypto)
 	if err != nil {
 		return nil, err
 	}
@@ -107,14 +99,14 @@ func NewStorageProvider(ctx context.Context, c *Config) (storage.Provider, error
 		formattedstore.WithCacheProvider(c.CacheProvider)), nil
 }
 
-func (c *Config) createRESTProvider(k *keystore.Keystore, macCrypto *edv.MACCrypto) (*edv.RESTProvider, error) {
+func (c *Config) createRESTProvider(macCrypto *edv.MACCrypto) (*edv.RESTProvider, error) {
 	p, err := edv.NewRESTProvider(
 		c.EDVServerURL+edvEndpointPathRoot,
-		k.VaultID,
+		c.VaultID,
 		macCrypto,
 		edv.WithTLSConfig(c.TLSConfig),
 		edv.WithHeaders(func(req *http.Request) (*http.Header, error) {
-			return c.signHeader(req, k.EDVCapability)
+			return c.signHeader(req, c.EDVCapability)
 		}),
 	)
 	if err != nil {
@@ -137,14 +129,14 @@ func (c *Config) signHeader(req *http.Request, edvCapability []byte) (*http.Head
 	return nil, nil
 }
 
-func (c *Config) createEncryptedFormatter(ctx context.Context, k *keystore.Keystore,
+func (c *Config) createEncryptedFormatter(ctx context.Context,
 	macCrypto *edv.MACCrypto) (*edv.EncryptedFormatter, error) {
-	trCtx, span := tracer.Start(ctx, "edv:createEncryptedFormatter")
+	_, span := tracer.Start(ctx, "edv:createEncryptedFormatter")
 	defer span.End()
 
 	startGetKeyHandle := time.Now()
 
-	recipientKH, err := c.KeystoreService.GetKeyHandle(trCtx, k.RecipientKeyID)
+	recipientKH, err := c.KeyManager.Get(c.RecipientKeyID)
 	if err != nil {
 		return nil, err
 	}
@@ -154,7 +146,7 @@ func (c *Config) createEncryptedFormatter(ctx context.Context, k *keystore.Keyst
 
 	startRecPubKey := time.Now()
 
-	pubKey, b, err := recipientPublicKey(recipientKH, k.RecipientKeyID)
+	pubKey, b, err := recipientPublicKey(recipientKH, c.RecipientKeyID)
 	if err != nil {
 		return nil, err
 	}
@@ -177,12 +169,7 @@ func (c *Config) createEncryptedFormatter(ctx context.Context, k *keystore.Keyst
 	span.AddEvent("jose.NewJWEEncrypt completed",
 		trace.WithAttributes(label.String("duration", time.Since(startNewJWEEncrypt).String())))
 
-	keyManager, err := c.KeystoreService.KeyManager()
-	if err != nil {
-		return nil, err
-	}
-
-	decrypter := jose.NewJWEDecrypt(nil, c.CryptoService, keyManager)
+	decrypter := jose.NewJWEDecrypt(nil, c.CryptoService, c.KeyManager)
 
 	return edv.NewEncryptedFormatter(encrypter, decrypter, macCrypto), nil
 }
