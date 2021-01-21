@@ -21,7 +21,6 @@ import (
 	"github.com/stretchr/testify/require"
 
 	mockkms "github.com/trustbloc/hub-kms/pkg/internal/mock/kms"
-	"github.com/trustbloc/hub-kms/pkg/restapi/kms/operation"
 )
 
 func TestWrapHandler(t *testing.T) {
@@ -29,7 +28,7 @@ func TestWrapHandler(t *testing.T) {
 		srv := mockKMSService()
 		srv.WrapValue = &crypto.RecipientWrappedKey{}
 
-		op := operation.New(newConfig(withKMSService(srv)))
+		op := newOperation(t, newConfig(withKMSService(srv)))
 		handler := getHandler(t, op, wrapEndpoint, http.MethodPost)
 
 		rr := httptest.NewRecorder()
@@ -43,7 +42,7 @@ func TestWrapHandler(t *testing.T) {
 		req, err := http.NewRequestWithContext(context.Background(), http.MethodPost, "", bytes.NewBuffer([]byte("")))
 		require.NoError(t, err)
 
-		op := operation.New(newConfig())
+		op := newOperation(t, newConfig())
 		handler := getHandler(t, op, wrapEndpoint, http.MethodPost)
 
 		rr := httptest.NewRecorder()
@@ -57,7 +56,7 @@ func TestWrapHandler(t *testing.T) {
 		svc := mockKMSService()
 		svc.WrapError = errors.New("wrap key error")
 
-		op := operation.New(newConfig(withKMSService(svc)))
+		op := newOperation(t, newConfig(withKMSService(svc)))
 		handler := getHandler(t, op, wrapEndpoint, http.MethodPost)
 
 		rr := httptest.NewRecorder()
@@ -90,7 +89,7 @@ func TestWrapHandler_BadRequestEncoding(t *testing.T) {
 			srv := &mockkms.MockService{}
 			srv.WrapValue = &crypto.RecipientWrappedKey{}
 
-			op := operation.New(newConfig(withKMSService(srv)))
+			op := newOperation(t, newConfig(withKMSService(srv)))
 			handler := getHandler(t, op, wrapEndpoint, http.MethodPost)
 
 			rr := httptest.NewRecorder()

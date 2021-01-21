@@ -13,7 +13,7 @@ require (
 	github.com/igor-pavlenko/httpsignatures-go v0.0.21
 	github.com/rs/xid v1.2.1
 	github.com/teserakt-io/golang-ed25519 v0.0.0-20200315192543-8255be791ce4
-	github.com/trustbloc/edge-core v0.1.5
+	github.com/trustbloc/edge-core v0.1.6-0.20210121114552-763e3f878b45
 	github.com/trustbloc/edv v0.1.5
 	github.com/trustbloc/hub-auth v0.1.5 // indirect
 	github.com/trustbloc/hub-auth/test/bdd v0.0.0-20201208022224-413a3517d5d5

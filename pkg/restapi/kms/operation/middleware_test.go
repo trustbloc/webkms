@@ -25,7 +25,8 @@ import (
 
 func TestMiddleware(t *testing.T) {
 	t.Run("returns middleware", func(t *testing.T) {
-		o := New(newConfig())
+		o, err := New(newConfig())
+		require.NoError(t, err)
 		require.NotEmpty(t, o.ZCAPLDMiddleware(nil))
 	})
 
@@ -33,7 +34,11 @@ func TestMiddleware(t *testing.T) {
 		t.Run("protects /keystore endpoint", func(t *testing.T) {
 			handler := &handler{}
 			result := httptest.NewRecorder()
-			mw := New(newConfig()).ZCAPLDMiddleware(handler)
+
+			o, err := New(newConfig())
+			require.NoError(t, err)
+
+			mw := o.ZCAPLDMiddleware(handler)
 			require.IsType(t, &mwHandler{}, mw)
 			(mw).(*mwHandler).routeFunc = mockRouteFunc(&mockNamer{name: keystoresEndpoint})
 			mw.ServeHTTP(
@@ -47,7 +52,11 @@ func TestMiddleware(t *testing.T) {
 	t.Run("authz: zcaps", func(t *testing.T) {
 		t.Run("protects endpoints", func(t *testing.T) {
 			handler := &handler{}
-			mw := New(newConfig()).ZCAPLDMiddleware(handler)
+
+			o, err := New(newConfig())
+			require.NoError(t, err)
+
+			mw := o.ZCAPLDMiddleware(handler)
 			require.IsType(t, &mwHandler{}, mw)
 			(mw).(*mwHandler).routeFunc = func(r *http.Request) namer {
 				return &mockNamer{name: r.URL.Path}
@@ -80,7 +89,11 @@ func TestMiddleware(t *testing.T) {
 
 		t.Run("protects endpoints", func(t *testing.T) {
 			handler := &handler{}
-			mw := New(newConfig()).ZCAPLDMiddleware(handler)
+
+			o, err := New(newConfig())
+			require.NoError(t, err)
+
+			mw := o.ZCAPLDMiddleware(handler)
 			require.IsType(t, &mwHandler{}, mw)
 			(mw).(*mwHandler).routeFunc = func(r *http.Request) namer {
 				return &mockNamer{name: r.URL.Path}
@@ -114,7 +127,11 @@ func TestMiddleware(t *testing.T) {
 
 		t.Run("badrequest if endpoint is not valid", func(t *testing.T) {
 			handler := &handler{}
-			mw := New(newConfig()).ZCAPLDMiddleware(handler)
+
+			o, err := New(newConfig())
+			require.NoError(t, err)
+
+			mw := o.ZCAPLDMiddleware(handler)
 			require.IsType(t, &mwHandler{}, mw)
 			(mw).(*mwHandler).routeFunc = func(r *http.Request) namer {
 				return &mockNamer{name: r.URL.Path}
