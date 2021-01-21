@@ -20,7 +20,6 @@ import (
 	"github.com/stretchr/testify/require"
 
 	mockkms "github.com/trustbloc/hub-kms/pkg/internal/mock/kms"
-	"github.com/trustbloc/hub-kms/pkg/restapi/kms/operation"
 )
 
 const (
@@ -32,7 +31,7 @@ const (
 func TestEasyHandler(t *testing.T) {
 	t.Run("Success", func(t *testing.T) {
 		cb := &mockCryptoBox{EasyValue: []byte("cipher text")}
-		op := operation.New(newConfig(withCryptoBox(cb)))
+		op := newOperation(t, newConfig(withCryptoBox(cb)))
 		handler := getHandler(t, op, easyEndpoint, http.MethodPost)
 
 		payload := base64.URLEncoding.EncodeToString([]byte("payload"))
@@ -52,7 +51,7 @@ func TestEasyHandler(t *testing.T) {
 		req, err := http.NewRequestWithContext(context.Background(), http.MethodPost, "", bytes.NewBuffer([]byte("")))
 		require.NoError(t, err)
 
-		op := operation.New(newConfig())
+		op := newOperation(t, newConfig())
 		handler := getHandler(t, op, easyEndpoint, http.MethodPost)
 
 		rr := httptest.NewRecorder()
@@ -63,7 +62,7 @@ func TestEasyHandler(t *testing.T) {
 	})
 
 	t.Run("Received bad request: bad encoded payload", func(t *testing.T) {
-		op := operation.New(newConfig())
+		op := newOperation(t, newConfig())
 		handler := getHandler(t, op, easyEndpoint, http.MethodPost)
 
 		nonce := base64.URLEncoding.EncodeToString([]byte("nonce"))
@@ -79,7 +78,7 @@ func TestEasyHandler(t *testing.T) {
 	})
 
 	t.Run("Received bad request: bad encoded nonce", func(t *testing.T) {
-		op := operation.New(newConfig())
+		op := newOperation(t, newConfig())
 		handler := getHandler(t, op, easyEndpoint, http.MethodPost)
 
 		payload := base64.URLEncoding.EncodeToString([]byte("payload"))
@@ -95,7 +94,7 @@ func TestEasyHandler(t *testing.T) {
 	})
 
 	t.Run("Received bad request: bad encoded theirPub", func(t *testing.T) {
-		op := operation.New(newConfig())
+		op := newOperation(t, newConfig())
 		handler := getHandler(t, op, easyEndpoint, http.MethodPost)
 
 		payload := base64.URLEncoding.EncodeToString([]byte("payload"))
@@ -113,7 +112,7 @@ func TestEasyHandler(t *testing.T) {
 	t.Run("Failed to resolve a keystore", func(t *testing.T) {
 		svc := &mockkms.MockService{ResolveKeystoreErr: errors.New("resolve keystore error")}
 
-		op := operation.New(newConfig(withKMSService(svc)))
+		op := newOperation(t, newConfig(withKMSService(svc)))
 		handler := getHandler(t, op, easyEndpoint, http.MethodPost)
 
 		payload := base64.URLEncoding.EncodeToString([]byte("payload"))
@@ -130,7 +129,7 @@ func TestEasyHandler(t *testing.T) {
 	})
 
 	t.Run("Failed to create a CryptoBox instance", func(t *testing.T) {
-		op := operation.New(newConfig(withCryptoBoxCreatorErr(errors.New("creator error"))))
+		op := newOperation(t, newConfig(withCryptoBoxCreatorErr(errors.New("creator error"))))
 		handler := getHandler(t, op, easyEndpoint, http.MethodPost)
 
 		payload := base64.URLEncoding.EncodeToString([]byte("payload"))
@@ -148,7 +147,7 @@ func TestEasyHandler(t *testing.T) {
 
 	t.Run("Failed to easy a message", func(t *testing.T) {
 		cb := &mockCryptoBox{EasyErr: errors.New("easy error")}
-		op := operation.New(newConfig(withCryptoBox(cb)))
+		op := newOperation(t, newConfig(withCryptoBox(cb)))
 		handler := getHandler(t, op, easyEndpoint, http.MethodPost)
 
 		payload := base64.URLEncoding.EncodeToString([]byte("payload"))
@@ -168,7 +167,7 @@ func TestEasyHandler(t *testing.T) {
 func TestEasyOpenHandler(t *testing.T) {
 	t.Run("Success", func(t *testing.T) {
 		cb := &mockCryptoBox{EasyOpenValue: []byte("plain text")}
-		op := operation.New(newConfig(withCryptoBox(cb)))
+		op := newOperation(t, newConfig(withCryptoBox(cb)))
 		handler := getHandler(t, op, easyOpenEndpoint, http.MethodPost)
 
 		cipherText := base64.URLEncoding.EncodeToString([]byte("cipher text"))
@@ -189,7 +188,7 @@ func TestEasyOpenHandler(t *testing.T) {
 		req, err := http.NewRequestWithContext(context.Background(), http.MethodPost, "", bytes.NewBuffer([]byte("")))
 		require.NoError(t, err)
 
-		op := operation.New(newConfig())
+		op := newOperation(t, newConfig())
 		handler := getHandler(t, op, easyOpenEndpoint, http.MethodPost)
 
 		rr := httptest.NewRecorder()
@@ -200,7 +199,7 @@ func TestEasyOpenHandler(t *testing.T) {
 	})
 
 	t.Run("Received bad request: bad encoded cipherText", func(t *testing.T) {
-		op := operation.New(newConfig())
+		op := newOperation(t, newConfig())
 		handler := getHandler(t, op, easyOpenEndpoint, http.MethodPost)
 
 		nonce := base64.URLEncoding.EncodeToString([]byte("nonce"))
@@ -217,7 +216,7 @@ func TestEasyOpenHandler(t *testing.T) {
 	})
 
 	t.Run("Received bad request: bad encoded nonce", func(t *testing.T) {
-		op := operation.New(newConfig())
+		op := newOperation(t, newConfig())
 		handler := getHandler(t, op, easyOpenEndpoint, http.MethodPost)
 
 		cipherText := base64.URLEncoding.EncodeToString([]byte("cipher text"))
@@ -234,7 +233,7 @@ func TestEasyOpenHandler(t *testing.T) {
 	})
 
 	t.Run("Received bad request: bad encoded theirPub", func(t *testing.T) {
-		op := operation.New(newConfig())
+		op := newOperation(t, newConfig())
 		handler := getHandler(t, op, easyOpenEndpoint, http.MethodPost)
 
 		cipherText := base64.URLEncoding.EncodeToString([]byte("cipher text"))
@@ -251,7 +250,7 @@ func TestEasyOpenHandler(t *testing.T) {
 	})
 
 	t.Run("Received bad request: bad encoded myPub", func(t *testing.T) {
-		op := operation.New(newConfig())
+		op := newOperation(t, newConfig())
 		handler := getHandler(t, op, easyOpenEndpoint, http.MethodPost)
 
 		cipherText := base64.URLEncoding.EncodeToString([]byte("cipher text"))
@@ -270,7 +269,7 @@ func TestEasyOpenHandler(t *testing.T) {
 	t.Run("Failed to resolve a keystore", func(t *testing.T) {
 		svc := &mockkms.MockService{ResolveKeystoreErr: errors.New("resolve keystore error")}
 
-		op := operation.New(newConfig(withKMSService(svc)))
+		op := newOperation(t, newConfig(withKMSService(svc)))
 		handler := getHandler(t, op, easyOpenEndpoint, http.MethodPost)
 
 		cipherText := base64.URLEncoding.EncodeToString([]byte("cipher text"))
@@ -288,7 +287,7 @@ func TestEasyOpenHandler(t *testing.T) {
 	})
 
 	t.Run("Failed to create a CryptoBox instance", func(t *testing.T) {
-		op := operation.New(newConfig(withCryptoBoxCreatorErr(errors.New("creator error"))))
+		op := newOperation(t, newConfig(withCryptoBoxCreatorErr(errors.New("creator error"))))
 		handler := getHandler(t, op, easyOpenEndpoint, http.MethodPost)
 
 		cipherText := base64.URLEncoding.EncodeToString([]byte("cipher text"))
@@ -307,7 +306,7 @@ func TestEasyOpenHandler(t *testing.T) {
 
 	t.Run("Failed to easy open a message", func(t *testing.T) {
 		cb := &mockCryptoBox{EasyOpenErr: errors.New("easy open error")}
-		op := operation.New(newConfig(withCryptoBox(cb)))
+		op := newOperation(t, newConfig(withCryptoBox(cb)))
 		handler := getHandler(t, op, easyOpenEndpoint, http.MethodPost)
 
 		cipherText := base64.URLEncoding.EncodeToString([]byte("cipher text"))
@@ -328,7 +327,7 @@ func TestEasyOpenHandler(t *testing.T) {
 func TestSealOpenHandler(t *testing.T) {
 	t.Run("Success", func(t *testing.T) {
 		cb := &mockCryptoBox{SealOpenValue: []byte("plain text")}
-		op := operation.New(newConfig(withCryptoBox(cb)))
+		op := newOperation(t, newConfig(withCryptoBox(cb)))
 		handler := getHandler(t, op, sealOpenEndpoint, http.MethodPost)
 
 		cipherText := base64.URLEncoding.EncodeToString([]byte("cipher text"))
@@ -347,7 +346,7 @@ func TestSealOpenHandler(t *testing.T) {
 		req, err := http.NewRequestWithContext(context.Background(), http.MethodPost, "", bytes.NewBuffer([]byte("")))
 		require.NoError(t, err)
 
-		op := operation.New(newConfig())
+		op := newOperation(t, newConfig())
 		handler := getHandler(t, op, sealOpenEndpoint, http.MethodPost)
 
 		rr := httptest.NewRecorder()
@@ -358,7 +357,7 @@ func TestSealOpenHandler(t *testing.T) {
 	})
 
 	t.Run("Received bad request: bad encoded cipherText", func(t *testing.T) {
-		op := operation.New(newConfig())
+		op := newOperation(t, newConfig())
 		handler := getHandler(t, op, sealOpenEndpoint, http.MethodPost)
 
 		myPub := base64.URLEncoding.EncodeToString([]byte("my pub"))
@@ -373,7 +372,7 @@ func TestSealOpenHandler(t *testing.T) {
 	})
 
 	t.Run("Received bad request: bad encoded myPub", func(t *testing.T) {
-		op := operation.New(newConfig())
+		op := newOperation(t, newConfig())
 		handler := getHandler(t, op, sealOpenEndpoint, http.MethodPost)
 
 		cipherText := base64.URLEncoding.EncodeToString([]byte("cipher text"))
@@ -390,7 +389,7 @@ func TestSealOpenHandler(t *testing.T) {
 	t.Run("Failed to resolve a keystore", func(t *testing.T) {
 		svc := &mockkms.MockService{ResolveKeystoreErr: errors.New("resolve keystore error")}
 
-		op := operation.New(newConfig(withKMSService(svc)))
+		op := newOperation(t, newConfig(withKMSService(svc)))
 		handler := getHandler(t, op, sealOpenEndpoint, http.MethodPost)
 
 		cipherText := base64.URLEncoding.EncodeToString([]byte("cipher text"))
@@ -406,7 +405,7 @@ func TestSealOpenHandler(t *testing.T) {
 	})
 
 	t.Run("Failed to create a CryptoBox instance", func(t *testing.T) {
-		op := operation.New(newConfig(withCryptoBoxCreatorErr(errors.New("creator error"))))
+		op := newOperation(t, newConfig(withCryptoBoxCreatorErr(errors.New("creator error"))))
 		handler := getHandler(t, op, sealOpenEndpoint, http.MethodPost)
 
 		cipherText := base64.URLEncoding.EncodeToString([]byte("cipher text"))
@@ -423,7 +422,7 @@ func TestSealOpenHandler(t *testing.T) {
 
 	t.Run("Failed to seal open a payload", func(t *testing.T) {
 		cb := &mockCryptoBox{SealOpenErr: errors.New("seal open error")}
-		op := operation.New(newConfig(withCryptoBox(cb)))
+		op := newOperation(t, newConfig(withCryptoBox(cb)))
 		handler := getHandler(t, op, sealOpenEndpoint, http.MethodPost)
 
 		cipherText := base64.URLEncoding.EncodeToString([]byte("cipher text"))

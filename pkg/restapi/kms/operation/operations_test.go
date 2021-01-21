@@ -143,13 +143,13 @@ const (
 )
 
 func TestNew(t *testing.T) {
-	op := operation.New(newConfig())
+	op := newOperation(t, newConfig())
 	require.NotNil(t, op)
 }
 
 func TestCreateKeystoreHandler(t *testing.T) {
 	t.Run("Success", func(t *testing.T) {
-		op := operation.New(newConfig())
+		op := newOperation(t, newConfig())
 		handler := getHandler(t, op, keystoresEndpoint, http.MethodPost)
 
 		rr := httptest.NewRecorder()
@@ -164,7 +164,7 @@ func TestCreateKeystoreHandler(t *testing.T) {
 			return "", fmt.Errorf("failed to create did key")
 		}}
 
-		op := operation.New(newConfig(withAuthService(svc)))
+		op := newOperation(t, newConfig(withAuthService(svc)))
 		handler := getHandler(t, op, keystoresEndpoint, http.MethodPost)
 
 		rr := httptest.NewRecorder()
@@ -178,7 +178,7 @@ func TestCreateKeystoreHandler(t *testing.T) {
 		req, err := http.NewRequestWithContext(context.Background(), http.MethodPost, "", bytes.NewBuffer([]byte("")))
 		require.NoError(t, err)
 
-		op := operation.New(newConfig())
+		op := newOperation(t, newConfig())
 		handler := getHandler(t, op, keystoresEndpoint, http.MethodPost)
 
 		rr := httptest.NewRecorder()
@@ -191,7 +191,7 @@ func TestCreateKeystoreHandler(t *testing.T) {
 	t.Run("Failed to create a keystore", func(t *testing.T) {
 		svc := &mockkms.MockService{CreateKeystoreErr: errors.New("create keystore error")}
 
-		op := operation.New(newConfig(withKMSService(svc)))
+		op := newOperation(t, newConfig(withKMSService(svc)))
 		handler := getHandler(t, op, keystoresEndpoint, http.MethodPost)
 
 		rr := httptest.NewRecorder()
@@ -204,7 +204,7 @@ func TestCreateKeystoreHandler(t *testing.T) {
 	t.Run("internal server error if cannot create zcap", func(t *testing.T) {
 		svc := &mockAuthService{newCapabilityErr: errors.New("test")}
 
-		op := operation.New(newConfig(withAuthService(svc)))
+		op := newOperation(t, newConfig(withAuthService(svc)))
 		handler := getHandler(t, op, keystoresEndpoint, http.MethodPost)
 
 		rr := httptest.NewRecorder()
@@ -217,7 +217,7 @@ func TestCreateKeystoreHandler(t *testing.T) {
 
 func TestUpdateCapabilityHandler(t *testing.T) {
 	t.Run("Success", func(t *testing.T) {
-		op := operation.New(newConfig())
+		op := newOperation(t, newConfig())
 		handler := getHandler(t, op, capabilityEndpoint, http.MethodPost)
 
 		rr := httptest.NewRecorder()
@@ -230,7 +230,7 @@ func TestUpdateCapabilityHandler(t *testing.T) {
 		svc := mockKMSService()
 		svc.GetKeystoreDataErr = errors.New("get keystore data error")
 
-		op := operation.New(newConfig(withKMSService(svc)))
+		op := newOperation(t, newConfig(withKMSService(svc)))
 		handler := getHandler(t, op, capabilityEndpoint, http.MethodPost)
 
 		rr := httptest.NewRecorder()
@@ -244,7 +244,7 @@ func TestUpdateCapabilityHandler(t *testing.T) {
 		svc := mockKMSService()
 		svc.SaveKeystoreDataErr = errors.New("save keystore data error")
 
-		op := operation.New(newConfig(withKMSService(svc)))
+		op := newOperation(t, newConfig(withKMSService(svc)))
 		handler := getHandler(t, op, capabilityEndpoint, http.MethodPost)
 
 		rr := httptest.NewRecorder()
@@ -255,7 +255,7 @@ func TestUpdateCapabilityHandler(t *testing.T) {
 	})
 
 	t.Run("test empty capability", func(t *testing.T) {
-		op := operation.New(newConfig())
+		op := newOperation(t, newConfig())
 		handler := getHandler(t, op, capabilityEndpoint, http.MethodPost)
 
 		rr := httptest.NewRecorder()
@@ -268,7 +268,7 @@ func TestUpdateCapabilityHandler(t *testing.T) {
 
 func TestCreateKeyHandler(t *testing.T) {
 	t.Run("Success", func(t *testing.T) {
-		op := operation.New(newConfig())
+		op := newOperation(t, newConfig())
 		handler := getHandler(t, op, keysEndpoint, http.MethodPost)
 
 		rr := httptest.NewRecorder()
@@ -282,7 +282,7 @@ func TestCreateKeyHandler(t *testing.T) {
 		req, err := http.NewRequestWithContext(context.Background(), http.MethodPost, "", bytes.NewBuffer([]byte("")))
 		require.NoError(t, err)
 
-		op := operation.New(newConfig())
+		op := newOperation(t, newConfig())
 		handler := getHandler(t, op, keysEndpoint, http.MethodPost)
 
 		rr := httptest.NewRecorder()
@@ -295,7 +295,7 @@ func TestCreateKeyHandler(t *testing.T) {
 	t.Run("Failed to resolve a keystore", func(t *testing.T) {
 		svc := &mockkms.MockService{ResolveKeystoreErr: errors.New("resolve keystore error")}
 
-		op := operation.New(newConfig(withKMSService(svc)))
+		op := newOperation(t, newConfig(withKMSService(svc)))
 		handler := getHandler(t, op, keysEndpoint, http.MethodPost)
 
 		rr := httptest.NewRecorder()
@@ -309,7 +309,7 @@ func TestCreateKeyHandler(t *testing.T) {
 		svc := &mockkms.MockService{}
 		svc.ResolveKeystoreValue = &keystore.MockKeystore{CreateKeyErr: errors.New("create key error")}
 
-		op := operation.New(newConfig(withKMSService(svc)))
+		op := newOperation(t, newConfig(withKMSService(svc)))
 		handler := getHandler(t, op, keysEndpoint, http.MethodPost)
 
 		rr := httptest.NewRecorder()
@@ -325,7 +325,7 @@ func TestExportKeyHandler(t *testing.T) {
 		svc := mockKMSService()
 		svc.ResolveKeystoreValue = &keystore.MockKeystore{ExportKeyValue: []byte("public key bytes")}
 
-		op := operation.New(newConfig(withKMSService(svc)))
+		op := newOperation(t, newConfig(withKMSService(svc)))
 		handler := getHandler(t, op, exportEndpoint, http.MethodGet)
 
 		rr := httptest.NewRecorder()
@@ -338,7 +338,7 @@ func TestExportKeyHandler(t *testing.T) {
 	t.Run("Failed to resolve a keystore", func(t *testing.T) {
 		svc := &mockkms.MockService{ResolveKeystoreErr: errors.New("resolve keystore error")}
 
-		op := operation.New(newConfig(withKMSService(svc)))
+		op := newOperation(t, newConfig(withKMSService(svc)))
 		handler := getHandler(t, op, exportEndpoint, http.MethodGet)
 
 		rr := httptest.NewRecorder()
@@ -352,7 +352,7 @@ func TestExportKeyHandler(t *testing.T) {
 		svc := mockKMSService()
 		svc.ResolveKeystoreValue = &keystore.MockKeystore{ExportKeyErr: errors.New("export key error")}
 
-		op := operation.New(newConfig(withKMSService(svc)))
+		op := newOperation(t, newConfig(withKMSService(svc)))
 		handler := getHandler(t, op, exportEndpoint, http.MethodGet)
 
 		rr := httptest.NewRecorder()
@@ -368,7 +368,7 @@ func TestSignHandler(t *testing.T) {
 		svc := mockKMSService()
 		svc.SignValue = []byte("signature")
 
-		op := operation.New(newConfig(withKMSService(svc)))
+		op := newOperation(t, newConfig(withKMSService(svc)))
 		handler := getHandler(t, op, signEndpoint, http.MethodPost)
 
 		rr := httptest.NewRecorder()
@@ -382,7 +382,7 @@ func TestSignHandler(t *testing.T) {
 		req, err := http.NewRequestWithContext(context.Background(), http.MethodPost, "", bytes.NewBuffer([]byte("")))
 		require.NoError(t, err)
 
-		op := operation.New(newConfig())
+		op := newOperation(t, newConfig())
 		handler := getHandler(t, op, signEndpoint, http.MethodPost)
 
 		rr := httptest.NewRecorder()
@@ -393,7 +393,7 @@ func TestSignHandler(t *testing.T) {
 	})
 
 	t.Run("Received bad request: bad encoded message", func(t *testing.T) {
-		op := operation.New(newConfig())
+		op := newOperation(t, newConfig())
 		handler := getHandler(t, op, signEndpoint, http.MethodPost)
 
 		rr := httptest.NewRecorder()
@@ -406,7 +406,7 @@ func TestSignHandler(t *testing.T) {
 	t.Run("Failed to resolve a keystore", func(t *testing.T) {
 		svc := &mockkms.MockService{ResolveKeystoreErr: errors.New("resolve keystore error")}
 
-		op := operation.New(newConfig(withKMSService(svc)))
+		op := newOperation(t, newConfig(withKMSService(svc)))
 		handler := getHandler(t, op, signEndpoint, http.MethodPost)
 
 		rr := httptest.NewRecorder()
@@ -420,7 +420,7 @@ func TestSignHandler(t *testing.T) {
 		svc := mockKMSService()
 		svc.ResolveKeystoreValue = &keystore.MockKeystore{GetKeyHandleErr: errors.New("get key handle error")}
 
-		op := operation.New(newConfig(withKMSService(svc)))
+		op := newOperation(t, newConfig(withKMSService(svc)))
 		handler := getHandler(t, op, signEndpoint, http.MethodPost)
 
 		rr := httptest.NewRecorder()
@@ -434,7 +434,7 @@ func TestSignHandler(t *testing.T) {
 		svc := mockKMSService()
 		svc.SignErr = errors.New("sign error")
 
-		op := operation.New(newConfig(withKMSService(svc)))
+		op := newOperation(t, newConfig(withKMSService(svc)))
 		handler := getHandler(t, op, signEndpoint, http.MethodPost)
 
 		rr := httptest.NewRecorder()
@@ -447,7 +447,7 @@ func TestSignHandler(t *testing.T) {
 
 func TestVerifyHandler(t *testing.T) {
 	t.Run("Success", func(t *testing.T) {
-		op := operation.New(newConfig())
+		op := newOperation(t, newConfig())
 		handler := getHandler(t, op, verifyEndpoint, http.MethodPost)
 
 		sig := base64.URLEncoding.EncodeToString([]byte("test signature"))
@@ -464,7 +464,7 @@ func TestVerifyHandler(t *testing.T) {
 		req, err := http.NewRequestWithContext(context.Background(), http.MethodPost, "", bytes.NewBuffer([]byte("")))
 		require.NoError(t, err)
 
-		op := operation.New(newConfig())
+		op := newOperation(t, newConfig())
 		handler := getHandler(t, op, verifyEndpoint, http.MethodPost)
 
 		rr := httptest.NewRecorder()
@@ -475,7 +475,7 @@ func TestVerifyHandler(t *testing.T) {
 	})
 
 	t.Run("Received bad request: bad encoded signature", func(t *testing.T) {
-		op := operation.New(newConfig())
+		op := newOperation(t, newConfig())
 		handler := getHandler(t, op, verifyEndpoint, http.MethodPost)
 
 		msg := base64.URLEncoding.EncodeToString([]byte("test message"))
@@ -489,7 +489,7 @@ func TestVerifyHandler(t *testing.T) {
 	})
 
 	t.Run("Received bad request: bad encoded message", func(t *testing.T) {
-		op := operation.New(newConfig())
+		op := newOperation(t, newConfig())
 		handler := getHandler(t, op, verifyEndpoint, http.MethodPost)
 
 		sig := base64.URLEncoding.EncodeToString([]byte("test signature"))
@@ -505,7 +505,7 @@ func TestVerifyHandler(t *testing.T) {
 	t.Run("Failed to resolve a keystore", func(t *testing.T) {
 		svc := &mockkms.MockService{ResolveKeystoreErr: errors.New("resolve keystore error")}
 
-		op := operation.New(newConfig(withKMSService(svc)))
+		op := newOperation(t, newConfig(withKMSService(svc)))
 		handler := getHandler(t, op, verifyEndpoint, http.MethodPost)
 
 		sig := base64.URLEncoding.EncodeToString([]byte("test signature"))
@@ -523,7 +523,7 @@ func TestVerifyHandler(t *testing.T) {
 		svc := mockKMSService()
 		svc.ResolveKeystoreValue = &keystore.MockKeystore{GetKeyHandleErr: errors.New("get key handle error")}
 
-		op := operation.New(newConfig(withKMSService(svc)))
+		op := newOperation(t, newConfig(withKMSService(svc)))
 		handler := getHandler(t, op, verifyEndpoint, http.MethodPost)
 
 		sig := base64.URLEncoding.EncodeToString([]byte("test signature"))
@@ -541,7 +541,7 @@ func TestVerifyHandler(t *testing.T) {
 		svc := mockKMSService()
 		svc.VerifyErr = errors.New("verify error")
 
-		op := operation.New(newConfig(withKMSService(svc)))
+		op := newOperation(t, newConfig(withKMSService(svc)))
 		handler := getHandler(t, op, verifyEndpoint, http.MethodPost)
 
 		sig := base64.URLEncoding.EncodeToString([]byte("test signature"))
@@ -561,7 +561,7 @@ func TestEncryptHandler(t *testing.T) {
 		svc := mockKMSService()
 		svc.EncryptValue = []byte("cipher text")
 
-		op := operation.New(newConfig(withKMSService(svc)))
+		op := newOperation(t, newConfig(withKMSService(svc)))
 		handler := getHandler(t, op, encryptEndpoint, http.MethodPost)
 
 		msg := base64.URLEncoding.EncodeToString([]byte("test message"))
@@ -579,7 +579,7 @@ func TestEncryptHandler(t *testing.T) {
 		req, err := http.NewRequestWithContext(context.Background(), http.MethodPost, "", bytes.NewBuffer([]byte("")))
 		require.NoError(t, err)
 
-		op := operation.New(newConfig())
+		op := newOperation(t, newConfig())
 		handler := getHandler(t, op, encryptEndpoint, http.MethodPost)
 
 		rr := httptest.NewRecorder()
@@ -590,7 +590,7 @@ func TestEncryptHandler(t *testing.T) {
 	})
 
 	t.Run("Received bad request: bad encoded message", func(t *testing.T) {
-		op := operation.New(newConfig())
+		op := newOperation(t, newConfig())
 		handler := getHandler(t, op, encryptEndpoint, http.MethodPost)
 
 		aad := base64.URLEncoding.EncodeToString([]byte("additional data"))
@@ -604,7 +604,7 @@ func TestEncryptHandler(t *testing.T) {
 	})
 
 	t.Run("Received bad request: bad encoded aad", func(t *testing.T) {
-		op := operation.New(newConfig())
+		op := newOperation(t, newConfig())
 		handler := getHandler(t, op, encryptEndpoint, http.MethodPost)
 
 		msg := base64.URLEncoding.EncodeToString([]byte("test message"))
@@ -620,7 +620,7 @@ func TestEncryptHandler(t *testing.T) {
 	t.Run("Failed to resolve a keystore", func(t *testing.T) {
 		svc := &mockkms.MockService{ResolveKeystoreErr: errors.New("resolve keystore error")}
 
-		op := operation.New(newConfig(withKMSService(svc)))
+		op := newOperation(t, newConfig(withKMSService(svc)))
 		handler := getHandler(t, op, encryptEndpoint, http.MethodPost)
 
 		msg := base64.URLEncoding.EncodeToString([]byte("test message"))
@@ -638,7 +638,7 @@ func TestEncryptHandler(t *testing.T) {
 		svc := mockKMSService()
 		svc.ResolveKeystoreValue = &keystore.MockKeystore{GetKeyHandleErr: errors.New("get key handle error")}
 
-		op := operation.New(newConfig(withKMSService(svc)))
+		op := newOperation(t, newConfig(withKMSService(svc)))
 		handler := getHandler(t, op, encryptEndpoint, http.MethodPost)
 
 		msg := base64.URLEncoding.EncodeToString([]byte("test message"))
@@ -656,7 +656,7 @@ func TestEncryptHandler(t *testing.T) {
 		svc := mockKMSService()
 		svc.EncryptErr = errors.New("encrypt error")
 
-		op := operation.New(newConfig(withKMSService(svc)))
+		op := newOperation(t, newConfig(withKMSService(svc)))
 		handler := getHandler(t, op, encryptEndpoint, http.MethodPost)
 
 		msg := base64.URLEncoding.EncodeToString([]byte("test message"))
@@ -676,7 +676,7 @@ func TestDecryptHandler(t *testing.T) {
 		svc := mockKMSService()
 		svc.DecryptValue = []byte("plain text")
 
-		op := operation.New(newConfig(withKMSService(svc)))
+		op := newOperation(t, newConfig(withKMSService(svc)))
 		handler := getHandler(t, op, decryptEndpoint, http.MethodPost)
 
 		cipherText := base64.URLEncoding.EncodeToString([]byte("test cipher text"))
@@ -695,7 +695,7 @@ func TestDecryptHandler(t *testing.T) {
 		req, err := http.NewRequestWithContext(context.Background(), http.MethodPost, "", bytes.NewBuffer([]byte("")))
 		require.NoError(t, err)
 
-		op := operation.New(newConfig())
+		op := newOperation(t, newConfig())
 		handler := getHandler(t, op, decryptEndpoint, http.MethodPost)
 
 		rr := httptest.NewRecorder()
@@ -706,7 +706,7 @@ func TestDecryptHandler(t *testing.T) {
 	})
 
 	t.Run("Received bad request: bad encoded cipher text", func(t *testing.T) {
-		op := operation.New(newConfig())
+		op := newOperation(t, newConfig())
 		handler := getHandler(t, op, decryptEndpoint, http.MethodPost)
 
 		aad := base64.URLEncoding.EncodeToString([]byte("additional data"))
@@ -721,7 +721,7 @@ func TestDecryptHandler(t *testing.T) {
 	})
 
 	t.Run("Received bad request: bad encoded aad", func(t *testing.T) {
-		op := operation.New(newConfig())
+		op := newOperation(t, newConfig())
 		handler := getHandler(t, op, decryptEndpoint, http.MethodPost)
 
 		cipherText := base64.URLEncoding.EncodeToString([]byte("test cipher text"))
@@ -736,7 +736,7 @@ func TestDecryptHandler(t *testing.T) {
 	})
 
 	t.Run("Received bad request: bad encoded nonce", func(t *testing.T) {
-		op := operation.New(newConfig())
+		op := newOperation(t, newConfig())
 		handler := getHandler(t, op, decryptEndpoint, http.MethodPost)
 
 		cipherText := base64.URLEncoding.EncodeToString([]byte("test cipher text"))
@@ -753,7 +753,7 @@ func TestDecryptHandler(t *testing.T) {
 	t.Run("Failed to resolve a keystore", func(t *testing.T) {
 		svc := &mockkms.MockService{ResolveKeystoreErr: errors.New("resolve keystore error")}
 
-		op := operation.New(newConfig(withKMSService(svc)))
+		op := newOperation(t, newConfig(withKMSService(svc)))
 		handler := getHandler(t, op, decryptEndpoint, http.MethodPost)
 
 		cipherText := base64.URLEncoding.EncodeToString([]byte("test cipher text"))
@@ -772,7 +772,7 @@ func TestDecryptHandler(t *testing.T) {
 		svc := mockKMSService()
 		svc.ResolveKeystoreValue = &keystore.MockKeystore{GetKeyHandleErr: errors.New("get key handle error")}
 
-		op := operation.New(newConfig(withKMSService(svc)))
+		op := newOperation(t, newConfig(withKMSService(svc)))
 		handler := getHandler(t, op, decryptEndpoint, http.MethodPost)
 
 		cipherText := base64.URLEncoding.EncodeToString([]byte("test cipher text"))
@@ -791,7 +791,7 @@ func TestDecryptHandler(t *testing.T) {
 		svc := mockKMSService()
 		svc.DecryptErr = errors.New("decrypt error")
 
-		op := operation.New(newConfig(withKMSService(svc)))
+		op := newOperation(t, newConfig(withKMSService(svc)))
 		handler := getHandler(t, op, decryptEndpoint, http.MethodPost)
 
 		cipherText := base64.URLEncoding.EncodeToString([]byte("test cipher text"))
@@ -812,7 +812,7 @@ func TestComputeMACHandler(t *testing.T) {
 		svc := mockKMSService()
 		svc.ComputeMACValue = []byte("mac")
 
-		op := operation.New(newConfig(withKMSService(svc)))
+		op := newOperation(t, newConfig(withKMSService(svc)))
 		handler := getHandler(t, op, computeMACEndpoint, http.MethodPost)
 
 		data := base64.URLEncoding.EncodeToString([]byte("test data"))
@@ -829,7 +829,7 @@ func TestComputeMACHandler(t *testing.T) {
 		req, err := http.NewRequestWithContext(context.Background(), http.MethodPost, "", bytes.NewBuffer([]byte("")))
 		require.NoError(t, err)
 
-		op := operation.New(newConfig())
+		op := newOperation(t, newConfig())
 		handler := getHandler(t, op, computeMACEndpoint, http.MethodPost)
 
 		rr := httptest.NewRecorder()
@@ -840,7 +840,7 @@ func TestComputeMACHandler(t *testing.T) {
 	})
 
 	t.Run("Received bad request: bad encoded data", func(t *testing.T) {
-		op := operation.New(newConfig())
+		op := newOperation(t, newConfig())
 		handler := getHandler(t, op, computeMACEndpoint, http.MethodPost)
 
 		rr := httptest.NewRecorder()
@@ -853,7 +853,7 @@ func TestComputeMACHandler(t *testing.T) {
 	t.Run("Failed to resolve a keystore", func(t *testing.T) {
 		svc := &mockkms.MockService{ResolveKeystoreErr: errors.New("resolve keystore error")}
 
-		op := operation.New(newConfig(withKMSService(svc)))
+		op := newOperation(t, newConfig(withKMSService(svc)))
 		handler := getHandler(t, op, computeMACEndpoint, http.MethodPost)
 
 		data := base64.URLEncoding.EncodeToString([]byte("test data"))
@@ -870,7 +870,7 @@ func TestComputeMACHandler(t *testing.T) {
 		svc := mockKMSService()
 		svc.ResolveKeystoreValue = &keystore.MockKeystore{GetKeyHandleErr: errors.New("get key handle error")}
 
-		op := operation.New(newConfig(withKMSService(svc)))
+		op := newOperation(t, newConfig(withKMSService(svc)))
 		handler := getHandler(t, op, computeMACEndpoint, http.MethodPost)
 
 		data := base64.URLEncoding.EncodeToString([]byte("test data"))
@@ -887,7 +887,7 @@ func TestComputeMACHandler(t *testing.T) {
 		svc := mockKMSService()
 		svc.ComputeMACErr = errors.New("compute mac error")
 
-		op := operation.New(newConfig(withKMSService(svc)))
+		op := newOperation(t, newConfig(withKMSService(svc)))
 		handler := getHandler(t, op, computeMACEndpoint, http.MethodPost)
 
 		data := base64.URLEncoding.EncodeToString([]byte("test data"))
@@ -906,7 +906,7 @@ func TestVerifyMACHandler(t *testing.T) {
 		svc := mockKMSService()
 		svc.ComputeMACValue = []byte("mac")
 
-		op := operation.New(newConfig(withKMSService(svc)))
+		op := newOperation(t, newConfig(withKMSService(svc)))
 		handler := getHandler(t, op, verifyMACEndpoint, http.MethodPost)
 
 		mac := base64.URLEncoding.EncodeToString([]byte("mac"))
@@ -923,7 +923,7 @@ func TestVerifyMACHandler(t *testing.T) {
 		req, err := http.NewRequestWithContext(context.Background(), http.MethodPost, "", bytes.NewBuffer([]byte("")))
 		require.NoError(t, err)
 
-		op := operation.New(newConfig())
+		op := newOperation(t, newConfig())
 		handler := getHandler(t, op, verifyMACEndpoint, http.MethodPost)
 
 		rr := httptest.NewRecorder()
@@ -934,7 +934,7 @@ func TestVerifyMACHandler(t *testing.T) {
 	})
 
 	t.Run("Received bad request: bad encoded mac", func(t *testing.T) {
-		op := operation.New(newConfig())
+		op := newOperation(t, newConfig())
 		handler := getHandler(t, op, verifyMACEndpoint, http.MethodPost)
 
 		data := base64.URLEncoding.EncodeToString([]byte("test data"))
@@ -948,7 +948,7 @@ func TestVerifyMACHandler(t *testing.T) {
 	})
 
 	t.Run("Received bad request: bad encoded data", func(t *testing.T) {
-		op := operation.New(newConfig())
+		op := newOperation(t, newConfig())
 		handler := getHandler(t, op, verifyMACEndpoint, http.MethodPost)
 
 		mac := base64.URLEncoding.EncodeToString([]byte("mac"))
@@ -964,7 +964,7 @@ func TestVerifyMACHandler(t *testing.T) {
 	t.Run("Failed to resolve a keystore", func(t *testing.T) {
 		svc := &mockkms.MockService{ResolveKeystoreErr: errors.New("resolve keystore error")}
 
-		op := operation.New(newConfig(withKMSService(svc)))
+		op := newOperation(t, newConfig(withKMSService(svc)))
 		handler := getHandler(t, op, verifyMACEndpoint, http.MethodPost)
 
 		mac := base64.URLEncoding.EncodeToString([]byte("mac"))
@@ -982,7 +982,7 @@ func TestVerifyMACHandler(t *testing.T) {
 		svc := mockKMSService()
 		svc.ResolveKeystoreValue = &keystore.MockKeystore{GetKeyHandleErr: errors.New("get key handle error")}
 
-		op := operation.New(newConfig(withKMSService(svc)))
+		op := newOperation(t, newConfig(withKMSService(svc)))
 		handler := getHandler(t, op, verifyMACEndpoint, http.MethodPost)
 
 		mac := base64.URLEncoding.EncodeToString([]byte("mac"))
@@ -1000,7 +1000,7 @@ func TestVerifyMACHandler(t *testing.T) {
 		svc := mockKMSService()
 		svc.VerifyMACErr = errors.New("verify mac error")
 
-		op := operation.New(newConfig(withKMSService(svc)))
+		op := newOperation(t, newConfig(withKMSService(svc)))
 		handler := getHandler(t, op, verifyMACEndpoint, http.MethodPost)
 
 		mac := base64.URLEncoding.EncodeToString([]byte("mac"))
@@ -1026,7 +1026,7 @@ func (failingResponseWriter) Write(_ []byte) (int, error) {
 func TestFailToWriteResponse(t *testing.T) {
 	logger := &mocklogger.MockLogger{}
 
-	op := operation.New(newConfig(withLogger(logger)))
+	op := newOperation(t, newConfig(withLogger(logger)))
 	handler := getHandler(t, op, signEndpoint, http.MethodPost)
 	req := buildSignReq(t, base64.URLEncoding.EncodeToString([]byte("test message")))
 
@@ -1041,7 +1041,7 @@ func TestFailToWriteErrorResponse(t *testing.T) {
 	svc := &mockkms.MockService{ResolveKeystoreErr: errors.New("resolve keystore error")}
 	logger := &mocklogger.MockLogger{}
 
-	op := operation.New(newConfig(withKMSService(svc), withLogger(logger)))
+	op := newOperation(t, newConfig(withKMSService(svc), withLogger(logger)))
 	handler := getHandler(t, op, keysEndpoint, http.MethodPost)
 	req := buildCreateKeyReq(t)
 
@@ -1050,6 +1050,15 @@ func TestFailToWriteErrorResponse(t *testing.T) {
 
 	require.Empty(t, rr.Body.String())
 	require.Contains(t, logger.ErrorLogContents, "Unable to send an error message")
+}
+
+func newOperation(t *testing.T, c *operation.Config) *operation.Operation {
+	t.Helper()
+
+	op, err := operation.New(c)
+	require.NoError(t, err)
+
+	return op
 }
 
 func getHandler(t *testing.T, op *operation.Operation, pathToLookup, methodToLookup string) operation.Handler {

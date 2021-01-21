@@ -14,7 +14,7 @@ require (
 	github.com/rs/cors v1.7.0
 	github.com/spf13/cobra v1.1.1
 	github.com/stretchr/testify v1.6.1
-	github.com/trustbloc/edge-core v0.1.5
+	github.com/trustbloc/edge-core v0.1.6-0.20210121114552-763e3f878b45
 	github.com/trustbloc/hub-kms v0.0.0-00010101000000-000000000000
 	go.opentelemetry.io/otel v0.15.0
 	go.opentelemetry.io/otel/exporters/trace/jaeger v0.15.0

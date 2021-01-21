@@ -135,8 +135,9 @@ type Operation struct {
 	cryptoBoxCreator func(keyManager arieskms.KeyManager) (arieskms.CryptoBox, error)
 	logger           log.Logger
 	tracer           trace.Tracer
-	cachedLDDocs     map[string]*ld.RemoteDocument
 	baseURL          string
+	cachedLDDocs     map[string]*ld.RemoteDocument
+	loaderCache      map[string]interface{}
 }
 
 // Config defines configuration for KMS operations.
@@ -151,18 +152,28 @@ type Config struct {
 }
 
 // New returns a new Operation instance.
-func New(config *Config) *Operation {
+func New(config *Config) (*Operation, error) {
 	op := &Operation{
 		authService:      config.AuthService,
 		kmsService:       config.KMSService,
 		cryptoBoxCreator: config.CryptoBoxCreator,
 		logger:           config.Logger,
 		tracer:           config.Tracer,
-		cachedLDDocs:     config.CachedLDDocs,
 		baseURL:          config.BaseURL,
+		cachedLDDocs:     config.CachedLDDocs,
+		loaderCache:      make(map[string]interface{}),
 	}
 
-	return op
+	for k, v := range config.CachedLDDocs {
+		b, err := json.Marshal(v.Document)
+		if err != nil {
+			return nil, fmt.Errorf("new operation: %w", err)
+		}
+
+		op.loaderCache[k] = string(b)
+	}
+
+	return op, nil
 }
 
 // GetRESTHandlers gets handlers available for the hub-kms REST API.
@@ -1002,6 +1013,7 @@ func (o *Operation) newCompressedZCAP(ctx context.Context, resource, controller 
 		zcapld.WithInvoker(controller),
 		zcapld.WithID(resource),
 		zcapld.WithAllowedActions(allActions()...),
+		zcapld.WithDocumentLoaderCache(o.loaderCache),
 	)
 	if err != nil {
 		return "", fmt.Errorf("failed to create zcap: %w", err)

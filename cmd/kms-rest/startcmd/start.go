@@ -618,7 +618,7 @@ func getKeyManagerStorageParameters(cmd *cobra.Command) (*storageParameters, err
 	}, nil
 }
 
-func startKmsService(params *kmsRestParameters, srv Server) error {
+func startKmsService(params *kmsRestParameters, srv Server) error { //nolint:funlen TODO: refactor
 	if params.logLevel != "" {
 		setLogLevel(params.logLevel, srv)
 	}
@@ -650,7 +650,10 @@ func startKmsService(params *kmsRestParameters, srv Server) error {
 
 	kmsRouter := router.PathPrefix(operation.KMSBasePath).Subrouter()
 
-	kmsREST := operation.New(config)
+	kmsREST, err := operation.New(config)
+	if err != nil {
+		return fmt.Errorf("start KMS service: %w", err)
+	}
 
 	if params.enableZCAPs {
 		kmsRouter.Use(kmsREST.ZCAPLDMiddleware)

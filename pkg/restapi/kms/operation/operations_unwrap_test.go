@@ -22,7 +22,6 @@ import (
 
 	"github.com/trustbloc/hub-kms/pkg/internal/mock/keystore"
 	mockkms "github.com/trustbloc/hub-kms/pkg/internal/mock/kms"
-	"github.com/trustbloc/hub-kms/pkg/restapi/kms/operation"
 )
 
 func TestUnwrapHandler(t *testing.T) {
@@ -30,7 +29,7 @@ func TestUnwrapHandler(t *testing.T) {
 		svc := mockKMSService()
 		svc.UnwrapValue = []byte("unwrap key value")
 
-		op := operation.New(newConfig(withKMSService(svc)))
+		op := newOperation(t, newConfig(withKMSService(svc)))
 		handler := getHandler(t, op, unwrapEndpoint, http.MethodPost)
 
 		rr := httptest.NewRecorder()
@@ -44,7 +43,7 @@ func TestUnwrapHandler(t *testing.T) {
 		req, err := http.NewRequestWithContext(context.Background(), http.MethodPost, "", bytes.NewBuffer([]byte("")))
 		require.NoError(t, err)
 
-		op := operation.New(newConfig())
+		op := newOperation(t, newConfig())
 		handler := getHandler(t, op, unwrapEndpoint, http.MethodPost)
 
 		rr := httptest.NewRecorder()
@@ -57,7 +56,7 @@ func TestUnwrapHandler(t *testing.T) {
 	t.Run("Failed to resolve a keystore", func(t *testing.T) {
 		svc := &mockkms.MockService{ResolveKeystoreErr: errors.New("resolve keystore error")}
 
-		op := operation.New(newConfig(withKMSService(svc)))
+		op := newOperation(t, newConfig(withKMSService(svc)))
 		handler := getHandler(t, op, unwrapEndpoint, http.MethodPost)
 
 		rr := httptest.NewRecorder()
@@ -71,7 +70,7 @@ func TestUnwrapHandler(t *testing.T) {
 		svc := mockKMSService()
 		svc.ResolveKeystoreValue = &keystore.MockKeystore{GetKeyHandleErr: errors.New("get key handle error")}
 
-		op := operation.New(newConfig(withKMSService(svc)))
+		op := newOperation(t, newConfig(withKMSService(svc)))
 		handler := getHandler(t, op, unwrapEndpoint, http.MethodPost)
 
 		rr := httptest.NewRecorder()
@@ -85,7 +84,7 @@ func TestUnwrapHandler(t *testing.T) {
 		svc := mockKMSService()
 		svc.UnwrapError = errors.New("unwrap key error")
 
-		op := operation.New(newConfig(withKMSService(svc)))
+		op := newOperation(t, newConfig(withKMSService(svc)))
 		handler := getHandler(t, op, unwrapEndpoint, http.MethodPost)
 
 		rr := httptest.NewRecorder()
@@ -120,7 +119,7 @@ func TestUnwrapHandler_BadRequestEncoding(t *testing.T) {
 			srv := &mockkms.MockService{}
 			srv.WrapValue = &crypto.RecipientWrappedKey{}
 
-			op := operation.New(newConfig(withKMSService(srv)))
+			op := newOperation(t, newConfig(withKMSService(srv)))
 			handler := getHandler(t, op, unwrapEndpoint, http.MethodPost)
 
 			rr := httptest.NewRecorder()

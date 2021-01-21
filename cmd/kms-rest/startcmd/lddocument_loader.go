@@ -125,6 +125,71 @@ const (
   }]
 }
 `
+
+	trustblocCredentialsV1 = `{
+  "@context": {
+    "@version": 1.1,
+    "id": "@id",
+    "type": "@type",
+    "trustbloc": "https://trustbloc.github.io/context#",
+    "ldssk": "https://w3c-ccg.github.io/lds-jws2020/contexts/#",
+    "sec": "https://w3id.org/security#",
+    "publicKeyJwk": {
+      "@id": "sec:publicKeyJwk",
+      "@type": "@json"
+    },
+    "JsonWebSignature2020": {
+      "@id": "https://w3c-ccg.github.io/lds-jws2020/contexts/#JsonWebSignature2020",
+      "@context": {
+        "@version": 1.1,
+        "@protected": true,
+        "id": "@id",
+        "type": "@type",
+        "sec": "https://w3id.org/security#",
+        "xsd": "http://www.w3.org/2001/XMLSchema#",
+        "challenge": "sec:challenge",
+        "created": {
+          "@id": "http://purl.org/dc/terms/created",
+          "@type": "xsd:dateTime"
+        },
+        "domain": "sec:domain",
+        "expires": {
+          "@id": "sec:expiration",
+          "@type": "xsd:dateTime"
+        },
+        "jws": "sec:jws",
+        "nonce": "sec:nonce",
+        "proofPurpose": {
+          "@id": "sec:proofPurpose",
+          "@type": "@vocab",
+          "@context": {
+            "@version": 1.1,
+            "@protected": true,
+            "id": "@id",
+            "type": "@type",
+            "sec": "https://w3id.org/security#",
+            "assertionMethod": {
+              "@id": "sec:assertionMethod",
+              "@type": "@id",
+              "@container": "@set"
+            },
+            "authentication": {
+              "@id": "sec:authenticationMethod",
+              "@type": "@id",
+              "@container": "@set"
+            }
+          }
+        },
+        "proofValue": "sec:proofValue",
+        "verificationMethod": {
+          "@id": "sec:verificationMethod",
+          "@type": "@id"
+        }
+      }
+    }
+  }
+}
+`
 )
 
 func loadLDContext() (map[string]*ld.RemoteDocument, error) {
@@ -139,6 +204,10 @@ func loadLDContext() (map[string]*ld.RemoteDocument, error) {
 		{
 			vocab:   "https://w3id.org/security/v2",
 			content: w3idOrgSecurityV2,
+		},
+		{
+			vocab:   "https://trustbloc.github.io/context/vc/credentials-v1.jsonld",
+			content: trustblocCredentialsV1,
 		},
 	}
 
