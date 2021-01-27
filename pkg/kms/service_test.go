@@ -250,7 +250,7 @@ type mockKeyManager struct {
 }
 
 func newMockKeyManager() (*mockKeyManager, error) {
-	recipientKH, err := keyset.NewHandle(ecdh.ECDH256KWAES256GCMKeyTemplate())
+	recipientKH, err := keyset.NewHandle(ecdh.NISTP256ECDHKWKeyTemplate())
 	if err != nil {
 		return nil, err
 	}
