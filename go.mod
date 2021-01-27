@@ -12,12 +12,12 @@ require (
 	github.com/google/tink/go v1.5.0
 	github.com/google/uuid v1.1.2
 	github.com/gorilla/mux v1.8.0
-	github.com/hyperledger/aries-framework-go v0.1.6-0.20201223142031-ac4ce368a9c8
+	github.com/hyperledger/aries-framework-go v0.1.6-0.20210127113808-f60b9683e266
 	github.com/igor-pavlenko/httpsignatures-go v0.0.21
 	github.com/piprate/json-gold v0.3.1-0.20201222165305-f4ce31c02ca3
 	github.com/rs/xid v1.2.1
 	github.com/stretchr/testify v1.6.1
-	github.com/trustbloc/edge-core v0.1.6-0.20210121114552-763e3f878b45
+	github.com/trustbloc/edge-core v0.1.6-0.20210127161542-9e174750f523
 	go.opentelemetry.io/otel v0.15.0
 	golang.org/x/net v0.0.0-20201202161906-c7110b5ffcbb
 )

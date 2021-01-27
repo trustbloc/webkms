@@ -1013,7 +1013,6 @@ func (o *Operation) newCompressedZCAP(ctx context.Context, resource, controller 
 		zcapld.WithInvoker(controller),
 		zcapld.WithID(resource),
 		zcapld.WithAllowedActions(allActions()...),
-		zcapld.WithDocumentLoaderCache(o.loaderCache),
 	)
 	if err != nil {
 		return "", fmt.Errorf("failed to create zcap: %w", err)
