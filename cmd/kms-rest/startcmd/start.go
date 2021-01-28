@@ -19,6 +19,7 @@ import (
 	"github.com/hyperledger/aries-framework-go-ext/component/storage/couchdb"
 	"github.com/hyperledger/aries-framework-go/pkg/crypto"
 	"github.com/hyperledger/aries-framework-go/pkg/crypto/tinkcrypto"
+	"github.com/hyperledger/aries-framework-go/pkg/doc/verifiable"
 	arieskms "github.com/hyperledger/aries-framework-go/pkg/kms"
 	"github.com/hyperledger/aries-framework-go/pkg/kms/localkms"
 	"github.com/hyperledger/aries-framework-go/pkg/secretlock"
@@ -740,7 +741,9 @@ func prepareOperationConfig(params *kmsRestParameters) (*operation.Config, error
 		return nil, err
 	}
 
-	authService, err := zcapld.New(localKMS, cryptoService, storageProvider)
+	jsonLDLoader := verifiable.CachingJSONLDLoader()
+
+	authService, err := zcapld.New(localKMS, cryptoService, storageProvider, jsonLDLoader)
 	if err != nil {
 		return nil, err
 	}
@@ -751,19 +754,13 @@ func prepareOperationConfig(params *kmsRestParameters) (*operation.Config, error
 		return nil, err
 	}
 
-	// TODO make configurable
-	cachedLDContext, err := loadLDContext()
-	if err != nil {
-		return nil, fmt.Errorf("failed to load jsonld context: %w", err)
-	}
-
 	return &operation.Config{
 		AuthService:  authService,
 		KMSService:   kmsService,
 		Logger:       log.New("hub-kms/restapi"),
 		Tracer:       otel.Tracer("hub-kms"),
-		CachedLDDocs: cachedLDContext,
 		BaseURL:      params.baseURL,
+		JSONLDLoader: jsonLDLoader,
 		CryptoBoxCreator: func(keyManager arieskms.KeyManager) (arieskms.CryptoBox, error) {
 			return localkms.NewCryptoBox(keyManager)
 		},

@@ -14,6 +14,7 @@ import (
 	"testing"
 
 	"github.com/google/uuid"
+	"github.com/hyperledger/aries-framework-go/pkg/doc/verifiable"
 	mockcrypto "github.com/hyperledger/aries-framework-go/pkg/mock/crypto"
 	mockkms "github.com/hyperledger/aries-framework-go/pkg/mock/kms"
 	mockstorage "github.com/hyperledger/aries-framework-go/pkg/mock/storage"
@@ -30,6 +31,7 @@ func TestNew(t *testing.T) {
 			&mockkms.KeyManager{},
 			&mockcrypto.Crypto{},
 			&mockstorage.MockStoreProvider{ErrOpenStoreHandle: errors.New("test")},
+			verifiable.CachingJSONLDLoader(),
 		)
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "failed to open store")
@@ -42,6 +44,7 @@ func TestService_CreateDIDKey(t *testing.T) {
 			&mockkms.KeyManager{CreateKeyErr: fmt.Errorf("failed to create")},
 			&mockcrypto.Crypto{},
 			&mockstorage.MockStoreProvider{},
+			verifiable.CachingJSONLDLoader(),
 		)
 		require.NoError(t, err)
 
@@ -52,7 +55,13 @@ func TestService_CreateDIDKey(t *testing.T) {
 	})
 
 	t.Run("test success", func(t *testing.T) {
-		svc, err := zcapld.New(&mockkms.KeyManager{}, &mockcrypto.Crypto{}, &mockstorage.MockStoreProvider{})
+		svc, err := zcapld.New(
+			&mockkms.KeyManager{},
+			&mockcrypto.Crypto{},
+			&mockstorage.MockStoreProvider{},
+			verifiable.CachingJSONLDLoader(),
+		)
+
 		require.NoError(t, err)
 
 		didKey, err := svc.CreateDIDKey(context.Background())
@@ -63,7 +72,12 @@ func TestService_CreateDIDKey(t *testing.T) {
 
 func TestService_SignHeader(t *testing.T) {
 	t.Run("test error from parse capability", func(t *testing.T) {
-		svc, err := zcapld.New(&mockkms.KeyManager{}, &mockcrypto.Crypto{}, &mockstorage.MockStoreProvider{})
+		svc, err := zcapld.New(
+			&mockkms.KeyManager{},
+			&mockcrypto.Crypto{},
+			&mockstorage.MockStoreProvider{},
+			verifiable.CachingJSONLDLoader(),
+		)
 		require.NoError(t, err)
 
 		hdr, err := svc.SignHeader(&http.Request{Header: make(map[string][]string)}, []byte(""))
@@ -72,7 +86,12 @@ func TestService_SignHeader(t *testing.T) {
 	})
 
 	t.Run("test error from sign header", func(t *testing.T) {
-		svc, err := zcapld.New(&mockkms.KeyManager{}, &mockcrypto.Crypto{}, &mockstorage.MockStoreProvider{})
+		svc, err := zcapld.New(
+			&mockkms.KeyManager{},
+			&mockcrypto.Crypto{},
+			&mockstorage.MockStoreProvider{},
+			verifiable.CachingJSONLDLoader(),
+		)
 		require.NoError(t, err)
 
 		hdr, err := svc.SignHeader(&http.Request{
@@ -94,6 +113,7 @@ func TestService_NewCapability(t *testing.T) {
 			&mockkms.KeyManager{},
 			&mockcrypto.Crypto{},
 			&mockstorage.MockStoreProvider{Store: &mockstorage.MockStore{Store: make(map[string][]byte)}},
+			verifiable.CachingJSONLDLoader(),
 		)
 		require.NoError(t, err)
 		result, err := svc.NewCapability(
@@ -113,6 +133,7 @@ func TestService_NewCapability(t *testing.T) {
 			&mockkms.KeyManager{CreateKeyErr: errors.New("test")},
 			&mockcrypto.Crypto{},
 			&mockstorage.MockStoreProvider{},
+			verifiable.CachingJSONLDLoader(),
 		)
 		require.NoError(t, err)
 		_, err = svc.NewCapability(context.Background())
@@ -125,6 +146,7 @@ func TestService_NewCapability(t *testing.T) {
 			&mockkms.KeyManager{},
 			&mockcrypto.Crypto{SignErr: errors.New("test")},
 			&mockstorage.MockStoreProvider{},
+			verifiable.CachingJSONLDLoader(),
 		)
 		require.NoError(t, err)
 		_, err = svc.NewCapability(context.Background())
@@ -140,6 +162,7 @@ func TestService_NewCapability(t *testing.T) {
 				Store:  make(map[string][]byte),
 				ErrPut: errors.New("test"),
 			}},
+			verifiable.CachingJSONLDLoader(),
 		)
 		require.NoError(t, err)
 		_, err = svc.NewCapability(context.Background())
@@ -157,6 +180,7 @@ func TestService_Resolve(t *testing.T) {
 			&mockkms.KeyManager{},
 			&mockcrypto.Crypto{},
 			&mockstorage.MockStoreProvider{Store: store},
+			verifiable.CachingJSONLDLoader(),
 		)
 		require.NoError(t, err)
 
@@ -183,6 +207,7 @@ func TestService_Resolve(t *testing.T) {
 				Store:  make(map[string][]byte),
 				ErrGet: errors.New("get error"),
 			}},
+			verifiable.CachingJSONLDLoader(),
 		)
 		require.NoError(t, err)
 

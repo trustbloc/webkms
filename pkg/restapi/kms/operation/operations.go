@@ -133,11 +133,10 @@ type Operation struct {
 	authService      authService
 	kmsService       kms.Service
 	cryptoBoxCreator func(keyManager arieskms.KeyManager) (arieskms.CryptoBox, error)
+	jsonLDLoader     ld.DocumentLoader
 	logger           log.Logger
 	tracer           trace.Tracer
 	baseURL          string
-	cachedLDDocs     map[string]*ld.RemoteDocument
-	loaderCache      map[string]interface{}
 }
 
 // Config defines configuration for KMS operations.
@@ -145,9 +144,9 @@ type Config struct {
 	AuthService      authService
 	KMSService       kms.Service
 	CryptoBoxCreator func(keyManager arieskms.KeyManager) (arieskms.CryptoBox, error)
+	JSONLDLoader     ld.DocumentLoader
 	Logger           log.Logger
 	Tracer           trace.Tracer
-	CachedLDDocs     map[string]*ld.RemoteDocument
 	BaseURL          string
 }
 
@@ -157,20 +156,10 @@ func New(config *Config) (*Operation, error) {
 		authService:      config.AuthService,
 		kmsService:       config.KMSService,
 		cryptoBoxCreator: config.CryptoBoxCreator,
+		jsonLDLoader:     config.JSONLDLoader,
 		logger:           config.Logger,
 		tracer:           config.Tracer,
 		baseURL:          config.BaseURL,
-		cachedLDDocs:     config.CachedLDDocs,
-		loaderCache:      make(map[string]interface{}),
-	}
-
-	for k, v := range config.CachedLDDocs {
-		b, err := json.Marshal(v.Document)
-		if err != nil {
-			return nil, fmt.Errorf("new operation: %w", err)
-		}
-
-		op.loaderCache[k] = string(b)
 	}
 
 	return op, nil
