@@ -16,6 +16,7 @@ import (
 	"time"
 
 	cryptoapi "github.com/hyperledger/aries-framework-go/pkg/crypto"
+	"github.com/hyperledger/aries-framework-go/pkg/doc/signature/jsonld"
 	"github.com/hyperledger/aries-framework-go/pkg/doc/signature/suite"
 	"github.com/hyperledger/aries-framework-go/pkg/doc/signature/suite/ed25519signature2018"
 	"github.com/hyperledger/aries-framework-go/pkg/doc/util/signature"
@@ -23,6 +24,7 @@ import (
 	"github.com/hyperledger/aries-framework-go/pkg/storage"
 	"github.com/hyperledger/aries-framework-go/pkg/vdr/fingerprint"
 	"github.com/igor-pavlenko/httpsignatures-go"
+	"github.com/piprate/json-gold/ld"
 	"github.com/trustbloc/edge-core/pkg/zcapld"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/label"
@@ -35,24 +37,27 @@ const (
 
 // Service to provide zcapld functionality.
 type Service struct {
-	keyManager kms.KeyManager
-	crypto     cryptoapi.Crypto
-	store      storage.Store
+	keyManager   kms.KeyManager
+	crypto       cryptoapi.Crypto
+	store        storage.Store
+	jsonLDLoader ld.DocumentLoader
 }
 
 var tracer = otel.Tracer("hub-kms/zcapld") //nolint:gochecknoglobals // ignore
 
 // New return zcap service.
-func New(keyManager kms.KeyManager, crypto cryptoapi.Crypto, sp storage.Provider) (*Service, error) {
+func New(keyManager kms.KeyManager, crypto cryptoapi.Crypto, sp storage.Provider,
+	jsonLDLoader ld.DocumentLoader) (*Service, error) {
 	store, err := sp.OpenStore(zcapsStoreName)
 	if err != nil {
 		return nil, fmt.Errorf("failed to open store: %w", err)
 	}
 
 	return &Service{
-		keyManager: keyManager,
-		crypto:     crypto,
-		store:      store,
+		keyManager:   keyManager,
+		crypto:       crypto,
+		store:        store,
+		jsonLDLoader: jsonLDLoader,
 	}, nil
 }
 
@@ -130,6 +135,7 @@ func (s *Service) NewCapability(ctx context.Context, options ...zcapld.Capabilit
 			SignatureSuite:     ed25519signature2018.New(suite.WithSigner(signer)),
 			SuiteType:          ed25519signature2018.SignatureType,
 			VerificationMethod: didKeyURL(signer.PublicKeyBytes()),
+			ProcessorOpts:      []jsonld.ProcessorOpts{jsonld.WithDocumentLoader(s.jsonLDLoader)},
 		},
 		options...,
 	)

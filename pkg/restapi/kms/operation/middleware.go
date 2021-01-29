@@ -15,7 +15,6 @@ import (
 	"github.com/hyperledger/aries-framework-go/pkg/crypto"
 	"github.com/hyperledger/aries-framework-go/pkg/doc/signature/suite"
 	"github.com/hyperledger/aries-framework-go/pkg/doc/signature/suite/ed25519signature2018"
-	"github.com/hyperledger/aries-framework-go/pkg/doc/verifiable"
 	"github.com/hyperledger/aries-framework-go/pkg/kms"
 	"github.com/piprate/json-gold/ld"
 	"github.com/trustbloc/edge-core/pkg/log"
@@ -33,10 +32,10 @@ func (o *Operation) ZCAPLDMiddleware(h http.Handler) http.Handler {
 		zcaps:        o.authService,
 		keys:         o.authService.KMS(),
 		crpto:        o.authService.Crypto(),
+		jsonLDLoader: o.jsonLDLoader,
 		logger:       o.logger,
 		routeFunc:    (&muxNamer{}).GetName,
 		baseURL:      o.baseURL,
-		cachedLDDocs: o.cachedLDDocs,
 	}
 }
 
@@ -56,8 +55,8 @@ type mwHandler struct {
 	zcaps        zcapld.CapabilityResolver
 	keys         kms.KeyManager
 	crpto        crypto.Crypto
+	jsonLDLoader ld.DocumentLoader
 	logger       log.Logger
-	cachedLDDocs map[string]*ld.RemoteDocument
 	routeFunc    func(*http.Request) namer
 	baseURL      string
 }
@@ -98,12 +97,6 @@ func (h *mwHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) { //nolint
 		return
 	}
 
-	cachingDL := verifiable.CachingJSONLDLoader()
-
-	for _, d := range h.cachedLDDocs {
-		cachingDL.AddDocument(d.ContextURL, d.Document)
-	}
-
 	span.AddEvent("populating cache for JSON-LD documents completed")
 
 	// TODO make KeyResolver configurable
@@ -116,7 +109,7 @@ func (h *mwHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) { //nolint
 				zcapld.WithSignatureSuites(
 					ed25519signature2018.New(suite.WithVerifier(ed25519signature2018.NewPublicKeyVerifier())),
 				),
-				zcapld.WithLDDocumentLoaders(cachingDL),
+				zcapld.WithLDDocumentLoaders(h.jsonLDLoader),
 			},
 			Secrets:     &zcapld.AriesDIDKeySecrets{},
 			ErrConsumer: h.logError,
