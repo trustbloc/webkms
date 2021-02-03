@@ -12,7 +12,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/trustbloc/edge-core/pkg/log/mocklogger"
 
-	"github.com/trustbloc/hub-kms/pkg/restapi/healthcheck"
+	"github.com/trustbloc/kms/pkg/restapi/healthcheck"
 )
 
 func TestNew(t *testing.T) {

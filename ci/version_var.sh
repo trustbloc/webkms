@@ -10,7 +10,7 @@ BASE_VERSION=0.1.6
 IS_RELEASE=false
 
 # Project Parameters
-SOURCE_REPO=hub-kms
+SOURCE_REPO=kms
 BASE_KMS_PKG_NAME=kms
 RELEASE_REPO=ghcr.io/trustbloc
 SNAPSHOT_REPO=ghcr.io/trustbloc-cicd

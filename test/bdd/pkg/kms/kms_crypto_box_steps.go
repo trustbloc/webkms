@@ -14,7 +14,7 @@ import (
 
 	"github.com/hyperledger/aries-framework-go/pkg/kms/localkms"
 
-	"github.com/trustbloc/hub-kms/test/bdd/pkg/internal/cryptoutil"
+	"github.com/trustbloc/kms/test/bdd/pkg/internal/cryptoutil"
 )
 
 func (s *Steps) makeEasyPayloadReq(userName, endpoint, payload, recipient string) error {

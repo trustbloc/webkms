@@ -61,7 +61,7 @@ func TestStartCmdContents(t *testing.T) {
 
 	require.Equal(t, "start", startCmd.Use)
 	require.Equal(t, "Start kms-rest", startCmd.Short)
-	require.Equal(t, "Start kms-rest inside the hub-kms", startCmd.Long)
+	require.Equal(t, "Start kms-rest inside the kms", startCmd.Long)
 
 	checkFlagPropertiesCorrect(t, startCmd, hostURLFlagName, "", hostURLFlagUsage)
 }

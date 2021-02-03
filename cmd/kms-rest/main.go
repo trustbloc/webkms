@@ -23,7 +23,7 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/trustbloc/edge-core/pkg/log"
 
-	"github.com/trustbloc/hub-kms/cmd/kms-rest/startcmd"
+	"github.com/trustbloc/kms/cmd/kms-rest/startcmd"
 )
 
 func main() {

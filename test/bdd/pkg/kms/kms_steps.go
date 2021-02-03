@@ -27,10 +27,10 @@ import (
 	"github.com/trustbloc/edge-core/pkg/zcapld"
 	authbddctx "github.com/trustbloc/hub-auth/test/bdd/pkg/context"
 
-	zcapld2 "github.com/trustbloc/hub-kms/pkg/auth/zcapld"
-	"github.com/trustbloc/hub-kms/pkg/restapi/kms/operation"
-	"github.com/trustbloc/hub-kms/test/bdd/pkg/context"
-	"github.com/trustbloc/hub-kms/test/bdd/pkg/internal/cryptoutil"
+	zcapld2 "github.com/trustbloc/kms/pkg/auth/zcapld"
+	"github.com/trustbloc/kms/pkg/restapi/kms/operation"
+	"github.com/trustbloc/kms/test/bdd/pkg/context"
+	"github.com/trustbloc/kms/test/bdd/pkg/internal/cryptoutil"
 )
 
 const (

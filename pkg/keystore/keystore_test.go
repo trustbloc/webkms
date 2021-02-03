@@ -18,7 +18,7 @@ import (
 	mockstorage "github.com/hyperledger/aries-framework-go/pkg/mock/storage"
 	"github.com/stretchr/testify/require"
 
-	"github.com/trustbloc/hub-kms/pkg/keystore"
+	"github.com/trustbloc/kms/pkg/keystore"
 )
 
 const testKeyID = "testKeyID"

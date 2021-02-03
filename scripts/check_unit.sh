@@ -21,14 +21,14 @@ if [ -f profile.out ]; then
 fi
 }
 
-# Running hub-kms unit tests
-PKGS=$(go list github.com/trustbloc/hub-kms/... 2> /dev/null | grep -v /mocks)
+# Running kms unit tests
+PKGS=$(go list github.com/trustbloc/kms/... 2> /dev/null | grep -v /mocks)
 $GO_TEST_CMD $PKGS -count=1 -race -coverprofile=profile.out -covermode=atomic -timeout=10m
 amend_coverage_file
 
 # Running kms-rest unit tests
 cd cmd/kms-rest
-PKGS=$(go list github.com/trustbloc/hub-kms/cmd/kms-rest/... 2> /dev/null | grep -v /mocks)
+PKGS=$(go list github.com/trustbloc/kms/cmd/kms-rest/... 2> /dev/null | grep -v /mocks)
 $GO_TEST_CMD $PKGS -count=1 -race -coverprofile=profile.out -covermode=atomic -timeout=10m
 amend_coverage_file
 cd "$ROOT" || exit

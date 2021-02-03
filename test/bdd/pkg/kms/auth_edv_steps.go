@@ -20,7 +20,7 @@ import (
 	"github.com/trustbloc/edv/pkg/restapi/models"
 	authlogin "github.com/trustbloc/hub-auth/test/bdd/pkg/login"
 
-	"github.com/trustbloc/hub-kms/test/bdd/pkg/internal/cryptoutil"
+	"github.com/trustbloc/kms/test/bdd/pkg/internal/cryptoutil"
 )
 
 const (

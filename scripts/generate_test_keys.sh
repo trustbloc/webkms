@@ -6,9 +6,9 @@
 #
 set -e
 
-echo "Generating hub-kms Test PKI"
+echo "Generating kms Test PKI"
 
-cd /opt/workspace/hub-kms
+cd /opt/workspace/kms
 mkdir -p test/bdd/fixtures/keys/tls
 tmp=$(mktemp)
 echo "subjectKeyIdentifier=hash
@@ -40,4 +40,4 @@ openssl rand -out test/bdd/fixtures/keys/session_cookies/enc.key 32
 #create master key for secret lock
 openssl rand 32 | base64 | sed 's/+/-/g; s/\//_/g' > test/bdd/fixtures/keys/tls/secret-lock.key
 
-echo "done generating hub-kms PKI"
+echo "done generating kms PKI"

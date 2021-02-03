@@ -19,8 +19,8 @@ import (
 	"github.com/trustbloc/edge-core/pkg/log/mocklogger"
 	"github.com/trustbloc/edge-core/pkg/zcapld"
 
-	mockkms "github.com/trustbloc/hub-kms/pkg/internal/mock/kms"
-	"github.com/trustbloc/hub-kms/pkg/kms"
+	mockkms "github.com/trustbloc/kms/pkg/internal/mock/kms"
+	"github.com/trustbloc/kms/pkg/kms"
 )
 
 func TestMiddleware(t *testing.T) {

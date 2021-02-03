@@ -24,7 +24,7 @@ import (
 	"github.com/trustbloc/edge-core/pkg/sss"
 	"github.com/trustbloc/edge-core/pkg/sss/base"
 
-	"github.com/trustbloc/hub-kms/pkg/internal/support"
+	"github.com/trustbloc/kms/pkg/internal/support"
 )
 
 const (
@@ -55,7 +55,7 @@ func New(secret []byte, params *HubAuthParams, options ...Option) (secretlock.Se
 	opts := &Options{
 		httpClient:     http.DefaultClient,
 		secretSplitter: &base.Splitter{},
-		logger:         log.New("hub-kms/secretsplitlock"),
+		logger:         log.New("kms/secretsplitlock"),
 	}
 
 	for i := range options {

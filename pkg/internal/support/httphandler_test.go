@@ -13,7 +13,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	"github.com/trustbloc/hub-kms/pkg/internal/support"
+	"github.com/trustbloc/kms/pkg/internal/support"
 )
 
 func TestNewHTTPHandler(t *testing.T) {

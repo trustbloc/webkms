@@ -24,8 +24,8 @@ import (
 	"github.com/trustbloc/edge-core/pkg/log/mocklogger"
 	"github.com/trustbloc/edge-core/pkg/sss"
 
-	"github.com/trustbloc/hub-kms/pkg/internal/support"
-	"github.com/trustbloc/hub-kms/pkg/secretlock/secretsplitlock"
+	"github.com/trustbloc/kms/pkg/internal/support"
+	"github.com/trustbloc/kms/pkg/secretlock/secretsplitlock"
 )
 
 func TestNew(t *testing.T) {

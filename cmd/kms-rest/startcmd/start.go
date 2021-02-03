@@ -39,13 +39,13 @@ import (
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
 	"go.opentelemetry.io/otel/trace"
 
-	"github.com/trustbloc/hub-kms/pkg/auth/zcapld"
-	"github.com/trustbloc/hub-kms/pkg/kms"
-	"github.com/trustbloc/hub-kms/pkg/restapi/healthcheck"
-	"github.com/trustbloc/hub-kms/pkg/restapi/kms/operation"
-	lock "github.com/trustbloc/hub-kms/pkg/secretlock"
-	"github.com/trustbloc/hub-kms/pkg/storage/cache"
-	"github.com/trustbloc/hub-kms/pkg/storage/edv"
+	"github.com/trustbloc/kms/pkg/auth/zcapld"
+	"github.com/trustbloc/kms/pkg/kms"
+	"github.com/trustbloc/kms/pkg/restapi/healthcheck"
+	"github.com/trustbloc/kms/pkg/restapi/kms/operation"
+	lock "github.com/trustbloc/kms/pkg/secretlock"
+	"github.com/trustbloc/kms/pkg/storage/cache"
+	"github.com/trustbloc/kms/pkg/storage/edv"
 )
 
 const (
@@ -267,7 +267,7 @@ func createStartCmd(srv Server) *cobra.Command {
 	return &cobra.Command{
 		Use:   "start",
 		Short: "Start kms-rest",
-		Long:  "Start kms-rest inside the hub-kms",
+		Long:  "Start kms-rest inside the kms",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			parameters, err := getKmsRestParameters(cmd)
 			if err != nil {
@@ -636,7 +636,7 @@ func startKmsService(params *kmsRestParameters, srv Server) error { //nolint:fun
 	router := mux.NewRouter()
 
 	// add health check API handlers
-	healthCheckLogger := log.New("hub-kms/healthcheck")
+	healthCheckLogger := log.New("kms/healthcheck")
 	healthCheckService := healthcheck.New(healthCheckLogger)
 
 	for _, handler := range healthCheckService.GetOperations() {
@@ -709,7 +709,7 @@ func initTracer(jaegerURL string) (func(), error) {
 	return jaeger.InstallNewPipeline(
 		jaeger.WithCollectorEndpoint(jaegerURL),
 		jaeger.WithProcess(jaeger.Process{
-			ServiceName: "hub-kms",
+			ServiceName: "kms",
 		}),
 		jaeger.WithSDK(&sdktrace.Config{DefaultSampler: sdktrace.AlwaysSample()}),
 	)
@@ -757,8 +757,8 @@ func prepareOperationConfig(params *kmsRestParameters) (*operation.Config, error
 	return &operation.Config{
 		AuthService:  authService,
 		KMSService:   kmsService,
-		Logger:       log.New("hub-kms/restapi"),
-		Tracer:       otel.Tracer("hub-kms"),
+		Logger:       log.New("kms/restapi"),
+		Tracer:       otel.Tracer("kms"),
 		BaseURL:      params.baseURL,
 		JSONLDLoader: jsonLDLoader,
 		CryptoBoxCreator: func(keyManager arieskms.KeyManager) (arieskms.CryptoBox, error) {

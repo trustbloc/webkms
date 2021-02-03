@@ -23,7 +23,7 @@ import (
 	"go.opentelemetry.io/otel/label"
 )
 
-var tracer = otel.Tracer("hub-kms/operation") //nolint:gochecknoglobals // ignore
+var tracer = otel.Tracer("kms/operation") //nolint:gochecknoglobals // ignore
 
 // ZCAPLDMiddleware returns the ZCAPLD middleware that authorizes requests.
 func (o *Operation) ZCAPLDMiddleware(h http.Handler) http.Handler {

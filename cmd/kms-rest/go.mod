@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-module github.com/trustbloc/hub-kms/cmd/kms-rest
+module github.com/trustbloc/kms/cmd/kms-rest
 
 go 1.15
 
@@ -14,7 +14,7 @@ require (
 	github.com/spf13/cobra v1.1.1
 	github.com/stretchr/testify v1.6.1
 	github.com/trustbloc/edge-core v0.1.6-0.20210127161542-9e174750f523
-	github.com/trustbloc/hub-kms v0.0.0-00010101000000-000000000000
+	github.com/trustbloc/kms v0.0.0-00010101000000-000000000000
 	go.opentelemetry.io/otel v0.15.0
 	go.opentelemetry.io/otel/exporters/trace/jaeger v0.15.0
 	go.opentelemetry.io/otel/sdk v0.15.0
@@ -23,4 +23,4 @@ require (
 	google.golang.org/api v0.36.0 // indirect
 )
 
-replace github.com/trustbloc/hub-kms => ../..
+replace github.com/trustbloc/kms => ../..

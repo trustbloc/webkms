@@ -20,7 +20,7 @@ import (
 	"github.com/hyperledger/aries-framework-go/pkg/crypto"
 	"github.com/stretchr/testify/require"
 
-	mockkms "github.com/trustbloc/hub-kms/pkg/internal/mock/kms"
+	mockkms "github.com/trustbloc/kms/pkg/internal/mock/kms"
 )
 
 func TestWrapHandler(t *testing.T) {

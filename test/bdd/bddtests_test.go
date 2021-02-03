@@ -18,12 +18,12 @@ import (
 	"github.com/cucumber/godog"
 	authbddctx "github.com/trustbloc/hub-auth/test/bdd/pkg/context"
 
-	"github.com/trustbloc/hub-kms/test/bdd/dockerutil"
-	"github.com/trustbloc/hub-kms/test/bdd/pkg/common"
-	"github.com/trustbloc/hub-kms/test/bdd/pkg/context"
-	"github.com/trustbloc/hub-kms/test/bdd/pkg/healthcheck"
-	"github.com/trustbloc/hub-kms/test/bdd/pkg/keystore"
-	"github.com/trustbloc/hub-kms/test/bdd/pkg/kms"
+	"github.com/trustbloc/kms/test/bdd/dockerutil"
+	"github.com/trustbloc/kms/test/bdd/pkg/common"
+	"github.com/trustbloc/kms/test/bdd/pkg/context"
+	"github.com/trustbloc/kms/test/bdd/pkg/healthcheck"
+	"github.com/trustbloc/kms/test/bdd/pkg/keystore"
+	"github.com/trustbloc/kms/test/bdd/pkg/kms"
 )
 
 const (
@@ -66,7 +66,7 @@ func TestMain(m *testing.M) {
 
 func runBDDTests(tags, format string) int {
 	return godog.TestSuite{
-		Name:                 "hub-kms test suite",
+		Name:                 "kms test suite",
 		TestSuiteInitializer: initializeTestSuite,
 		ScenarioInitializer:  initializeScenario,
 		Options:              buildOptions(tags, format),

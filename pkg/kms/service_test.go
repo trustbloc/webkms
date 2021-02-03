@@ -30,8 +30,8 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/trustbloc/edge-core/pkg/sss/base"
 
-	"github.com/trustbloc/hub-kms/pkg/kms"
-	lock "github.com/trustbloc/hub-kms/pkg/secretlock"
+	"github.com/trustbloc/kms/pkg/kms"
+	lock "github.com/trustbloc/kms/pkg/secretlock"
 )
 
 const (

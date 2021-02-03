@@ -43,7 +43,7 @@ type Service struct {
 	jsonLDLoader ld.DocumentLoader
 }
 
-var tracer = otel.Tracer("hub-kms/zcapld") //nolint:gochecknoglobals // ignore
+var tracer = otel.Tracer("kms/zcapld") //nolint:gochecknoglobals // ignore
 
 // New return zcap service.
 func New(keyManager kms.KeyManager, crypto cryptoapi.Crypto, sp storage.Provider,

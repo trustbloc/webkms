@@ -56,7 +56,7 @@ type Config struct {
 	MACKeyID       string
 }
 
-var tracer = otel.Tracer("hub-kms/edv") //nolint:gochecknoglobals // ignore
+var tracer = otel.Tracer("kms/edv") //nolint:gochecknoglobals // ignore
 
 // NewStorageProvider returns a new EDV storage provider instance.
 func NewStorageProvider(ctx context.Context, c *Config) (storage.Provider, error) {
