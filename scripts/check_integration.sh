@@ -7,7 +7,7 @@
 set -e
 
 
-echo "Running hub-kms integration tests..."
+echo "Running kms integration tests..."
 
 PWD=$(pwd)
 

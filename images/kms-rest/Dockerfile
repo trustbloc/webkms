@@ -15,17 +15,17 @@ RUN apk add --no-cache \
 	libtool \
 	bash \
 	make;
-ADD . src/github.com/trustbloc/hub-kms
-WORKDIR src/github.com/trustbloc/hub-kms
+ADD . src/github.com/trustbloc/kms
+WORKDIR src/github.com/trustbloc/kms
 ENV EXECUTABLES go git
 
-FROM golang as hub-kms
+FROM golang as kms
 RUN make kms-rest
 
 FROM alpine:${ALPINE_VER} as base
 LABEL org.opencontainers.image.source https://github.com/trustbloc/kms
 
-COPY --from=hub-kms /go/src/github.com/trustbloc/hub-kms/.build/bin/kms-rest /usr/local/bin
+COPY --from=kms /go/src/github.com/trustbloc/kms/.build/bin/kms-rest /usr/local/bin
 
 # set up nsswitch.conf for Go's "netgo" implementation
 # - https://github.com/golang/go/blob/go1.9.1/src/net/conf.go#L194-L275

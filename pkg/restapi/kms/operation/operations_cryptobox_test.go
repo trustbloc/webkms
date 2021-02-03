@@ -19,7 +19,7 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/stretchr/testify/require"
 
-	mockkms "github.com/trustbloc/hub-kms/pkg/internal/mock/kms"
+	mockkms "github.com/trustbloc/kms/pkg/internal/mock/kms"
 )
 
 const (

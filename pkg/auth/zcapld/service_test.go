@@ -22,7 +22,7 @@ import (
 	zcapld2 "github.com/trustbloc/edge-core/pkg/zcapld"
 	"golang.org/x/net/context"
 
-	"github.com/trustbloc/hub-kms/pkg/auth/zcapld"
+	"github.com/trustbloc/kms/pkg/auth/zcapld"
 )
 
 func TestNew(t *testing.T) {

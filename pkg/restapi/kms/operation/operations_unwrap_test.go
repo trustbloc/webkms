@@ -20,8 +20,8 @@ import (
 	"github.com/hyperledger/aries-framework-go/pkg/crypto"
 	"github.com/stretchr/testify/require"
 
-	"github.com/trustbloc/hub-kms/pkg/internal/mock/keystore"
-	mockkms "github.com/trustbloc/hub-kms/pkg/internal/mock/kms"
+	"github.com/trustbloc/kms/pkg/internal/mock/keystore"
+	mockkms "github.com/trustbloc/kms/pkg/internal/mock/kms"
 )
 
 func TestUnwrapHandler(t *testing.T) {

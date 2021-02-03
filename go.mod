@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-module github.com/trustbloc/hub-kms
+module github.com/trustbloc/kms
 
 go 1.15
 

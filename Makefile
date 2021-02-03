@@ -61,8 +61,8 @@ kms-docker:
 generate-test-keys: clean
 	@mkdir -p -p test/bdd/fixtures/keys/tls
 	@docker run -i --rm \
-		-v $(abspath .):/opt/workspace/hub-kms \
-		--entrypoint "/opt/workspace/hub-kms/scripts/generate_test_keys.sh" \
+		-v $(abspath .):/opt/workspace/kms \
+		--entrypoint "/opt/workspace/kms/scripts/generate_test_keys.sh" \
 		frapsoft/openssl
 
 .PHONY: generate-openapi-spec

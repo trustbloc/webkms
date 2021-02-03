@@ -46,7 +46,7 @@ func NewProvider(opts ...Option) *Provider {
 	o := &Options{
 		gcCreator: func() GCache { return gcache.New(0).Build() },
 		exp:       cacheExpMinutes * time.Minute,
-		logger:    log.New("hub-kms/cache"),
+		logger:    log.New("kms/cache"),
 	}
 
 	for i := range opts {

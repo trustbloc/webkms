@@ -16,7 +16,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/trustbloc/edge-core/pkg/log/mocklogger"
 
-	"github.com/trustbloc/hub-kms/pkg/storage/cache"
+	"github.com/trustbloc/kms/pkg/storage/cache"
 )
 
 const (

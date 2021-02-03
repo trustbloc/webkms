@@ -13,7 +13,7 @@ import (
 
 	"github.com/hyperledger/aries-framework-go/pkg/crypto"
 
-	"github.com/trustbloc/hub-kms/pkg/keystore"
+	"github.com/trustbloc/kms/pkg/keystore"
 )
 
 // Service manages key stores data and provides support for crypto operations.

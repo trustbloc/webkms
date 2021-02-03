@@ -9,7 +9,7 @@ package healthcheck
 import (
 	"github.com/trustbloc/edge-core/pkg/log"
 
-	"github.com/trustbloc/hub-kms/pkg/restapi/healthcheck/operation"
+	"github.com/trustbloc/kms/pkg/restapi/healthcheck/operation"
 )
 
 // Controller contains handlers for controller.

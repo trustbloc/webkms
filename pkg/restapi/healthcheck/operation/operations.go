@@ -13,7 +13,7 @@ import (
 
 	"github.com/trustbloc/edge-core/pkg/log"
 
-	"github.com/trustbloc/hub-kms/pkg/internal/support"
+	"github.com/trustbloc/kms/pkg/internal/support"
 )
 
 const (

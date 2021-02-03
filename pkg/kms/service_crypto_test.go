@@ -18,7 +18,7 @@ import (
 	mockstorage "github.com/hyperledger/aries-framework-go/pkg/mock/storage"
 	"github.com/stretchr/testify/require"
 
-	"github.com/trustbloc/hub-kms/pkg/kms"
+	"github.com/trustbloc/kms/pkg/kms"
 )
 
 func TestSign(t *testing.T) {

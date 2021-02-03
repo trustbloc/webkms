@@ -28,10 +28,10 @@ import (
 	"go.opentelemetry.io/otel/oteltest"
 	"go.opentelemetry.io/otel/trace"
 
-	"github.com/trustbloc/hub-kms/pkg/internal/mock/keystore"
-	mockkms "github.com/trustbloc/hub-kms/pkg/internal/mock/kms"
-	"github.com/trustbloc/hub-kms/pkg/kms"
-	"github.com/trustbloc/hub-kms/pkg/restapi/kms/operation"
+	"github.com/trustbloc/kms/pkg/internal/mock/keystore"
+	mockkms "github.com/trustbloc/kms/pkg/internal/mock/kms"
+	"github.com/trustbloc/kms/pkg/kms"
+	"github.com/trustbloc/kms/pkg/restapi/kms/operation"
 )
 
 const (

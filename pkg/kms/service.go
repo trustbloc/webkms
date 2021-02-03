@@ -23,11 +23,11 @@ import (
 	"github.com/hyperledger/aries-framework-go/pkg/storage"
 	"github.com/rs/xid"
 
-	"github.com/trustbloc/hub-kms/pkg/internal/support"
-	"github.com/trustbloc/hub-kms/pkg/keystore"
-	lock "github.com/trustbloc/hub-kms/pkg/secretlock"
-	"github.com/trustbloc/hub-kms/pkg/secretlock/secretsplitlock"
-	"github.com/trustbloc/hub-kms/pkg/storage/edv"
+	"github.com/trustbloc/kms/pkg/internal/support"
+	"github.com/trustbloc/kms/pkg/keystore"
+	lock "github.com/trustbloc/kms/pkg/secretlock"
+	"github.com/trustbloc/kms/pkg/secretlock/secretsplitlock"
+	"github.com/trustbloc/kms/pkg/storage/edv"
 )
 
 const (

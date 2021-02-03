@@ -16,7 +16,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/trustbloc/edge-core/pkg/log/mocklogger"
 
-	"github.com/trustbloc/hub-kms/pkg/restapi/healthcheck/operation"
+	"github.com/trustbloc/kms/pkg/restapi/healthcheck/operation"
 )
 
 type failingResponseWriter struct {

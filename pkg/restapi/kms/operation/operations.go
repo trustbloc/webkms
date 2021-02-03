@@ -25,9 +25,9 @@ import (
 	"go.opentelemetry.io/otel/label"
 	"go.opentelemetry.io/otel/trace"
 
-	zcapld2 "github.com/trustbloc/hub-kms/pkg/auth/zcapld"
-	"github.com/trustbloc/hub-kms/pkg/internal/support"
-	"github.com/trustbloc/hub-kms/pkg/kms"
+	zcapld2 "github.com/trustbloc/kms/pkg/auth/zcapld"
+	"github.com/trustbloc/kms/pkg/internal/support"
+	"github.com/trustbloc/kms/pkg/kms"
 )
 
 const (
@@ -165,7 +165,7 @@ func New(config *Config) (*Operation, error) {
 	return op, nil
 }
 
-// GetRESTHandlers gets handlers available for the hub-kms REST API.
+// GetRESTHandlers gets handlers available for the kms REST API.
 func (o *Operation) GetRESTHandlers() []Handler {
 	return []Handler{
 		support.NewHTTPHandler(keystoresEndpoint, keystoresEndpoint, http.MethodPost, o.createKeystoreHandler),
@@ -291,7 +291,7 @@ func (o *Operation) createKeyHandler(rw http.ResponseWriter, req *http.Request) 
 	rw.Header().Set("Location", location)
 	rw.WriteHeader(http.StatusCreated)
 
-	// refer - https://github.com/trustbloc/hub-kms/issues/114
+	// refer - https://github.com/trustbloc/kms/issues/114
 	o.writeResponse(rw, createKeyResp{
 		Location: location,
 	})

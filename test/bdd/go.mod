@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-module github.com/trustbloc/hub-kms/test/bdd
+module github.com/trustbloc/kms/test/bdd
 
 go 1.15
 
@@ -17,11 +17,11 @@ require (
 	github.com/trustbloc/edv v0.1.5
 	github.com/trustbloc/hub-auth v0.1.5 // indirect
 	github.com/trustbloc/hub-auth/test/bdd v0.0.0-20201208022224-413a3517d5d5
-	github.com/trustbloc/hub-kms v0.0.0-00010101000000-000000000000
+	github.com/trustbloc/kms v0.0.0-00010101000000-000000000000
 )
 
 replace (
-	github.com/trustbloc/hub-kms => ../..
+	github.com/trustbloc/kms => ../..
 	// https://github.com/ory/dockertest/issues/208#issuecomment-686820414
 	golang.org/x/sys => golang.org/x/sys v0.0.0-20200826173525-f9321e4c35a6
 )

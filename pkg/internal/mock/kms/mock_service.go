@@ -11,8 +11,8 @@ import (
 
 	mockcrypto "github.com/hyperledger/aries-framework-go/pkg/mock/crypto"
 
-	"github.com/trustbloc/hub-kms/pkg/keystore"
-	"github.com/trustbloc/hub-kms/pkg/kms"
+	"github.com/trustbloc/kms/pkg/keystore"
+	"github.com/trustbloc/kms/pkg/kms"
 )
 
 var _ kms.Service = (*MockService)(nil)

@@ -18,7 +18,7 @@ import (
 	ariesstorage "github.com/hyperledger/aries-framework-go/pkg/storage"
 	"github.com/stretchr/testify/require"
 
-	lock "github.com/trustbloc/hub-kms/pkg/secretlock"
+	lock "github.com/trustbloc/kms/pkg/secretlock"
 )
 
 const (

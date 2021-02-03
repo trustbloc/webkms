@@ -21,8 +21,8 @@ import (
 	authbddctx "github.com/trustbloc/hub-auth/test/bdd/pkg/context"
 	authlogin "github.com/trustbloc/hub-auth/test/bdd/pkg/login"
 
-	"github.com/trustbloc/hub-kms/test/bdd/pkg/context"
-	"github.com/trustbloc/hub-kms/test/bdd/pkg/internal/bddutil"
+	"github.com/trustbloc/kms/test/bdd/pkg/context"
+	"github.com/trustbloc/kms/test/bdd/pkg/internal/bddutil"
 )
 
 const (
