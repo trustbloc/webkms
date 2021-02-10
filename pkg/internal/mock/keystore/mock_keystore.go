@@ -14,13 +14,16 @@ import (
 
 // MockKeystore is a mock Keystore.
 type MockKeystore struct {
-	CreateKeyValue    string
-	ExportKeyValue    []byte
-	GetKeyHandleValue *keyset.Handle
-	KeyManagerValue   *mockkms.KeyManager
-	CreateKeyErr      error
-	ExportKeyErr      error
-	GetKeyHandleErr   error
+	CreateKeyValue             string
+	ExportKeyValue             []byte
+	CreateAndExportKeyID       string
+	CreateAndExportPubKeyValue []byte
+	GetKeyHandleValue          *keyset.Handle
+	KeyManagerValue            *mockkms.KeyManager
+	CreateKeyErr               error
+	ExportKeyErr               error
+	CreateAndExportKeyErr      error
+	GetKeyHandleErr            error
 }
 
 // CreateKey creates a new key.
@@ -39,6 +42,15 @@ func (m *MockKeystore) ExportKey(keyID string) ([]byte, error) {
 	}
 
 	return m.ExportKeyValue, nil
+}
+
+// CreateAndExportKey creates a new key and exports its public part.
+func (m *MockKeystore) CreateAndExportKey(kt kms.KeyType) (string, []byte, error) {
+	if m.CreateAndExportKeyErr != nil {
+		return "", nil, m.CreateAndExportKeyErr
+	}
+
+	return m.CreateAndExportKeyID, m.CreateAndExportPubKeyValue, nil
 }
 
 // GetKeyHandle retrieves key handle by keyID.

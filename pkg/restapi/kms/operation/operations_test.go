@@ -64,6 +64,11 @@ const (
 	  "keyType": "%s"
 	}`
 
+	createAndExportKeyReqFormat = `{
+	  "keyType": "%s",
+	  "export": true
+	}`
+
 	signReqFormat = `{
 	  "message": "%s"
 	}`
@@ -278,6 +283,23 @@ func TestCreateKeyHandler(t *testing.T) {
 		require.NotEmpty(t, rr.Header().Get("Location"))
 	})
 
+	t.Run("Success (create and export key)", func(t *testing.T) {
+		svc := mockKMSService()
+		svc.ResolveKeystoreValue = &keystore.MockKeystore{
+			CreateAndExportPubKeyValue: []byte("public key bytes"),
+		}
+
+		op := newOperation(t, newConfig(withKMSService(svc)))
+		handler := getHandler(t, op, keysEndpoint, http.MethodPost)
+
+		rr := httptest.NewRecorder()
+		handler.Handle().ServeHTTP(rr, buildCreateAndExportKeyReq(t))
+
+		require.Equal(t, http.StatusCreated, rr.Code)
+		require.NotEmpty(t, rr.Header().Get("Location"))
+		require.Contains(t, rr.Body.String(), base64.URLEncoding.EncodeToString([]byte("public key bytes")))
+	})
+
 	t.Run("Received bad request", func(t *testing.T) {
 		req, err := http.NewRequestWithContext(context.Background(), http.MethodPost, "", bytes.NewBuffer([]byte("")))
 		require.NoError(t, err)
@@ -317,6 +339,22 @@ func TestCreateKeyHandler(t *testing.T) {
 
 		require.Equal(t, http.StatusInternalServerError, rr.Code)
 		require.Contains(t, rr.Body.String(), "Failed to create a key: create key error")
+	})
+
+	t.Run("Failed to create and export a key", func(t *testing.T) {
+		svc := &mockkms.MockService{}
+		svc.ResolveKeystoreValue = &keystore.MockKeystore{
+			CreateAndExportKeyErr: errors.New("create and export key error"),
+		}
+
+		op := newOperation(t, newConfig(withKMSService(svc)))
+		handler := getHandler(t, op, keysEndpoint, http.MethodPost)
+
+		rr := httptest.NewRecorder()
+		handler.Handle().ServeHTTP(rr, buildCreateAndExportKeyReq(t))
+
+		require.Equal(t, http.StatusInternalServerError, rr.Code)
+		require.Contains(t, rr.Body.String(), "Failed to create and export a key: create and export key error")
 	})
 }
 
@@ -1100,6 +1138,20 @@ func buildCreateKeyReq(t *testing.T) *http.Request {
 	t.Helper()
 
 	payload := fmt.Sprintf(createKeyReqFormat, "ED25519")
+	req, err := http.NewRequestWithContext(context.Background(), http.MethodPost, "", bytes.NewBuffer([]byte(payload)))
+	require.NoError(t, err)
+
+	req = mux.SetURLVars(req, map[string]string{
+		"keystoreID": testKeystoreID,
+	})
+
+	return req
+}
+
+func buildCreateAndExportKeyReq(t *testing.T) *http.Request {
+	t.Helper()
+
+	payload := fmt.Sprintf(createAndExportKeyReqFormat, "ED25519")
 	req, err := http.NewRequestWithContext(context.Background(), http.MethodPost, "", bytes.NewBuffer([]byte(payload)))
 	require.NoError(t, err)
 

@@ -94,6 +94,31 @@ func TestExportKey(t *testing.T) {
 	})
 }
 
+func TestCreateAndExportKey(t *testing.T) {
+	t.Run("Success", func(t *testing.T) {
+		k := newKeystore(t, &mockkms.KeyManager{
+			CrAndExportPubKeyID:    testKeyID,
+			CrAndExportPubKeyValue: []byte("public key bytes"),
+		})
+
+		keyID, b, err := k.CreateAndExportKey(kms.ED25519)
+
+		require.NotEmpty(t, keyID)
+		require.NotNil(t, b)
+		require.NoError(t, err)
+	})
+
+	t.Run("Failed to create and export a key", func(t *testing.T) {
+		k := newKeystore(t, &mockkms.KeyManager{CrAndExportPubKeyErr: errors.New("create and export key error")})
+
+		keyID, b, err := k.CreateAndExportKey(kms.ED25519)
+
+		require.Empty(t, keyID)
+		require.Nil(t, b)
+		require.Error(t, err)
+	})
+}
+
 func TestGetKeyHandle(t *testing.T) {
 	t.Run("Success", func(t *testing.T) {
 		key, err := keyset.NewHandle(signature.ED25519KeyTemplate())

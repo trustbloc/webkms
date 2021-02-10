@@ -19,11 +19,13 @@ type UpdateCapabilityReq struct {
 }
 
 type createKeyReq struct {
-	KeyType string `json:"keyType"`
+	KeyType   string `json:"keyType"`
+	ExportKey bool   `json:"export,omitempty"`
 }
 
 type createKeyResp struct {
-	Location string `json:"location"`
+	Location  string `json:"location"`
+	PublicKey string `json:"publicKey,omitempty"`
 }
 
 type exportKeyResp struct {

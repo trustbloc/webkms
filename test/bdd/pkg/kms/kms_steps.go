@@ -84,6 +84,8 @@ func (s *Steps) RegisterSteps(ctx *godog.ScenarioContext) {
 	// create/export key steps
 	ctx.Step(`^"([^"]*)" makes an HTTP POST to "([^"]*)" to create "([^"]*)" key$`, s.makeCreateKeyReq)
 	ctx.Step(`^"([^"]*)" makes an HTTP GET to "([^"]*)" to export public key$`, s.makeExportPubKeyReq)
+	ctx.Step(`^"([^"]*)" makes an HTTP POST to "([^"]*)" to create and export "([^"]*)" key$`,
+		s.makeCreateAndExportKeyReq)
 	// sign/verify message steps
 	ctx.Step(`^"([^"]*)" makes an HTTP POST to "([^"]*)" to sign "([^"]*)"$`, s.makeSignMessageReq)
 	ctx.Step(`^"([^"]*)" makes an HTTP POST to "([^"]*)" to verify "([^"]*)" for "([^"]*)"$`, s.makeVerifySignatureReq)
@@ -303,6 +305,60 @@ func (s *Steps) makeExportPubKeyReq(userName, endpoint string) error {
 	}
 
 	u.data = map[string]string{
+		"publicKey": string(publicKey),
+	}
+
+	return nil
+}
+
+func (s *Steps) makeCreateAndExportKeyReq(user, endpoint, keyType string) error {
+	u := s.users[user]
+
+	r := &createKeyReq{
+		KeyType:   keyType,
+		ExportKey: true,
+	}
+
+	request, err := u.preparePostRequest(r, endpoint)
+	if err != nil {
+		return err
+	}
+
+	err = u.SetCapabilityInvocation(request, actionCreateKey)
+	if err != nil {
+		return fmt.Errorf("failed to set capability invocation: %w", err)
+	}
+
+	err = u.Sign(request)
+	if err != nil {
+		return fmt.Errorf("user failed to sign http message: %w", err)
+	}
+
+	response, err := s.httpClient.Do(request)
+	if err != nil {
+		return fmt.Errorf("http do: %w", err)
+	}
+
+	defer func() {
+		closeErr := response.Body.Close()
+		if closeErr != nil {
+			s.logger.Errorf("Failed to close response body: %s\n", closeErr.Error())
+		}
+	}()
+
+	var createKeyResponse createKeyResp
+
+	if respErr := u.processResponse(&createKeyResponse, response); respErr != nil {
+		return respErr
+	}
+
+	publicKey, err := base64.URLEncoding.DecodeString(createKeyResponse.PublicKey)
+	if err != nil {
+		return err
+	}
+
+	u.data = map[string]string{
+		"location":  createKeyResponse.Location,
 		"publicKey": string(publicKey),
 	}
 
