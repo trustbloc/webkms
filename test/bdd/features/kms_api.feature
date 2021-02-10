@@ -31,6 +31,14 @@ Feature: KMS and crypto operations
     Then  "Bob" gets a response with HTTP status "200 OK"
      And  "Bob" gets a response with non-empty "publicKey"
 
+  Scenario: User creates and exports a key
+    Given "Alice" has created an empty keystore on Key Server
+
+    When  "Alice" makes an HTTP POST to "https://localhost:4466/kms/keystores/{keystoreID}/keys" to create and export "ED25519" key
+    Then  "Alice" gets a response with HTTP status "201 Created"
+     And  "Alice" gets a response with "Location" header with a valid URL
+     And  "Alice" gets a response with non-empty "publicKey"
+
   Scenario: User signs a message and verifies a signature
     Given "Alice" has created a keystore with "ED25519" key on Key Server
 

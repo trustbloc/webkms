@@ -72,22 +72,23 @@ const (
 	sealOpenEndpoint = keystoreEndpoint + sealOpenPath
 
 	// Error messages.
-	receivedBadRequest     = "Received bad request: %s"
-	createKeystoreFailure  = "Failed to create a keystore: %s"
-	resolveKeystoreFailure = "Failed to resolve a keystore: %s"
-	getKeystoreFailure     = "Failed to get a keystore: %s"
-	saveKeystoreFailure    = "Failed to get a keystore: %s"
-	createKeyFailure       = "Failed to create a key: %s"
-	exportKeyFailure       = "Failed to export a public key: %s"
-	signMessageFailure     = "Failed to sign a message: %s"
-	verifyMessageFailure   = "Failed to verify a message: %s"
-	encryptMessageFailure  = "Failed to encrypt a message: %s"
-	decryptMessageFailure  = "Failed to decrypt a message: %s"
-	computeMACFailure      = "Failed to compute MAC: %s"
-	verifyMACFailure       = "Failed to verify MAC: %s"
-	wrapMessageFailure     = "Failed to wrap a key: %s"
-	unwrapMessageFailure   = "Failed to unwrap a key: %s"
-	createZCAPFailure      = "Failed to create zcap: %s"
+	receivedBadRequest        = "Received bad request: %s"
+	createKeystoreFailure     = "Failed to create a keystore: %s"
+	resolveKeystoreFailure    = "Failed to resolve a keystore: %s"
+	getKeystoreFailure        = "Failed to get a keystore: %s"
+	saveKeystoreFailure       = "Failed to get a keystore: %s"
+	createKeyFailure          = "Failed to create a key: %s"
+	createAndExportKeyFailure = "Failed to create and export a key: %s"
+	exportKeyFailure          = "Failed to export a public key: %s"
+	signMessageFailure        = "Failed to sign a message: %s"
+	verifyMessageFailure      = "Failed to verify a message: %s"
+	encryptMessageFailure     = "Failed to encrypt a message: %s"
+	decryptMessageFailure     = "Failed to decrypt a message: %s"
+	computeMACFailure         = "Failed to compute MAC: %s"
+	verifyMACFailure          = "Failed to verify MAC: %s"
+	wrapMessageFailure        = "Failed to wrap a key: %s"
+	unwrapMessageFailure      = "Failed to unwrap a key: %s"
+	createZCAPFailure         = "Failed to create zcap: %s"
 
 	easyMessageFailure     = "Failed to easy a message: %s"
 	easyOpenMessageFailure = "Failed to easyOpen a message: %s"
@@ -250,7 +251,7 @@ func (o *Operation) createKeystoreHandler(rw http.ResponseWriter, req *http.Requ
 // Responses:
 //        201: createKeyResp
 //    default: errorResp
-func (o *Operation) createKeyHandler(rw http.ResponseWriter, req *http.Request) {
+func (o *Operation) createKeyHandler(rw http.ResponseWriter, req *http.Request) { //nolint:funlen // TODO refactor
 	ctx, span := o.traceSpan(req, "createKeyHandler")
 	defer span.End()
 
@@ -277,11 +278,25 @@ func (o *Operation) createKeyHandler(rw http.ResponseWriter, req *http.Request) 
 
 	span.SetAttributes(label.String("keystoreID", keystoreID))
 
-	keyID, err := k.CreateKey(arieskms.KeyType(request.KeyType))
-	if err != nil {
-		o.writeErrorResponse(rw, http.StatusInternalServerError, createKeyFailure, err)
+	var (
+		keyID    string
+		keyBytes []byte
+	)
 
-		return
+	if request.ExportKey {
+		keyID, keyBytes, err = k.CreateAndExportKey(arieskms.KeyType(request.KeyType))
+		if err != nil {
+			o.writeErrorResponse(rw, http.StatusInternalServerError, createAndExportKeyFailure, err)
+
+			return
+		}
+	} else {
+		keyID, err = k.CreateKey(arieskms.KeyType(request.KeyType))
+		if err != nil {
+			o.writeErrorResponse(rw, http.StatusInternalServerError, createKeyFailure, err)
+
+			return
+		}
 	}
 
 	span.SetAttributes(label.String("keyID", keyID))
@@ -293,7 +308,8 @@ func (o *Operation) createKeyHandler(rw http.ResponseWriter, req *http.Request) 
 
 	// refer - https://github.com/trustbloc/kms/issues/114
 	o.writeResponse(rw, createKeyResp{
-		Location: location,
+		Location:  location,
+		PublicKey: base64.URLEncoding.EncodeToString(keyBytes),
 	})
 
 	o.logger.Debugf("Location: %s", location)

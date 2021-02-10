@@ -23,6 +23,7 @@ const localKeyURIPrefix = "local-lock://"
 type Keystore interface {
 	CreateKey(kt kms.KeyType) (string, error)
 	ExportKey(keyID string) ([]byte, error)
+	CreateAndExportKey(kt kms.KeyType) (string, []byte, error)
 	GetKeyHandle(keyID string) (interface{}, error)
 	KeyManager() kms.KeyManager
 }
@@ -80,6 +81,16 @@ func (k *keystore) ExportKey(keyID string) ([]byte, error) {
 	}
 
 	return b, nil
+}
+
+// CreateAndExportKey creates a new key and exports its public part.
+func (k *keystore) CreateAndExportKey(kt kms.KeyType) (string, []byte, error) {
+	keyID, b, err := k.keyManager.CreateAndExportPubKeyBytes(kt)
+	if err != nil {
+		return "", nil, fmt.Errorf("create and export key: %w", err)
+	}
+
+	return keyID, b, nil
 }
 
 // GetKeyHandle retrieves key handle by keyID.
