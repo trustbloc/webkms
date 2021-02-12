@@ -660,8 +660,8 @@ github.com/hyperledger/aries-framework-go v0.1.5-0.20201120141223-c70cf578d36b h
 github.com/hyperledger/aries-framework-go v0.1.5-0.20201120141223-c70cf578d36b/go.mod h1:QzlBsH2J303U3r8lJ1jq69ackseH+v5/B9hpCFouBqg=
 github.com/hyperledger/aries-framework-go v0.1.6-0.20210127113808-f60b9683e266 h1:qNWnvM4LB20vMGE/uSRUJK3RTI1QjsR/YpZ4bAsMSBs=
 github.com/hyperledger/aries-framework-go v0.1.6-0.20210127113808-f60b9683e266/go.mod h1:CB1aCGsuCC/U+mJ43aU5Nx7s6iCYOVquO7kCUn8tVhY=
-github.com/hyperledger/aries-framework-go v0.1.6-0.20210210013602-d14c77b2e8a9 h1:UHllztcNHODHT4MaL7rv9cAAFGdok6B3a/G69dYMw80=
-github.com/hyperledger/aries-framework-go v0.1.6-0.20210210013602-d14c77b2e8a9/go.mod h1:jWpvVjYk1wETWfVJBII71ta6LusGKbzOkha8TOxeBRM=
+github.com/hyperledger/aries-framework-go v0.1.6-0.20210212132055-b94cce120dda h1:s+40jra43As9eY9FjWA22HjRg0/kqTAi8/hXC2xUQqc=
+github.com/hyperledger/aries-framework-go v0.1.6-0.20210212132055-b94cce120dda/go.mod h1:jWpvVjYk1wETWfVJBII71ta6LusGKbzOkha8TOxeBRM=
 github.com/hyperledger/aries-framework-go/spi v0.0.0-20210208194322-89066ddae325 h1:CmZ1Z8SxVbNxZPKih/eOY52CsYTuE1qweIMrGS/Zy6E=
 github.com/hyperledger/aries-framework-go/spi v0.0.0-20210208194322-89066ddae325/go.mod h1:fDr9wW00GJJl1lR1SFHmJW8utIocdvjO5RNhAYS05EY=
 github.com/ianlancetaylor/demangle v0.0.0-20181102032728-5e5cf60278f6/go.mod h1:aSSvb/t6k1mPoxDqO4vJh6VOCGPwU4O0C2/Eqndh1Sc=
@@ -1017,6 +1017,8 @@ github.com/trustbloc/edge-core v0.1.5-0.20201126210935-53388acb41fc h1:sGjZhZKuO
 github.com/trustbloc/edge-core v0.1.5-0.20201126210935-53388acb41fc/go.mod h1:iOoeeW5Jd6/hhEwaK0+lhBstV7yBWzJxckNU21V0+Vg=
 github.com/trustbloc/edge-core v0.1.6-0.20210127161542-9e174750f523 h1:c4WEzovD+23hJ9cIK8Qsvg0JQ3U1Z4Z2Zlo+AEUjoI0=
 github.com/trustbloc/edge-core v0.1.6-0.20210127161542-9e174750f523/go.mod h1:/NWjplIPfzEmgoRTmUMnuHJUDKAGMWp2kQTRlUpajvE=
+github.com/trustbloc/edge-core v0.1.6-0.20210212172534-81ab3a5abf5b h1:eHsXkGpH4rpXws7vyQLgQSPf0DwsXHPmMoy8pP7dIw8=
+github.com/trustbloc/edge-core v0.1.6-0.20210212172534-81ab3a5abf5b/go.mod h1:+Shv5bDxWL0st/7Oe02JBPR7Fr9nQ6D6BEMoyr8SIcE=
 github.com/trustbloc/edv v0.1.6-0.20210209144926-25e1e913a8c4 h1:wTLwGS7AOYuC3h0emUdKCE9sus0QHWO0tCUJykYgkPo=
 github.com/trustbloc/edv v0.1.6-0.20210209144926-25e1e913a8c4/go.mod h1:l9wqAd7jHB87ArIA+tLTQGmbfsuEGI6/Mf83lmIntiA=
 github.com/trustbloc/hub-auth v0.0.0-20201116135852-764f60b8417b h1:zV0pvpiX/mpdTbjcNas4ICVKid6XU2Zqs4V5+Ibu5sM=
