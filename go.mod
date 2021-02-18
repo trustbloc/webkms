@@ -17,7 +17,7 @@ require (
 	github.com/piprate/json-gold v0.3.1-0.20201222165305-f4ce31c02ca3
 	github.com/rs/xid v1.2.1
 	github.com/stretchr/testify v1.6.1
-	github.com/trustbloc/edge-core v0.1.6-0.20210212172534-81ab3a5abf5b
+	github.com/trustbloc/edge-core v0.1.6-0.20210218132256-ea94ce52be69
 	go.opentelemetry.io/otel v0.16.0
 	golang.org/x/net v0.0.0-20201202161906-c7110b5ffcbb
 )
