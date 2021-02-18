@@ -1019,6 +1019,8 @@ github.com/trustbloc/edge-core v0.1.6-0.20210127161542-9e174750f523 h1:c4WEzovD+
 github.com/trustbloc/edge-core v0.1.6-0.20210127161542-9e174750f523/go.mod h1:/NWjplIPfzEmgoRTmUMnuHJUDKAGMWp2kQTRlUpajvE=
 github.com/trustbloc/edge-core v0.1.6-0.20210212172534-81ab3a5abf5b h1:eHsXkGpH4rpXws7vyQLgQSPf0DwsXHPmMoy8pP7dIw8=
 github.com/trustbloc/edge-core v0.1.6-0.20210212172534-81ab3a5abf5b/go.mod h1:+Shv5bDxWL0st/7Oe02JBPR7Fr9nQ6D6BEMoyr8SIcE=
+github.com/trustbloc/edge-core v0.1.6-0.20210218132256-ea94ce52be69 h1:bthi42KSRaWFiX8c0NI5fbQ+lqoVva8hjt9yyhgRs8I=
+github.com/trustbloc/edge-core v0.1.6-0.20210218132256-ea94ce52be69/go.mod h1:+Shv5bDxWL0st/7Oe02JBPR7Fr9nQ6D6BEMoyr8SIcE=
 github.com/trustbloc/edv v0.1.6-0.20210209144926-25e1e913a8c4 h1:wTLwGS7AOYuC3h0emUdKCE9sus0QHWO0tCUJykYgkPo=
 github.com/trustbloc/edv v0.1.6-0.20210209144926-25e1e913a8c4/go.mod h1:l9wqAd7jHB87ArIA+tLTQGmbfsuEGI6/Mf83lmIntiA=
 github.com/trustbloc/hub-auth v0.0.0-20201116135852-764f60b8417b h1:zV0pvpiX/mpdTbjcNas4ICVKid6XU2Zqs4V5+Ibu5sM=
