@@ -75,6 +75,26 @@ type exportKeyRespSpec struct { //nolint:unused,deadcode // spec
 	ExportKeyResp exportKeyResp
 }
 
+// importKeyReq model
+//
+// swagger:parameters importKeyReq
+type importKeyReqSpec struct { //nolint:unused,deadcode // spec
+	// in: path
+	// required: true
+	KeystoreID string `json:"keystoreID"`
+	// in: body
+	// required: true
+	ImportKeyReq importKeyReq
+}
+
+// importKeyResp model
+//
+// swagger:response importKeyResp
+type importKeyRespSpec struct { //nolint:unused,deadcode // spec
+	// in: body
+	ImportKeyResp importKeyResp
+}
+
 // signReq model
 //
 // swagger:parameters signReq

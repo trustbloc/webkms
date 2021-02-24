@@ -38,6 +38,7 @@ const (
 	keysPath       = "/keys"
 	capabilityPath = "/capability"
 	exportPath     = "/export"
+	importPath     = "/import"
 	signPath       = "/sign"
 	verifyPath     = "/verify"
 	encryptPath    = "/encrypt"
@@ -58,6 +59,7 @@ const (
 	capabilityEndpoint = keystoreEndpoint + capabilityPath
 	keyEndpoint        = keysEndpoint + "/{" + keyIDQueryParam + "}"
 	exportEndpoint     = keyEndpoint + exportPath
+	importEndpoint     = keystoreEndpoint + importPath // kms/keystores/{keystoreID}/import
 	signEndpoint       = keyEndpoint + signPath
 	verifyEndpoint     = keyEndpoint + verifyPath
 	encryptEndpoint    = keyEndpoint + encryptPath
@@ -80,6 +82,7 @@ const (
 	createKeyFailure          = "Failed to create a key: %s"
 	createAndExportKeyFailure = "Failed to create and export a key: %s"
 	exportKeyFailure          = "Failed to export a public key: %s"
+	importKeyFailure          = "Failed to import a private key: %s"
 	signMessageFailure        = "Failed to sign a message: %s"
 	verifyMessageFailure      = "Failed to verify a message: %s"
 	encryptMessageFailure     = "Failed to encrypt a message: %s"
@@ -98,6 +101,7 @@ const (
 const (
 	actionCreateKey       = "createKey"
 	actionExportKey       = "exportKey"
+	actionImportKey       = "importKey"
 	actionSign            = "sign"
 	actionVerify          = "verify"
 	actionWrap            = "wrap"
@@ -173,6 +177,7 @@ func (o *Operation) GetRESTHandlers() []Handler {
 		support.NewHTTPHandler(keysEndpoint, keysEndpoint, http.MethodPost, o.createKeyHandler),
 		support.NewHTTPHandler(capabilityEndpoint, capabilityEndpoint, http.MethodPost, o.updateCapabilityHandler),
 		support.NewHTTPHandler(exportEndpoint, exportEndpoint, http.MethodGet, o.exportKeyHandler),
+		support.NewHTTPHandler(importEndpoint, importEndpoint, http.MethodPost, o.importKeyHandler),
 		support.NewHTTPHandler(signEndpoint, signEndpoint, http.MethodPost, o.signHandler),
 		support.NewHTTPHandler(verifyEndpoint, verifyEndpoint, http.MethodPost, o.verifyHandler),
 		support.NewHTTPHandler(encryptEndpoint, encryptEndpoint, http.MethodPost, o.encryptHandler),
@@ -401,6 +406,66 @@ func (o *Operation) exportKeyHandler(rw http.ResponseWriter, req *http.Request) 
 
 	o.writeResponse(rw, exportKeyResp{
 		PublicKey: base64.URLEncoding.EncodeToString(keyBytes),
+	})
+}
+
+// swagger:route POST /kms/keystores/{keystoreID}/import kms importKeyReq
+//
+// Imports a private key.
+//
+// Responses:
+//        201: importKeyResp
+//    default: errorResp
+func (o *Operation) importKeyHandler(rw http.ResponseWriter, req *http.Request) {
+	ctx, span := o.traceSpan(req, "importKeyHandler")
+	defer span.End()
+
+	o.logger.Debugf("handling request: %s", req.URL.String())
+
+	start := time.Now()
+
+	k, err := o.kmsService.ResolveKeystore(req.WithContext(ctx))
+	if err != nil {
+		o.writeErrorResponse(rw, http.StatusInternalServerError, resolveKeystoreFailure, err)
+
+		return
+	}
+
+	span.AddEvent("ResolveKeystore completed",
+		trace.WithAttributes(label.String("duration", time.Since(start).String())))
+
+	var request importKeyReq
+	if ok := o.parseRequest(&request, rw, req); !ok {
+		return
+	}
+
+	keystoreID := mux.Vars(req)[keystoreIDQueryParam]
+
+	span.SetAttributes(label.String("keystoreID", keystoreID))
+
+	keyBytes, err := base64.URLEncoding.DecodeString(request.KeyBytes)
+	if err != nil {
+		o.writeErrorResponse(rw, http.StatusBadRequest, receivedBadRequest, err)
+
+		return
+	}
+
+	keyID, err := k.ImportKey(keyBytes, arieskms.KeyType(request.KeyType))
+	if err != nil {
+		o.writeErrorResponse(rw, http.StatusInternalServerError, importKeyFailure, err)
+
+		return
+	}
+
+	span.SetAttributes(label.String("keyID", keyID))
+
+	location := keyLocation(o.baseURL, keystoreID, keyID)
+
+	rw.Header().Set("Location", location)
+	rw.WriteHeader(http.StatusCreated)
+
+	o.writeResponse(rw, importKeyResp{
+		Location: location,
 	})
 }
 
@@ -1099,6 +1164,7 @@ func allActions() []string {
 	return []string{
 		actionCreateKey,
 		actionExportKey,
+		actionImportKey,
 		actionSign,
 		actionVerify,
 		actionWrap,

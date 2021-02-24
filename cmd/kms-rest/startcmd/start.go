@@ -619,7 +619,7 @@ func getKeyManagerStorageParameters(cmd *cobra.Command) (*storageParameters, err
 	}, nil
 }
 
-func startKmsService(params *kmsRestParameters, srv Server) error { //nolint:funlen TODO: refactor
+func startKmsService(params *kmsRestParameters, srv Server) error { //nolint:funlen // TODO: refactor
 	if params.logLevel != "" {
 		setLogLevel(params.logLevel, srv)
 	}

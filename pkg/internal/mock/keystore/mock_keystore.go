@@ -18,11 +18,13 @@ type MockKeystore struct {
 	ExportKeyValue             []byte
 	CreateAndExportKeyID       string
 	CreateAndExportPubKeyValue []byte
+	ImportKeyID                string
 	GetKeyHandleValue          *keyset.Handle
 	KeyManagerValue            *mockkms.KeyManager
 	CreateKeyErr               error
 	ExportKeyErr               error
 	CreateAndExportKeyErr      error
+	ImportKeyErr               error
 	GetKeyHandleErr            error
 }
 
@@ -51,6 +53,15 @@ func (m *MockKeystore) CreateAndExportKey(kt kms.KeyType) (string, []byte, error
 	}
 
 	return m.CreateAndExportKeyID, m.CreateAndExportPubKeyValue, nil
+}
+
+// ImportKey imports private key bytes (in DER format) of kt type into KMS and returns key ID.
+func (m *MockKeystore) ImportKey(der []byte, kt kms.KeyType) (string, error) {
+	if m.ImportKeyErr != nil {
+		return "", m.ImportKeyErr
+	}
+
+	return m.ImportKeyID, nil
 }
 
 // GetKeyHandle retrieves key handle by keyID.

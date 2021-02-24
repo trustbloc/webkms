@@ -45,6 +45,7 @@ const (
 	keysEndpoint       = "/keystores/{keystoreID}/keys"
 	capabilityEndpoint = "/keystores/{keystoreID}/capability"
 	exportEndpoint     = "/keystores/{keystoreID}/keys/{keyID}/export"
+	importEndpoint     = "/keystores/{keystoreID}/import"
 	signEndpoint       = "/keystores/{keystoreID}/keys/{keyID}/sign"
 	verifyEndpoint     = "/keystores/{keystoreID}/keys/{keyID}/verify"
 	encryptEndpoint    = "/keystores/{keystoreID}/keys/{keyID}/encrypt"
@@ -67,6 +68,11 @@ const (
 	createAndExportKeyReqFormat = `{
 	  "keyType": "%s",
 	  "export": true
+	}`
+
+	importKeyReqFormat = `{
+	  "keyBytes": "%s",
+	  "keyType": "%s"
 	}`
 
 	signReqFormat = `{
@@ -398,6 +404,75 @@ func TestExportKeyHandler(t *testing.T) {
 
 		require.Equal(t, http.StatusInternalServerError, rr.Code)
 		require.Contains(t, rr.Body.String(), "Failed to export a public key: export key error")
+	})
+}
+
+func TestImportKeyHandler(t *testing.T) {
+	t.Run("Success", func(t *testing.T) {
+		svc := mockKMSService()
+		svc.ResolveKeystoreValue = &keystore.MockKeystore{ImportKeyID: testKeyID}
+
+		op := newOperation(t, newConfig(withKMSService(svc)))
+		handler := getHandler(t, op, importEndpoint, http.MethodPost)
+
+		rr := httptest.NewRecorder()
+		handler.Handle().ServeHTTP(rr, buildImportKeyReq(t, base64.URLEncoding.EncodeToString([]byte("key bytes"))))
+
+		require.Equal(t, http.StatusCreated, rr.Code)
+		require.NotEmpty(t, rr.Header().Get("Location"))
+		require.Contains(t, rr.Body.String(), testKeyID)
+	})
+
+	t.Run("Received bad request: EOF", func(t *testing.T) {
+		req, err := http.NewRequestWithContext(context.Background(), http.MethodPost, "", bytes.NewBuffer([]byte("")))
+		require.NoError(t, err)
+
+		op := newOperation(t, newConfig())
+		handler := getHandler(t, op, importEndpoint, http.MethodPost)
+
+		rr := httptest.NewRecorder()
+		handler.Handle().ServeHTTP(rr, req)
+
+		require.Equal(t, http.StatusBadRequest, rr.Code)
+		require.Contains(t, rr.Body.String(), "Received bad request: EOF")
+	})
+
+	t.Run("Received bad request: bad encoded key bytes", func(t *testing.T) {
+		op := newOperation(t, newConfig())
+		handler := getHandler(t, op, importEndpoint, http.MethodPost)
+
+		rr := httptest.NewRecorder()
+		handler.Handle().ServeHTTP(rr, buildImportKeyReq(t, "!encoded key bytes"))
+
+		require.Equal(t, http.StatusBadRequest, rr.Code)
+		require.Contains(t, rr.Body.String(), "Received bad request")
+	})
+
+	t.Run("Failed to resolve a keystore", func(t *testing.T) {
+		svc := &mockkms.MockService{ResolveKeystoreErr: errors.New("resolve keystore error")}
+
+		op := newOperation(t, newConfig(withKMSService(svc)))
+		handler := getHandler(t, op, importEndpoint, http.MethodPost)
+
+		rr := httptest.NewRecorder()
+		handler.Handle().ServeHTTP(rr, buildImportKeyReq(t, base64.URLEncoding.EncodeToString([]byte("key bytes"))))
+
+		require.Equal(t, http.StatusInternalServerError, rr.Code)
+		require.Contains(t, rr.Body.String(), "Failed to resolve a keystore: resolve keystore error")
+	})
+
+	t.Run("Failed to import a key", func(t *testing.T) {
+		svc := &mockkms.MockService{}
+		svc.ResolveKeystoreValue = &keystore.MockKeystore{ImportKeyErr: errors.New("import key error")}
+
+		op := newOperation(t, newConfig(withKMSService(svc)))
+		handler := getHandler(t, op, importEndpoint, http.MethodPost)
+
+		rr := httptest.NewRecorder()
+		handler.Handle().ServeHTTP(rr, buildImportKeyReq(t, base64.URLEncoding.EncodeToString([]byte("key bytes"))))
+
+		require.Equal(t, http.StatusInternalServerError, rr.Code)
+		require.Contains(t, rr.Body.String(), "Failed to import a private key: import key error")
 	})
 }
 
@@ -1187,6 +1262,20 @@ func buildExportKeyReq(t *testing.T) *http.Request {
 	req = mux.SetURLVars(req, map[string]string{
 		"keystoreID": testKeystoreID,
 		"keyID":      testKeyID,
+	})
+
+	return req
+}
+
+func buildImportKeyReq(t *testing.T, keyBytes string) *http.Request {
+	t.Helper()
+
+	payload := fmt.Sprintf(importKeyReqFormat, keyBytes, "ED25519")
+	req, err := http.NewRequestWithContext(context.Background(), http.MethodPost, "", bytes.NewBuffer([]byte(payload)))
+	require.NoError(t, err)
+
+	req = mux.SetURLVars(req, map[string]string{
+		"keystoreID": testKeystoreID,
 	})
 
 	return req

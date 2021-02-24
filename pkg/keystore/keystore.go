@@ -7,6 +7,7 @@ SPDX-License-Identifier: Apache-2.0
 package keystore
 
 import (
+	"crypto/x509"
 	"fmt"
 
 	"github.com/hyperledger/aries-framework-go/pkg/kms"
@@ -24,6 +25,7 @@ type Keystore interface {
 	CreateKey(kt kms.KeyType) (string, error)
 	ExportKey(keyID string) ([]byte, error)
 	CreateAndExportKey(kt kms.KeyType) (string, []byte, error)
+	ImportKey(der []byte, kt kms.KeyType) (string, error)
 	GetKeyHandle(keyID string) (interface{}, error)
 	KeyManager() kms.KeyManager
 }
@@ -91,6 +93,37 @@ func (k *keystore) CreateAndExportKey(kt kms.KeyType) (string, []byte, error) {
 	}
 
 	return keyID, b, nil
+}
+
+// ImportKey imports private key bytes (in DER format) of kt type into KMS and returns key ID.
+func (k *keystore) ImportKey(der []byte, kt kms.KeyType) (string, error) {
+	var privateKey interface{}
+
+	switch kt { //nolint:exhaustive // default catches the rest
+	case
+		kms.ED25519Type,
+		kms.ECDSAP256TypeDER,
+		kms.ECDSAP384TypeDER,
+		kms.ECDSAP521TypeDER,
+		kms.ECDSAP256TypeIEEEP1363,
+		kms.ECDSAP384TypeIEEEP1363,
+		kms.ECDSAP521TypeIEEEP1363:
+		key, err := x509.ParsePKCS8PrivateKey(der)
+		if err != nil {
+			return "", fmt.Errorf("import key: %w", err)
+		}
+
+		privateKey = key
+	default:
+		return "", fmt.Errorf("import key: not supported key type %q", kt)
+	}
+
+	keyID, _, err := k.keyManager.ImportPrivateKey(privateKey, kt)
+	if err != nil {
+		return "", fmt.Errorf("import key: %w", err)
+	}
+
+	return keyID, nil
 }
 
 // GetKeyHandle retrieves key handle by keyID.

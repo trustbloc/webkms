@@ -23,6 +23,7 @@ const (
 const (
 	actionCreateKey       = "createKey"
 	actionExportKey       = "exportKey"
+	actionImportKey       = "importKey"
 	actionSign            = "sign"
 	actionVerify          = "verify"
 	actionWrap            = "wrap"

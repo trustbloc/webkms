@@ -7,6 +7,12 @@ SPDX-License-Identifier: Apache-2.0
 package keystore_test
 
 import (
+	"crypto/ecdsa"
+	"crypto/ed25519"
+	"crypto/elliptic"
+	"crypto/rand"
+	"crypto/rsa"
+	"crypto/x509"
 	"errors"
 	"testing"
 
@@ -119,6 +125,83 @@ func TestCreateAndExportKey(t *testing.T) {
 	})
 }
 
+func TestImportKey(t *testing.T) {
+	t.Run("Success", func(t *testing.T) {
+		tests := []struct {
+			kt kms.KeyType
+			pk interface{}
+		}{
+			{kms.ED25519, generateKey(t, kms.ED25519)},
+			{kms.ECDSAP256TypeDER, generateKey(t, kms.ECDSAP256TypeDER)},
+			{kms.ECDSAP384TypeDER, generateKey(t, kms.ECDSAP384TypeDER)},
+			{kms.ECDSAP521TypeDER, generateKey(t, kms.ECDSAP521TypeDER)},
+			{kms.ECDSAP256TypeIEEEP1363, generateKey(t, kms.ECDSAP256TypeIEEEP1363)},
+			{kms.ECDSAP384TypeIEEEP1363, generateKey(t, kms.ECDSAP384TypeIEEEP1363)},
+			{kms.ECDSAP521TypeIEEEP1363, generateKey(t, kms.ECDSAP521TypeIEEEP1363)},
+		}
+
+		for _, tt := range tests {
+			k := newKeystore(t, &mockkms.KeyManager{
+				ImportPrivateKeyID: testKeyID,
+			})
+
+			der, err := x509.MarshalPKCS8PrivateKey(tt.pk)
+			require.NoError(t, err)
+
+			keyID, err := k.ImportKey(der, tt.kt)
+
+			require.NotEmpty(t, keyID)
+			require.NoError(t, err)
+		}
+	})
+
+	t.Run("Failed to parse PKCS8 private key", func(t *testing.T) {
+		k := newKeystore(t, &mockkms.KeyManager{
+			ImportPrivateKeyID: testKeyID,
+		})
+
+		keyID, err := k.ImportKey([]byte("not valid private key"), kms.ED25519)
+
+		require.Empty(t, keyID)
+		require.Error(t, err)
+	})
+
+	t.Run("Failed to import key: not supported key type", func(t *testing.T) {
+		k := newKeystore(t, &mockkms.KeyManager{
+			ImportPrivateKeyID: testKeyID,
+		})
+
+		privKey, err := rsa.GenerateKey(rand.Reader, 256) //nolint:gosec // test case
+		require.NoError(t, err)
+
+		der, err := x509.MarshalPKCS8PrivateKey(privKey)
+		require.NoError(t, err)
+
+		keyID, err := k.ImportKey(der, kms.RSARS256Type)
+
+		require.Empty(t, keyID)
+		require.Error(t, err)
+	})
+
+	t.Run("Failed to import private key", func(t *testing.T) {
+		k := newKeystore(t, &mockkms.KeyManager{
+			ImportPrivateKeyID:  testKeyID,
+			ImportPrivateKeyErr: errors.New("import private key error"),
+		})
+
+		_, privKey, err := ed25519.GenerateKey(rand.Reader)
+		require.NoError(t, err)
+
+		der, err := x509.MarshalPKCS8PrivateKey(privKey)
+		require.NoError(t, err)
+
+		keyID, err := k.ImportKey(der, kms.ED25519)
+
+		require.Empty(t, keyID)
+		require.Error(t, err)
+	})
+}
+
 func TestGetKeyHandle(t *testing.T) {
 	t.Run("Success", func(t *testing.T) {
 		key, err := keyset.NewHandle(signature.ED25519KeyTemplate())
@@ -162,4 +245,35 @@ func newKeystore(t *testing.T, km kms.KeyManager) keystore.Keystore {
 	require.NoError(t, err)
 
 	return k
+}
+
+func generateKey(t *testing.T, kt kms.KeyType) interface{} {
+	t.Helper()
+
+	switch kt { //nolint:exhaustive // test cases
+	case kms.ED25519:
+		_, pk, err := ed25519.GenerateKey(rand.Reader)
+		require.NoError(t, err)
+
+		return pk
+	case kms.ECDSAP256TypeDER, kms.ECDSAP256TypeIEEEP1363:
+		pk, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+		require.NoError(t, err)
+
+		return pk
+	case kms.ECDSAP384TypeDER, kms.ECDSAP384TypeIEEEP1363:
+		pk, err := ecdsa.GenerateKey(elliptic.P384(), rand.Reader)
+		require.NoError(t, err)
+
+		return pk
+	case kms.ECDSAP521TypeDER, kms.ECDSAP521TypeIEEEP1363:
+		pk, err := ecdsa.GenerateKey(elliptic.P521(), rand.Reader)
+		require.NoError(t, err)
+
+		return pk
+	default:
+		require.Fail(t, "not supported key type")
+
+		return nil
+	}
 }
