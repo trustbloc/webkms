@@ -39,6 +39,14 @@ Feature: KMS and crypto operations
      And  "Alice" gets a response with "Location" header with a valid URL
      And  "Alice" gets a response with non-empty "publicKey"
 
+  Scenario: User imports a private key
+    Given "Bob" has created an empty keystore on Key Server
+
+    When  "Bob" makes an HTTP POST to "https://localhost:4466/kms/keystores/{keystoreID}/import" to import a private key
+    Then  "Bob" gets a response with HTTP status "201 Created"
+     And  "Bob" gets a response with "Location" header with a valid URL
+     And  "Bob" gets a response with non-empty "location"
+
   Scenario: User signs a message and verifies a signature
     Given "Alice" has created a keystore with "ED25519" key on Key Server
 

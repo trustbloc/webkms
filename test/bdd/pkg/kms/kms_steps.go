@@ -8,7 +8,10 @@ package kms
 
 import (
 	"bytes"
+	"crypto/ed25519"
+	"crypto/rand"
 	"crypto/tls"
+	"crypto/x509"
 	"encoding/base64"
 	"encoding/json"
 	"errors"
@@ -81,11 +84,12 @@ func (s *Steps) RegisterSteps(ctx *godog.ScenarioContext) {
 	ctx.Step(`^"([^"]*)" gets a response with no "([^"]*)"$`, s.checkRespWithNoValue)
 	ctx.Step(`^"([^"]*)" gets a response with "([^"]*)" with value "([^"]*)"$`, s.checkRespWithValue)
 	ctx.Step(`^"([^"]*)" gets a response with content of "([^"]*)" key$`, s.checkRespWithKeyContent)
-	// create/export key steps
+	// create/export/import key steps
 	ctx.Step(`^"([^"]*)" makes an HTTP POST to "([^"]*)" to create "([^"]*)" key$`, s.makeCreateKeyReq)
 	ctx.Step(`^"([^"]*)" makes an HTTP GET to "([^"]*)" to export public key$`, s.makeExportPubKeyReq)
 	ctx.Step(`^"([^"]*)" makes an HTTP POST to "([^"]*)" to create and export "([^"]*)" key$`,
 		s.makeCreateAndExportKeyReq)
+	ctx.Step(`^"([^"]*)" makes an HTTP POST to "([^"]*)" to import a private key$`, s.makeImportKeyReq)
 	// sign/verify message steps
 	ctx.Step(`^"([^"]*)" makes an HTTP POST to "([^"]*)" to sign "([^"]*)"$`, s.makeSignMessageReq)
 	ctx.Step(`^"([^"]*)" makes an HTTP POST to "([^"]*)" to verify "([^"]*)" for "([^"]*)"$`, s.makeVerifySignatureReq)
@@ -360,6 +364,64 @@ func (s *Steps) makeCreateAndExportKeyReq(user, endpoint, keyType string) error 
 	u.data = map[string]string{
 		"location":  createKeyResponse.Location,
 		"publicKey": string(publicKey),
+	}
+
+	return nil
+}
+
+func (s *Steps) makeImportKeyReq(userName, endpoint string) error {
+	u := s.users[userName]
+
+	_, pk, err := ed25519.GenerateKey(rand.Reader)
+	if err != nil {
+		return fmt.Errorf("failed to generate ed25519 key: %w", err)
+	}
+
+	der, err := x509.MarshalPKCS8PrivateKey(pk)
+	if err != nil {
+		return fmt.Errorf("failed to marshal private key: %w", err)
+	}
+
+	r := &importKeyReq{
+		KeyBytes: base64.URLEncoding.EncodeToString(der),
+		KeyType:  "ED25519",
+	}
+
+	request, err := u.preparePostRequest(r, endpoint)
+	if err != nil {
+		return err
+	}
+
+	err = u.SetCapabilityInvocation(request, actionImportKey)
+	if err != nil {
+		return fmt.Errorf("user failed to set capability invocation: %w", err)
+	}
+
+	err = u.Sign(request)
+	if err != nil {
+		return fmt.Errorf("user failed to sign request: %w", err)
+	}
+
+	response, err := s.httpClient.Do(request)
+	if err != nil {
+		return fmt.Errorf("http do: %w", err)
+	}
+
+	defer func() {
+		closeErr := response.Body.Close()
+		if closeErr != nil {
+			s.logger.Errorf("Failed to close response body: %s\n", closeErr.Error())
+		}
+	}()
+
+	var importKeyResponse importKeyResp
+
+	if respErr := u.processResponse(&importKeyResponse, response); respErr != nil {
+		return respErr
+	}
+
+	u.data = map[string]string{
+		"location": importKeyResponse.Location,
 	}
 
 	return nil

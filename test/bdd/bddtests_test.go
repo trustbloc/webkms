@@ -121,7 +121,8 @@ func initializeTestSuite(ctx *godog.TestSuiteContext) {
 		for _, c := range composition {
 			if c != nil {
 				if err := c.GenerateLogs(c.Dir, "docker-compose.log"); err != nil {
-					panic(err)
+					// panic(err)
+					fmt.Println(err)
 				}
 
 				if _, err := c.Decompose(c.Dir); err != nil {

@@ -142,6 +142,8 @@ func expectedAction(n namer) (string, error) { // nolint:gocyclo // necessary co
 		action = actionStoreCapability
 	case exportEndpoint:
 		action = actionExportKey
+	case importEndpoint:
+		action = actionImportKey
 	case signEndpoint:
 		action = actionSign
 	case verifyEndpoint:
@@ -192,6 +194,8 @@ func CapabilityInvocationAction(r *http.Request) (string, error) { // nolint:goc
 		action = actionStoreCapability
 	case exportPath:
 		action = actionExportKey
+	case importPath:
+		action = actionImportKey
 	case signPath:
 		action = actionSign
 	case verifyPath:

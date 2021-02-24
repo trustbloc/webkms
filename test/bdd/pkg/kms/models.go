@@ -25,6 +25,15 @@ type exportKeyResp struct {
 	PublicKey string `json:"publicKey"`
 }
 
+type importKeyReq struct {
+	KeyBytes string `json:"keyBytes"`
+	KeyType  string `json:"keyType"`
+}
+
+type importKeyResp struct {
+	Location string `json:"location"`
+}
+
 type signReq struct {
 	Message string `json:"message"`
 }

@@ -69,6 +69,7 @@ func TestMiddleware(t *testing.T) {
 				keysEndpoint,
 				capabilityEndpoint,
 				exportEndpoint,
+				importEndpoint,
 				signEndpoint,
 				verifyEndpoint,
 				encryptEndpoint,
@@ -106,6 +107,7 @@ func TestMiddleware(t *testing.T) {
 				keysEndpoint,
 				capabilityEndpoint,
 				exportEndpoint,
+				importEndpoint,
 				signEndpoint,
 				verifyEndpoint,
 				encryptEndpoint,
@@ -166,6 +168,10 @@ func TestCapabilityInvocationAction(t *testing.T) {
 			{
 				endpoint:       exportEndpoint,
 				expectedAction: actionExportKey,
+			},
+			{
+				endpoint:       importEndpoint,
+				expectedAction: actionImportKey,
 			},
 			{
 				endpoint:       signEndpoint,
