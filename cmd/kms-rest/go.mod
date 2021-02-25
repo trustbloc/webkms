@@ -10,10 +10,11 @@ require (
 	github.com/gorilla/mux v1.8.0
 	github.com/hyperledger/aries-framework-go v0.1.6-0.20210212132055-b94cce120dda
 	github.com/hyperledger/aries-framework-go-ext/component/storage/couchdb v0.0.0-20201210203117-e17b615af85d
+	github.com/hyperledger/aries-framework-go-ext/component/vdr/trustbloc v0.0.0-20210209170459-14c492334960
 	github.com/rs/cors v1.7.0
 	github.com/spf13/cobra v1.1.2
 	github.com/stretchr/testify v1.7.0
-	github.com/trustbloc/edge-core v0.1.6-0.20210218132256-ea94ce52be69
+	github.com/trustbloc/edge-core v0.1.6-0.20210224175343-275d0e0370c4
 	github.com/trustbloc/kms v0.0.0-00010101000000-000000000000
 	go.opentelemetry.io/otel v0.16.0
 	go.opentelemetry.io/otel/exporters/trace/jaeger v0.16.0

@@ -142,6 +142,7 @@ type Operation struct {
 	logger           log.Logger
 	tracer           trace.Tracer
 	baseURL          string
+	vdrResolver      zcapld.VDRResolver
 }
 
 // Config defines configuration for KMS operations.
@@ -153,6 +154,7 @@ type Config struct {
 	Logger           log.Logger
 	Tracer           trace.Tracer
 	BaseURL          string
+	VDRResolver      zcapld.VDRResolver
 }
 
 // New returns a new Operation instance.
@@ -165,6 +167,7 @@ func New(config *Config) (*Operation, error) {
 		logger:           config.Logger,
 		tracer:           config.Tracer,
 		baseURL:          config.BaseURL,
+		vdrResolver:      config.VDRResolver,
 	}
 
 	return op, nil
