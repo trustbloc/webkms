@@ -13,8 +13,8 @@ import (
 	"net/url"
 	"os"
 
-	"github.com/hyperledger/aries-framework-go/pkg/storage"
-	"github.com/hyperledger/aries-framework-go/pkg/storage/mem"
+	"github.com/hyperledger/aries-framework-go/component/storageutil/mem"
+	"github.com/hyperledger/aries-framework-go/spi/storage"
 	"github.com/trustbloc/edge-core/pkg/log"
 	tlsutils "github.com/trustbloc/edge-core/pkg/utils/tls"
 )

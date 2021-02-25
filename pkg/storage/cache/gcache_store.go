@@ -13,7 +13,7 @@ import (
 	"time"
 
 	"github.com/bluele/gcache"
-	"github.com/hyperledger/aries-framework-go/pkg/storage"
+	"github.com/hyperledger/aries-framework-go/spi/storage"
 	"github.com/trustbloc/edge-core/pkg/log"
 )
 
@@ -31,6 +31,8 @@ type GCache interface {
 
 // Creator defines function to create a new GCache instance.
 type Creator func() GCache
+
+type closer func(name string)
 
 // Provider contains dependencies for a storage provider based on GCache.
 type Provider struct {
@@ -73,6 +75,7 @@ func (p *Provider) OpenStore(name string) (storage.Store, error) {
 			gc:     p.gcCreator(),
 			exp:    p.exp,
 			logger: p.logger,
+			close:  p.removeStore,
 		}
 
 		p.cacheList[name] = s
@@ -85,20 +88,19 @@ func (p *Provider) OpenStore(name string) (storage.Store, error) {
 	return s, nil
 }
 
-// CloseStore purges cache store for the given namespace.
-func (p *Provider) CloseStore(name string) error {
-	p.mu.Lock()
-	defer p.mu.Unlock()
+// SetStoreConfig is not implemented.
+func (p *Provider) SetStoreConfig(name string, config storage.StoreConfiguration) error {
+	return errors.New("not implemented")
+}
 
-	s, ok := p.cacheList[name]
-	if !ok {
-		return nil
-	}
+// GetStoreConfig is not implemented.
+func (p *Provider) GetStoreConfig(name string) (storage.StoreConfiguration, error) {
+	return storage.StoreConfiguration{}, errors.New("not implemented")
+}
 
-	s.gc.Purge()
-	delete(p.cacheList, name)
-
-	return nil
+// GetOpenStores is not implemented.
+func (p *Provider) GetOpenStores() []storage.Store {
+	panic("implement me")
 }
 
 // Close purges all opened cache stores.
@@ -113,6 +115,13 @@ func (p *Provider) Close() error {
 	p.cacheList = make(map[string]*cacheStore)
 
 	return nil
+}
+
+func (p *Provider) removeStore(name string) {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+
+	delete(p.cacheList, name)
 }
 
 // Options configures Provider dependencies.
@@ -152,6 +161,23 @@ type cacheStore struct {
 	gc     GCache
 	exp    time.Duration
 	logger log.Logger
+	close  closer
+}
+
+// Put stores a new key-value pair with an expiration time set for the cacheStore instance.
+func (s *cacheStore) Put(k string, v []byte, tags ...storage.Tag) error {
+	if len(tags) > 0 {
+		return errors.New("tag storage not implemented")
+	}
+
+	err := s.gc.SetWithExpire(k, v, s.exp)
+	if err != nil {
+		return fmt.Errorf("set to cache: %w", err)
+	}
+
+	s.logger.Debugf("save key %q into cache %q", k, s.name)
+
+	return nil
 }
 
 // Get fetches value from the cache by key.
@@ -172,16 +198,16 @@ func (s *cacheStore) Get(k string) ([]byte, error) {
 	return v.([]byte), nil
 }
 
-// Put stores a new key-value pair with an expiration time set for the cacheStore instance.
-func (s *cacheStore) Put(k string, v []byte) error {
-	err := s.gc.SetWithExpire(k, v, s.exp)
-	if err != nil {
-		return fmt.Errorf("set to cache: %w", err)
-	}
+func (s *cacheStore) GetTags(string) ([]storage.Tag, error) {
+	return nil, errors.New("not implemented")
+}
 
-	s.logger.Debugf("save key %q into cache %q", k, s.name)
+func (s *cacheStore) GetBulk(...string) ([][]byte, error) {
+	return nil, errors.New("not implemented")
+}
 
-	return nil
+func (s *cacheStore) Query(string, ...storage.QueryOption) (storage.Iterator, error) {
+	return nil, errors.New("not implemented")
 }
 
 // Delete removes key and associated value from the cache.
@@ -193,7 +219,18 @@ func (s *cacheStore) Delete(k string) error {
 	return nil
 }
 
-// Iterator returns store iterator (not implemented).
-func (s *cacheStore) Iterator(startKey, endKey string) storage.StoreIterator {
-	panic("implement me")
+func (s *cacheStore) Batch([]storage.Operation) error {
+	return errors.New("not implemented")
+}
+
+func (s *cacheStore) Flush() error {
+	return errors.New("not implemented")
+}
+
+func (s *cacheStore) Close() error {
+	s.close(s.name)
+
+	s.gc.Purge()
+
+	return nil
 }

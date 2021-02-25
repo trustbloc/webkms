@@ -70,15 +70,6 @@ func TestNewStorageProvider(t *testing.T) {
 		require.Error(t, err)
 	})
 
-	t.Run("Fail to create REST provider: compute MAC for index name", func(t *testing.T) {
-		svc := &mockcrypto.Crypto{ComputeMACErr: errors.New("compute mac error")}
-
-		p, err := NewStorageProvider(context.Background(), newConfig(t, withCrypto(svc)))
-
-		require.Nil(t, p)
-		require.Error(t, err)
-	})
-
 	t.Run("Fail to create EncryptedFormatter: invalid recipient key ID", func(t *testing.T) {
 		c := newConfig(t)
 		c.RecipientKeyID = "invalid key ID"
@@ -161,12 +152,6 @@ func newConfig(t *testing.T, opts ...optionFn) *Config {
 func withKeyManager(km kms.KeyManager) optionFn {
 	return func(o *options) {
 		o.keyManager = km
-	}
-}
-
-func withCrypto(c crypto.Crypto) optionFn {
-	return func(o *options) {
-		o.cryptoService = c
 	}
 }
 

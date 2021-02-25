@@ -18,7 +18,7 @@ import (
 
 	mockstorage "github.com/hyperledger/aries-framework-go/pkg/mock/storage"
 	"github.com/hyperledger/aries-framework-go/pkg/secretlock"
-	"github.com/hyperledger/aries-framework-go/pkg/storage"
+	"github.com/hyperledger/aries-framework-go/spi/storage"
 	"github.com/stretchr/testify/require"
 	"github.com/trustbloc/edge-core/pkg/log"
 	"github.com/trustbloc/edge-core/pkg/log/mocklogger"
@@ -156,7 +156,9 @@ func TestNew(t *testing.T) {
 
 	t.Run("Secret share found in the cache", func(t *testing.T) {
 		cacheProvider := mockstorage.NewMockStoreProvider()
-		cacheProvider.Store.Store["subject"] = []byte("other secret share")
+		cacheProvider.Store.Store["subject"] = mockstorage.DBEntry{
+			Value: []byte("other secret share"),
+		}
 
 		secretLock, err := newSecretSplitLock(t, withCacheProvider(cacheProvider))
 

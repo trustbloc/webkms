@@ -16,13 +16,13 @@ import (
 	"time"
 
 	"github.com/google/tink/go/keyset"
+	"github.com/hyperledger/aries-framework-go/component/storage/edv"
+	"github.com/hyperledger/aries-framework-go/component/storageutil/cachedstore"
 	"github.com/hyperledger/aries-framework-go/pkg/crypto"
 	"github.com/hyperledger/aries-framework-go/pkg/crypto/tinkcrypto/primitive/composite/keyio"
 	"github.com/hyperledger/aries-framework-go/pkg/doc/jose"
 	"github.com/hyperledger/aries-framework-go/pkg/kms"
-	"github.com/hyperledger/aries-framework-go/pkg/storage"
-	"github.com/hyperledger/aries-framework-go/pkg/storage/edv"
-	"github.com/hyperledger/aries-framework-go/pkg/storage/formattedstore"
+	"github.com/hyperledger/aries-framework-go/spi/storage"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/label"
 	"go.opentelemetry.io/otel/trace"
@@ -77,11 +77,6 @@ func NewStorageProvider(ctx context.Context, c *Config) (storage.Provider, error
 
 	startCreateProvider := time.Now()
 
-	restProvider, err := c.createRESTProvider(macCrypto)
-	if err != nil {
-		return nil, err
-	}
-
 	span.AddEvent("rest provider created",
 		trace.WithAttributes(label.String("duration", time.Since(startCreateProvider).String())))
 
@@ -95,25 +90,19 @@ func NewStorageProvider(ctx context.Context, c *Config) (storage.Provider, error
 	span.AddEvent("encrypted formatter created",
 		trace.WithAttributes(label.String("duration", time.Since(startCreateFormatter).String())))
 
-	return formattedstore.NewFormattedProvider(restProvider, encryptedFormatter, true,
-		formattedstore.WithCacheProvider(c.CacheProvider)), nil
-}
-
-func (c *Config) createRESTProvider(macCrypto *edv.MACCrypto) (*edv.RESTProvider, error) {
-	p, err := edv.NewRESTProvider(
+	restProvider := edv.NewRESTProvider(
 		c.EDVServerURL+edvEndpointPathRoot,
 		c.VaultID,
-		macCrypto,
+		encryptedFormatter,
 		edv.WithTLSConfig(c.TLSConfig),
 		edv.WithHeaders(func(req *http.Request) (*http.Header, error) {
 			return c.signHeader(req, c.EDVCapability)
 		}),
 	)
-	if err != nil {
-		return nil, err
-	}
 
-	return p, nil
+	cachedProvider := cachedstore.NewProvider(restProvider, c.CacheProvider)
+
+	return cachedProvider, nil
 }
 
 func (c *Config) signHeader(req *http.Request, edvCapability []byte) (*http.Header, error) {
