@@ -17,6 +17,7 @@ import (
 
 	"github.com/gorilla/mux"
 	"github.com/hyperledger/aries-framework-go-ext/component/storage/couchdb"
+	"github.com/hyperledger/aries-framework-go-ext/component/vdr/trustbloc"
 	"github.com/hyperledger/aries-framework-go/pkg/crypto"
 	"github.com/hyperledger/aries-framework-go/pkg/crypto/tinkcrypto"
 	"github.com/hyperledger/aries-framework-go/pkg/doc/verifiable"
@@ -27,12 +28,15 @@ import (
 	"github.com/hyperledger/aries-framework-go/pkg/secretlock/noop"
 	"github.com/hyperledger/aries-framework-go/pkg/storage"
 	"github.com/hyperledger/aries-framework-go/pkg/storage/mem"
+	ariesvdr "github.com/hyperledger/aries-framework-go/pkg/vdr"
+	vdrkey "github.com/hyperledger/aries-framework-go/pkg/vdr/key"
 	"github.com/rs/cors"
 	"github.com/spf13/cobra"
 	"github.com/trustbloc/edge-core/pkg/log"
 	"github.com/trustbloc/edge-core/pkg/restapi/logspec"
 	cmdutils "github.com/trustbloc/edge-core/pkg/utils/cmd"
 	tlsutils "github.com/trustbloc/edge-core/pkg/utils/tls"
+	zcapldcore "github.com/trustbloc/edge-core/pkg/zcapld"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/exporters/trace/jaeger"
 	"go.opentelemetry.io/otel/propagation"
@@ -65,6 +69,11 @@ const (
 		`Defaults to "info". ` + commonEnvVarUsageText + logLevelEnvKey
 
 	commonEnvVarUsageText = "Alternatively, this can be set with the following environment variable: "
+
+	didDomainFlagName  = "did-domain"
+	didDomainFlagUsage = "URL to the did consortium's domain." +
+		" Alternatively, this can be set with the following environment variable: " + didDomainEnvKey
+	didDomainEnvKey = "KMS_DID_DOMAIN"
 )
 
 // TLS options.
@@ -318,6 +327,8 @@ func createFlags(startCmd *cobra.Command) {
 	startCmd.Flags().StringP(enableCORSFlagName, "", "", enableCORSFlagUsage)
 
 	startCmd.Flags().StringP(jaegerURLFlagName, "", "", jaegerURLFlagUsage)
+
+	startCmd.Flags().StringP(didDomainFlagName, "", "", didDomainFlagUsage)
 }
 
 type kmsRestParameters struct {
@@ -338,6 +349,7 @@ type kmsRestParameters struct {
 	enableZCAPs             bool
 	enableCORS              bool
 	jaegerURL               string
+	didDomain               string
 }
 
 type tlsServeParameters struct {
@@ -419,6 +431,11 @@ func getKmsRestParameters(cmd *cobra.Command) (*kmsRestParameters, error) { //no
 		return nil, err
 	}
 
+	didDomain, err := cmdutils.GetUserSetVarFromString(cmd, didDomainFlagName, didDomainEnvKey, true)
+	if err != nil {
+		return nil, err
+	}
+
 	enableZCAPsConfig, err := cmdutils.GetUserSetVarFromString(cmd, enableZCAPsFlagName, enableZCAPsEnvKey, true)
 	if err != nil {
 		return nil, err
@@ -461,6 +478,7 @@ func getKmsRestParameters(cmd *cobra.Command) (*kmsRestParameters, error) { //no
 		enableZCAPs:             enableZCAPs,
 		enableCORS:              enableCORS,
 		jaegerURL:               jaegerURL,
+		didDomain:               didDomain,
 	}, nil
 }
 
@@ -748,6 +766,11 @@ func prepareOperationConfig(params *kmsRestParameters) (*operation.Config, error
 		return nil, err
 	}
 
+	vdrResolver, err := prepareVDR(authService, params)
+	if err != nil {
+		return nil, err
+	}
+
 	kmsService, err := prepareKMSService(storageProvider, primaryKeyStorageProvider, primaryKeyLock,
 		localKMS, cryptoService, authService, params)
 	if err != nil {
@@ -764,6 +787,7 @@ func prepareOperationConfig(params *kmsRestParameters) (*operation.Config, error
 		CryptoBoxCreator: func(keyManager arieskms.KeyManager) (arieskms.CryptoBox, error) {
 			return localkms.NewCryptoBox(keyManager)
 		},
+		VDRResolver: vdrResolver,
 	}, nil
 }
 
@@ -819,6 +843,29 @@ func (k kmsProvider) StorageProvider() storage.Provider {
 
 func (k kmsProvider) SecretLock() secretlock.Service {
 	return k.secretLock
+}
+
+type kmsCtx interface {
+	KMS() arieskms.KeyManager
+}
+
+func prepareVDR(ctx kmsCtx, params *kmsRestParameters) (zcapldcore.VDRResolver, error) {
+	rootCAs, err := tlsutils.GetCertPool(params.tlsUseSystemCertPool, params.tlsCACerts)
+	if err != nil {
+		return nil, err
+	}
+
+	trustblocVDR, err := trustbloc.New(nil, trustbloc.WithDomain(params.didDomain),
+		trustbloc.WithTLSConfig(&tls.Config{RootCAs: rootCAs, MinVersion: tls.VersionTLS12}),
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	return ariesvdr.New(ctx,
+		ariesvdr.WithVDR(vdrkey.New()),
+		ariesvdr.WithVDR(trustblocVDR),
+	), nil
 }
 
 func prepareLocalKMS(primaryKeyLock secretlock.Service, params *kmsRestParameters) (arieskms.KeyManager, error) {

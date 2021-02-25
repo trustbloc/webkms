@@ -36,6 +36,7 @@ func (o *Operation) ZCAPLDMiddleware(h http.Handler) http.Handler {
 		logger:       o.logger,
 		routeFunc:    (&muxNamer{}).GetName,
 		baseURL:      o.baseURL,
+		vdrResolver:  o.vdrResolver,
 	}
 }
 
@@ -59,6 +60,7 @@ type mwHandler struct {
 	logger       log.Logger
 	routeFunc    func(*http.Request) namer
 	baseURL      string
+	vdrResolver  zcapld.VDRResolver
 }
 
 func (h *mwHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) { //nolint:funlen // TODO refactor
@@ -104,7 +106,8 @@ func (h *mwHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) { //nolint
 	zcapld.NewHTTPSigAuthHandler(
 		&zcapld.HTTPSigAuthConfig{
 			CapabilityResolver: h.zcaps,
-			KeyResolver:        &zcapld.DIDKeyResolver{},
+			KeyResolver:        zcapld.NewDIDKeyResolver(h.vdrResolver),
+			VDRResolver:        h.vdrResolver,
 			VerifierOptions: []zcapld.VerificationOption{
 				zcapld.WithSignatureSuites(
 					ed25519signature2018.New(suite.WithVerifier(ed25519signature2018.NewPublicKeyVerifier())),

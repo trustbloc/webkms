@@ -275,6 +275,30 @@ func TestStartCmdWithTLSCertParams(t *testing.T) {
 		err := startCmd.Execute()
 		require.Error(t, err)
 	})
+
+	t.Run("Failed to read cert", func(t *testing.T) {
+		startCmd := GetStartCmd(&mockServer{})
+
+		args := requiredArgs()
+		args = append(args, "--"+tlsCACertsFlagName, "/test/path")
+
+		startCmd.SetArgs(args)
+
+		err := startCmd.Execute()
+		require.Contains(t, err.Error(), "failed to read cert: open /test/path")
+	})
+}
+
+func TestStartCmdEmptyDomain(t *testing.T) {
+	startCmd := GetStartCmd(&mockServer{})
+
+	args := requiredArgs()
+	args = append(args, "--"+didDomainFlagName, "")
+
+	startCmd.SetArgs(args)
+
+	err := startCmd.Execute()
+	require.EqualError(t, err, "did-domain value is empty")
 }
 
 func TestStartCmdWithSecretLockKeyPathParam(t *testing.T) {
