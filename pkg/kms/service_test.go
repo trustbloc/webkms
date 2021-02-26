@@ -32,6 +32,7 @@ import (
 
 	"github.com/trustbloc/kms/pkg/kms"
 	lock "github.com/trustbloc/kms/pkg/secretlock"
+	"github.com/trustbloc/kms/pkg/storage/cache"
 )
 
 const (
@@ -100,7 +101,7 @@ func TestResolveKeystore(t *testing.T) {
 		require.NoError(t, err)
 
 		sp := mockstorage.NewMockStoreProvider()
-		sp.Store.Store[testKeystoreID] = b
+		sp.Store.Store[testKeystoreID] = mockstorage.DBEntry{Value: b}
 
 		createSecretLockFunc := func(string, lock.Provider) (secretlock.Service, error) {
 			return &mocksecretlock.MockSecretLock{}, nil
@@ -133,6 +134,7 @@ func TestResolveKeystore(t *testing.T) {
 
 		c := &kms.Config{
 			StorageProvider:           sp,
+			CacheProvider:             cache.NewProvider(),
 			KeyManagerStorageProvider: mockstorage.NewMockStoreProvider(),
 			LocalKMS:                  localKMS,
 			CryptoService:             &mockcrypto.Crypto{},
@@ -172,7 +174,7 @@ func TestGetKeystoreData(t *testing.T) {
 		require.NoError(t, err)
 
 		provider := mockstorage.NewMockStoreProvider()
-		provider.Store.Store[testKeystoreID] = b
+		provider.Store.Store[testKeystoreID] = mockstorage.DBEntry{Value: b}
 
 		svc, err := kms.NewService(&kms.Config{
 			StorageProvider: provider,

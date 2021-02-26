@@ -12,7 +12,7 @@ import (
 	"time"
 
 	"github.com/bluele/gcache"
-	"github.com/hyperledger/aries-framework-go/pkg/storage"
+	"github.com/hyperledger/aries-framework-go/spi/storage"
 	"github.com/stretchr/testify/require"
 	"github.com/trustbloc/edge-core/pkg/log/mocklogger"
 
@@ -28,7 +28,7 @@ func TestNewProvider(t *testing.T) {
 	require.NotNil(t, p)
 }
 
-func TestOpenStore(t *testing.T) {
+func TestProviderOpenStore(t *testing.T) {
 	t.Run("create a new cache store", func(t *testing.T) {
 		logger := &mocklogger.MockLogger{}
 		p := cache.NewProvider(cache.WithLogger(logger))
@@ -53,36 +53,32 @@ func TestOpenStore(t *testing.T) {
 	})
 }
 
-func TestCloseStore(t *testing.T) {
-	t.Run("purge cache upon closing", func(t *testing.T) {
-		gc := &mockGCache{}
-		p := cache.NewProvider(cache.WithGCacheCreator(func() cache.GCache {
-			return gc
-		}))
+func TestProviderSetStoreConfig(t *testing.T) {
+	p := cache.NewProvider()
 
-		_, err := p.OpenStore(testStore) // creates a new cache store
-		require.NoError(t, err)
+	err := p.SetStoreConfig("", storage.StoreConfiguration{})
 
-		err = p.CloseStore(testStore)
+	require.EqualError(t, err, "not implemented")
+}
 
-		require.NoError(t, err)
-		require.Equal(t, 1, gc.PurgeCalledTimes)
-	})
+func TestProviderGetStoreConfig(t *testing.T) {
+	p := cache.NewProvider()
 
-	t.Run("noop if cache store not in the cache list", func(t *testing.T) {
-		gc := &mockGCache{}
-		p := cache.NewProvider(cache.WithGCacheCreator(func() cache.GCache {
-			return gc
-		}))
+	config, err := p.GetStoreConfig("")
 
-		err := p.CloseStore("store")
+	require.EqualError(t, err, "not implemented")
+	require.Empty(t, config)
+}
 
-		require.NoError(t, err)
-		require.Equal(t, 0, gc.PurgeCalledTimes)
+func TestProviderGetOpenStores(t *testing.T) {
+	p := cache.NewProvider()
+
+	require.Panics(t, func() {
+		p.GetOpenStores()
 	})
 }
 
-func TestClose(t *testing.T) {
+func TestProviderClose(t *testing.T) {
 	t.Run("purge cache for each namespace", func(t *testing.T) {
 		cacheList := make([]*mockGCache, 2)
 
@@ -110,7 +106,61 @@ func TestClose(t *testing.T) {
 	})
 }
 
-func TestGet(t *testing.T) {
+func TestStorePut(t *testing.T) {
+	t.Run("put value into the cache", func(t *testing.T) {
+		gc := gcache.New(0).Build()
+
+		p := cache.NewProvider(cache.WithGCacheCreator(func() cache.GCache {
+			return gc
+		}))
+
+		store, err := p.OpenStore(testStore)
+		require.NotNil(t, store)
+		require.NoError(t, err)
+
+		err = store.Put("key", []byte("value"))
+
+		require.NoError(t, err)
+		require.True(t, gc.Has("key"))
+	})
+
+	t.Run("set returns an error", func(t *testing.T) {
+		p := cache.NewProvider(cache.WithGCacheCreator(func() cache.GCache {
+			return &mockGCache{SetWithExpireErr: errors.New("set error")}
+		}))
+
+		store, err := p.OpenStore(testStore)
+		require.NotNil(t, store)
+		require.NoError(t, err)
+
+		err = store.Put("key", []byte("value"))
+
+		require.Error(t, err)
+		require.Equal(t, "set to cache: set error", err.Error())
+	})
+
+	t.Run("attempt to put tags in cache (not implemented)", func(t *testing.T) {
+		gc := gcache.New(0).Build()
+
+		p := cache.NewProvider(cache.WithGCacheCreator(func() cache.GCache {
+			return gc
+		}))
+
+		store, err := p.OpenStore(testStore)
+		require.NotNil(t, store)
+		require.NoError(t, err)
+
+		err = store.Put("key", []byte("value"), storage.Tag{
+			Name:  "TagName",
+			Value: "TagValue",
+		})
+
+		require.EqualError(t, err, "tag storage not implemented")
+		require.True(t, !gc.Has("key"))
+	})
+}
+
+func TestStoreGet(t *testing.T) {
 	t.Run("retrieve value from the cache", func(t *testing.T) {
 		gc := gcache.New(0).Build()
 		err := gc.Set("key", []byte("value"))
@@ -195,41 +245,46 @@ func TestGet(t *testing.T) {
 	})
 }
 
-func TestPut(t *testing.T) {
-	t.Run("put value into the cache", func(t *testing.T) {
-		gc := gcache.New(0).Build()
+func TestStoreGetTags(t *testing.T) {
+	p := cache.NewProvider()
 
-		p := cache.NewProvider(cache.WithGCacheCreator(func() cache.GCache {
-			return gc
-		}))
+	store, err := p.OpenStore("store")
 
-		store, err := p.OpenStore(testStore)
-		require.NotNil(t, store)
-		require.NoError(t, err)
+	require.NoError(t, err)
 
-		err = store.Put("key", []byte("value"))
+	tags, err := store.GetTags("key")
 
-		require.NoError(t, err)
-		require.True(t, gc.Has("key"))
-	})
-
-	t.Run("set returns an error", func(t *testing.T) {
-		p := cache.NewProvider(cache.WithGCacheCreator(func() cache.GCache {
-			return &mockGCache{SetWithExpireErr: errors.New("set error")}
-		}))
-
-		store, err := p.OpenStore(testStore)
-		require.NotNil(t, store)
-		require.NoError(t, err)
-
-		err = store.Put("key", []byte("value"))
-
-		require.Error(t, err)
-		require.Equal(t, "set to cache: set error", err.Error())
-	})
+	require.EqualError(t, err, "not implemented")
+	require.Nil(t, tags)
 }
 
-func TestDelete(t *testing.T) {
+func TestStoreGetBulk(t *testing.T) {
+	p := cache.NewProvider()
+
+	store, err := p.OpenStore("store")
+
+	require.NoError(t, err)
+
+	values, err := store.GetBulk("key")
+
+	require.EqualError(t, err, "not implemented")
+	require.Nil(t, values)
+}
+
+func TestStoreQuery(t *testing.T) {
+	p := cache.NewProvider()
+
+	store, err := p.OpenStore("store")
+
+	require.NoError(t, err)
+
+	iterator, err := store.Query("expression")
+
+	require.EqualError(t, err, "not implemented")
+	require.Nil(t, iterator)
+}
+
+func TestStoreDelete(t *testing.T) {
 	t.Run("remove item that exists in the cache", func(t *testing.T) {
 		gc := gcache.New(0).Build()
 		err := gc.Set("key", []byte("value"))
@@ -266,14 +321,45 @@ func TestDelete(t *testing.T) {
 	})
 }
 
-func TestIterator(t *testing.T) {
+func TestStoreBatch(t *testing.T) {
 	p := cache.NewProvider()
 
-	store, err := p.OpenStore(testStore)
-	require.NotNil(t, store)
+	store, err := p.OpenStore("store")
+
 	require.NoError(t, err)
 
-	require.Panics(t, func() { store.Iterator("startKey", "endKey") }) // Iterator is not implemented
+	err = store.Batch(nil)
+
+	require.EqualError(t, err, "not implemented")
+}
+
+func TestStoreFlush(t *testing.T) {
+	p := cache.NewProvider()
+
+	store, err := p.OpenStore("store")
+
+	require.NoError(t, err)
+
+	err = store.Flush()
+
+	require.EqualError(t, err, "not implemented")
+}
+
+func TestStoreClose(t *testing.T) {
+	t.Run("purge cache upon closing", func(t *testing.T) {
+		gc := &mockGCache{}
+		p := cache.NewProvider(cache.WithGCacheCreator(func() cache.GCache {
+			return gc
+		}))
+
+		store, err := p.OpenStore(testStore) // creates a new cache store
+		require.NoError(t, err)
+
+		err = store.Close()
+
+		require.NoError(t, err)
+		require.Equal(t, 1, gc.PurgeCalledTimes)
+	})
 }
 
 type mockGCache struct {

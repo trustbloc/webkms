@@ -7,11 +7,16 @@ module github.com/trustbloc/kms/cmd/kms-rest
 go 1.15
 
 require (
+	github.com/cenkalti/backoff/v3 v3.2.2 // indirect
+	github.com/containerd/continuity v0.0.0-20200928162600-f2cc35102c2a // indirect
 	github.com/gorilla/mux v1.8.0
-	github.com/hyperledger/aries-framework-go v0.1.6-0.20210212132055-b94cce120dda
-	github.com/hyperledger/aries-framework-go-ext/component/storage/couchdb v0.0.0-20201210203117-e17b615af85d
+	github.com/hyperledger/aries-framework-go v0.1.6-0.20210225161605-5a3ea609e830
+	github.com/hyperledger/aries-framework-go-ext/component/storage/couchdb v0.0.0-20210225210527-93579cabaa31
 	github.com/hyperledger/aries-framework-go-ext/component/vdr/trustbloc v0.0.0-20210209170459-14c492334960
+	github.com/hyperledger/aries-framework-go/component/storageutil v0.0.0-20210225210554-4f581697f7ec
+	github.com/hyperledger/aries-framework-go/spi v0.0.0-20210225210554-4f581697f7ec
 	github.com/rs/cors v1.7.0
+	github.com/sirupsen/logrus v1.7.0 // indirect
 	github.com/spf13/cobra v1.1.2
 	github.com/stretchr/testify v1.7.0
 	github.com/trustbloc/edge-core v0.1.6-0.20210224175343-275d0e0370c4
@@ -19,7 +24,7 @@ require (
 	go.opentelemetry.io/otel v0.16.0
 	go.opentelemetry.io/otel/exporters/trace/jaeger v0.16.0
 	go.opentelemetry.io/otel/sdk v0.16.0
-	golang.org/x/net v0.0.0-20201224014010-6772e930b67b // indirect
+	golang.org/x/net v0.0.0-20210224082022-3d97a244fca7 // indirect
 	golang.org/x/sync v0.0.0-20201207232520-09787c993a3a // indirect
 )
 

@@ -112,7 +112,7 @@ func TestService_NewCapability(t *testing.T) {
 		svc, err := zcapld.New(
 			&mockkms.KeyManager{},
 			&mockcrypto.Crypto{},
-			&mockstorage.MockStoreProvider{Store: &mockstorage.MockStore{Store: make(map[string][]byte)}},
+			&mockstorage.MockStoreProvider{Store: &mockstorage.MockStore{Store: make(map[string]mockstorage.DBEntry)}},
 			verifiable.CachingJSONLDLoader(),
 		)
 		require.NoError(t, err)
@@ -159,7 +159,7 @@ func TestService_NewCapability(t *testing.T) {
 			&mockkms.KeyManager{},
 			&mockcrypto.Crypto{},
 			&mockstorage.MockStoreProvider{Store: &mockstorage.MockStore{
-				Store:  make(map[string][]byte),
+				Store:  make(map[string]mockstorage.DBEntry),
 				ErrPut: errors.New("test"),
 			}},
 			verifiable.CachingJSONLDLoader(),
@@ -174,7 +174,7 @@ func TestService_NewCapability(t *testing.T) {
 func TestService_Resolve(t *testing.T) {
 	t.Run("resolves zcap from store", func(t *testing.T) {
 		store := &mockstorage.MockStore{
-			Store: make(map[string][]byte),
+			Store: make(map[string]mockstorage.DBEntry),
 		}
 		svc, err := zcapld.New(
 			&mockkms.KeyManager{},
@@ -191,7 +191,7 @@ func TestService_Resolve(t *testing.T) {
 		b, err := json.Marshal(zcap)
 		require.NotNil(t, b)
 		require.NoError(t, err)
-		store.Store["uri"] = b
+		store.Store["uri"] = mockstorage.DBEntry{Value: b}
 
 		resolved, err := svc.Resolve("uri")
 
@@ -204,7 +204,7 @@ func TestService_Resolve(t *testing.T) {
 			&mockkms.KeyManager{},
 			&mockcrypto.Crypto{},
 			&mockstorage.MockStoreProvider{Store: &mockstorage.MockStore{
-				Store:  make(map[string][]byte),
+				Store:  make(map[string]mockstorage.DBEntry),
 				ErrGet: errors.New("get error"),
 			}},
 			verifiable.CachingJSONLDLoader(),

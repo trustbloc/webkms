@@ -19,7 +19,7 @@ import (
 
 	"github.com/hyperledger/aries-framework-go/pkg/secretlock"
 	"github.com/hyperledger/aries-framework-go/pkg/secretlock/local/masterlock/hkdf"
-	ariesstorage "github.com/hyperledger/aries-framework-go/pkg/storage"
+	ariesstorage "github.com/hyperledger/aries-framework-go/spi/storage"
 	"github.com/trustbloc/edge-core/pkg/log"
 	"github.com/trustbloc/edge-core/pkg/sss"
 	"github.com/trustbloc/edge-core/pkg/sss/base"

@@ -10,12 +10,12 @@ import (
 	"crypto/x509"
 	"fmt"
 
+	"github.com/hyperledger/aries-framework-go/component/storageutil/mem"
 	"github.com/hyperledger/aries-framework-go/pkg/kms"
 	"github.com/hyperledger/aries-framework-go/pkg/kms/localkms"
 	"github.com/hyperledger/aries-framework-go/pkg/secretlock"
 	"github.com/hyperledger/aries-framework-go/pkg/secretlock/noop"
-	"github.com/hyperledger/aries-framework-go/pkg/storage"
-	"github.com/hyperledger/aries-framework-go/pkg/storage/mem"
+	"github.com/hyperledger/aries-framework-go/spi/storage"
 )
 
 const localKeyURIPrefix = "local-lock://"
