@@ -140,3 +140,20 @@ func (r *remoteAuthCrypto) UnwrapKey(
 	recWK *crypto.RecipientWrappedKey, kh interface{}, opts ...crypto.WrapKeyOpts) ([]byte, error) {
 	panic("implement me")
 }
+
+func (r *remoteAuthCrypto) SignMulti(messages [][]byte, kh interface{}) ([]byte, error) {
+	panic("implement me")
+}
+
+func (r *remoteAuthCrypto) VerifyMulti(messages [][]byte, signature []byte, kh interface{}) error {
+	panic("implement me")
+}
+
+func (r *remoteAuthCrypto) DeriveProof(messages [][]byte, bbsSignature, nonce []byte, revealedIndexes []int,
+	kh interface{}) ([]byte, error) {
+	panic("implement me")
+}
+
+func (r *remoteAuthCrypto) VerifyProof(revealedMessages [][]byte, proof, nonce []byte, kh interface{}) error {
+	panic("implement me")
+}
