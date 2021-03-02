@@ -14,7 +14,7 @@ require (
 	github.com/google/tink/go v1.5.0
 	github.com/google/uuid v1.1.2
 	github.com/gorilla/mux v1.8.0
-	github.com/hyperledger/aries-framework-go v0.1.6-0.20210225161605-5a3ea609e830
+	github.com/hyperledger/aries-framework-go v0.1.6-0.20210302035348-993f7e0057da
 	github.com/hyperledger/aries-framework-go/component/storage/edv v0.0.0-20210225210554-4f581697f7ec
 	github.com/hyperledger/aries-framework-go/component/storageutil v0.0.0-20210225161605-5a3ea609e830
 	github.com/hyperledger/aries-framework-go/spi v0.0.0-20210225210554-4f581697f7ec
