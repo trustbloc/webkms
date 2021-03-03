@@ -25,7 +25,7 @@ type Keystore interface {
 	CreateKey(kt kms.KeyType) (string, error)
 	ExportKey(keyID string) ([]byte, error)
 	CreateAndExportKey(kt kms.KeyType) (string, []byte, error)
-	ImportKey(der []byte, kt kms.KeyType) (string, error)
+	ImportKey(der []byte, kt kms.KeyType, kid string) (string, error)
 	GetKeyHandle(keyID string) (interface{}, error)
 	KeyManager() kms.KeyManager
 }
@@ -96,7 +96,8 @@ func (k *keystore) CreateAndExportKey(kt kms.KeyType) (string, []byte, error) {
 }
 
 // ImportKey imports private key bytes (in DER format) of kt type into KMS and returns key ID.
-func (k *keystore) ImportKey(der []byte, kt kms.KeyType) (string, error) {
+// Optionally, key ID can be specified by kid parameter.
+func (k *keystore) ImportKey(der []byte, kt kms.KeyType, kid string) (string, error) {
 	var privateKey interface{}
 
 	switch kt { //nolint:exhaustive // default catches the rest
@@ -118,7 +119,13 @@ func (k *keystore) ImportKey(der []byte, kt kms.KeyType) (string, error) {
 		return "", fmt.Errorf("import key: not supported key type %q", kt)
 	}
 
-	keyID, _, err := k.keyManager.ImportPrivateKey(privateKey, kt)
+	var opts []kms.PrivateKeyOpts
+
+	if kid != "" {
+		opts = append(opts, kms.WithKeyID(kid))
+	}
+
+	keyID, _, err := k.keyManager.ImportPrivateKey(privateKey, kt, opts...)
 	if err != nil {
 		return "", fmt.Errorf("import key: %w", err)
 	}

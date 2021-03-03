@@ -14,10 +14,10 @@ require (
 	github.com/google/tink/go v1.5.0
 	github.com/google/uuid v1.1.2
 	github.com/gorilla/mux v1.8.0
-	github.com/hyperledger/aries-framework-go v0.1.6-0.20210302035348-993f7e0057da
-	github.com/hyperledger/aries-framework-go/component/storage/edv v0.0.0-20210225210554-4f581697f7ec
-	github.com/hyperledger/aries-framework-go/component/storageutil v0.0.0-20210225161605-5a3ea609e830
-	github.com/hyperledger/aries-framework-go/spi v0.0.0-20210225210554-4f581697f7ec
+	github.com/hyperledger/aries-framework-go v0.1.6-0.20210303144045-5a969e20816b
+	github.com/hyperledger/aries-framework-go/component/storage/edv v0.0.0-20210303162231-46716728d6eb
+	github.com/hyperledger/aries-framework-go/component/storageutil v0.0.0-20210226235232-298aa129d822
+	github.com/hyperledger/aries-framework-go/spi v0.0.0-20210303162231-46716728d6eb
 	github.com/igor-pavlenko/httpsignatures-go v0.0.21
 	github.com/piprate/json-gold v0.3.1-0.20201222165305-f4ce31c02ca3
 	github.com/rs/xid v1.2.1
@@ -27,6 +27,6 @@ require (
 	go.opentelemetry.io/otel v0.16.0
 	golang.org/x/crypto v0.0.0-20210220033148-5ea612d1eb83 // indirect
 	golang.org/x/net v0.0.0-20201202161906-c7110b5ffcbb
-	golang.org/x/sys v0.0.0-20210225134936-a50acf3fe073 // indirect
+	golang.org/x/sys v0.0.0-20210303074136-134d130e1a04 // indirect
 	gopkg.in/yaml.v3 v3.0.0-20210107192922-496545a6307b // indirect
 )

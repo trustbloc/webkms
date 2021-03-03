@@ -453,7 +453,7 @@ func (o *Operation) importKeyHandler(rw http.ResponseWriter, req *http.Request) 
 		return
 	}
 
-	keyID, err := k.ImportKey(keyBytes, arieskms.KeyType(request.KeyType))
+	keyID, err := k.ImportKey(keyBytes, arieskms.KeyType(request.KeyType), request.KeyID)
 	if err != nil {
 		o.writeErrorResponse(rw, http.StatusInternalServerError, importKeyFailure, err)
 

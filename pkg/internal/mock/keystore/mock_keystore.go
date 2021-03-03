@@ -56,7 +56,7 @@ func (m *MockKeystore) CreateAndExportKey(kt kms.KeyType) (string, []byte, error
 }
 
 // ImportKey imports private key bytes (in DER format) of kt type into KMS and returns key ID.
-func (m *MockKeystore) ImportKey(der []byte, kt kms.KeyType) (string, error) {
+func (m *MockKeystore) ImportKey(der []byte, kt kms.KeyType, kid string) (string, error) {
 	if m.ImportKeyErr != nil {
 		return "", m.ImportKeyErr
 	}

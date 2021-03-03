@@ -148,7 +148,7 @@ func TestImportKey(t *testing.T) {
 			der, err := x509.MarshalPKCS8PrivateKey(tt.pk)
 			require.NoError(t, err)
 
-			keyID, err := k.ImportKey(der, tt.kt)
+			keyID, err := k.ImportKey(der, tt.kt, testKeyID)
 
 			require.NotEmpty(t, keyID)
 			require.NoError(t, err)
@@ -160,7 +160,7 @@ func TestImportKey(t *testing.T) {
 			ImportPrivateKeyID: testKeyID,
 		})
 
-		keyID, err := k.ImportKey([]byte("not valid private key"), kms.ED25519)
+		keyID, err := k.ImportKey([]byte("not valid private key"), kms.ED25519, "")
 
 		require.Empty(t, keyID)
 		require.Error(t, err)
@@ -177,7 +177,7 @@ func TestImportKey(t *testing.T) {
 		der, err := x509.MarshalPKCS8PrivateKey(privKey)
 		require.NoError(t, err)
 
-		keyID, err := k.ImportKey(der, kms.RSARS256Type)
+		keyID, err := k.ImportKey(der, kms.RSARS256Type, "")
 
 		require.Empty(t, keyID)
 		require.Error(t, err)
@@ -195,7 +195,7 @@ func TestImportKey(t *testing.T) {
 		der, err := x509.MarshalPKCS8PrivateKey(privKey)
 		require.NoError(t, err)
 
-		keyID, err := k.ImportKey(der, kms.ED25519)
+		keyID, err := k.ImportKey(der, kms.ED25519, "")
 
 		require.Empty(t, keyID)
 		require.Error(t, err)
