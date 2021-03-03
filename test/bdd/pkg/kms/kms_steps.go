@@ -19,6 +19,7 @@ import (
 	"io/ioutil"
 	"net/http"
 	"net/url"
+	"regexp"
 
 	"github.com/cucumber/godog"
 	"github.com/hyperledger/aries-framework-go/pkg/crypto"
@@ -89,7 +90,8 @@ func (s *Steps) RegisterSteps(ctx *godog.ScenarioContext) {
 	ctx.Step(`^"([^"]*)" makes an HTTP GET to "([^"]*)" to export public key$`, s.makeExportPubKeyReq)
 	ctx.Step(`^"([^"]*)" makes an HTTP POST to "([^"]*)" to create and export "([^"]*)" key$`,
 		s.makeCreateAndExportKeyReq)
-	ctx.Step(`^"([^"]*)" makes an HTTP POST to "([^"]*)" to import a private key$`, s.makeImportKeyReq)
+	ctx.Step(`^"([^"]*)" makes an HTTP POST to "([^"]*)" to import a private key with ID "([^"]*)"$`,
+		s.makeImportKeyReq)
 	// sign/verify message steps
 	ctx.Step(`^"([^"]*)" makes an HTTP POST to "([^"]*)" to sign "([^"]*)"$`, s.makeSignMessageReq)
 	ctx.Step(`^"([^"]*)" makes an HTTP POST to "([^"]*)" to verify "([^"]*)" for "([^"]*)"$`, s.makeVerifySignatureReq)
@@ -369,7 +371,7 @@ func (s *Steps) makeCreateAndExportKeyReq(user, endpoint, keyType string) error 
 	return nil
 }
 
-func (s *Steps) makeImportKeyReq(userName, endpoint string) error {
+func (s *Steps) makeImportKeyReq(userName, endpoint, keyID string) error {
 	u := s.users[userName]
 
 	_, pk, err := ed25519.GenerateKey(rand.Reader)
@@ -385,6 +387,7 @@ func (s *Steps) makeImportKeyReq(userName, endpoint string) error {
 	r := &importKeyReq{
 		KeyBytes: base64.URLEncoding.EncodeToString(der),
 		KeyType:  "ED25519",
+		KeyID:    keyID,
 	}
 
 	request, err := u.preparePostRequest(r, endpoint)
@@ -994,8 +997,10 @@ func (s *Steps) checkRespWithNoValue(user, tag string) error {
 func (s *Steps) checkRespWithValue(user, tag, val string) error {
 	u := s.users[user]
 
-	if u.data[tag] != val {
-		return fmt.Errorf("expected %q to be %q, got: %q", tag, val, u.data[tag])
+	expected := regexp.MustCompile(val)
+
+	if !expected.MatchString(u.data[tag]) {
+		return fmt.Errorf("expected %q to match %q, got: %q", tag, val, u.data[tag])
 	}
 
 	return nil

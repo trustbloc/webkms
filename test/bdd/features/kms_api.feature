@@ -42,10 +42,10 @@ Feature: KMS and crypto operations
   Scenario: User imports a private key
     Given "Bob" has created an empty keystore on Key Server
 
-    When  "Bob" makes an HTTP POST to "https://localhost:4466/kms/keystores/{keystoreID}/import" to import a private key
+    When  "Bob" makes an HTTP POST to "https://localhost:4466/kms/keystores/{keystoreID}/import" to import a private key with ID "keyID"
     Then  "Bob" gets a response with HTTP status "201 Created"
      And  "Bob" gets a response with "Location" header with a valid URL
-     And  "Bob" gets a response with non-empty "location"
+     And  "Bob" gets a response with "location" with value "https://kms.example.com:8076/kms/keystores/([^/]+)/keys/keyID"
 
   Scenario: User signs a message and verifies a signature
     Given "Alice" has created a keystore with "ED25519" key on Key Server
@@ -96,13 +96,13 @@ Feature: KMS and crypto operations
 
   Scenario: User A wraps XC20P key for User B, User B successfully unwraps it (Anoncrypt)
     Given "Alice" has created a keystore with "X25519ECDHKW" key on Key Server
-    And "Bob" has created a keystore with "X25519ECDHKW" key on Key Server
-    And "Alice" has a public key of "Bob"
+      And "Bob" has created a keystore with "X25519ECDHKW" key on Key Server
+      And "Alice" has a public key of "Bob"
 
     When  "Alice" makes an HTTP POST to "https://localhost:4466/kms/keystores/{keystoreID}/wrap" to wrap "testCEK" for "Bob"
     Then  "Alice" gets a response with HTTP status "200 OK"
-    And  "Alice" gets a response with non-empty "wrappedKey"
+     And  "Alice" gets a response with non-empty "wrappedKey"
 
     When  "Bob" makes an HTTP POST to "https://localhost:4466/kms/keystores/{keystoreID}/keys/{keyID}/unwrap" to unwrap "wrappedKey" from "Alice"
     Then  "Bob" gets a response with HTTP status "200 OK"
-    And  "Bob" gets a response with content of "testCEK" key
+     And  "Bob" gets a response with content of "testCEK" key

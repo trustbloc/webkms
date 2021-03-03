@@ -35,6 +35,7 @@ type exportKeyResp struct {
 type importKeyReq struct {
 	KeyBytes string `json:"keyBytes"`
 	KeyType  string `json:"keyType"`
+	KeyID    string `json:"keyID,omitempty"`
 }
 
 type importKeyResp struct {

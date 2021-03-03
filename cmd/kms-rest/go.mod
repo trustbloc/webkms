@@ -7,16 +7,24 @@ module github.com/trustbloc/kms/cmd/kms-rest
 go 1.15
 
 require (
+	github.com/bluele/gcache v0.0.2 // indirect
 	github.com/cenkalti/backoff/v3 v3.2.2 // indirect
 	github.com/containerd/continuity v0.0.0-20200928162600-f2cc35102c2a // indirect
 	github.com/gorilla/mux v1.8.0
-	github.com/hyperledger/aries-framework-go v0.1.6-0.20210302035348-993f7e0057da
-	github.com/hyperledger/aries-framework-go-ext/component/storage/couchdb v0.0.0-20210227073053-5d4fd6ad6b43
-	github.com/hyperledger/aries-framework-go-ext/component/vdr/trustbloc v0.0.0-20210209170459-14c492334960
-	github.com/hyperledger/aries-framework-go/component/storageutil v0.0.0-20210225210554-4f581697f7ec
-	github.com/hyperledger/aries-framework-go/spi v0.0.0-20210301145929-dc1a9b33494a
+	github.com/hyperledger/aries-framework-go v0.1.6-0.20210303144045-5a969e20816b
+	github.com/hyperledger/aries-framework-go-ext/component/storage/couchdb v0.0.0-20210301183320-85351acdb748
+	github.com/hyperledger/aries-framework-go-ext/component/vdr/sidetree v0.0.0-20210301183320-85351acdb748 // indirect
+	github.com/hyperledger/aries-framework-go-ext/component/vdr/trustbloc v0.0.0-20210301183320-85351acdb748
+	github.com/hyperledger/aries-framework-go/component/storageutil v0.0.0-20210226235232-298aa129d822
+	github.com/hyperledger/aries-framework-go/spi v0.0.0-20210303162231-46716728d6eb
+	github.com/kilic/bls12-381 v0.1.0 // indirect
+	github.com/magefile/mage v1.11.0 // indirect
+	github.com/minio/sha256-simd v1.0.0 // indirect
+	github.com/mr-tron/base58 v1.2.0 // indirect
+	github.com/multiformats/go-varint v0.0.6 // indirect
+	github.com/pquerna/cachecontrol v0.0.0-20201205024021-ac21108117ac // indirect
 	github.com/rs/cors v1.7.0
-	github.com/sirupsen/logrus v1.7.0 // indirect
+	github.com/sirupsen/logrus v1.8.0 // indirect
 	github.com/spf13/cobra v1.1.2
 	github.com/stretchr/testify v1.7.0
 	github.com/trustbloc/edge-core v0.1.6-0.20210224175343-275d0e0370c4
