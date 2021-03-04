@@ -323,6 +323,74 @@ type sealOpenRespSpec struct { //nolint:unused,deadcode // spec
 	SealOpenResp sealOpenResp
 }
 
+// signMultiReq model
+//
+// swagger:parameters signMultiReq
+type signMultiReqSpec struct { //nolint:unused,deadcode // spec
+	// in: path
+	// required: true
+	KeystoreID string `json:"keystoreID"`
+	// in: path
+	// required: true
+	KeyID string `json:"keyID"`
+	// in: body
+	// required: true
+	SignMultiReq signMultiReq
+}
+
+// verifyMultiReq model
+//
+// swagger:parameters verifyMultiReq
+type verifyMultiReqSpec struct { //nolint:unused,deadcode // spec
+	// in: path
+	// required: true
+	KeystoreID string `json:"keystoreID"`
+	// in: path
+	// required: true
+	KeyID string `json:"keyID"`
+	// in: body
+	// required: true
+	VerifyMultiReq verifyMultiReq
+}
+
+// deriveProofReq model
+//
+// swagger:parameters deriveProofReq
+type deriveProofReqSpec struct { //nolint:unused,deadcode // spec
+	// in: path
+	// required: true
+	KeystoreID string `json:"keystoreID"`
+	// in: path
+	// required: true
+	KeyID string `json:"keyID"`
+	// in: body
+	// required: true
+	DeriveProofReq deriveProofReq
+}
+
+// deriveProofResp model
+//
+// swagger:parameters deriveProofResp
+type deriveProofRespSpec struct { //nolint:unused,deadcode // spec
+	// in: body
+	DeriveProofResp deriveProofResp
+}
+
+// verifyProofReq model
+//
+// swagger:parameters verifyProofReq
+type verifyProofReqSpec struct { //nolint:unused,deadcode // spec
+	// in: path
+	// required: true
+	KeystoreID string `json:"keystoreID"`
+	// in: path
+	// required: true
+	KeyID string `json:"keyID"`
+	// in: body
+	// required: true
+	VerifyProofReq verifyProofReq
+}
+
 // errorResp model
 //
 // swagger:response errorResp

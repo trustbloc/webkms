@@ -88,6 +88,32 @@ type verifyMACReq struct {
 	Data string `json:"data"`
 }
 
+type signMultiReq struct {
+	Messages []string `json:"messages,omitempty"`
+}
+
+type verifyMultiReq struct {
+	Signature string   `json:"signature,omitempty"`
+	Messages  []string `json:"messages,omitempty"`
+}
+
+type deriveProofReq struct {
+	Messages        []string `json:"messages,omitempty"`
+	Signature       string   `json:"signature,omitempty"`
+	Nonce           string   `json:"nonce,omitempty"`
+	RevealedIndexes []int    `json:"revealedIndexes,omitempty"`
+}
+
+type deriveProofResp struct {
+	Proof string `json:"proof,omitempty"`
+}
+
+type verifyProofReq struct {
+	Proof    string   `json:"proof,omitempty"`
+	Messages []string `json:"messages,omitempty"`
+	Nonce    string   `json:"nonce,omitempty"`
+}
+
 type publicKey struct {
 	KID   string `json:"kid,omitempty"`
 	X     string `json:"x,omitempty"`

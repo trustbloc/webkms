@@ -132,7 +132,7 @@ func (h *mwHandler) logError(err error) {
 	h.logger.Errorf("unauthorized capability invocation: %s", err.Error())
 }
 
-func expectedAction(n namer) (string, error) { // nolint:gocyclo // necessary complexity
+func expectedAction(n namer) (string, error) { // nolint:gocyclo,funlen // necessary complexity
 	var (
 		action string
 		err    error
@@ -169,6 +169,14 @@ func expectedAction(n namer) (string, error) { // nolint:gocyclo // necessary co
 		action = actionEasyOpen
 	case sealOpenEndpoint:
 		action = actionSealOpen
+	case signMultiEndpoint:
+		action = actionSignMulti
+	case verifyMultiEndpoint:
+		action = actionVerifyMulti
+	case deriveProofEndpoint:
+		action = actionDeriveProof
+	case verifyProofEndpoint:
+		action = actionVerifyProof
 	default:
 		err = fmt.Errorf("unsupported endpoint: %s", n.GetName())
 	}
@@ -177,7 +185,7 @@ func expectedAction(n namer) (string, error) { // nolint:gocyclo // necessary co
 }
 
 // CapabilityInvocationAction returns the action to invoke on the capability given the request.
-func CapabilityInvocationAction(r *http.Request) (string, error) { // nolint:gocyclo // ignore due to switch stmt
+func CapabilityInvocationAction(r *http.Request) (string, error) { // nolint:gocyclo,funlen // ignore due to switch stmt
 	idx := strings.LastIndex(r.URL.Path, "/")
 	if idx == -1 {
 		return "", fmt.Errorf("invalid path format: %s", r.URL.Path)
@@ -221,6 +229,14 @@ func CapabilityInvocationAction(r *http.Request) (string, error) { // nolint:goc
 		action = actionEasyOpen
 	case sealOpenPath:
 		action = actionSealOpen
+	case signMultiPath:
+		action = actionSignMulti
+	case verifyMultiPath:
+		action = actionVerifyMulti
+	case deriveProofPath:
+		action = actionDeriveProof
+	case verifyProofPath:
+		action = actionVerifyProof
 	default:
 		err = fmt.Errorf("unsupported endpoint: %s", r.URL.Path)
 	}
