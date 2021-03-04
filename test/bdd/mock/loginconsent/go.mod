@@ -11,5 +11,5 @@ require (
 	github.com/hyperledger/aries-framework-go/component/storageutil v0.0.0-20210225210554-4f581697f7ec
 	github.com/hyperledger/aries-framework-go/spi v0.0.0-20210224230531-58e1368e5661
 	github.com/ory/hydra-client-go v1.8.5
-	github.com/trustbloc/edge-core v0.1.6-0.20210224175343-275d0e0370c4
+	github.com/trustbloc/edge-core v0.1.6-0.20210304151911-954ad69796fc
 )
