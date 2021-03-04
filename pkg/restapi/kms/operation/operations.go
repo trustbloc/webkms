@@ -30,26 +30,33 @@ import (
 	"github.com/trustbloc/kms/pkg/kms"
 )
 
+// HTTP params.
 const (
-	// HTTP params.
 	keystoreIDQueryParam = "keystoreID"
 	keyIDQueryParam      = "keyID"
+)
 
-	keysPath       = "/keys"
-	capabilityPath = "/capability"
-	exportPath     = "/export"
-	importPath     = "/import"
-	signPath       = "/sign"
-	verifyPath     = "/verify"
-	encryptPath    = "/encrypt"
-	decryptPath    = "/decrypt"
-	computeMACPath = "/computemac"
-	verifyMACPath  = "/verifymac"
-	wrapPath       = "/wrap"
-	unwrapPath     = "/unwrap"
-	easyPath       = "/easy"
-	easyOpenPath   = "/easyopen"
-	sealOpenPath   = "/sealopen"
+// Endpoints.
+const (
+	keysPath        = "/keys"
+	capabilityPath  = "/capability"
+	exportPath      = "/export"
+	importPath      = "/import"
+	signPath        = "/sign"
+	verifyPath      = "/verify"
+	encryptPath     = "/encrypt"
+	decryptPath     = "/decrypt"
+	computeMACPath  = "/computemac"
+	verifyMACPath   = "/verifymac"
+	wrapPath        = "/wrap"
+	unwrapPath      = "/unwrap"
+	easyPath        = "/easy"
+	easyOpenPath    = "/easyopen"
+	sealOpenPath    = "/sealopen"
+	signMultiPath   = "/signmulti"
+	verifyMultiPath = "/verifymulti"
+	deriveProofPath = "/deriveproof"
+	verifyProofPath = "/verifyproof"
 
 	// KMSBasePath is the base path for all KMS endpoints.
 	KMSBasePath        = "/kms"
@@ -73,29 +80,39 @@ const (
 	easyOpenEndpoint = keystoreEndpoint + easyOpenPath
 	sealOpenEndpoint = keystoreEndpoint + sealOpenPath
 
-	// Error messages.
-	receivedBadRequest        = "Received bad request: %s"
-	createKeystoreFailure     = "Failed to create a keystore: %s"
-	resolveKeystoreFailure    = "Failed to resolve a keystore: %s"
-	getKeystoreFailure        = "Failed to get a keystore: %s"
-	saveKeystoreFailure       = "Failed to get a keystore: %s"
-	createKeyFailure          = "Failed to create a key: %s"
-	createAndExportKeyFailure = "Failed to create and export a key: %s"
-	exportKeyFailure          = "Failed to export a public key: %s"
-	importKeyFailure          = "Failed to import a private key: %s"
-	signMessageFailure        = "Failed to sign a message: %s"
-	verifyMessageFailure      = "Failed to verify a message: %s"
-	encryptMessageFailure     = "Failed to encrypt a message: %s"
-	decryptMessageFailure     = "Failed to decrypt a message: %s"
-	computeMACFailure         = "Failed to compute MAC: %s"
-	verifyMACFailure          = "Failed to verify MAC: %s"
-	wrapMessageFailure        = "Failed to wrap a key: %s"
-	unwrapMessageFailure      = "Failed to unwrap a key: %s"
-	createZCAPFailure         = "Failed to create zcap: %s"
+	signMultiEndpoint   = keyEndpoint + signMultiPath
+	verifyMultiEndpoint = keyEndpoint + verifyMultiPath
+	deriveProofEndpoint = keyEndpoint + deriveProofPath
+	verifyProofEndpoint = keyEndpoint + verifyProofPath
+)
 
-	easyMessageFailure     = "Failed to easy a message: %s"
-	easyOpenMessageFailure = "Failed to easyOpen a message: %s"
-	sealOpenPayloadFailure = "Failed to sealOpen a payload: %s"
+// Error messages.
+const (
+	receivedBadRequest         = "Received bad request: %s"
+	createKeystoreFailure      = "Failed to create a keystore: %s"
+	resolveKeystoreFailure     = "Failed to resolve a keystore: %s"
+	getKeystoreFailure         = "Failed to get a keystore: %s"
+	saveKeystoreFailure        = "Failed to get a keystore: %s"
+	createKeyFailure           = "Failed to create a key: %s"
+	createAndExportKeyFailure  = "Failed to create and export a key: %s"
+	exportKeyFailure           = "Failed to export a public key: %s"
+	importKeyFailure           = "Failed to import a private key: %s"
+	signMessageFailure         = "Failed to sign a message: %s"
+	verifyMessageFailure       = "Failed to verify a message: %s"
+	encryptMessageFailure      = "Failed to encrypt a message: %s"
+	decryptMessageFailure      = "Failed to decrypt a message: %s"
+	computeMACFailure          = "Failed to compute MAC: %s"
+	verifyMACFailure           = "Failed to verify MAC: %s"
+	wrapMessageFailure         = "Failed to wrap a key: %s"
+	unwrapMessageFailure       = "Failed to unwrap a key: %s"
+	createZCAPFailure          = "Failed to create zcap: %s"
+	easyMessageFailure         = "Failed to easy a message: %s"
+	easyOpenMessageFailure     = "Failed to easyOpen a message: %s"
+	sealOpenPayloadFailure     = "Failed to sealOpen a payload: %s"
+	signMultiMessagesFailure   = "Failed to sign messages: %s"
+	verifyMultiMessagesFailure = "Failed to verify messages: %s"
+	deriveProofFailure         = "Failed to derive proof: %s"
+	verifyProofFailure         = "Failed to verify proof: %s"
 )
 
 const (
@@ -111,10 +128,13 @@ const (
 	actionEncrypt         = "encrypt"
 	actionDecrypt         = "decrypt"
 	actionStoreCapability = "updateEDVCapability"
-
-	actionEasy     = "easy"
-	actionEasyOpen = "easyOpen"
-	actionSealOpen = "sealOpen"
+	actionEasy            = "easy"
+	actionEasyOpen        = "easyOpen"
+	actionSealOpen        = "sealOpen"
+	actionSignMulti       = "signMulti"
+	actionVerifyMulti     = "verifyMulti"
+	actionDeriveProof     = "deriveProof"
+	actionVerifyProof     = "verifyProof"
 )
 
 // Handler defines an HTTP handler for the API endpoint.
@@ -193,6 +213,11 @@ func (o *Operation) GetRESTHandlers() []Handler {
 		support.NewHTTPHandler(easyEndpoint, easyEndpoint, http.MethodPost, o.easyHandler),
 		support.NewHTTPHandler(easyOpenEndpoint, easyOpenEndpoint, http.MethodPost, o.easyOpenHandler),
 		support.NewHTTPHandler(sealOpenEndpoint, sealOpenEndpoint, http.MethodPost, o.sealOpenHandler),
+		// BBS+ operations
+		support.NewHTTPHandler(signMultiEndpoint, signMultiEndpoint, http.MethodPost, o.signMultiHandler),
+		support.NewHTTPHandler(verifyMultiEndpoint, verifyMultiEndpoint, http.MethodPost, o.verifyMultiHandler),
+		support.NewHTTPHandler(deriveProofEndpoint, deriveProofEndpoint, http.MethodPost, o.deriveProofHandler),
+		support.NewHTTPHandler(verifyProofEndpoint, verifyProofEndpoint, http.MethodPost, o.verifyProofHandler),
 	}
 }
 
@@ -1037,6 +1062,305 @@ func (o *Operation) unwrapHandler(rw http.ResponseWriter, req *http.Request) { /
 	o.writeResponse(rw, unwrapResp{Key: base64.URLEncoding.EncodeToString(cek)})
 }
 
+// swagger:route POST /kms/keystores/{keystoreID}/keys/{keyID}/signmulti kms signMultiReq
+//
+// Creates a BBS+ signature of messages.
+//
+// Responses:
+//        200: signResp
+//    default: errorResp
+func (o *Operation) signMultiHandler(rw http.ResponseWriter, req *http.Request) {
+	ctx, span := o.traceSpan(req, "signMultiHandler")
+	defer span.End()
+
+	o.logger.Debugf("handling request: %s", req.URL.String())
+
+	start := time.Now()
+
+	k, err := o.kmsService.ResolveKeystore(req.WithContext(ctx))
+	if err != nil {
+		o.writeErrorResponse(rw, http.StatusInternalServerError, resolveKeystoreFailure, err)
+
+		return
+	}
+
+	span.AddEvent("ResolveKeystore completed",
+		trace.WithAttributes(label.String("duration", time.Since(start).String())))
+
+	var request signMultiReq
+	if ok := o.parseRequest(&request, rw, req); !ok {
+		return
+	}
+
+	keystoreID := mux.Vars(req)[keystoreIDQueryParam]
+	keyID := mux.Vars(req)[keyIDQueryParam]
+
+	span.SetAttributes(label.String("keystoreID", keystoreID))
+	span.SetAttributes(label.String("keyID", keyID))
+
+	var messages [][]byte
+
+	for _, msg := range request.Messages {
+		m, e := base64.URLEncoding.DecodeString(msg)
+		if e != nil {
+			o.writeErrorResponse(rw, http.StatusBadRequest, receivedBadRequest, e)
+
+			return
+		}
+
+		messages = append(messages, m)
+	}
+
+	kh, err := k.GetKeyHandle(keyID)
+	if err != nil {
+		o.writeErrorResponse(rw, http.StatusInternalServerError, signMultiMessagesFailure, err)
+
+		return
+	}
+
+	signature, err := o.kmsService.SignMulti(messages, kh)
+	if err != nil {
+		o.writeErrorResponse(rw, http.StatusInternalServerError, signMultiMessagesFailure, err)
+
+		return
+	}
+
+	o.writeResponse(rw, signResp{
+		Signature: base64.URLEncoding.EncodeToString(signature),
+	})
+
+	o.logger.Debugf("finished handling request: %s", req.URL.String())
+}
+
+// swagger:route POST /kms/keystores/{keystoreID}/keys/{keyID}/verifymulti kms verifyMultiReq
+//
+// Verifies a signature of messages (BBS+).
+//
+// Responses:
+//        200: emptyRes
+//    default: errorResp
+func (o *Operation) verifyMultiHandler(rw http.ResponseWriter, req *http.Request) { //nolint:funlen //ignore
+	ctx, span := o.traceSpan(req, "verifyMultiHandler")
+	defer span.End()
+
+	start := time.Now()
+
+	k, err := o.kmsService.ResolveKeystore(req.WithContext(ctx))
+	if err != nil {
+		o.writeErrorResponse(rw, http.StatusInternalServerError, resolveKeystoreFailure, err)
+
+		return
+	}
+
+	span.AddEvent("ResolveKeystore completed",
+		trace.WithAttributes(label.String("duration", time.Since(start).String())))
+
+	var request verifyMultiReq
+	if ok := o.parseRequest(&request, rw, req); !ok {
+		return
+	}
+
+	keystoreID := mux.Vars(req)[keystoreIDQueryParam]
+	keyID := mux.Vars(req)[keyIDQueryParam]
+
+	span.SetAttributes(label.String("keystoreID", keystoreID))
+	span.SetAttributes(label.String("keyID", keyID))
+
+	signature, err := base64.URLEncoding.DecodeString(request.Signature)
+	if err != nil {
+		o.writeErrorResponse(rw, http.StatusBadRequest, receivedBadRequest, err)
+
+		return
+	}
+
+	var messages [][]byte
+
+	for _, msg := range request.Messages {
+		m, e := base64.URLEncoding.DecodeString(msg)
+		if e != nil {
+			o.writeErrorResponse(rw, http.StatusBadRequest, receivedBadRequest, e)
+
+			return
+		}
+
+		messages = append(messages, m)
+	}
+
+	kh, err := k.GetKeyHandle(keyID)
+	if err != nil {
+		o.writeErrorResponse(rw, http.StatusInternalServerError, verifyMultiMessagesFailure, err)
+
+		return
+	}
+
+	err = o.kmsService.VerifyMulti(messages, signature, kh)
+	if err != nil {
+		o.writeErrorResponse(rw, http.StatusInternalServerError, verifyMultiMessagesFailure, err)
+
+		return
+	}
+
+	rw.WriteHeader(http.StatusOK)
+}
+
+// swagger:route POST /kms/keystores/{keystoreID}/keys/{keyID}/deriveproof kms deriveProofReq
+//
+// Creates a BBS+ signature proof for a list of revealed messages.
+//
+// Responses:
+//        200: deriveProofResp
+//    default: errorResp
+func (o *Operation) deriveProofHandler(rw http.ResponseWriter, req *http.Request) { //nolint:funlen //ignore
+	ctx, span := o.traceSpan(req, "deriveProofHandler")
+	defer span.End()
+
+	start := time.Now()
+
+	k, err := o.kmsService.ResolveKeystore(req.WithContext(ctx))
+	if err != nil {
+		o.writeErrorResponse(rw, http.StatusInternalServerError, resolveKeystoreFailure, err)
+
+		return
+	}
+
+	span.AddEvent("ResolveKeystore completed",
+		trace.WithAttributes(label.String("duration", time.Since(start).String())))
+
+	var request deriveProofReq
+	if ok := o.parseRequest(&request, rw, req); !ok {
+		return
+	}
+
+	keystoreID := mux.Vars(req)[keystoreIDQueryParam]
+	keyID := mux.Vars(req)[keyIDQueryParam]
+
+	span.SetAttributes(label.String("keystoreID", keystoreID))
+	span.SetAttributes(label.String("keyID", keyID))
+
+	var messages [][]byte
+
+	for _, msg := range request.Messages {
+		m, e := base64.URLEncoding.DecodeString(msg)
+		if e != nil {
+			o.writeErrorResponse(rw, http.StatusBadRequest, receivedBadRequest, e)
+
+			return
+		}
+
+		messages = append(messages, m)
+	}
+
+	signature, err := base64.URLEncoding.DecodeString(request.Signature)
+	if err != nil {
+		o.writeErrorResponse(rw, http.StatusBadRequest, receivedBadRequest, err)
+
+		return
+	}
+
+	nonce, err := base64.URLEncoding.DecodeString(request.Nonce)
+	if err != nil {
+		o.writeErrorResponse(rw, http.StatusBadRequest, receivedBadRequest, err)
+
+		return
+	}
+
+	kh, err := k.GetKeyHandle(keyID)
+	if err != nil {
+		o.writeErrorResponse(rw, http.StatusInternalServerError, deriveProofFailure, err)
+
+		return
+	}
+
+	proof, err := o.kmsService.DeriveProof(messages, signature, nonce, request.RevealedIndexes, kh)
+	if err != nil {
+		o.writeErrorResponse(rw, http.StatusInternalServerError, deriveProofFailure, err)
+
+		return
+	}
+
+	o.writeResponse(rw, deriveProofResp{
+		Proof: base64.URLEncoding.EncodeToString(proof),
+	})
+}
+
+// swagger:route POST /kms/keystores/{keystoreID}/keys/{keyID}/verifyproof kms verifyProofReq
+//
+// Verifies a BBS+ signature proof for revealed messages.
+//
+// Responses:
+//        200: emptyRes
+//    default: errorResp
+func (o *Operation) verifyProofHandler(rw http.ResponseWriter, req *http.Request) { //nolint:funlen //ignore
+	ctx, span := o.traceSpan(req, "verifyProofHandler")
+	defer span.End()
+
+	start := time.Now()
+
+	k, err := o.kmsService.ResolveKeystore(req.WithContext(ctx))
+	if err != nil {
+		o.writeErrorResponse(rw, http.StatusInternalServerError, resolveKeystoreFailure, err)
+
+		return
+	}
+
+	span.AddEvent("ResolveKeystore completed",
+		trace.WithAttributes(label.String("duration", time.Since(start).String())))
+
+	var request verifyProofReq
+	if ok := o.parseRequest(&request, rw, req); !ok {
+		return
+	}
+
+	keystoreID := mux.Vars(req)[keystoreIDQueryParam]
+	keyID := mux.Vars(req)[keyIDQueryParam]
+
+	span.SetAttributes(label.String("keystoreID", keystoreID))
+	span.SetAttributes(label.String("keyID", keyID))
+
+	proof, err := base64.URLEncoding.DecodeString(request.Proof)
+	if err != nil {
+		o.writeErrorResponse(rw, http.StatusBadRequest, receivedBadRequest, err)
+
+		return
+	}
+
+	nonce, err := base64.URLEncoding.DecodeString(request.Nonce)
+	if err != nil {
+		o.writeErrorResponse(rw, http.StatusBadRequest, receivedBadRequest, err)
+
+		return
+	}
+
+	var messages [][]byte
+
+	for _, msg := range request.Messages {
+		m, e := base64.URLEncoding.DecodeString(msg)
+		if e != nil {
+			o.writeErrorResponse(rw, http.StatusBadRequest, receivedBadRequest, e)
+
+			return
+		}
+
+		messages = append(messages, m)
+	}
+
+	kh, err := k.GetKeyHandle(keyID)
+	if err != nil {
+		o.writeErrorResponse(rw, http.StatusInternalServerError, verifyProofFailure, err)
+
+		return
+	}
+
+	err = o.kmsService.VerifyProof(messages, proof, nonce, kh)
+	if err != nil {
+		o.writeErrorResponse(rw, http.StatusInternalServerError, verifyProofFailure, err)
+
+		return
+	}
+
+	rw.WriteHeader(http.StatusOK)
+}
+
 func (o *Operation) traceSpan(req *http.Request, spanName string) (context.Context, trace.Span) {
 	ctx, span := o.tracer.Start(req.Context(), spanName)
 
@@ -1180,5 +1504,9 @@ func allActions() []string {
 		actionEasy,
 		actionEasyOpen,
 		actionSealOpen,
+		actionSignMulti,
+		actionVerifyMulti,
+		actionDeriveProof,
+		actionVerifyProof,
 	}
 }

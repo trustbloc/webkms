@@ -78,6 +78,10 @@ func TestMiddleware(t *testing.T) {
 				verifyMACEndpoint,
 				wrapEndpoint,
 				unwrapEndpoint,
+				signMultiEndpoint,
+				verifyMultiEndpoint,
+				deriveProofEndpoint,
+				verifyProofEndpoint,
 			}
 
 			for _, endpoint := range endpoints {
@@ -116,6 +120,10 @@ func TestMiddleware(t *testing.T) {
 				verifyMACEndpoint,
 				wrapEndpoint,
 				unwrapEndpoint,
+				signMultiEndpoint,
+				verifyMultiEndpoint,
+				deriveProofEndpoint,
+				verifyProofEndpoint,
 			}
 
 			for _, endpoint := range endpoints {
@@ -204,6 +212,22 @@ func TestCapabilityInvocationAction(t *testing.T) {
 			{
 				endpoint:       unwrapEndpoint,
 				expectedAction: actionUnwrap,
+			},
+			{
+				endpoint:       signMultiEndpoint,
+				expectedAction: actionSignMulti,
+			},
+			{
+				endpoint:       verifyMultiEndpoint,
+				expectedAction: actionVerifyMulti,
+			},
+			{
+				endpoint:       deriveProofEndpoint,
+				expectedAction: actionDeriveProof,
+			},
+			{
+				endpoint:       verifyProofEndpoint,
+				expectedAction: actionVerifyProof,
 			},
 		}
 
