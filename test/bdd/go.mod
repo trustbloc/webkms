@@ -9,15 +9,15 @@ go 1.15
 require (
 	github.com/cucumber/godog v0.10.0
 	github.com/fsouza/go-dockerclient v1.6.6
-	github.com/hyperledger/aries-framework-go v0.1.6-0.20210306003819-79bbc2abaa5f
-	github.com/hyperledger/aries-framework-go/component/storageutil v0.0.0-20210306003819-79bbc2abaa5f
-	github.com/hyperledger/aries-framework-go/spi v0.0.0-20210306003819-79bbc2abaa5f
+	github.com/hyperledger/aries-framework-go v0.1.6
+	github.com/hyperledger/aries-framework-go/component/storageutil v0.0.0-20210306162754-1a1e0c4a378e
+	github.com/hyperledger/aries-framework-go/spi v0.0.0-20210306162754-1a1e0c4a378e
 	github.com/igor-pavlenko/httpsignatures-go v0.0.23
 	github.com/rs/xid v1.2.1
 	github.com/teserakt-io/golang-ed25519 v0.0.0-20210104091850-3888c087a4c8
-	github.com/trustbloc/edge-core v0.1.6-0.20210305000733-14a89fe44ae8
-	github.com/trustbloc/edv v0.1.6-0.20210306005019-0f1daba9206b
-	github.com/trustbloc/hub-auth v0.1.6-0.20210306010839-466ab71ad30b // indirect
+	github.com/trustbloc/edge-core v0.1.6
+	github.com/trustbloc/edv v0.1.6
+	github.com/trustbloc/hub-auth v0.1.6 // indirect
 	github.com/trustbloc/hub-auth/test/bdd v0.0.0-20210128225850-81aa7953085d
 	github.com/trustbloc/kms v0.0.0-00010101000000-000000000000
 )
