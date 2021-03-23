@@ -11,10 +11,10 @@ require (
 	github.com/google/tink/go v1.5.0
 	github.com/google/uuid v1.2.0
 	github.com/gorilla/mux v1.8.0
-	github.com/hyperledger/aries-framework-go v0.1.7-0.20210310014234-cfa8c6d6e2f4
+	github.com/hyperledger/aries-framework-go v0.1.7-0.20210323102127-50be9f1bad08
 	github.com/hyperledger/aries-framework-go/component/storage/edv v0.0.0-20210310014234-cfa8c6d6e2f4
-	github.com/hyperledger/aries-framework-go/component/storageutil v0.0.0-20210310014234-cfa8c6d6e2f4
-	github.com/hyperledger/aries-framework-go/spi v0.0.0-20210310014234-cfa8c6d6e2f4
+	github.com/hyperledger/aries-framework-go/component/storageutil v0.0.0-20210320144851-40976de98ccf
+	github.com/hyperledger/aries-framework-go/spi v0.0.0-20210320144851-40976de98ccf
 	github.com/igor-pavlenko/httpsignatures-go v0.0.23
 	github.com/piprate/json-gold v0.4.0
 	github.com/rs/xid v1.2.1

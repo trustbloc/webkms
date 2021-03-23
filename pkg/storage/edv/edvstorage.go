@@ -150,7 +150,7 @@ func (c *Config) createEncryptedFormatter(ctx context.Context,
 
 	startNewJWEEncrypt := time.Now()
 
-	encrypter, err := jose.NewJWEEncrypt(encAlg, encType, "", nil, []*crypto.PublicKey{pubKey}, c.CryptoService)
+	encrypter, err := jose.NewJWEEncrypt(encAlg, encType, "", "", nil, []*crypto.PublicKey{pubKey}, c.CryptoService)
 	if err != nil {
 		return nil, fmt.Errorf("create JWEEncrypt: %w", err)
 	}
