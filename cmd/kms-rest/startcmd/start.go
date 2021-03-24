@@ -766,7 +766,7 @@ func prepareOperationConfig(params *kmsRestParameters) (*operation.Config, error
 		return nil, err
 	}
 
-	vdrResolver, err := prepareVDR(authService, params)
+	vdrResolver, err := prepareVDR(params)
 	if err != nil {
 		return nil, err
 	}
@@ -845,11 +845,7 @@ func (k kmsProvider) SecretLock() secretlock.Service {
 	return k.secretLock
 }
 
-type kmsCtx interface {
-	KMS() arieskms.KeyManager
-}
-
-func prepareVDR(ctx kmsCtx, params *kmsRestParameters) (zcapldcore.VDRResolver, error) {
+func prepareVDR(params *kmsRestParameters) (zcapldcore.VDRResolver, error) {
 	rootCAs, err := tlsutils.GetCertPool(params.tlsUseSystemCertPool, params.tlsCACerts)
 	if err != nil {
 		return nil, err
@@ -862,7 +858,7 @@ func prepareVDR(ctx kmsCtx, params *kmsRestParameters) (zcapldcore.VDRResolver, 
 		return nil, err
 	}
 
-	return ariesvdr.New(ctx,
+	return ariesvdr.New(
 		ariesvdr.WithVDR(vdrkey.New()),
 		ariesvdr.WithVDR(trustblocVDR),
 	), nil
