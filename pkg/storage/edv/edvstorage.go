@@ -160,7 +160,7 @@ func (c *Config) createEncryptedFormatter(ctx context.Context,
 
 	decrypter := jose.NewJWEDecrypt(nil, c.CryptoService, c.KeyManager)
 
-	return edv.NewEncryptedFormatter(encrypter, decrypter, macCrypto), nil
+	return edv.NewEncryptedFormatter(encrypter, decrypter, macCrypto, edv.WithDeterministicDocumentIDs()), nil
 }
 
 func recipientPublicKey(kh interface{}, kID string) (*crypto.PublicKey, []byte, error) {
