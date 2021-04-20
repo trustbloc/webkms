@@ -17,7 +17,7 @@ import (
 
 	"github.com/gorilla/mux"
 	"github.com/hyperledger/aries-framework-go-ext/component/storage/couchdb"
-	"github.com/hyperledger/aries-framework-go-ext/component/vdr/trustbloc"
+	"github.com/hyperledger/aries-framework-go-ext/component/vdr/orb"
 	"github.com/hyperledger/aries-framework-go/component/storageutil/mem"
 	"github.com/hyperledger/aries-framework-go/pkg/crypto"
 	"github.com/hyperledger/aries-framework-go/pkg/crypto/tinkcrypto"
@@ -851,8 +851,8 @@ func prepareVDR(params *kmsRestParameters) (zcapldcore.VDRResolver, error) {
 		return nil, err
 	}
 
-	trustblocVDR, err := trustbloc.New(nil, trustbloc.WithDomain(params.didDomain),
-		trustbloc.WithTLSConfig(&tls.Config{RootCAs: rootCAs, MinVersion: tls.VersionTLS12}),
+	orbVDR, err := orb.New(nil, orb.WithDomain(params.didDomain),
+		orb.WithTLSConfig(&tls.Config{RootCAs: rootCAs, MinVersion: tls.VersionTLS12}),
 	)
 	if err != nil {
 		return nil, err
@@ -860,7 +860,7 @@ func prepareVDR(params *kmsRestParameters) (zcapldcore.VDRResolver, error) {
 
 	return ariesvdr.New(
 		ariesvdr.WithVDR(vdrkey.New()),
-		ariesvdr.WithVDR(trustblocVDR),
+		ariesvdr.WithVDR(orbVDR),
 	), nil
 }
 
