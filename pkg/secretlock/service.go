@@ -12,6 +12,7 @@ import (
 	"crypto/sha256"
 	"errors"
 	"strings"
+	"sync"
 
 	"github.com/hyperledger/aries-framework-go/pkg/secretlock"
 	"github.com/hyperledger/aries-framework-go/pkg/secretlock/local"
@@ -30,8 +31,14 @@ type Provider interface {
 	SecretLock() secretlock.Service
 }
 
+// TODO: think about how it can be improved for multi instances.
+var glock sync.Mutex //nolint:gochecknoglobals // global lock for secretlock.Service
+
 // New returns a new secret lock service instance.
 func New(keyURI string, provider Provider) (secretlock.Service, error) {
+	glock.Lock()
+	defer glock.Unlock()
+
 	r, err := primaryKeyReader(provider.StorageProvider(), provider.SecretLock(), keyURI)
 	if err != nil {
 		return nil, err
