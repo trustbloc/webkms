@@ -83,7 +83,7 @@ func (s *Service) CreateDIDKey(ctx context.Context) (string, error) {
 func (s *Service) SignHeader(req *http.Request, capabilityBytes []byte) (*http.Header, error) {
 	capability, err := zcapld.ParseCapability(capabilityBytes)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("parse capability: %w", err)
 	}
 
 	compressedZcap, err := CompressZCAP(capability)
@@ -107,7 +107,7 @@ func (s *Service) SignHeader(req *http.Request, capabilityBytes []byte) (*http.H
 
 	err = hs.Sign(capability.Invoker, req)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("sign header: %w", err)
 	}
 
 	return &req.Header, nil
@@ -171,7 +171,12 @@ func (s *Service) Resolve(uri string) (*zcapld.Capability, error) {
 		return nil, fmt.Errorf("failed to fetch zcap from storage: %w", err)
 	}
 
-	return zcapld.ParseCapability(raw)
+	capability, err := zcapld.ParseCapability(raw)
+	if err != nil {
+		return nil, fmt.Errorf("parse capability: %w", err)
+	}
+
+	return capability, nil
 }
 
 // KMS returns the kms.KeyManager.
@@ -188,7 +193,7 @@ func (s *Service) Crypto() cryptoapi.Crypto {
 func CompressZCAP(zcap *zcapld.Capability) (string, error) {
 	raw, err := json.Marshal(zcap)
 	if err != nil {
-		return "", err
+		return "", fmt.Errorf("marshal zcap: %w", err)
 	}
 
 	compressed := bytes.NewBuffer(nil)
@@ -197,12 +202,12 @@ func CompressZCAP(zcap *zcapld.Capability) (string, error) {
 
 	_, err = w.Write(raw)
 	if err != nil {
-		return "", err
+		return "", fmt.Errorf("compress zcap: %w", err)
 	}
 
 	err = w.Close()
 	if err != nil {
-		return "", err
+		return "", fmt.Errorf("close gzip writer: %w", err)
 	}
 
 	return base64.URLEncoding.EncodeToString(compressed.Bytes()), nil

@@ -78,9 +78,19 @@ linters:
     - maligned
     - prealloc
     - goerr113
+    - interfacer # deprecated by the author https://github.com/mvdan/interfacer#interfacer
+    - scopelint # deprecated by the author https://github.com/kyoh86/scopelint#obsoleted
+    - exhaustivestruct
+    - paralleltest
+    - tparallel
+    - cyclop # for calculating cyclomatic complexities `gocyclo` is used
+    - gomoddirectives
+    - forbidigo
+    - wrapcheck # TODO: Enable
 
 issues:
   exclude-use-default: false
+  max-same-issues: 0
   exclude-rules:
     - path: _test\.go
       linters:

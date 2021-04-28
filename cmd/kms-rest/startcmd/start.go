@@ -21,7 +21,7 @@ import (
 	"github.com/hyperledger/aries-framework-go/component/storageutil/mem"
 	"github.com/hyperledger/aries-framework-go/pkg/crypto"
 	"github.com/hyperledger/aries-framework-go/pkg/crypto/tinkcrypto"
-	"github.com/hyperledger/aries-framework-go/pkg/doc/verifiable"
+	"github.com/hyperledger/aries-framework-go/pkg/doc/jsonld"
 	arieskms "github.com/hyperledger/aries-framework-go/pkg/kms"
 	"github.com/hyperledger/aries-framework-go/pkg/kms/localkms"
 	"github.com/hyperledger/aries-framework-go/pkg/secretlock"
@@ -759,7 +759,10 @@ func prepareOperationConfig(params *kmsRestParameters) (*operation.Config, error
 		return nil, err
 	}
 
-	jsonLDLoader := verifiable.CachingJSONLDLoader()
+	jsonLDLoader, err := jsonld.NewDocumentLoader(storageProvider)
+	if err != nil {
+		return nil, err
+	}
 
 	authService, err := zcapld.New(localKMS, cryptoService, storageProvider, jsonLDLoader)
 	if err != nil {

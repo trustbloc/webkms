@@ -11,6 +11,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
 	"io/ioutil"
 	"net/http"
@@ -55,7 +56,7 @@ func TestNew(t *testing.T) {
 
 		require.Nil(t, secretLock)
 		require.Error(t, err)
-		require.Contains(t, err.Error(), "get secret share: response error")
+		require.Contains(t, err.Error(), "get secret share: HTTP do: response error")
 	})
 
 	t.Run("Fail to fetch secret share: read body error", func(t *testing.T) {
@@ -63,7 +64,7 @@ func TestNew(t *testing.T) {
 
 		require.Nil(t, secretLock)
 		require.Error(t, err)
-		require.Contains(t, err.Error(), "get secret share: read error")
+		require.Contains(t, err.Error(), "get secret share: unmarshal response: read error")
 	})
 
 	t.Run("Fail to fetch secret share: read body error when status not OK", func(t *testing.T) {
@@ -105,7 +106,7 @@ func TestNew(t *testing.T) {
 
 		require.Nil(t, secretLock)
 		require.Error(t, err)
-		require.Contains(t, err.Error(), "get secret share: illegal base64 data")
+		require.Contains(t, err.Error(), "get secret share: decode secret: illegal base64 data")
 	})
 
 	t.Run("Error: combine secrets", func(t *testing.T) {
@@ -219,7 +220,7 @@ func TestNew(t *testing.T) {
 
 		require.Nil(t, secretLock)
 		require.Error(t, err)
-		require.Contains(t, err.Error(), "get secret share: read error")
+		require.Contains(t, err.Error(), "get secret share: unmarshal response: read error")
 	})
 }
 
@@ -248,8 +249,7 @@ func (m *mockSplitter) Combine(secretParts [][]byte) ([]byte, error) {
 	return m.CombineValue, nil
 }
 
-type failingReader struct {
-}
+type failingReader struct{}
 
 func (*failingReader) Read(p []byte) (n int, err error) {
 	return 0, errors.New("read error")
@@ -330,7 +330,12 @@ func newSecretSplitLock(t *testing.T, opts ...optionFn) (secretlock.Service, err
 		o = append(o, secretsplitlock.WithCacheProvider(cOpts.cacheProvider))
 	}
 
-	return secretsplitlock.New(cOpts.secret, params, o...)
+	l, err := secretsplitlock.New(cOpts.secret, params, o...)
+	if err != nil {
+		return nil, fmt.Errorf("new secret split lock: %w", err)
+	}
+
+	return l, nil
 }
 
 func withSecret(secret []byte) optionFn {
