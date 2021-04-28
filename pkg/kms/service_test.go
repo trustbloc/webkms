@@ -13,6 +13,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io/ioutil"
 	"net/http"
 	"testing"
@@ -254,12 +255,12 @@ type mockKeyManager struct {
 func newMockKeyManager() (*mockKeyManager, error) {
 	recipientKH, err := keyset.NewHandle(ecdh.NISTP256ECDHKWKeyTemplate())
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("new recipient key handle: %w", err)
 	}
 
 	macKH, err := keyset.NewHandle(mac.HMACSHA256Tag256KeyTemplate())
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("new mac key handle: %w", err)
 	}
 
 	return &mockKeyManager{

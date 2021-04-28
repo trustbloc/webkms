@@ -2,7 +2,7 @@
 
 ## Prerequisites (for running tests)
 
-- Go 1.15
+- Go 1.16
 - Docker
 - Docker-Compose
 - Make

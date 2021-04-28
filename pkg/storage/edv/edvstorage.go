@@ -67,7 +67,7 @@ func NewStorageProvider(ctx context.Context, c *Config) (storage.Provider, error
 
 	macKH, err := c.KeyManager.Get(c.MACKeyID)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("get mac key handle: %w", err)
 	}
 
 	span.AddEvent("mac key fetched",
@@ -112,7 +112,12 @@ func (c *Config) signHeader(req *http.Request, edvCapability []byte) (*http.Head
 	span.SetAttributes(label.String("http.url", req.URL.String()))
 
 	if len(edvCapability) != 0 {
-		return c.HeaderSigner.SignHeader(req, edvCapability)
+		h, err := c.HeaderSigner.SignHeader(req, edvCapability)
+		if err != nil {
+			return nil, fmt.Errorf("sign header: %w", err)
+		}
+
+		return h, nil
 	}
 
 	return nil, nil
@@ -127,7 +132,7 @@ func (c *Config) createEncryptedFormatter(ctx context.Context,
 
 	recipientKH, err := c.KeyManager.Get(c.RecipientKeyID)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("get recipient key handle: %w", err)
 	}
 
 	span.AddEvent("recipient key fetched",
@@ -163,7 +168,7 @@ func (c *Config) createEncryptedFormatter(ctx context.Context,
 	return edv.NewEncryptedFormatter(encrypter, decrypter, macCrypto, edv.WithDeterministicDocumentIDs()), nil
 }
 
-func recipientPublicKey(kh interface{}, kID string) (*crypto.PublicKey, []byte, error) {
+func recipientPublicKey(kh interface{}, keyID string) (*crypto.PublicKey, []byte, error) {
 	pubKH, err := kh.(*keyset.Handle).Public()
 	if err != nil {
 		return nil, nil, fmt.Errorf("get public KH from recipient KH: %w", err)
@@ -178,7 +183,7 @@ func recipientPublicKey(kh interface{}, kID string) (*crypto.PublicKey, []byte, 
 	}
 
 	pubKey := new(crypto.PublicKey)
-	pubKey.KID = kID
+	pubKey.KID = keyID
 
 	return pubKey, buf.Bytes(), nil
 }

@@ -192,7 +192,12 @@ func (s *service) prepareEDVStorageProvider(ctx context.Context, kd *KeystoreDat
 		MACKeyID:       kd.MACKeyID,
 	}
 
-	return edv.NewStorageProvider(ctx, edvConfig)
+	p, err := edv.NewStorageProvider(ctx, edvConfig)
+	if err != nil {
+		return nil, fmt.Errorf("new edv provider: %w", err)
+	}
+
+	return p, nil
 }
 
 func (s *service) prepareSecretSplitLock(req *http.Request) (secretlock.Service, error) {
@@ -217,10 +222,15 @@ func (s *service) prepareSecretSplitLock(req *http.Request) (secretlock.Service,
 		Subject:  sub,
 	}
 
-	return secretsplitlock.New(secretBytes, hubAuthParams,
+	splitLock, err := secretsplitlock.New(secretBytes, hubAuthParams,
 		secretsplitlock.WithHTTPClient(s.config.HTTPClient),
 		secretsplitlock.WithCacheProvider(s.config.CacheProvider),
 	)
+	if err != nil {
+		return nil, fmt.Errorf("new secret split lock: %w", err)
+	}
+
+	return splitLock, nil
 }
 
 type secretLockProvider struct {
@@ -240,14 +250,14 @@ func (p *secretLockProvider) SecretLock() secretlock.Service {
 func (s *service) GetKeystoreData(keystoreID string) (*KeystoreData, error) {
 	b, err := s.store.Get(keystoreID)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("get keystore data: %w", err)
 	}
 
 	var keystoreData KeystoreData
 
 	err = json.Unmarshal(b, &keystoreData)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("unmarshal keystore data: %w", err)
 	}
 
 	return &keystoreData, nil
@@ -257,12 +267,12 @@ func (s *service) GetKeystoreData(keystoreID string) (*KeystoreData, error) {
 func (s *service) SaveKeystoreData(keystoreData *KeystoreData) error {
 	b, err := json.Marshal(keystoreData)
 	if err != nil {
-		return err
+		return fmt.Errorf("marshal keystore data: %w", err)
 	}
 
 	err = s.store.Put(keystoreData.ID, b)
 	if err != nil {
-		return err
+		return fmt.Errorf("save keystore data: %w", err)
 	}
 
 	return nil

@@ -60,7 +60,7 @@ func (s *Steps) httpGet(url string) error {
 
 	s.response, err = ioutil.ReadAll(resp.Body)
 	if err != nil {
-		return fmt.Errorf("reading response body failed: %s", err)
+		return fmt.Errorf("reading response body failed: %w", err)
 	}
 
 	if resp.StatusCode != http.StatusOK {

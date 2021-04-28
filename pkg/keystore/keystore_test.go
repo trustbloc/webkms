@@ -58,6 +58,17 @@ func TestNew(t *testing.T) {
 		require.Nil(t, k)
 		require.Error(t, err)
 	})
+
+	t.Run("Failed to create default local KMS", func(t *testing.T) {
+		k, err := keystore.New(
+			keystore.WithPrimaryKeyURI("invalidKeyURI"),
+			keystore.WithStorageProvider(mockstorage.NewMockStoreProvider()),
+			keystore.WithSecretLock(&mocksecretlock.MockSecretLock{}),
+		)
+
+		require.Nil(t, k)
+		require.Error(t, err)
+	})
 }
 
 func TestCreateKey(t *testing.T) {

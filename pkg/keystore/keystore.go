@@ -48,7 +48,12 @@ func New(opts ...Option) (Keystore, error) {
 
 	if o.kmsCreator == nil {
 		o.kmsCreator = func(p kms.Provider) (kms.KeyManager, error) {
-			return localkms.New(o.primaryKeyURI, p)
+			localKMS, e := localkms.New(o.primaryKeyURI, p)
+			if e != nil {
+				return nil, fmt.Errorf("new local KMS: %w", e)
+			}
+
+			return localKMS, nil
 		}
 	}
 

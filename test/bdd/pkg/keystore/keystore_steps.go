@@ -67,8 +67,7 @@ func (s *Steps) RegisterSteps(ctx *godog.ScenarioContext) {
 func (s *Steps) sendCreateKeystoreRequest(endpoint string) error {
 	login := authlogin.NewSteps(s.authBDDContext)
 
-	_, err := login.NewWalletLogin()
-	if err != nil {
+	if _, err := login.NewWalletLogin(); err != nil {
 		return fmt.Errorf("failed to login wallet: %w", err)
 	}
 
@@ -104,7 +103,7 @@ func (s *Steps) checkResponse(status, locationHeader, capabilityHeader string) e
 
 	_, err := url.ParseRequestURI(s.headers.Get(locationHeader))
 	if err != nil {
-		return fmt.Errorf("expected %q header to be a valid URL, got error: %q", locationHeader, err)
+		return fmt.Errorf("expected %q header to be a valid URL, got error: %w", locationHeader, err)
 	}
 
 	encoded := s.headers.Get(capabilityHeader)

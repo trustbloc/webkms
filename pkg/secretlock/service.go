@@ -11,6 +11,7 @@ import (
 	"crypto/rand"
 	"crypto/sha256"
 	"errors"
+	"fmt"
 	"strings"
 	"sync"
 
@@ -46,7 +47,7 @@ func New(keyURI string, provider Provider) (secretlock.Service, error) {
 
 	secretLock, err := local.NewService(r, provider.SecretLock())
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("new local secretlock: %w", err)
 	}
 
 	return secretLock, nil
@@ -56,7 +57,7 @@ func primaryKeyReader(storageProvider storage.Provider, secretLock secretlock.Se
 	keyURI string) (*bytes.Reader, error) {
 	primaryKeyStore, err := storageProvider.OpenStore(primaryKeyStoreName)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("open primary key store: %w", err)
 	}
 
 	primaryKey, err := primaryKeyStore.Get(keyEntryInDB(keyURI))
@@ -84,14 +85,14 @@ func newPrimaryKey(store storage.Store, secLock secretlock.Service, keyURI strin
 		Plaintext: string(primaryKeyContent),
 	})
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("encrypt primary key: %w", err)
 	}
 
 	primaryKey := []byte(primaryKeyEnc.Ciphertext)
 
 	err = store.Put(keyEntryInDB(keyURI), primaryKey)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("save primary key: %w", err)
 	}
 
 	return primaryKey, nil
@@ -104,9 +105,8 @@ func keyEntryInDB(keyURI string) string {
 func randomBytes(size uint32) ([]byte, error) {
 	buf := make([]byte, size)
 
-	_, err := rand.Read(buf)
-	if err != nil {
-		return nil, err
+	if _, err := rand.Read(buf); err != nil {
+		return nil, fmt.Errorf("random bytes: %w", err)
 	}
 
 	return buf, nil

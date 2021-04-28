@@ -14,7 +14,7 @@ import (
 	"testing"
 
 	"github.com/google/uuid"
-	"github.com/hyperledger/aries-framework-go/pkg/doc/verifiable"
+	"github.com/hyperledger/aries-framework-go/pkg/doc/jsonld"
 	mockcrypto "github.com/hyperledger/aries-framework-go/pkg/mock/crypto"
 	mockkms "github.com/hyperledger/aries-framework-go/pkg/mock/kms"
 	mockstorage "github.com/hyperledger/aries-framework-go/pkg/mock/storage"
@@ -31,7 +31,7 @@ func TestNew(t *testing.T) {
 			&mockkms.KeyManager{},
 			&mockcrypto.Crypto{},
 			&mockstorage.MockStoreProvider{ErrOpenStoreHandle: errors.New("test")},
-			verifiable.CachingJSONLDLoader(),
+			createTestDocumentLoader(t),
 		)
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "failed to open store")
@@ -44,7 +44,7 @@ func TestService_CreateDIDKey(t *testing.T) {
 			&mockkms.KeyManager{CreateKeyErr: fmt.Errorf("failed to create")},
 			&mockcrypto.Crypto{},
 			&mockstorage.MockStoreProvider{},
-			verifiable.CachingJSONLDLoader(),
+			createTestDocumentLoader(t),
 		)
 		require.NoError(t, err)
 
@@ -59,7 +59,7 @@ func TestService_CreateDIDKey(t *testing.T) {
 			&mockkms.KeyManager{},
 			&mockcrypto.Crypto{},
 			&mockstorage.MockStoreProvider{},
-			verifiable.CachingJSONLDLoader(),
+			createTestDocumentLoader(t),
 		)
 
 		require.NoError(t, err)
@@ -76,7 +76,7 @@ func TestService_SignHeader(t *testing.T) {
 			&mockkms.KeyManager{},
 			&mockcrypto.Crypto{},
 			&mockstorage.MockStoreProvider{},
-			verifiable.CachingJSONLDLoader(),
+			createTestDocumentLoader(t),
 		)
 		require.NoError(t, err)
 
@@ -90,7 +90,7 @@ func TestService_SignHeader(t *testing.T) {
 			&mockkms.KeyManager{},
 			&mockcrypto.Crypto{},
 			&mockstorage.MockStoreProvider{},
-			verifiable.CachingJSONLDLoader(),
+			createTestDocumentLoader(t),
 		)
 		require.NoError(t, err)
 
@@ -113,7 +113,7 @@ func TestService_NewCapability(t *testing.T) {
 			&mockkms.KeyManager{},
 			&mockcrypto.Crypto{},
 			&mockstorage.MockStoreProvider{Store: &mockstorage.MockStore{Store: make(map[string]mockstorage.DBEntry)}},
-			verifiable.CachingJSONLDLoader(),
+			createTestDocumentLoader(t),
 		)
 		require.NoError(t, err)
 		result, err := svc.NewCapability(
@@ -133,7 +133,7 @@ func TestService_NewCapability(t *testing.T) {
 			&mockkms.KeyManager{CreateKeyErr: errors.New("test")},
 			&mockcrypto.Crypto{},
 			&mockstorage.MockStoreProvider{},
-			verifiable.CachingJSONLDLoader(),
+			createTestDocumentLoader(t),
 		)
 		require.NoError(t, err)
 		_, err = svc.NewCapability(context.Background())
@@ -146,7 +146,7 @@ func TestService_NewCapability(t *testing.T) {
 			&mockkms.KeyManager{},
 			&mockcrypto.Crypto{SignErr: errors.New("test")},
 			&mockstorage.MockStoreProvider{},
-			verifiable.CachingJSONLDLoader(),
+			createTestDocumentLoader(t),
 		)
 		require.NoError(t, err)
 		_, err = svc.NewCapability(context.Background())
@@ -162,7 +162,7 @@ func TestService_NewCapability(t *testing.T) {
 				Store:  make(map[string]mockstorage.DBEntry),
 				ErrPut: errors.New("test"),
 			}},
-			verifiable.CachingJSONLDLoader(),
+			createTestDocumentLoader(t),
 		)
 		require.NoError(t, err)
 		_, err = svc.NewCapability(context.Background())
@@ -180,7 +180,7 @@ func TestService_Resolve(t *testing.T) {
 			&mockkms.KeyManager{},
 			&mockcrypto.Crypto{},
 			&mockstorage.MockStoreProvider{Store: store},
-			verifiable.CachingJSONLDLoader(),
+			createTestDocumentLoader(t),
 		)
 		require.NoError(t, err)
 
@@ -207,7 +207,7 @@ func TestService_Resolve(t *testing.T) {
 				Store:  make(map[string]mockstorage.DBEntry),
 				ErrGet: errors.New("get error"),
 			}},
-			verifiable.CachingJSONLDLoader(),
+			createTestDocumentLoader(t),
 		)
 		require.NoError(t, err)
 
@@ -217,4 +217,34 @@ func TestService_Resolve(t *testing.T) {
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "failed to fetch zcap from storage: get error")
 	})
+
+	t.Run("error if cannot parse zcap", func(t *testing.T) {
+		store := &mockstorage.MockStore{
+			Store: map[string]mockstorage.DBEntry{
+				"uri": {Value: []byte("invalid capability")},
+			},
+		}
+		svc, err := zcapld.New(
+			&mockkms.KeyManager{},
+			&mockcrypto.Crypto{},
+			&mockstorage.MockStoreProvider{Store: store},
+			createTestDocumentLoader(t),
+		)
+		require.NoError(t, err)
+
+		resolved, err := svc.Resolve("uri")
+
+		require.Nil(t, resolved)
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "parse capability:")
+	})
+}
+
+func createTestDocumentLoader(t *testing.T) *jsonld.DocumentLoader {
+	t.Helper()
+
+	loader, err := jsonld.NewDocumentLoader(mockstorage.NewMockStoreProvider())
+	require.NoError(t, err)
+
+	return loader
 }

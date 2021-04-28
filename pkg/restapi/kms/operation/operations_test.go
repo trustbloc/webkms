@@ -1175,10 +1175,14 @@ func newOperation(t *testing.T, c *operation.Config) *operation.Operation {
 }
 
 func getHandler(t *testing.T, op *operation.Operation, pathToLookup, methodToLookup string) operation.Handler {
+	t.Helper()
+
 	return getHandlerWithError(t, op, pathToLookup, methodToLookup)
 }
 
 func getHandlerWithError(t *testing.T, op *operation.Operation, pathToLookup, methodToLookup string) operation.Handler {
+	t.Helper()
+
 	return handlerLookup(t, op, pathToLookup, methodToLookup)
 }
 

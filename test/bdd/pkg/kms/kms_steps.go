@@ -22,7 +22,10 @@ import (
 	"regexp"
 
 	"github.com/cucumber/godog"
+	"github.com/hyperledger/aries-framework-go/component/storageutil/mem"
 	"github.com/hyperledger/aries-framework-go/pkg/crypto"
+	jld "github.com/hyperledger/aries-framework-go/pkg/doc/jsonld"
+	"github.com/hyperledger/aries-framework-go/pkg/doc/signature/jsonld"
 	"github.com/hyperledger/aries-framework-go/pkg/doc/signature/suite"
 	"github.com/hyperledger/aries-framework-go/pkg/doc/signature/suite/ed25519signature2018"
 	"github.com/hyperledger/aries-framework-go/pkg/kms"
@@ -113,8 +116,7 @@ func (s *Steps) RegisterSteps(ctx *godog.ScenarioContext) {
 }
 
 func (s *Steps) createKeystoreAndKey(user, keyType string) error {
-	err := s.createKeystore(user)
-	if err != nil {
+	if err := s.createKeystore(user); err != nil {
 		return err
 	}
 
@@ -202,11 +204,17 @@ func (s *Steps) updateCapability(u *user) error {
 }
 
 func (s *Steps) createChainCapability(u *user) (*zcapld.Capability, error) {
+	loader, err := jld.NewDocumentLoader(mem.NewProvider())
+	if err != nil {
+		return nil, fmt.Errorf("create document loader: %w", err)
+	}
+
 	return zcapld.NewCapability(
 		&zcapld.Signer{
 			SignatureSuite:     ed25519signature2018.New(suite.WithSigner(u.signer)),
 			SuiteType:          ed25519signature2018.SignatureType,
 			VerificationMethod: u.controller,
+			ProcessorOpts:      []jsonld.ProcessorOpts{jsonld.WithDocumentLoader(loader)},
 		},
 		zcapld.WithParent(u.edvCapability.ID),
 		zcapld.WithInvoker(u.response.headers[edvDIDKeyHeader]),
@@ -251,7 +259,7 @@ func (s *Steps) makeCreateKeyReq(user, endpoint, keyType string) error {
 
 	respData, err := ioutil.ReadAll(response.Body)
 	if err != nil {
-		return fmt.Errorf("reading response body failed: %s", err)
+		return fmt.Errorf("reading response body failed: %w", err)
 	}
 
 	var data struct {
@@ -907,11 +915,17 @@ func delegateCapability(c *zcapld.Capability, s signer, verificationMethod, invo
 
 	chain = append(chain, c.ID)
 
+	loader, err := jld.NewDocumentLoader(mem.NewProvider())
+	if err != nil {
+		return "", fmt.Errorf("create document loader: %w", err)
+	}
+
 	delegatedCapability, err := zcapld.NewCapability(
 		&zcapld.Signer{
 			SignatureSuite:     ed25519signature2018.New(suite.WithSigner(s)),
 			SuiteType:          ed25519signature2018.SignatureType,
 			VerificationMethod: verificationMethod,
+			ProcessorOpts:      []jsonld.ProcessorOpts{jsonld.WithDocumentLoader(loader)},
 		},
 		zcapld.WithInvoker(invoker),
 		zcapld.WithParent(c.ID),
@@ -967,7 +981,7 @@ func (s *Steps) checkHeaderWithValidURL(user, header string) error {
 
 	_, err := url.ParseRequestURI(u.response.headers[header])
 	if err != nil {
-		return fmt.Errorf("expected %q header to be a valid URL, got error: %q", header, err)
+		return fmt.Errorf("expected %q header to be a valid URL, got error: %w", header, err)
 	}
 
 	return nil

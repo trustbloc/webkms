@@ -228,7 +228,7 @@ func (o *Operation) GetRESTHandlers() []Handler {
 // Responses:
 //        201: createKeystoreResp
 //    default: errorResp
-func (o *Operation) createKeystoreHandler(rw http.ResponseWriter, req *http.Request) { //nolint:funlen // TODO refactor
+func (o *Operation) createKeystoreHandler(rw http.ResponseWriter, req *http.Request) {
 	ctx, span := o.traceSpan(req, "createKeystoreHandler")
 	defer span.End()
 
@@ -504,7 +504,7 @@ func (o *Operation) importKeyHandler(rw http.ResponseWriter, req *http.Request) 
 // Responses:
 //        200: signResp
 //    default: errorResp
-func (o *Operation) signHandler(rw http.ResponseWriter, req *http.Request) { //nolint:dupl // better readability
+func (o *Operation) signHandler(rw http.ResponseWriter, req *http.Request) {
 	ctx, span := o.traceSpan(req, "signHandler")
 	defer span.End()
 
@@ -775,7 +775,7 @@ func (o *Operation) decryptHandler(rw http.ResponseWriter, req *http.Request) { 
 // Responses:
 //        200: computeMACResp
 //    default: errorResp
-func (o *Operation) computeMACHandler(rw http.ResponseWriter, req *http.Request) { //nolint:dupl // better readability
+func (o *Operation) computeMACHandler(rw http.ResponseWriter, req *http.Request) {
 	ctx, span := o.traceSpan(req, "computeMACHandler")
 	defer span.End()
 
@@ -900,7 +900,7 @@ func (o *Operation) verifyMACHandler(rw http.ResponseWriter, req *http.Request) 
 // Responses:
 //        200: wrapResp
 //    default: errorResp
-func (o *Operation) wrapHandler(rw http.ResponseWriter, req *http.Request) { //nolint:funlen // TODO refactor
+func (o *Operation) wrapHandler(rw http.ResponseWriter, req *http.Request) {
 	_, span := o.traceSpan(req, "wrapHandler")
 	defer span.End()
 
@@ -1426,27 +1426,27 @@ func (o *Operation) newCompressedZCAP(ctx context.Context, resource, controller 
 func unmarshalPublicKey(k *publicKey) (*crypto.PublicKey, error) {
 	kid, err := base64.URLEncoding.DecodeString(k.KID)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("decode key ID: %w", err)
 	}
 
 	x, err := base64.URLEncoding.DecodeString(k.X)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("decode x: %w", err)
 	}
 
 	y, err := base64.URLEncoding.DecodeString(k.Y)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("decode y: %w", err)
 	}
 
 	curve, err := base64.URLEncoding.DecodeString(k.Curve)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("decode curve: %w", err)
 	}
 
 	typ, err := base64.URLEncoding.DecodeString(k.Type)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("decode type: %w", err)
 	}
 
 	return &crypto.PublicKey{

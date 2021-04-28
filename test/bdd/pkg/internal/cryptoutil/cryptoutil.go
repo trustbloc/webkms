@@ -58,8 +58,7 @@ func PublicEd25519toCurve25519(pub []byte) ([]byte, error) {
 func generateRandomBytes(n uint32) []byte {
 	buf := make([]byte, n)
 
-	_, err := rand.Read(buf)
-	if err != nil {
+	if _, err := rand.Read(buf); err != nil {
 		panic(err)
 	}
 

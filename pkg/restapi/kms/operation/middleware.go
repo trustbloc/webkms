@@ -44,8 +44,7 @@ type namer interface {
 	GetName() string
 }
 
-type muxNamer struct {
-}
+type muxNamer struct{}
 
 func (m *muxNamer) GetName(r *http.Request) namer {
 	return mux.CurrentRoute(r)

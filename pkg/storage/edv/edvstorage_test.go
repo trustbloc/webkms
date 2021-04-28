@@ -81,8 +81,7 @@ func TestNewStorageProvider(t *testing.T) {
 	})
 
 	t.Run("Fail to create EncryptedFormatter: get public key handle for recipient key", func(t *testing.T) {
-		km, err := newMockKeyManager()
-		require.NoError(t, err)
+		km := newMockKeyManager(t)
 
 		kh, err := keyset.NewHandle(mac.HMACSHA256Tag256KeyTemplate())
 		require.NoError(t, err)
@@ -96,8 +95,7 @@ func TestNewStorageProvider(t *testing.T) {
 	})
 
 	t.Run("Fail to create EncryptedFormatter: export keyset to the writer", func(t *testing.T) {
-		km, err := newMockKeyManager()
-		require.NoError(t, err)
+		km := newMockKeyManager(t)
 
 		kh, err := keyset.NewHandle(signature.ECDSAP256KeyTemplate())
 		require.NoError(t, err)
@@ -122,11 +120,8 @@ type optionFn func(opts *options)
 func newConfig(t *testing.T, opts ...optionFn) *Config {
 	t.Helper()
 
-	km, err := newMockKeyManager()
-	require.NoError(t, err)
-
 	cOpts := &options{
-		keyManager:    km,
+		keyManager:    newMockKeyManager(t),
 		cryptoService: &mockcrypto.Crypto{},
 		headerSigner:  &mockHeaderSigner{},
 	}
@@ -167,22 +162,20 @@ type mockKeyManager struct {
 	mockkms.KeyManager
 }
 
-func newMockKeyManager() (*mockKeyManager, error) {
+func newMockKeyManager(t *testing.T) *mockKeyManager {
+	t.Helper()
+
 	recipientKH, err := keyset.NewHandle(ecdh.NISTP256ECDHKWKeyTemplate())
-	if err != nil {
-		return nil, err
-	}
+	require.NoError(t, err)
 
 	macKH, err := keyset.NewHandle(mac.HMACSHA256Tag256KeyTemplate())
-	if err != nil {
-		return nil, err
-	}
+	require.NoError(t, err)
 
 	return &mockKeyManager{
 		recipientKH: recipientKH,
 		macKH:       macKH,
 		KeyManager:  mockkms.KeyManager{},
-	}, nil
+	}
 }
 
 func (m *mockKeyManager) Get(keyID string) (interface{}, error) {

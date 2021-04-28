@@ -124,8 +124,7 @@ func TestNew(t *testing.T) {
 func generateKey() []byte {
 	buf := make([]byte, sha256.Size)
 
-	_, err := rand.Read(buf)
-	if err != nil {
+	if _, err := rand.Read(buf); err != nil {
 		panic(err)
 	}
 

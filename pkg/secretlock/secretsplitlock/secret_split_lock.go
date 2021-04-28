@@ -158,7 +158,7 @@ func fetch(serverURL, apiToken, subject string, httpClient support.HTTPClient, l
 
 	req, err := http.NewRequestWithContext(context.Background(), http.MethodGet, uri, nil)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("new request: %w", err)
 	}
 
 	req.Header.Set("authorization",
@@ -167,7 +167,7 @@ func fetch(serverURL, apiToken, subject string, httpClient support.HTTPClient, l
 
 	resp, err := httpClient.Do(req)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("HTTP do: %w", err)
 	}
 
 	defer func() {
@@ -180,7 +180,7 @@ func fetch(serverURL, apiToken, subject string, httpClient support.HTTPClient, l
 	if resp.StatusCode != http.StatusOK {
 		body, errRead := ioutil.ReadAll(resp.Body)
 		if errRead != nil {
-			return nil, fmt.Errorf("read response body: %s", errRead)
+			return nil, fmt.Errorf("read response body: %w", errRead)
 		}
 
 		return nil, fmt.Errorf("%s", body)
@@ -192,12 +192,12 @@ func fetch(serverURL, apiToken, subject string, httpClient support.HTTPClient, l
 
 	err = json.NewDecoder(resp.Body).Decode(&secretResp)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("unmarshal response: %w", err)
 	}
 
 	secret, err := base64.StdEncoding.DecodeString(secretResp.Secret)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("decode secret: %w", err)
 	}
 
 	return secret, nil
