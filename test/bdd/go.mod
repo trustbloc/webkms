@@ -16,7 +16,7 @@ require (
 	github.com/rs/xid v1.2.1
 	github.com/teserakt-io/golang-ed25519 v0.0.0-20210104091850-3888c087a4c8
 	github.com/trustbloc/edge-core v0.1.7-0.20210429222332-96b987820e63
-	github.com/trustbloc/edv v0.1.7-0.20210430161950-53b68c73153c
+	github.com/trustbloc/edv v0.1.7-0.20210510134838-bdb20956d60b
 	github.com/trustbloc/hub-auth/test/bdd v0.0.0-20210430144505-5dd263e274da
 	github.com/trustbloc/kms v0.0.0-00010101000000-000000000000
 )
