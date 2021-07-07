@@ -13,6 +13,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"net/http"
 	"strings"
@@ -39,6 +40,7 @@ type user struct {
 	recipientPubKeys map[string]*publicKeyData
 	response         *response
 	data             map[string]string
+	multiRespStatus  []string
 
 	signer        signer
 	authKMS       kms.KeyManager
@@ -117,7 +119,7 @@ func buildURI(endpoint, keystoreID, keyID string) string {
 	).Replace(endpoint)
 }
 
-func (u *user) processResponse(parsedResp interface{}, resp *http.Response) error {
+func (u *user) processResponse(parsedResp interface{}, resp *http.Response) error { //nolint:gocyclo // ignore
 	keystoreID, keyID := parseLocationHeader(resp.Header)
 
 	if keystoreID != "" {
@@ -147,9 +149,13 @@ func (u *user) processResponse(parsedResp interface{}, resp *http.Response) erro
 	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusCreated {
 		var errResp errorResponse
 
-		decodeErr := json.NewDecoder(resp.Body).Decode(&errResp)
-		if decodeErr != nil {
-			return fmt.Errorf("parse error response: %w", decodeErr)
+		respBody, er := io.ReadAll(resp.Body)
+		if er != nil {
+			return fmt.Errorf("read response body: %w", er)
+		}
+
+		if err = json.Unmarshal(respBody, &errResp); err != nil {
+			return fmt.Errorf("%s", respBody)
 		}
 
 		u.data = map[string]string{

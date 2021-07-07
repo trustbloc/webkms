@@ -16,10 +16,11 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"net/url"
 	"regexp"
+	"strings"
 
 	"github.com/cucumber/godog"
 	"github.com/hyperledger/aries-framework-go/component/storageutil/mem"
@@ -36,7 +37,7 @@ import (
 
 	zcapld2 "github.com/trustbloc/kms/pkg/auth/zcapld"
 	"github.com/trustbloc/kms/pkg/restapi/kms/operation"
-	"github.com/trustbloc/kms/test/bdd/pkg/context"
+	bddcontext "github.com/trustbloc/kms/test/bdd/pkg/context"
 	"github.com/trustbloc/kms/test/bdd/pkg/internal/cryptoutil"
 )
 
@@ -50,7 +51,7 @@ const (
 
 // Steps defines steps context for the KMS operations.
 type Steps struct {
-	bddContext     *context.BDDContext
+	bddContext     *bddcontext.BDDContext
 	authBDDContext *authbddctx.BDDContext
 	httpClient     *http.Client
 	logger         log.Logger
@@ -70,7 +71,7 @@ func NewSteps(authBDDContext *authbddctx.BDDContext, tlsConfig *tls.Config) *Ste
 }
 
 // SetContext sets a fresh context for every scenario.
-func (s *Steps) SetContext(ctx *context.BDDContext) {
+func (s *Steps) SetContext(ctx *bddcontext.BDDContext) {
 	s.bddContext = ctx
 }
 
@@ -83,6 +84,7 @@ func (s *Steps) RegisterSteps(ctx *godog.ScenarioContext) {
 	ctx.Step(`^"([^"]*)" has created a keystore with "([^"]*)" key on Key Server$`, s.createKeystoreAndKey)
 	// common response checking steps
 	ctx.Step(`^"([^"]*)" gets a response with HTTP status "([^"]*)"$`, s.checkRespStatus)
+	ctx.Step(`^"([^"]*)" gets a response with HTTP status "([^"]*)" for each request$`, s.checkMultiRespStatus)
 	ctx.Step(`^"([^"]*)" gets a response with "([^"]*)" header with a valid URL$`, s.checkHeaderWithValidURL)
 	ctx.Step(`^"([^"]*)" gets a response with non-empty "([^"]*)"$`, s.checkRespWithNonEmptyValue)
 	ctx.Step(`^"([^"]*)" gets a response with no "([^"]*)"$`, s.checkRespWithNoValue)
@@ -90,6 +92,8 @@ func (s *Steps) RegisterSteps(ctx *godog.ScenarioContext) {
 	ctx.Step(`^"([^"]*)" gets a response with content of "([^"]*)" key$`, s.checkRespWithKeyContent)
 	// create/export/import key steps
 	ctx.Step(`^"([^"]*)" makes an HTTP POST to "([^"]*)" to create "([^"]*)" key$`, s.makeCreateKeyReq)
+	ctx.Step(`^"([^"]*)" makes parallel HTTP POST requests to "([^"]*)" to create "([^"]*)" keys$`,
+		s.makeParallelCreateKeyReqs)
 	ctx.Step(`^"([^"]*)" makes an HTTP GET to "([^"]*)" to export public key$`, s.makeExportPubKeyReq)
 	ctx.Step(`^"([^"]*)" makes an HTTP POST to "([^"]*)" to create and export "([^"]*)" key$`,
 		s.makeCreateAndExportKeyReq)
@@ -223,41 +227,31 @@ func (s *Steps) createChainCapability(u *user) (*zcapld.Capability, error) {
 		zcapld.WithCapabilityChain(u.edvCapability.Parent, u.edvCapability.ID))
 }
 
-func (s *Steps) makeCreateKeyReq(user, endpoint, keyType string) error {
-	u := s.users[user]
+func (s *Steps) makeCreateKeyReq(userName, endpoint, keyType string) error {
+	u := s.users[userName]
 
-	r := &createKeyReq{
-		KeyType: keyType,
-	}
-
-	request, err := u.preparePostRequest(r, endpoint)
+	req, err := buildCreateKeyReq(u, endpoint, keyType)
 	if err != nil {
-		return err
+		return fmt.Errorf("build create key request: %w", err)
 	}
 
-	err = u.SetCapabilityInvocation(request, actionCreateKey)
-	if err != nil {
-		return fmt.Errorf("failed to set capability invocation: %w", err)
-	}
-
-	err = u.Sign(request)
-	if err != nil {
-		return fmt.Errorf("user failed to sign http message: %w", err)
-	}
-
-	response, err := s.httpClient.Do(request)
+	resp, err := s.httpClient.Do(req)
 	if err != nil {
 		return fmt.Errorf("http do: %w", err)
 	}
 
 	defer func() {
-		closeErr := response.Body.Close()
+		closeErr := resp.Body.Close()
 		if closeErr != nil {
 			s.logger.Errorf("Failed to close response body: %s\n", closeErr.Error())
 		}
 	}()
 
-	respData, err := ioutil.ReadAll(response.Body)
+	return processCreateKeyResp(u, resp)
+}
+
+func processCreateKeyResp(u *user, resp *http.Response) error {
+	respData, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return fmt.Errorf("reading response body failed: %w", err)
 	}
@@ -274,7 +268,89 @@ func (s *Steps) makeCreateKeyReq(user, endpoint, keyType string) error {
 		return errors.New("location in resp body is nil")
 	}
 
-	return u.processResponse(nil, response)
+	return u.processResponse(nil, resp)
+}
+
+func buildCreateKeyReq(u *user, endpoint, keyType string) (*http.Request, error) {
+	r := &createKeyReq{
+		KeyType: keyType,
+	}
+
+	req, err := u.preparePostRequest(r, endpoint)
+	if err != nil {
+		return nil, err
+	}
+
+	err = u.SetCapabilityInvocation(req, actionCreateKey)
+	if err != nil {
+		return nil, fmt.Errorf("failed to set capability invocation: %w", err)
+	}
+
+	err = u.Sign(req)
+	if err != nil {
+		return nil, fmt.Errorf("user failed to sign http message: %w", err)
+	}
+
+	return req, nil
+}
+
+func (s *Steps) makeParallelCreateKeyReqs(userName, endpoint, keyTypes string) error {
+	u := s.users[userName]
+
+	var rr []*http.Request
+
+	for _, kt := range strings.Split(keyTypes, ",") {
+		r, err := buildCreateKeyReq(u, endpoint, kt)
+		if err != nil {
+			return fmt.Errorf("build create key request: %w", err)
+		}
+
+		rr = append(rr, r)
+	}
+
+	statusCh := make(chan string, len(rr))
+	errCh := make(chan error)
+
+	for _, r := range rr {
+		go func(req *http.Request) {
+			usr := &user{name: u.name}
+
+			resp, err := s.httpClient.Do(req)
+			if err != nil {
+				errCh <- err
+
+				return
+			}
+			defer resp.Body.Close() //nolint:errcheck // ignore
+
+			err = processCreateKeyResp(usr, resp)
+			if err != nil {
+				errCh <- err
+
+				return
+			}
+
+			statusCh <- usr.response.status
+		}(r)
+	}
+
+	var multiRespStatus []string
+
+	respCount := len(rr)
+
+	for respCount > 0 {
+		select {
+		case err := <-errCh:
+			return err
+		case s := <-statusCh:
+			multiRespStatus = append(multiRespStatus, s)
+			respCount--
+		}
+	}
+
+	u.multiRespStatus = multiRespStatus
+
+	return nil
 }
 
 func (s *Steps) makeExportPubKeyReq(userName, endpoint string) error {
@@ -971,6 +1047,18 @@ func (s *Steps) checkRespStatus(user, status string) error {
 
 	if u.response.status != status {
 		return fmt.Errorf("expected HTTP response status %q, got: %q", status, u.response.status)
+	}
+
+	return nil
+}
+
+func (s *Steps) checkMultiRespStatus(user, status string) error {
+	u := s.users[user]
+
+	for _, s := range u.multiRespStatus {
+		if s != status {
+			return fmt.Errorf("expected HTTP response status %q, got: %q", status, s)
+		}
 	}
 
 	return nil

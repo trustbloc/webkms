@@ -43,11 +43,22 @@ services:
     networks:
       - couchdb_bdd_net
 
-  kms.example.com:
+  kms.example.com: # load balancer in front of KMS instances
     container_name: kms.example.com
+    image: nginx:latest
+    ports:
+      - 8076:8076
+    volumes:
+      - ../keys/tls:/etc/nginx/certs
+      - ./nginx-config/nginx.conf:/etc/nginx/nginx.conf
+    networks:
+      - couchdb_bdd_net
+
+  kms-1.example.com:
+    container_name: kms-1.example.com
     image: ${KMS_REST_IMAGE}:latest
     environment:
-      - KMS_HOST_URL=0.0.0.0:8076
+      - KMS_HOST_URL=0.0.0.0:8074
       - KMS_BASE_URL=https://kms.example.com:8076
       - KMS_TLS_CACERTS=/etc/tls/ec-cacert.pem
       - KMS_TLS_SERVE_CERT=/etc/tls/ec-pubCert.pem
@@ -69,7 +80,42 @@ services:
       - KMS_LOG_LEVEL=debug
       - KMS_JAEGER_URL=http://jaeger.example.com:14268/api/traces
     ports:
-      - 8076:8076
+      - 8074:8074
+    entrypoint: ""
+    # TODO add retry for couchdb
+    command: /bin/sh -c "sleep 5;kms-rest start"
+    volumes:
+      - ../keys/tls:/etc/tls
+    networks:
+      - couchdb_bdd_net
+
+  kms-2.example.com:
+    container_name: kms-2.example.com
+    image: ${KMS_REST_IMAGE}:latest
+    environment:
+      - KMS_HOST_URL=0.0.0.0:8075
+      - KMS_BASE_URL=https://kms.example.com:8076
+      - KMS_TLS_CACERTS=/etc/tls/ec-cacert.pem
+      - KMS_TLS_SERVE_CERT=/etc/tls/ec-pubCert.pem
+      - KMS_TLS_SERVE_KEY=/etc/tls/ec-key.pem
+      - KMS_DATABASE_TYPE=couchdb
+      - KMS_DATABASE_URL=admin:password@couchdb.example.com:5984
+      - KMS_DATABASE_PREFIX=keystore
+      - KMS_SECRET_LOCK_KEY_PATH=/etc/tls/secret-lock.key
+      - KMS_PRIMARY_KEY_DATABASE_TYPE=couchdb
+      - KMS_PRIMARY_KEY_DATABASE_URL=admin:password@couchdb.example.com:5984
+      - KMS_PRIMARY_KEY_DATABASE_PREFIX=kmspk
+      - KMS_LOCAL_KMS_DATABASE_TYPE=couchdb
+      - KMS_LOCAL_KMS_DATABASE_URL=admin:password@couchdb.example.com:5984
+      - KMS_LOCAL_KMS_DATABASE_PREFIX=kmslocal
+      - KMS_KEY_MANAGER_STORAGE_TYPE=edv
+      - KMS_KEY_MANAGER_STORAGE_URL=https://edv.example.com:8081
+      - KMS_CACHE_EXPIRATION=10m
+      - KMS_ZCAP_ENABLE=true
+      - KMS_LOG_LEVEL=debug
+      - KMS_JAEGER_URL=http://jaeger.example.com:14268/api/traces
+    ports:
+      - 8075:8075
     entrypoint: ""
     # TODO add retry for couchdb
     command: /bin/sh -c "sleep 5;kms-rest start"
