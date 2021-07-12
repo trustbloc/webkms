@@ -24,6 +24,12 @@ Feature: KMS and crypto operations
     Then  "Alice" gets a response with HTTP status "201 Created"
      And  "Alice" gets a response with "Location" header with a valid URL
 
+  Scenario: User creates multiple keys with parallel requests
+    Given "Alice" has created an empty keystore on Key Server
+
+    When  "Alice" makes parallel HTTP POST requests to "https://localhost:4466/kms/keystores/{keystoreID}/keys" to create "AES128GCM,ChaCha20Poly1305,XChaCha20Poly1305,ED25519,HMACSHA256Tag256,NISTP256ECDHKW,X25519ECDHKW,BLS12381G2" keys
+    Then  "Alice" gets a response with HTTP status "201 Created" for each request
+
   Scenario: User exports a public key
     Given "Bob" has created a keystore with "ED25519" key on Key Server
 

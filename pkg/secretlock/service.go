@@ -32,14 +32,8 @@ type Provider interface {
 	SecretLock() secretlock.Service
 }
 
-// TODO: think about how it can be improved for multi instances.
-var glock sync.Mutex //nolint:gochecknoglobals // global lock for secretlock.Service
-
 // New returns a new secret lock service instance.
 func New(keyURI string, provider Provider) (secretlock.Service, error) {
-	glock.Lock()
-	defer glock.Unlock()
-
 	r, err := primaryKeyReader(provider.StorageProvider(), provider.SecretLock(), keyURI)
 	if err != nil {
 		return nil, err
@@ -53,6 +47,8 @@ func New(keyURI string, provider Provider) (secretlock.Service, error) {
 	return secretLock, nil
 }
 
+var mu sync.RWMutex //nolint:gochecknoglobals // rw mutex for syncing access to primary key
+
 func primaryKeyReader(storageProvider storage.Provider, secretLock secretlock.Service,
 	keyURI string) (*bytes.Reader, error) {
 	primaryKeyStore, err := storageProvider.OpenStore(primaryKeyStoreName)
@@ -60,10 +56,16 @@ func primaryKeyReader(storageProvider storage.Provider, secretLock secretlock.Se
 		return nil, fmt.Errorf("open primary key store: %w", err)
 	}
 
+	mu.RLock()
 	primaryKey, err := primaryKeyStore.Get(keyEntryInDB(keyURI))
+	mu.RUnlock()
+
 	if err != nil {
 		if errors.Is(err, storage.ErrDataNotFound) {
+			mu.Lock()
 			primaryKey, err = newPrimaryKey(primaryKeyStore, secretLock, keyURI)
+			mu.Unlock()
+
 			if err != nil {
 				return nil, err
 			}
