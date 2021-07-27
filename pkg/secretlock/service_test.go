@@ -12,6 +12,7 @@ import (
 	"errors"
 	"testing"
 
+	"github.com/hyperledger/aries-framework-go/component/storageutil/mem"
 	mocksecretlock "github.com/hyperledger/aries-framework-go/pkg/mock/secretlock"
 	mockstorage "github.com/hyperledger/aries-framework-go/pkg/mock/storage"
 	"github.com/hyperledger/aries-framework-go/pkg/secretlock"
@@ -21,20 +22,37 @@ import (
 	lock "github.com/trustbloc/kms/pkg/secretlock"
 )
 
-const (
-	keyURI       = "local-lock://test"
-	keyEntryInDB = "test"
-)
+const keyURI = "local-lock://test"
 
 func TestNew(t *testing.T) {
 	t.Run("Success", func(t *testing.T) {
 		primaryKey := generateKey()
 
+		mockPrimaryKeyLock := &mocksecretlock.MockSecretLock{
+			ValDecrypt: string(primaryKey),
+			ValEncrypt: string(primaryKey),
+		}
+
+		provider := &mockProvider{
+			MockStorageProvider: mem.NewProvider(),
+			MockSecretLock:      mockPrimaryKeyLock,
+		}
+
+		secretLock, err := lock.New(keyURI, provider, 0)
+
+		require.NotNil(t, secretLock)
+		require.NoError(t, err)
+	})
+
+	t.Run("DB error (get)", func(t *testing.T) {
+		primaryKey := generateKey()
+
 		storageProv := mockstorage.NewMockStoreProvider()
-		storageProv.Store.Store[keyEntryInDB] = mockstorage.DBEntry{Value: primaryKey}
+		storageProv.Store = &mockstorage.MockStore{ErrGet: errors.New("error")}
 
 		mockPrimaryKeyLock := &mocksecretlock.MockSecretLock{
 			ValDecrypt: string(primaryKey),
+			ValEncrypt: string(primaryKey),
 		}
 
 		provider := &mockProvider{
@@ -42,10 +60,92 @@ func TestNew(t *testing.T) {
 			MockSecretLock:      mockPrimaryKeyLock,
 		}
 
-		secretLock, err := lock.New(keyURI, provider)
+		secretLock, err := lock.New("test-key", provider, 0)
 
-		require.NotNil(t, secretLock)
-		require.NoError(t, err)
+		require.EqualError(t, err, "get value for \"test-key\": error")
+		require.Nil(t, secretLock)
+	})
+
+	t.Run("DB error (second get)", func(t *testing.T) {
+		primaryKey := generateKey()
+
+		var counter int
+
+		storageProv := mockstorage.NewMockStoreProvider()
+		storageProv.Custom = &mockStore{
+			MockStore: &mockstorage.MockStore{
+				Store: map[string]mockstorage.DBEntry{},
+			},
+			get: func(s string) ([]byte, error) {
+				defer func() { counter++ }()
+
+				if counter == 1 {
+					return nil, nil
+				}
+
+				if counter == 2 {
+					return nil, errors.New("error")
+				}
+
+				return nil, ariesstorage.ErrDataNotFound
+			},
+		}
+
+		mockPrimaryKeyLock := &mocksecretlock.MockSecretLock{
+			ValDecrypt: string(primaryKey),
+			ValEncrypt: string(primaryKey),
+		}
+
+		provider := &mockProvider{
+			MockStorageProvider: storageProv,
+			MockSecretLock:      mockPrimaryKeyLock,
+		}
+
+		secretLock, err := lock.New("test-key", provider, 1)
+
+		require.EqualError(t, err, "get value for \"test-key\": error")
+		require.Nil(t, secretLock)
+	})
+
+	t.Run("Encrypt error (get)", func(t *testing.T) {
+		primaryKey := generateKey()
+
+		mockPrimaryKeyLock := &mocksecretlock.MockSecretLock{
+			ValDecrypt: string(primaryKey),
+			ErrEncrypt: errors.New("error"),
+		}
+
+		provider := &mockProvider{
+			MockStorageProvider: mem.NewProvider(),
+			MockSecretLock:      mockPrimaryKeyLock,
+		}
+
+		secretLock, err := lock.New("test-key", provider, 0)
+
+		require.EqualError(t, err, "init value for \"test-key\": encrypt primary key: error")
+		require.Nil(t, secretLock)
+	})
+
+	t.Run("DB error (put)", func(t *testing.T) {
+		primaryKey := generateKey()
+
+		storageProv := mockstorage.NewMockStoreProvider()
+		storageProv.Store = &mockstorage.MockStore{ErrPut: errors.New("error")}
+
+		mockPrimaryKeyLock := &mocksecretlock.MockSecretLock{
+			ValDecrypt: string(primaryKey),
+			ValEncrypt: string(primaryKey),
+		}
+
+		provider := &mockProvider{
+			MockStorageProvider: storageProv,
+			MockSecretLock:      mockPrimaryKeyLock,
+		}
+
+		secretLock, err := lock.New("test-key", provider, 0)
+
+		require.EqualError(t, err, "put value for \"test-key\": error")
+		require.Nil(t, secretLock)
 	})
 
 	t.Run("Error: opening master key store", func(t *testing.T) {
@@ -57,7 +157,7 @@ func TestNew(t *testing.T) {
 			MockSecretLock:      &mocksecretlock.MockSecretLock{},
 		}
 
-		secretLock, err := lock.New(keyURI, provider)
+		secretLock, err := lock.New(keyURI, provider, 0)
 
 		require.Nil(t, secretLock)
 		require.Error(t, err)
@@ -72,7 +172,7 @@ func TestNew(t *testing.T) {
 			MockSecretLock:      &mocksecretlock.MockSecretLock{},
 		}
 
-		secretLock, err := lock.New(keyURI, provider)
+		secretLock, err := lock.New(keyURI, provider, 0)
 
 		require.Nil(t, secretLock)
 		require.Error(t, err)
@@ -87,7 +187,7 @@ func TestNew(t *testing.T) {
 			MockSecretLock:      mockPrimaryKeyLock,
 		}
 
-		secretLock, err := lock.New(keyURI, provider)
+		secretLock, err := lock.New(keyURI, provider, 0)
 
 		require.Nil(t, secretLock)
 		require.Error(t, err)
@@ -102,7 +202,7 @@ func TestNew(t *testing.T) {
 			MockSecretLock:      &mocksecretlock.MockSecretLock{},
 		}
 
-		secretLock, err := lock.New(keyURI, provider)
+		secretLock, err := lock.New(keyURI, provider, 0)
 
 		require.Nil(t, secretLock)
 		require.Error(t, err)
@@ -114,7 +214,7 @@ func TestNew(t *testing.T) {
 			MockSecretLock:      &mocksecretlock.MockSecretLock{},
 		}
 
-		secretLock, err := lock.New(keyURI, provider)
+		secretLock, err := lock.New(keyURI, provider, 0)
 
 		require.Nil(t, secretLock)
 		require.Error(t, err)
@@ -132,7 +232,7 @@ func generateKey() []byte {
 }
 
 type mockProvider struct {
-	MockStorageProvider *mockstorage.MockStoreProvider
+	MockStorageProvider ariesstorage.Provider
 	MockSecretLock      *mocksecretlock.MockSecretLock
 }
 
@@ -142,4 +242,13 @@ func (p *mockProvider) StorageProvider() ariesstorage.Provider {
 
 func (p *mockProvider) SecretLock() secretlock.Service {
 	return p.MockSecretLock
+}
+
+type mockStore struct {
+	*mockstorage.MockStore
+	get func(string) ([]byte, error)
+}
+
+func (s *mockStore) Get(k string) ([]byte, error) {
+	return s.get(k)
 }

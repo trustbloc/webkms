@@ -104,7 +104,7 @@ func TestResolveKeystore(t *testing.T) {
 		sp := mockstorage.NewMockStoreProvider()
 		sp.Store.Store[testKeystoreID] = mockstorage.DBEntry{Value: b}
 
-		createSecretLockFunc := func(string, lock.Provider) (secretlock.Service, error) {
+		createSecretLockFunc := func(string, lock.Provider, uint64) (secretlock.Service, error) {
 			return &mocksecretlock.MockSecretLock{}, nil
 		}
 

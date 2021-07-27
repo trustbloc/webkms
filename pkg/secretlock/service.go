@@ -10,10 +10,13 @@ import (
 	"bytes"
 	"crypto/rand"
 	"crypto/sha256"
+	"encoding/json"
 	"errors"
 	"fmt"
+	"reflect"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/hyperledger/aries-framework-go/pkg/secretlock"
 	"github.com/hyperledger/aries-framework-go/pkg/secretlock/local"
@@ -33,8 +36,8 @@ type Provider interface {
 }
 
 // New returns a new secret lock service instance.
-func New(keyURI string, provider Provider) (secretlock.Service, error) {
-	r, err := primaryKeyReader(provider.StorageProvider(), provider.SecretLock(), keyURI)
+func New(keyURI string, provider Provider, timeout uint64) (secretlock.Service, error) {
+	r, err := primaryKeyReader(provider.StorageProvider(), provider.SecretLock(), keyURI, timeout)
 	if err != nil {
 		return nil, err
 	}
@@ -47,37 +50,82 @@ func New(keyURI string, provider Provider) (secretlock.Service, error) {
 	return secretLock, nil
 }
 
-var mu sync.RWMutex //nolint:gochecknoglobals // rw mutex for syncing access to primary key
+var cache sync.Map //nolint:gochecknoglobals // cache stores primary key per keystore
 
 func primaryKeyReader(storageProvider storage.Provider, secretLock secretlock.Service,
-	keyURI string) (*bytes.Reader, error) {
+	keyURI string, timeout uint64) (*bytes.Reader, error) {
+	val, ok := cache.Load(keyEntryInDB(keyURI))
+	if ok {
+		return bytes.NewReader(val.([]byte)), nil
+	}
+
 	primaryKeyStore, err := storageProvider.OpenStore(primaryKeyStoreName)
 	if err != nil {
 		return nil, fmt.Errorf("open primary key store: %w", err)
 	}
 
-	mu.RLock()
-	primaryKey, err := primaryKeyStore.Get(keyEntryInDB(keyURI))
-	mu.RUnlock()
+	// TODO needs to be refactored with a better solution
+
+	var primaryKey []byte
+	err = getOrInit(primaryKeyStore, keyEntryInDB(keyURI), &primaryKey, func() (interface{}, error) {
+		return newPrimaryKey(secretLock, keyURI)
+	}, timeout)
 
 	if err != nil {
-		if errors.Is(err, storage.ErrDataNotFound) {
-			mu.Lock()
-			primaryKey, err = newPrimaryKey(primaryKeyStore, secretLock, keyURI)
-			mu.Unlock()
-
-			if err != nil {
-				return nil, err
-			}
-		} else {
-			return nil, err
-		}
+		return nil, err
 	}
+
+	cache.Store(keyEntryInDB(keyURI), primaryKey)
 
 	return bytes.NewReader(primaryKey), nil
 }
 
-func newPrimaryKey(store storage.Store, secLock secretlock.Service, keyURI string) ([]byte, error) {
+//nolint:gocyclo // ignore
+func getOrInit(cfg storage.Store, key string, v interface{}, initFn func() (interface{}, error), timeout uint64) error {
+	src, err := cfg.Get(key)
+	if err != nil && !errors.Is(err, storage.ErrDataNotFound) {
+		return fmt.Errorf("get value for %q: %w", key, err)
+	}
+
+	if err == nil {
+		time.Sleep(time.Second * time.Duration(timeout))
+
+		var src2 []byte
+
+		src2, err = cfg.Get(key)
+		if err != nil && errors.Is(err, storage.ErrDataNotFound) {
+			return getOrInit(cfg, key, v, initFn, timeout)
+		}
+
+		if err != nil {
+			return fmt.Errorf("get value for %q: %w", key, err)
+		}
+
+		if reflect.DeepEqual(src, src2) {
+			return json.Unmarshal(src, v)
+		}
+
+		return getOrInit(cfg, key, v, initFn, timeout)
+	}
+
+	val, err := initFn()
+	if err != nil {
+		return fmt.Errorf("init value for %q: %w", key, err)
+	}
+
+	src, err = json.Marshal(val)
+	if err != nil {
+		return fmt.Errorf("marshal value for %q: %w", key, err)
+	}
+
+	if err = cfg.Put(key, src); err != nil {
+		return fmt.Errorf("put value for %q: %w", key, err)
+	}
+
+	return getOrInit(cfg, key, v, initFn, timeout)
+}
+
+func newPrimaryKey(secLock secretlock.Service, keyURI string) ([]byte, error) {
 	primaryKeyContent, err := randomBytes(keySize)
 	if err != nil {
 		return nil, err
@@ -90,14 +138,7 @@ func newPrimaryKey(store storage.Store, secLock secretlock.Service, keyURI strin
 		return nil, fmt.Errorf("encrypt primary key: %w", err)
 	}
 
-	primaryKey := []byte(primaryKeyEnc.Ciphertext)
-
-	err = store.Put(keyEntryInDB(keyURI), primaryKey)
-	if err != nil {
-		return nil, fmt.Errorf("save primary key: %w", err)
-	}
-
-	return primaryKey, nil
+	return []byte(primaryKeyEnc.Ciphertext), nil
 }
 
 func keyEntryInDB(keyURI string) string {

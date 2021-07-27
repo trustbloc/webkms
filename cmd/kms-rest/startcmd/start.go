@@ -224,6 +224,13 @@ const (
 )
 
 const (
+	syncTimeoutFlagName  = "sync-timeout"
+	syncTimeoutFlagUsage = "Total time in seconds to resolve config values." +
+		" Alternatively, this can be set with the following environment variable: " + syncTimeoutEnvKey
+	syncTimeoutEnvKey = "KMS_SYNC_TIMEOUT"
+)
+
+const (
 	storageTypeMemOption     = "mem"
 	storageTypeCouchDBOption = "couchdb"
 	storageTypeEDVOption     = "edv"
@@ -232,6 +239,8 @@ const (
 const (
 	keystorePrimaryKeyURI = "local-lock://keystorekms"
 )
+
+const defaultSyncTimeout = "3"
 
 // Server represents an HTTP server.
 type Server interface {
@@ -329,6 +338,8 @@ func createFlags(startCmd *cobra.Command) {
 	startCmd.Flags().StringP(jaegerURLFlagName, "", "", jaegerURLFlagUsage)
 
 	startCmd.Flags().StringP(didDomainFlagName, "", "", didDomainFlagUsage)
+
+	startCmd.Flags().String(syncTimeoutFlagName, "", syncTimeoutFlagUsage)
 }
 
 type kmsRestParameters struct {
@@ -350,6 +361,7 @@ type kmsRestParameters struct {
 	enableCORS              bool
 	jaegerURL               string
 	didDomain               string
+	syncTimeout             uint64
 }
 
 type tlsServeParameters struct {
@@ -436,6 +448,20 @@ func getKmsRestParameters(cmd *cobra.Command) (*kmsRestParameters, error) { //no
 		return nil, err
 	}
 
+	syncTimeoutStr, err := cmdutils.GetUserSetVarFromString(cmd, syncTimeoutFlagName, syncTimeoutEnvKey, true)
+	if err != nil {
+		return nil, err
+	}
+
+	if syncTimeoutStr == "" {
+		syncTimeoutStr = defaultSyncTimeout
+	}
+
+	syncTimeout, err := strconv.ParseUint(syncTimeoutStr, 10, 64)
+	if err != nil {
+		return nil, fmt.Errorf("sync timeout is not a number(positive): %w", err)
+	}
+
 	enableZCAPsConfig, err := cmdutils.GetUserSetVarFromString(cmd, enableZCAPsFlagName, enableZCAPsEnvKey, true)
 	if err != nil {
 		return nil, err
@@ -479,6 +505,7 @@ func getKmsRestParameters(cmd *cobra.Command) (*kmsRestParameters, error) { //no
 		enableCORS:              enableCORS,
 		jaegerURL:               jaegerURL,
 		didDomain:               didDomain,
+		syncTimeout:             syncTimeout,
 	}, nil
 }
 
@@ -744,7 +771,7 @@ func prepareOperationConfig(params *kmsRestParameters) (*operation.Config, error
 		return nil, err
 	}
 
-	primaryKeyLock, err := preparePrimaryKeyLock(primaryKeyStorageProvider, params.secretLockKeyPath)
+	primaryKeyLock, err := preparePrimaryKeyLock(primaryKeyStorageProvider, params.secretLockKeyPath, params.syncTimeout)
 	if err != nil {
 		return nil, err
 	}
@@ -807,7 +834,7 @@ func (p *secretLockProvider) SecretLock() secretlock.Service {
 	return p.secretLock
 }
 
-func preparePrimaryKeyLock(primaryKeyStorage storage.Provider, keyPath string) (secretlock.Service, error) {
+func preparePrimaryKeyLock(store storage.Provider, keyPath string, timeout uint64) (secretlock.Service, error) {
 	if keyPath == "" {
 		return &noop.NoLock{}, nil
 	}
@@ -823,11 +850,11 @@ func preparePrimaryKeyLock(primaryKeyStorage storage.Provider, keyPath string) (
 	}
 
 	secLockProvider := &secretLockProvider{
-		storageProvider: primaryKeyStorage,
+		storageProvider: store,
 		secretLock:      secLock,
 	}
 
-	secretLock, err := lock.New(keystorePrimaryKeyURI, secLockProvider)
+	secretLock, err := lock.New(keystorePrimaryKeyURI, secLockProvider, timeout)
 	if err != nil {
 		return nil, err
 	}
@@ -938,6 +965,7 @@ func prepareKMSService(storageProvider, primaryKeyStorageProvider storage.Provid
 		HubAuthAPIToken:           params.hubAuthAPIToken,
 		HTTPClient:                httpClient,
 		TLSConfig:                 tlsConfig,
+		SyncTimeout:               params.syncTimeout,
 	}
 
 	return kms.NewService(config)
