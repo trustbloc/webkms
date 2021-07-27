@@ -50,7 +50,7 @@ type Config struct {
 
 	PrimaryKeyStorageProvider storage.Provider
 	PrimaryKeyLock            secretlock.Service
-	CreateSecretLockFunc      func(keyURI string, provider lock.Provider) (secretlock.Service, error)
+	CreateSecretLockFunc      func(keyURI string, provider lock.Provider, timeout uint64) (secretlock.Service, error)
 
 	EDVServerURL    string
 	HubAuthURL      string
@@ -58,6 +58,8 @@ type Config struct {
 
 	HTTPClient support.HTTPClient
 	TLSConfig  *tls.Config
+
+	SyncTimeout uint64
 }
 
 type service struct {
@@ -161,7 +163,7 @@ func (s *service) ResolveKeystore(req *http.Request) (keystore.Keystore, error) 
 		secretLock:      primaryKeyLock,
 	}
 
-	secretLock, err := s.config.CreateSecretLockFunc(keyURI, secLockProvider)
+	secretLock, err := s.config.CreateSecretLockFunc(keyURI, secLockProvider, s.config.SyncTimeout)
 	if err != nil {
 		return nil, fmt.Errorf("resolve keystore: %w", err)
 	}

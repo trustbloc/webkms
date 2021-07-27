@@ -251,6 +251,15 @@ func TestStartCmdLogLevels(t *testing.T) {
 	}
 }
 
+func TestStartCmdSyncTimeout(t *testing.T) {
+	startCmd := GetStartCmd(&mockServer{})
+
+	startCmd.SetArgs(append(requiredArgs(), "--"+syncTimeoutFlagName, "number"))
+	err := startCmd.Execute()
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "parsing \"number\": invalid syntax")
+}
+
 func TestStartCmdWithTLSCertParams(t *testing.T) {
 	t.Run("Success with tls-systemcertpool arg", func(t *testing.T) {
 		startCmd := GetStartCmd(&mockServer{})
