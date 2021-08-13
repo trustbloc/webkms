@@ -25,11 +25,13 @@ import (
 	"github.com/cucumber/godog"
 	"github.com/hyperledger/aries-framework-go/component/storageutil/mem"
 	"github.com/hyperledger/aries-framework-go/pkg/crypto"
-	jld "github.com/hyperledger/aries-framework-go/pkg/doc/jsonld"
+	"github.com/hyperledger/aries-framework-go/pkg/doc/ld"
 	"github.com/hyperledger/aries-framework-go/pkg/doc/signature/jsonld"
 	"github.com/hyperledger/aries-framework-go/pkg/doc/signature/suite"
 	"github.com/hyperledger/aries-framework-go/pkg/doc/signature/suite/ed25519signature2018"
 	"github.com/hyperledger/aries-framework-go/pkg/kms"
+	ldstore "github.com/hyperledger/aries-framework-go/pkg/store/ld"
+	"github.com/hyperledger/aries-framework-go/spi/storage"
 	"github.com/igor-pavlenko/httpsignatures-go"
 	"github.com/trustbloc/edge-core/pkg/log"
 	"github.com/trustbloc/edge-core/pkg/zcapld"
@@ -208,7 +210,7 @@ func (s *Steps) updateCapability(u *user) error {
 }
 
 func (s *Steps) createChainCapability(u *user) (*zcapld.Capability, error) {
-	loader, err := jld.NewDocumentLoader(mem.NewProvider())
+	loader, err := createJSONLDDocumentLoader(mem.NewProvider())
 	if err != nil {
 		return nil, fmt.Errorf("create document loader: %w", err)
 	}
@@ -991,7 +993,7 @@ func delegateCapability(c *zcapld.Capability, s signer, verificationMethod, invo
 
 	chain = append(chain, c.ID)
 
-	loader, err := jld.NewDocumentLoader(mem.NewProvider())
+	loader, err := createJSONLDDocumentLoader(mem.NewProvider())
 	if err != nil {
 		return "", fmt.Errorf("create document loader: %w", err)
 	}
@@ -1119,4 +1121,41 @@ func (s *Steps) checkRespWithKeyContent(user, keyID string) error {
 	}
 
 	return nil
+}
+
+type ldStoreProvider struct {
+	ContextStore        ldstore.ContextStore
+	RemoteProviderStore ldstore.RemoteProviderStore
+}
+
+func (p *ldStoreProvider) JSONLDContextStore() ldstore.ContextStore {
+	return p.ContextStore
+}
+
+func (p *ldStoreProvider) JSONLDRemoteProviderStore() ldstore.RemoteProviderStore {
+	return p.RemoteProviderStore
+}
+
+func createJSONLDDocumentLoader(storageProvider storage.Provider) (*ld.DocumentLoader, error) {
+	contextStore, err := ldstore.NewContextStore(storageProvider)
+	if err != nil {
+		return nil, fmt.Errorf("create JSON-LD context store: %w", err)
+	}
+
+	remoteProviderStore, err := ldstore.NewRemoteProviderStore(storageProvider)
+	if err != nil {
+		return nil, fmt.Errorf("create remote provider store: %w", err)
+	}
+
+	ldStore := &ldStoreProvider{
+		ContextStore:        contextStore,
+		RemoteProviderStore: remoteProviderStore,
+	}
+
+	documentLoader, err := ld.NewDocumentLoader(ldStore)
+	if err != nil {
+		return nil, fmt.Errorf("new document loader: %w", err)
+	}
+
+	return documentLoader, nil
 }
