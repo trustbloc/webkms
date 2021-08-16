@@ -31,6 +31,7 @@ services:
       - AUTH_REST_COOKIE_AUTH_KEY=/etc/keys/session_cookies/auth.key
       - AUTH_REST_COOKIE_ENC_KEY=/etc/keys/session_cookies/enc.key
       - AUTH_REST_LOG_LEVEL=DEBUG
+      - AUTH_REST_STATIC_IMAGES=/etc/static/images
     ports:
       - 8070:8070
     entrypoint: ""
@@ -38,6 +39,7 @@ services:
     volumes:
       - ../keys:/etc/keys
       - ./oidc-config:/etc/oidc-config
+      - ./static:/etc/static
     depends_on:
       - hydra.example.com
       - oidc.provider.example.com
