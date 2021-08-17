@@ -660,8 +660,8 @@ github.com/hyperledger/aries-framework-go v0.1.7-0.20210421203733-b5dfd703a8fc/g
 github.com/hyperledger/aries-framework-go v0.1.7-0.20210429205242-c5e97865879c/go.mod h1:NH2lUe2C7kR7agKx3B+qBebALNJWrJVUBpqU2L9hvIM=
 github.com/hyperledger/aries-framework-go v0.1.7-0.20210526123422-eec182deab9a/go.mod h1:h6L+YoXtw90OZrH2IequxukIGwzfSpz8pUueQ9T5KqI=
 github.com/hyperledger/aries-framework-go v0.1.7-0.20210603210127-e57b8c94e3cf/go.mod h1:h6L+YoXtw90OZrH2IequxukIGwzfSpz8pUueQ9T5KqI=
-github.com/hyperledger/aries-framework-go v0.1.7-0.20210811135743-532e65035d3b h1:7XbjLn48HY8vuaSEhAQ5GsxIIaG7vS1WTQLIAbq8UwA=
-github.com/hyperledger/aries-framework-go v0.1.7-0.20210811135743-532e65035d3b/go.mod h1:Y12MiErTDKHSCThrLdlEmrRiL2dV84J7/MVTHLBhLhM=
+github.com/hyperledger/aries-framework-go v0.1.7-0.20210816113201-26c0665ef2b9 h1:lg+ZEjuWE1cyRLoG9UFr7dxqbtnGjTnUfRBVcA+uhOQ=
+github.com/hyperledger/aries-framework-go v0.1.7-0.20210816113201-26c0665ef2b9/go.mod h1:VmoqKNXXyYN3R0ObcGA8ZBdbcmKZJFCakuZGDezi+GQ=
 github.com/hyperledger/aries-framework-go-ext/component/storage/couchdb v0.0.0-20210306170115-156a24580a5c/go.mod h1:9YYW1iug2Xla634TLcrjDZcun2cXk44C4I1IyILfvT4=
 github.com/hyperledger/aries-framework-go/component/storage/edv v0.0.0-20210422133815-2ef2d99cb692/go.mod h1:Vw8AblyCa1h6mVbNvbMXeZdlXVGu6Cq+TXZhD4oqvwE=
 github.com/hyperledger/aries-framework-go/component/storage/edv v0.0.0-20210520055214-ae429bb89bf7/go.mod h1:7D+Y5J9cIsUrMGFAsIED+3bAPNjxp6ggXo0/kT5N6BI=
@@ -925,8 +925,9 @@ github.com/pierrec/lz4 v2.0.5+incompatible/go.mod h1:pdkljMzZIN41W+lC3N2tnIh5sFi
 github.com/pierrec/lz4 v2.2.5+incompatible/go.mod h1:pdkljMzZIN41W+lC3N2tnIh5sFi+IEE17M5jbnwPHcY=
 github.com/pierrec/lz4 v2.2.6+incompatible/go.mod h1:pdkljMzZIN41W+lC3N2tnIh5sFi+IEE17M5jbnwPHcY=
 github.com/pierrec/lz4 v2.5.2+incompatible/go.mod h1:pdkljMzZIN41W+lC3N2tnIh5sFi+IEE17M5jbnwPHcY=
-github.com/piprate/json-gold v0.4.0 h1:XQ6ZMLCjuXhtvqr60IrGl2uNYojl64B/dIUmI2iqThs=
 github.com/piprate/json-gold v0.4.0/go.mod h1:OK1z7UgtBZk06n2cDE2OSq1kffmjFFp5/2yhLLCz9UM=
+github.com/piprate/json-gold v0.4.1-0.20210813112359-33b90c4ca86c h1:F4YQvOA7UTccz06y59KLw4C0iXD28hnKUP9R9zeSe8U=
+github.com/piprate/json-gold v0.4.1-0.20210813112359-33b90c4ca86c/go.mod h1:OK1z7UgtBZk06n2cDE2OSq1kffmjFFp5/2yhLLCz9UM=
 github.com/pkg/errors v0.8.0/go.mod h1:bwawxfHBFNV+L2hUp1rHADufV3IMtnDRdf1r5NINEl0=
 github.com/pkg/errors v0.8.1-0.20171018195549-f15c970de5b7/go.mod h1:bwawxfHBFNV+L2hUp1rHADufV3IMtnDRdf1r5NINEl0=
 github.com/pkg/errors v0.8.1/go.mod h1:bwawxfHBFNV+L2hUp1rHADufV3IMtnDRdf1r5NINEl0=
@@ -1057,8 +1058,8 @@ github.com/tmc/grpc-websocket-proxy v0.0.0-20190109142713-0ad062ec5ee5/go.mod h1
 github.com/trustbloc/edge-core v0.1.7-0.20210310142750-7eb11997c4a9/go.mod h1:BpCeNH2fEH3RX7+C5XfnVIXFQbk7LzBdWdBdgnEb284=
 github.com/trustbloc/edge-core v0.1.7-0.20210429222332-96b987820e63/go.mod h1:Yk/fkQC8OMHsY7IHSFtsWNJl3Kri2XxQoxa3hZmMkgE=
 github.com/trustbloc/edge-core v0.1.7-0.20210527163745-994ae929f957/go.mod h1:oAiGOVTKW4XIaMZGthuVUaZru9xaepdiZtxx1D2H4o8=
-github.com/trustbloc/edge-core v0.1.7-0.20210812092729-6c61997fa9dd h1:WUJI1biFrnWyDmB9E/TPdNP02mUvUyIzSMoOoTaYJa8=
-github.com/trustbloc/edge-core v0.1.7-0.20210812092729-6c61997fa9dd/go.mod h1:lb8Kg33uSTA0912U++p+cpYbMa9I1jvnhcDRyI+vWtw=
+github.com/trustbloc/edge-core v0.1.7-0.20210816120552-ed93662ac716 h1:qBnp316Q4/Bd13oYarCXEI83O9IwOaCbDeEIFfPvW+4=
+github.com/trustbloc/edge-core v0.1.7-0.20210816120552-ed93662ac716/go.mod h1:7jjHQo2gMGNPIRfhvn4aXQ0FYMrG9lRgQcvZKTviCGc=
 github.com/trustbloc/edv v0.1.7-0.20210527173439-3b17690a0345 h1:wi7YHQJ4l5dyqEc5aPLn9Mv4ps+ueBlSYtxPFelguFA=
 github.com/trustbloc/edv v0.1.7-0.20210527173439-3b17690a0345/go.mod h1:sUk2opwSMTjciltIeCBmazNh7tWiKLAGdE8M3VENzbc=
 github.com/trustbloc/hub-auth v0.1.7-0.20210310162148-949bbe290351 h1:26vm/XkQi72y0SdZeDlwaBO/KR0q8xlBm3qw48iiVzE=
