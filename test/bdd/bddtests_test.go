@@ -31,7 +31,7 @@ const (
 	caCertPath                = "fixtures/keys/tls/ec-cacert.pem"
 	kmsComposeFilePath        = "./fixtures/kms"
 	edvComposeFilePath        = "./fixtures/edv"
-	couchDBComposeFilePath    = "./fixtures/couchdb"
+	mongoDBComposeFilePath    = "./fixtures/mongodb"
 	hubAuthComposeFilePath    = "./fixtures/auth"
 	oathKeeperComposeFilePath = "./fixtures/oathkeeper"
 )
@@ -75,7 +75,7 @@ func runBDDTests(tags, format string) int {
 
 func initializeTestSuite(ctx *godog.TestSuiteContext) {
 	composeFiles := []string{
-		couchDBComposeFilePath,
+		mongoDBComposeFilePath,
 		edvComposeFilePath,
 		hubAuthComposeFilePath,
 		kmsComposeFilePath,
