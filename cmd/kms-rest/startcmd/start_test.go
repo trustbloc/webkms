@@ -16,6 +16,8 @@ import (
 	"os"
 	"testing"
 
+	dctest "github.com/ory/dockertest/v3"
+	dc "github.com/ory/dockertest/v3/docker"
 	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/require"
 	"github.com/trustbloc/edge-core/pkg/log"
@@ -202,11 +204,44 @@ func TestStartCmdWithBlankEnvVar(t *testing.T) {
 }
 
 func TestStartCmdValidArgs(t *testing.T) {
-	startCmd := GetStartCmd(&mockServer{})
-	startCmd.SetArgs(requiredArgs())
+	t.Run("using in-memory storage option", func(t *testing.T) {
+		startCmd := GetStartCmd(&mockServer{})
+		startCmd.SetArgs(requiredArgs(storageTypeMemOption))
 
-	err := startCmd.Execute()
-	require.Nil(t, err)
+		err := startCmd.Execute()
+		require.Nil(t, err)
+	})
+	t.Run("using MongoDB storage option", func(t *testing.T) {
+		pool, mongoDBResource := startMongoDBContainer(t)
+
+		defer func() {
+			require.NoError(t, pool.Purge(mongoDBResource), "failed to purge MongoDB resource")
+		}()
+
+		startCmd := GetStartCmd(&mockServer{})
+		startCmd.SetArgs(requiredArgs(storageTypeMongoDBOption))
+
+		err := startCmd.Execute()
+		require.Nil(t, err)
+	})
+}
+
+func startMongoDBContainer(t *testing.T) (*dctest.Pool, *dctest.Resource) {
+	t.Helper()
+
+	pool, err := dctest.NewPool("")
+	require.NoError(t, err)
+
+	mongoDBResource, err := pool.RunWithOptions(&dctest.RunOptions{
+		Repository: "mongo",
+		Tag:        "4.0.0",
+		PortBindings: map[dc.Port][]dc.PortBinding{
+			"27017/tcp": {{HostIP: "", HostPort: "27017"}},
+		},
+	})
+	require.NoError(t, err)
+
+	return pool, mongoDBResource
 }
 
 func TestStartCmdValidArgsEnvVar(t *testing.T) {
@@ -237,7 +272,7 @@ func TestStartCmdLogLevels(t *testing.T) {
 	for _, tt := range tests {
 		startCmd := GetStartCmd(&mockServer{})
 
-		args := requiredArgs()
+		args := requiredArgs(storageTypeMemOption)
 
 		if tt.in != "" {
 			args = append(args, "--"+logLevelFlagName, tt.in)
@@ -254,7 +289,7 @@ func TestStartCmdLogLevels(t *testing.T) {
 func TestStartCmdSyncTimeout(t *testing.T) {
 	startCmd := GetStartCmd(&mockServer{})
 
-	startCmd.SetArgs(append(requiredArgs(), "--"+syncTimeoutFlagName, "number"))
+	startCmd.SetArgs(append(requiredArgs(storageTypeMemOption), "--"+syncTimeoutFlagName, "number"))
 	err := startCmd.Execute()
 	require.Error(t, err)
 	require.Contains(t, err.Error(), "parsing \"number\": invalid syntax")
@@ -264,7 +299,7 @@ func TestStartCmdWithTLSCertParams(t *testing.T) {
 	t.Run("Success with tls-systemcertpool arg", func(t *testing.T) {
 		startCmd := GetStartCmd(&mockServer{})
 
-		args := requiredArgs()
+		args := requiredArgs(storageTypeMemOption)
 		args = append(args, "--"+tlsSystemCertPoolFlagName, "true")
 
 		startCmd.SetArgs(args)
@@ -276,7 +311,7 @@ func TestStartCmdWithTLSCertParams(t *testing.T) {
 	t.Run("Fail with invalid tls-systemcertpool arg", func(t *testing.T) {
 		startCmd := GetStartCmd(&mockServer{})
 
-		args := requiredArgs()
+		args := requiredArgs(storageTypeMemOption)
 		args = append(args, "--"+tlsSystemCertPoolFlagName, "invalid")
 
 		startCmd.SetArgs(args)
@@ -288,7 +323,7 @@ func TestStartCmdWithTLSCertParams(t *testing.T) {
 	t.Run("Failed to read cert", func(t *testing.T) {
 		startCmd := GetStartCmd(&mockServer{})
 
-		args := requiredArgs()
+		args := requiredArgs(storageTypeMemOption)
 		args = append(args, "--"+tlsCACertsFlagName, "/test/path")
 
 		startCmd.SetArgs(args)
@@ -301,7 +336,7 @@ func TestStartCmdWithTLSCertParams(t *testing.T) {
 func TestStartCmdEmptyDomain(t *testing.T) {
 	startCmd := GetStartCmd(&mockServer{})
 
-	args := requiredArgs()
+	args := requiredArgs(storageTypeMemOption)
 	args = append(args, "--"+didDomainFlagName, "")
 
 	startCmd.SetArgs(args)
@@ -317,7 +352,7 @@ func TestStartCmdWithSecretLockKeyPathParam(t *testing.T) {
 
 		startCmd := GetStartCmd(&mockServer{})
 
-		args := requiredArgs()
+		args := requiredArgs(storageTypeMemOption)
 		args = append(args, "--"+secretLockKeyPathFlagName, file)
 
 		startCmd.SetArgs(args)
@@ -332,7 +367,7 @@ func TestStartCmdWithSecretLockKeyPathParam(t *testing.T) {
 
 		startCmd := GetStartCmd(&mockServer{})
 
-		args := requiredArgs()
+		args := requiredArgs(storageTypeMemOption)
 		args = append(args, "--"+secretLockKeyPathFlagName, file)
 
 		startCmd.SetArgs(args)
@@ -344,7 +379,7 @@ func TestStartCmdWithSecretLockKeyPathParam(t *testing.T) {
 	t.Run("Fail with invalid secret-lock-key-path arg", func(t *testing.T) {
 		startCmd := GetStartCmd(&mockServer{})
 
-		args := requiredArgs()
+		args := requiredArgs(storageTypeMemOption)
 		args = append(args, "--"+secretLockKeyPathFlagName, "invalid")
 
 		startCmd.SetArgs(args)
@@ -357,7 +392,7 @@ func TestStartCmdWithSecretLockKeyPathParam(t *testing.T) {
 func TestStartCmdWithHubAuthURLParam(t *testing.T) {
 	startCmd := GetStartCmd(&mockServer{})
 
-	args := requiredArgs()
+	args := requiredArgs(storageTypeMemOption)
 	args = append(args, "--"+hubAuthURLFlagName, "http://example.com")
 
 	startCmd.SetArgs(args)
@@ -370,7 +405,7 @@ func TestStartCmdWithEnableCORSParam(t *testing.T) {
 	t.Run("Success with CORS enabled", func(t *testing.T) {
 		startCmd := GetStartCmd(&mockServer{})
 
-		args := requiredArgs()
+		args := requiredArgs(storageTypeMemOption)
 		args = append(args, "--"+enableCORSFlagName, "true")
 
 		startCmd.SetArgs(args)
@@ -382,7 +417,7 @@ func TestStartCmdWithEnableCORSParam(t *testing.T) {
 	t.Run("Fail with invalid enable-cors param", func(t *testing.T) {
 		startCmd := GetStartCmd(&mockServer{})
 
-		args := requiredArgs()
+		args := requiredArgs(storageTypeMemOption)
 		args = append(args, "--"+enableCORSFlagName, "invalid")
 
 		startCmd.SetArgs(args)
@@ -396,7 +431,7 @@ func TestStartCmdWithCacheExpirationParam(t *testing.T) {
 	t.Run("Success with cache-expiration set", func(t *testing.T) {
 		startCmd := GetStartCmd(&mockServer{})
 
-		args := requiredArgs()
+		args := requiredArgs(storageTypeMemOption)
 		args = append(args, "--"+cacheExpirationFlagName, "10m")
 
 		startCmd.SetArgs(args)
@@ -408,7 +443,7 @@ func TestStartCmdWithCacheExpirationParam(t *testing.T) {
 	t.Run("Fail with invalid cache-expiration duration string", func(t *testing.T) {
 		startCmd := GetStartCmd(&mockServer{})
 
-		args := requiredArgs()
+		args := requiredArgs(storageTypeMemOption)
 		args = append(args, "--"+cacheExpirationFlagName, "invalid")
 
 		startCmd.SetArgs(args)
@@ -421,7 +456,7 @@ func TestStartCmdWithCacheExpirationParam(t *testing.T) {
 func TestStartCmdWithJaegerURLParam(t *testing.T) {
 	startCmd := GetStartCmd(&mockServer{})
 
-	args := requiredArgs()
+	args := requiredArgs(storageTypeMemOption)
 	args = append(args, "--"+jaegerURLFlagName, "http://example.com")
 
 	startCmd.SetArgs(args)
@@ -465,14 +500,24 @@ func TestStartKMSService(t *testing.T) {
 	})
 }
 
-func requiredArgs() []string {
-	return []string{
+func requiredArgs(databaseType string) []string {
+	args := []string{
 		"--" + hostURLFlagName, "localhost:8080",
-		"--" + databaseTypeFlagName, storageTypeMemOption,
-		"--" + primaryKeyDatabaseTypeFlagName, storageTypeMemOption,
-		"--" + localKMSDatabaseTypeFlagName, storageTypeMemOption,
-		"--" + keyManagerStorageTypeFlagName, storageTypeMemOption,
+		"--" + databaseTypeFlagName, databaseType,
+		"--" + primaryKeyDatabaseTypeFlagName, databaseType,
+		"--" + localKMSDatabaseTypeFlagName, databaseType,
+		"--" + keyManagerStorageTypeFlagName, databaseType,
 	}
+
+	if databaseType == storageTypeMongoDBOption {
+		args = append(args,
+			"--"+databaseURLFlagName, "mongodb://localhost:27017",
+			"--"+primaryKeyDatabaseURLFlagName, "mongodb://localhost:27017",
+			"--"+localKMSDatabaseURLFlagName, "mongodb://localhost:27017",
+			"--"+keyManagerStorageURLFlagName, "mongodb://localhost:27017")
+	}
+
+	return args
 }
 
 func buildAllArgsWithOneBlank(flags []string, blankArg string) []string {
@@ -496,7 +541,7 @@ func kmsRestParams(t *testing.T) *kmsRestParameters {
 
 	startCmd := GetStartCmd(&mockServer{})
 
-	err := startCmd.ParseFlags(requiredArgs())
+	err := startCmd.ParseFlags(requiredArgs(storageTypeMemOption))
 	require.NoError(t, err)
 
 	params, err := getKmsRestParameters(startCmd)

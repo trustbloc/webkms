@@ -23,7 +23,7 @@ services:
       - ./config/auth-keyserver:/oathkeeper
       - ../keys/tls:/etc/tls
     networks:
-      - couchdb_bdd_net
+      - mongodb_bdd_net
 
   oathkeeper-ops-keyserver:
     image: oryd/oathkeeper:v0.38.4-alpine
@@ -42,8 +42,8 @@ services:
       - ./config/ops-keyserver:/oathkeeper
       - ../keys/tls:/etc/tls
     networks:
-      - couchdb_bdd_net
+      - mongodb_bdd_net
 
 networks:
-  couchdb_bdd_net:
+  mongodb_bdd_net:
     external: true

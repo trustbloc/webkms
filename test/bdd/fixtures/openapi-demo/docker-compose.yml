@@ -18,7 +18,7 @@ services:
     volumes:
       - ./specs:/specs
     networks:
-      - couchdb_bdd_net
+      - mongodb_bdd_net
 
   kms.example.com:
     container_name: kms.example.com
@@ -43,11 +43,11 @@ services:
     ports:
       - 8080:8080
     entrypoint: ""
-    # TODO add retry for couchdb
+    # TODO add retry for mongodb
     command: /bin/sh -c "sleep 5;kms-rest start"
     networks:
-      - couchdb_bdd_net
+      - mongodb_bdd_net
 
 networks:
-  couchdb_bdd_net:
+  mongodb_bdd_net:
     external: true

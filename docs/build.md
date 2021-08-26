@@ -6,6 +6,7 @@
 - Docker
 - Docker-Compose
 - Make
+- `127.0.0.1 oidc.provider.example.com` entry in `hosts` file
 
 ## Targets
 

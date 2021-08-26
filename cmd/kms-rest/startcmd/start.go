@@ -17,6 +17,7 @@ import (
 
 	"github.com/gorilla/mux"
 	"github.com/hyperledger/aries-framework-go-ext/component/storage/couchdb"
+	"github.com/hyperledger/aries-framework-go-ext/component/storage/mongodb"
 	"github.com/hyperledger/aries-framework-go-ext/component/vdr/orb"
 	"github.com/hyperledger/aries-framework-go/component/storageutil/mem"
 	"github.com/hyperledger/aries-framework-go/pkg/crypto"
@@ -107,7 +108,7 @@ const (
 	databaseTypeFlagName  = "database-type"
 	databaseTypeEnvKey    = "KMS_DATABASE_TYPE"
 	databaseTypeFlagUsage = "The type of database to use for storing metadata about keystores and " +
-		"associated keys. Supported options: mem, couchdb. " + commonEnvVarUsageText + databaseTypeEnvKey
+		"associated keys. Supported options: mem, couchdb, mongodb. " + commonEnvVarUsageText + databaseTypeEnvKey
 
 	databaseURLFlagName  = "database-url"
 	databaseURLEnvKey    = "KMS_DATABASE_URL"
@@ -133,7 +134,7 @@ const (
 	primaryKeyDatabaseTypeFlagName  = "primary-key-database-type"
 	primaryKeyDatabaseTypeEnvKey    = "KMS_PRIMARY_KEY_DATABASE_TYPE"
 	primaryKeyDatabaseTypeFlagUsage = "The type of database to use for storing primary keys. " +
-		"Supported options: mem, couchdb. " + commonEnvVarUsageText + primaryKeyDatabaseTypeEnvKey
+		"Supported options: mem, couchdb, mongodb. " + commonEnvVarUsageText + primaryKeyDatabaseTypeEnvKey
 
 	primaryKeyDatabaseURLFlagName  = "primary-key-database-url"
 	primaryKeyDatabaseURLEnvKey    = "KMS_PRIMARY_KEY_DATABASE_URL"
@@ -152,7 +153,7 @@ const (
 	localKMSDatabaseTypeFlagName  = "local-kms-database-type"
 	localKMSDatabaseTypeEnvKey    = "KMS_LOCAL_KMS_DATABASE_TYPE"
 	localKMSDatabaseTypeFlagUsage = "The type of database to use for storing local KMS secrets (e.g. keys for " +
-		"Keystore). Supported options: mem, couchdb. " + commonEnvVarUsageText + localKMSDatabaseTypeEnvKey
+		"Keystore). Supported options: mem, couchdb, mongodb. " + commonEnvVarUsageText + localKMSDatabaseTypeEnvKey
 
 	localKMSDatabaseURLFlagName  = "local-kms-database-url"
 	localKMSDatabaseURLEnvKey    = "KMS_LOCAL_KMS_DATABASE_URL"
@@ -171,7 +172,7 @@ const (
 	keyManagerStorageTypeFlagName  = "key-manager-storage-type"
 	keyManagerStorageTypeEnvKey    = "KMS_KEY_MANAGER_STORAGE_TYPE"
 	keyManagerStorageTypeFlagUsage = "The type of storage to use for key manager. Supported options: mem, couchdb, " +
-		"edv. " + commonEnvVarUsageText + keyManagerStorageTypeEnvKey
+		"mongodb, edv. " + commonEnvVarUsageText + keyManagerStorageTypeEnvKey
 
 	keyManagerStorageURLFlagName  = "key-manager-storage-url"
 	keyManagerStorageURLEnvKey    = "KMS_KEY_MANAGER_STORAGE_URL"
@@ -235,6 +236,7 @@ const (
 const (
 	storageTypeMemOption     = "mem"
 	storageTypeCouchDBOption = "couchdb"
+	storageTypeMongoDBOption = "mongodb"
 	storageTypeEDVOption     = "edv"
 )
 
@@ -988,6 +990,8 @@ func prepareStorageProvider(params *storageParameters) (storage.Provider, error)
 		return mem.NewProvider(), nil
 	case strings.EqualFold(params.storageType, storageTypeCouchDBOption):
 		return couchdb.NewProvider(params.storageURL, couchdb.WithDBPrefix(params.storagePrefix))
+	case strings.EqualFold(params.storageType, storageTypeMongoDBOption):
+		return mongodb.NewProvider(params.storageURL, mongodb.WithDBPrefix(params.storagePrefix))
 	default:
 		return nil, errors.New("database not set to a valid type")
 	}
@@ -999,6 +1003,8 @@ func prepareKMSStorageProvider(params *storageParameters) (storage.Provider, err
 		return mem.NewProvider(), nil
 	case strings.EqualFold(params.storageType, storageTypeCouchDBOption):
 		return couchdb.NewProvider(params.storageURL, couchdb.WithDBPrefix(params.storagePrefix))
+	case strings.EqualFold(params.storageType, storageTypeMongoDBOption):
+		return mongodb.NewProvider(params.storageURL, mongodb.WithDBPrefix(params.storagePrefix))
 	default:
 		return nil, errors.New("KMS storage not set to a valid type")
 	}

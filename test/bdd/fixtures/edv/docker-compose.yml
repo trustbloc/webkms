@@ -14,12 +14,12 @@ services:
       - EDV_HOST_URL=0.0.0.0:8081
       - EDV_TLS_CERT_FILE=/etc/tls/ec-pubCert.pem
       - EDV_TLS_KEY_FILE=/etc/tls/ec-key.pem
-      - EDV_DATABASE_TYPE=couchdb
-      - EDV_DATABASE_URL=admin:password@couchdb.example.com:5984
-      - EDV_DATABASE_PREFIX=edv
-      - EDV_LOCALKMS_SECRETS_DATABASE_TYPE=couchdb
-      - EDV_LOCALKMS_SECRETS_DATABASE_URL=admin:password@couchdb.example.com:5984
-      - EDV_LOCALKMS_SECRETS_DATABASE_PREFIX=edv_kms
+      - EDV_DATABASE_TYPE=mongodb
+      - EDV_DATABASE_URL=mongodb://mongodb.example.com:27017
+      - EDV_DATABASE_PREFIX=edv_
+      - EDV_LOCALKMS_SECRETS_DATABASE_TYPE=mongodb
+      - EDV_LOCALKMS_SECRETS_DATABASE_URL=mongodb://mongodb.example.com:27017
+      - EDV_LOCALKMS_SECRETS_DATABASE_PREFIX=edv_kms_
       - EDV_EXTENSIONS=ReturnFullDocumentsOnQuery
       - EDV_DATABASE_TIMEOUT=60
       - EDV_AUTH_ENABLE=true
@@ -30,8 +30,8 @@ services:
       - ../keys/tls:/etc/tls
     command: start
     networks:
-      - couchdb_bdd_net
+      - mongodb_bdd_net
 
 networks:
-  couchdb_bdd_net:
+  mongodb_bdd_net:
     external: true

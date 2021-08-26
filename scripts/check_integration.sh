@@ -8,6 +8,7 @@ set -e
 
 
 echo "Running kms integration tests..."
+echo "Important: these tests require a 127.0.0.1 oidc.provider.example.com entry in your hosts file"
 
 PWD=$(pwd)
 

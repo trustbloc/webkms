@@ -45,7 +45,7 @@ services:
       - oidc.provider.example.com
       - mysql
     networks:
-      - couchdb_bdd_net
+      - mongodb_bdd_net
 
   hydra.example.com:
     container_name: hydra.example.com
@@ -71,7 +71,7 @@ services:
     depends_on:
       - mysql
     networks:
-      - couchdb_bdd_net
+      - mongodb_bdd_net
 
   oidc.provider.example.com:
     container_name: oidc.provider.example.com
@@ -101,7 +101,7 @@ services:
       - mysql
       - mock.login.consent.example.com
     networks:
-      - couchdb_bdd_net
+      - mongodb_bdd_net
 
   mysql:
     container_name: mysql
@@ -115,7 +115,7 @@ services:
     volumes:
       - ./mysql-config:/docker-entrypoint-initdb.d
     networks:
-      - couchdb_bdd_net
+      - mongodb_bdd_net
 
   mock.login.consent.example.com:
     container_name: mock.login.consent.example.com
@@ -131,8 +131,8 @@ services:
     volumes:
       - ../keys/tls:/etc/tls
     networks:
-      - couchdb_bdd_net
+      - mongodb_bdd_net
 
 networks:
-  couchdb_bdd_net:
+  mongodb_bdd_net:
     external: true
