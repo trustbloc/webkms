@@ -6,7 +6,6 @@
 version: '2'
 
 services:
-
   openapi.demo.com:
     container_name: openapi.demo.com
     image: swaggerapi/swagger-ui
@@ -18,25 +17,25 @@ services:
     volumes:
       - ./specs:/specs
     networks:
-      - mongodb_bdd_net
+      - demo_net
 
   kms.example.com:
     container_name: kms.example.com
     image: ${KMS_REST_IMAGE}:latest
     environment:
       - KMS_HOST_URL=0.0.0.0:8080
-      - KMS_DATABASE_TYPE=couchdb
-      - KMS_DATABASE_URL=admin:password@couchdb.example.com:5984
-      - KMS_DATABASE_PREFIX=keystore
-      - KMS_PRIMARY_KEY_DATABASE_TYPE=couchdb
-      - KMS_PRIMARY_KEY_DATABASE_URL=admin:password@couchdb.example.com:5984
-      - KMS_PRIMARY_KEY_DATABASE_PREFIX=kmspk
-      - KMS_LOCAL_KMS_DATABASE_TYPE=couchdb
-      - KMS_LOCAL_KMS_DATABASE_URL=admin:password@couchdb.example.com:5984
+      - KMS_DATABASE_TYPE=mongodb
+      - KMS_DATABASE_URL=mongodb://mongodb.example.com:27017
+      - KMS_DATABASE_PREFIX=keystore_
+      - KMS_PRIMARY_KEY_DATABASE_TYPE=mongodb
+      - KMS_PRIMARY_KEY_DATABASE_URL=mongodb://mongodb.example.com:27017
+      - KMS_PRIMARY_KEY_DATABASE_PREFIX=kmspk_
+      - KMS_LOCAL_KMS_DATABASE_TYPE=mongodb
+      - KMS_LOCAL_KMS_DATABASE_URL=mongodb://mongodb.example.com:27017
       - KMS_LOCAL_KMS_DATABASE_PREFIX=kmslocal
-      - KMS_KEY_MANAGER_STORAGE_TYPE=couchdb
-      - KMS_KEY_MANAGER_STORAGE_URL=admin:password@couchdb.example.com:5984
-      - KMS_KEY_MANAGER_STORAGE_PREFIX=kmskm
+      - KMS_KEY_MANAGER_STORAGE_TYPE=couchdb_
+      - KMS_KEY_MANAGER_STORAGE_URL=mongodb://mongodb.example.com:27017
+      - KMS_KEY_MANAGER_STORAGE_PREFIX=kmskm_
       - KMS_ZCAP_ENABLE=false
       - KMS_CORS_ENABLE=true
       - KMS_LOG_LEVEL=debug
@@ -45,9 +44,19 @@ services:
     entrypoint: ""
     # TODO add retry for mongodb
     command: /bin/sh -c "sleep 5;kms-rest start"
+    depends_on:
+      - mongodb.example.com
     networks:
-      - mongodb_bdd_net
+      - demo_net
+
+  mongodb.example.com:
+    container_name: mongodb.example.com
+    image: ${MONGODB_IMAGE}:${MONGODB_IMAGE_TAG}
+    ports:
+      - ${MONGODB_PORT}:${MONGODB_PORT}
+    networks:
+      - demo_net
 
 networks:
-  mongodb_bdd_net:
-    external: true
+  demo_net:
+    driver: bridge

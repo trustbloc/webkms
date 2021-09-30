@@ -14,7 +14,6 @@ import (
 	"io"
 	"net/http"
 	"strings"
-	"time"
 
 	"github.com/gorilla/mux"
 	"github.com/hyperledger/aries-framework-go/pkg/crypto"
@@ -22,8 +21,6 @@ import (
 	"github.com/piprate/json-gold/ld"
 	"github.com/trustbloc/edge-core/pkg/log"
 	"github.com/trustbloc/edge-core/pkg/zcapld"
-	"go.opentelemetry.io/otel/label"
-	"go.opentelemetry.io/otel/trace"
 
 	zcapld2 "github.com/trustbloc/kms/pkg/auth/zcapld"
 	"github.com/trustbloc/kms/pkg/internal/support"
@@ -160,7 +157,6 @@ type Operation struct {
 	cryptoBoxCreator func(keyManager arieskms.KeyManager) (arieskms.CryptoBox, error)
 	jsonLDLoader     ld.DocumentLoader
 	logger           log.Logger
-	tracer           trace.Tracer
 	baseURL          string
 	vdrResolver      zcapld.VDRResolver
 }
@@ -172,7 +168,6 @@ type Config struct {
 	CryptoBoxCreator func(keyManager arieskms.KeyManager) (arieskms.CryptoBox, error)
 	JSONLDLoader     ld.DocumentLoader
 	Logger           log.Logger
-	Tracer           trace.Tracer
 	BaseURL          string
 	VDRResolver      zcapld.VDRResolver
 }
@@ -185,7 +180,6 @@ func New(config *Config) (*Operation, error) {
 		cryptoBoxCreator: config.CryptoBoxCreator,
 		jsonLDLoader:     config.JSONLDLoader,
 		logger:           config.Logger,
-		tracer:           config.Tracer,
 		baseURL:          config.BaseURL,
 		vdrResolver:      config.VDRResolver,
 	}
@@ -229,9 +223,6 @@ func (o *Operation) GetRESTHandlers() []Handler {
 //        201: createKeystoreResp
 //    default: errorResp
 func (o *Operation) createKeystoreHandler(rw http.ResponseWriter, req *http.Request) {
-	ctx, span := o.traceSpan(req, "createKeystoreHandler")
-	defer span.End()
-
 	o.logger.Debugf("handling request: %s", req.URL.String())
 
 	var request createKeystoreReq
@@ -246,9 +237,7 @@ func (o *Operation) createKeystoreHandler(rw http.ResponseWriter, req *http.Requ
 		return
 	}
 
-	span.SetAttributes(label.String("keystoreID", keystoreData.ID))
-
-	didKey, err := o.authService.CreateDIDKey(ctx)
+	didKey, err := o.authService.CreateDIDKey(req.Context())
 	if err != nil {
 		o.writeErrorResponse(rw, http.StatusInternalServerError, createKeystoreFailure, err)
 
@@ -257,17 +246,12 @@ func (o *Operation) createKeystoreHandler(rw http.ResponseWriter, req *http.Requ
 
 	resource := keystoreLocation(o.baseURL, keystoreData.ID)
 
-	start := time.Now()
-
-	zcap, err := o.newCompressedZCAP(ctx, resource, keystoreData.Controller)
+	zcap, err := o.newCompressedZCAP(req.Context(), resource, keystoreData.Controller)
 	if err != nil {
 		o.writeErrorResponse(rw, http.StatusInternalServerError, createZCAPFailure, err)
 
 		return
 	}
-
-	span.AddEvent("newCompressedZCAP completed",
-		trace.WithAttributes(label.String("duration", time.Since(start).String())))
 
 	rw.Header().Set("Location", resource)
 	rw.Header().Set("Edvdidkey", didKey)
@@ -284,23 +268,15 @@ func (o *Operation) createKeystoreHandler(rw http.ResponseWriter, req *http.Requ
 // Responses:
 //        201: createKeyResp
 //    default: errorResp
-func (o *Operation) createKeyHandler(rw http.ResponseWriter, req *http.Request) { //nolint:funlen // TODO refactor
-	ctx, span := o.traceSpan(req, "createKeyHandler")
-	defer span.End()
-
+func (o *Operation) createKeyHandler(rw http.ResponseWriter, req *http.Request) {
 	o.logger.Debugf("handling request: %s", req.URL.String())
 
-	start := time.Now()
-
-	k, err := o.kmsService.ResolveKeystore(req.WithContext(ctx))
+	k, err := o.kmsService.ResolveKeystore(req)
 	if err != nil {
 		o.writeErrorResponse(rw, http.StatusInternalServerError, resolveKeystoreFailure, err)
 
 		return
 	}
-
-	span.AddEvent("ResolveKeystore completed",
-		trace.WithAttributes(label.String("duration", time.Since(start).String())))
 
 	var request createKeyReq
 	if ok := o.parseRequest(&request, rw, req); !ok {
@@ -308,8 +284,6 @@ func (o *Operation) createKeyHandler(rw http.ResponseWriter, req *http.Request) 
 	}
 
 	keystoreID := mux.Vars(req)[keystoreIDQueryParam]
-
-	span.SetAttributes(label.String("keystoreID", keystoreID))
 
 	var (
 		keyID    string
@@ -331,8 +305,6 @@ func (o *Operation) createKeyHandler(rw http.ResponseWriter, req *http.Request) 
 			return
 		}
 	}
-
-	span.SetAttributes(label.String("keyID", keyID))
 
 	location := keyLocation(o.baseURL, keystoreID, keyID)
 
@@ -357,9 +329,6 @@ func (o *Operation) createKeyHandler(rw http.ResponseWriter, req *http.Request) 
 //        201: emptyRes
 //    default: errorResp
 func (o *Operation) updateCapabilityHandler(rw http.ResponseWriter, req *http.Request) {
-	_, span := o.traceSpan(req, "updateCapabilityHandler")
-	defer span.End()
-
 	var request UpdateCapabilityReq
 	if ok := o.parseRequest(&request, rw, req); !ok {
 		return
@@ -373,8 +342,6 @@ func (o *Operation) updateCapabilityHandler(rw http.ResponseWriter, req *http.Re
 	}
 
 	keystoreID := mux.Vars(req)[keystoreIDQueryParam]
-
-	span.SetAttributes(label.String("keystoreID", keystoreID))
 
 	keystoreData, err := o.kmsService.GetKeystoreData(keystoreID)
 	if err != nil {
@@ -402,28 +369,16 @@ func (o *Operation) updateCapabilityHandler(rw http.ResponseWriter, req *http.Re
 //        200: exportKeyResp
 //    default: errorResp
 func (o *Operation) exportKeyHandler(rw http.ResponseWriter, req *http.Request) {
-	ctx, span := o.traceSpan(req, "exportKeyHandler")
-	defer span.End()
-
 	o.logger.Debugf("handle request: url=%s", req.RequestURI)
 
-	start := time.Now()
-
-	k, err := o.kmsService.ResolveKeystore(req.WithContext(ctx))
+	k, err := o.kmsService.ResolveKeystore(req)
 	if err != nil {
 		o.writeErrorResponse(rw, http.StatusInternalServerError, resolveKeystoreFailure, err)
 
 		return
 	}
 
-	span.AddEvent("ResolveKeystore completed",
-		trace.WithAttributes(label.String("duration", time.Since(start).String())))
-
-	keystoreID := mux.Vars(req)[keystoreIDQueryParam]
 	keyID := mux.Vars(req)[keyIDQueryParam]
-
-	span.SetAttributes(label.String("keystoreID", keystoreID))
-	span.SetAttributes(label.String("keyID", keyID))
 
 	keyBytes, err := k.ExportKey(keyID)
 	if err != nil {
@@ -445,22 +400,14 @@ func (o *Operation) exportKeyHandler(rw http.ResponseWriter, req *http.Request) 
 //        201: importKeyResp
 //    default: errorResp
 func (o *Operation) importKeyHandler(rw http.ResponseWriter, req *http.Request) {
-	ctx, span := o.traceSpan(req, "importKeyHandler")
-	defer span.End()
-
 	o.logger.Debugf("handling request: %s", req.URL.String())
 
-	start := time.Now()
-
-	k, err := o.kmsService.ResolveKeystore(req.WithContext(ctx))
+	k, err := o.kmsService.ResolveKeystore(req)
 	if err != nil {
 		o.writeErrorResponse(rw, http.StatusInternalServerError, resolveKeystoreFailure, err)
 
 		return
 	}
-
-	span.AddEvent("ResolveKeystore completed",
-		trace.WithAttributes(label.String("duration", time.Since(start).String())))
 
 	var request importKeyReq
 	if ok := o.parseRequest(&request, rw, req); !ok {
@@ -468,8 +415,6 @@ func (o *Operation) importKeyHandler(rw http.ResponseWriter, req *http.Request) 
 	}
 
 	keystoreID := mux.Vars(req)[keystoreIDQueryParam]
-
-	span.SetAttributes(label.String("keystoreID", keystoreID))
 
 	keyBytes, err := base64.URLEncoding.DecodeString(request.KeyBytes)
 	if err != nil {
@@ -484,8 +429,6 @@ func (o *Operation) importKeyHandler(rw http.ResponseWriter, req *http.Request) 
 
 		return
 	}
-
-	span.SetAttributes(label.String("keyID", keyID))
 
 	location := keyLocation(o.baseURL, keystoreID, keyID)
 
@@ -505,44 +448,32 @@ func (o *Operation) importKeyHandler(rw http.ResponseWriter, req *http.Request) 
 //        200: signResp
 //    default: errorResp
 func (o *Operation) signHandler(rw http.ResponseWriter, req *http.Request) {
-	ctx, span := o.traceSpan(req, "signHandler")
-	defer span.End()
-
 	o.logger.Debugf("handling request: %s", req.URL.String())
 
-	start := time.Now()
-
-	k, err := o.kmsService.ResolveKeystore(req.WithContext(ctx))
+	k, err := o.kmsService.ResolveKeystore(req)
 	if err != nil {
 		o.writeErrorResponse(rw, http.StatusInternalServerError, resolveKeystoreFailure, err)
 
 		return
 	}
 
-	span.AddEvent("ResolveKeystore completed",
-		trace.WithAttributes(label.String("duration", time.Since(start).String())))
-
 	var request signReq
 	if ok := o.parseRequest(&request, rw, req); !ok {
 		return
 	}
 
-	keystoreID := mux.Vars(req)[keystoreIDQueryParam]
 	keyID := mux.Vars(req)[keyIDQueryParam]
-
-	span.SetAttributes(label.String("keystoreID", keystoreID))
-	span.SetAttributes(label.String("keyID", keyID))
-
-	message, err := base64.URLEncoding.DecodeString(request.Message)
-	if err != nil {
-		o.writeErrorResponse(rw, http.StatusBadRequest, receivedBadRequest, err)
-
-		return
-	}
 
 	kh, err := k.GetKeyHandle(keyID)
 	if err != nil {
 		o.writeErrorResponse(rw, http.StatusInternalServerError, signMessageFailure, err)
+
+		return
+	}
+
+	message, err := base64.URLEncoding.DecodeString(request.Message)
+	if err != nil {
+		o.writeErrorResponse(rw, http.StatusBadRequest, receivedBadRequest, err)
 
 		return
 	}
@@ -568,32 +499,27 @@ func (o *Operation) signHandler(rw http.ResponseWriter, req *http.Request) {
 // Responses:
 //        200: emptyRes
 //    default: errorResp
-func (o *Operation) verifyHandler(rw http.ResponseWriter, req *http.Request) { //nolint:dupl // better readability
-	ctx, span := o.traceSpan(req, "verifyHandler")
-	defer span.End()
-
-	start := time.Now()
-
-	k, err := o.kmsService.ResolveKeystore(req.WithContext(ctx))
+func (o *Operation) verifyHandler(rw http.ResponseWriter, req *http.Request) {
+	k, err := o.kmsService.ResolveKeystore(req)
 	if err != nil {
 		o.writeErrorResponse(rw, http.StatusInternalServerError, resolveKeystoreFailure, err)
 
 		return
 	}
 
-	span.AddEvent("ResolveKeystore completed",
-		trace.WithAttributes(label.String("duration", time.Since(start).String())))
-
 	var request verifyReq
 	if ok := o.parseRequest(&request, rw, req); !ok {
 		return
 	}
 
-	keystoreID := mux.Vars(req)[keystoreIDQueryParam]
 	keyID := mux.Vars(req)[keyIDQueryParam]
 
-	span.SetAttributes(label.String("keystoreID", keystoreID))
-	span.SetAttributes(label.String("keyID", keyID))
+	kh, err := k.GetKeyHandle(keyID)
+	if err != nil {
+		o.writeErrorResponse(rw, http.StatusInternalServerError, verifyMessageFailure, err)
+
+		return
+	}
 
 	signature, err := base64.URLEncoding.DecodeString(request.Signature)
 	if err != nil {
@@ -605,13 +531,6 @@ func (o *Operation) verifyHandler(rw http.ResponseWriter, req *http.Request) { /
 	message, err := base64.URLEncoding.DecodeString(request.Message)
 	if err != nil {
 		o.writeErrorResponse(rw, http.StatusBadRequest, receivedBadRequest, err)
-
-		return
-	}
-
-	kh, err := k.GetKeyHandle(keyID)
-	if err != nil {
-		o.writeErrorResponse(rw, http.StatusInternalServerError, verifyMessageFailure, err)
 
 		return
 	}
@@ -634,31 +553,26 @@ func (o *Operation) verifyHandler(rw http.ResponseWriter, req *http.Request) { /
 //        200: encryptResp
 //    default: errorResp
 func (o *Operation) encryptHandler(rw http.ResponseWriter, req *http.Request) {
-	ctx, span := o.traceSpan(req, "encryptHandler")
-	defer span.End()
-
-	start := time.Now()
-
-	k, err := o.kmsService.ResolveKeystore(req.WithContext(ctx))
+	k, err := o.kmsService.ResolveKeystore(req)
 	if err != nil {
 		o.writeErrorResponse(rw, http.StatusInternalServerError, resolveKeystoreFailure, err)
 
 		return
 	}
 
-	span.AddEvent("ResolveKeystore completed",
-		trace.WithAttributes(label.String("duration", time.Since(start).String())))
-
 	var request encryptReq
 	if ok := o.parseRequest(&request, rw, req); !ok {
 		return
 	}
 
-	keystoreID := mux.Vars(req)[keystoreIDQueryParam]
 	keyID := mux.Vars(req)[keyIDQueryParam]
 
-	span.SetAttributes(label.String("keystoreID", keystoreID))
-	span.SetAttributes(label.String("keyID", keyID))
+	kh, err := k.GetKeyHandle(keyID)
+	if err != nil {
+		o.writeErrorResponse(rw, http.StatusInternalServerError, encryptMessageFailure, err)
+
+		return
+	}
 
 	message, err := base64.URLEncoding.DecodeString(request.Message)
 	if err != nil {
@@ -670,13 +584,6 @@ func (o *Operation) encryptHandler(rw http.ResponseWriter, req *http.Request) {
 	aad, err := base64.URLEncoding.DecodeString(request.AdditionalData)
 	if err != nil {
 		o.writeErrorResponse(rw, http.StatusBadRequest, receivedBadRequest, err)
-
-		return
-	}
-
-	kh, err := k.GetKeyHandle(keyID)
-	if err != nil {
-		o.writeErrorResponse(rw, http.StatusInternalServerError, encryptMessageFailure, err)
 
 		return
 	}
@@ -701,32 +608,27 @@ func (o *Operation) encryptHandler(rw http.ResponseWriter, req *http.Request) {
 // Responses:
 //        200: decryptResp
 //    default: errorResp
-func (o *Operation) decryptHandler(rw http.ResponseWriter, req *http.Request) { //nolint:funlen // TODO refactor
-	ctx, span := o.traceSpan(req, "decryptHandler")
-	defer span.End()
-
-	start := time.Now()
-
-	k, err := o.kmsService.ResolveKeystore(req.WithContext(ctx))
+func (o *Operation) decryptHandler(rw http.ResponseWriter, req *http.Request) {
+	k, err := o.kmsService.ResolveKeystore(req)
 	if err != nil {
 		o.writeErrorResponse(rw, http.StatusInternalServerError, resolveKeystoreFailure, err)
 
 		return
 	}
 
-	span.AddEvent("ResolveKeystore completed",
-		trace.WithAttributes(label.String("duration", time.Since(start).String())))
+	keyID := mux.Vars(req)[keyIDQueryParam]
+
+	kh, err := k.GetKeyHandle(keyID)
+	if err != nil {
+		o.writeErrorResponse(rw, http.StatusInternalServerError, decryptMessageFailure, err)
+
+		return
+	}
 
 	var request decryptReq
 	if ok := o.parseRequest(&request, rw, req); !ok {
 		return
 	}
-
-	keystoreID := mux.Vars(req)[keystoreIDQueryParam]
-	keyID := mux.Vars(req)[keyIDQueryParam]
-
-	span.SetAttributes(label.String("keystoreID", keystoreID))
-	span.SetAttributes(label.String("keyID", keyID))
 
 	cipherText, err := base64.URLEncoding.DecodeString(request.CipherText)
 	if err != nil {
@@ -745,13 +647,6 @@ func (o *Operation) decryptHandler(rw http.ResponseWriter, req *http.Request) { 
 	nonce, err := base64.URLEncoding.DecodeString(request.Nonce)
 	if err != nil {
 		o.writeErrorResponse(rw, http.StatusBadRequest, receivedBadRequest, err)
-
-		return
-	}
-
-	kh, err := k.GetKeyHandle(keyID)
-	if err != nil {
-		o.writeErrorResponse(rw, http.StatusInternalServerError, decryptMessageFailure, err)
 
 		return
 	}
@@ -776,42 +671,30 @@ func (o *Operation) decryptHandler(rw http.ResponseWriter, req *http.Request) { 
 //        200: computeMACResp
 //    default: errorResp
 func (o *Operation) computeMACHandler(rw http.ResponseWriter, req *http.Request) {
-	ctx, span := o.traceSpan(req, "computeMACHandler")
-	defer span.End()
-
-	start := time.Now()
-
-	k, err := o.kmsService.ResolveKeystore(req.WithContext(ctx))
+	k, err := o.kmsService.ResolveKeystore(req)
 	if err != nil {
 		o.writeErrorResponse(rw, http.StatusInternalServerError, resolveKeystoreFailure, err)
 
 		return
 	}
 
-	span.AddEvent("ResolveKeystore completed",
-		trace.WithAttributes(label.String("duration", time.Since(start).String())))
+	keyID := mux.Vars(req)[keyIDQueryParam]
+
+	kh, err := k.GetKeyHandle(keyID)
+	if err != nil {
+		o.writeErrorResponse(rw, http.StatusInternalServerError, computeMACFailure, err)
+
+		return
+	}
 
 	var request computeMACReq
 	if ok := o.parseRequest(&request, rw, req); !ok {
 		return
 	}
 
-	keystoreID := mux.Vars(req)[keystoreIDQueryParam]
-	keyID := mux.Vars(req)[keyIDQueryParam]
-
-	span.SetAttributes(label.String("keystoreID", keystoreID))
-	span.SetAttributes(label.String("keyID", keyID))
-
 	data, err := base64.URLEncoding.DecodeString(request.Data)
 	if err != nil {
 		o.writeErrorResponse(rw, http.StatusBadRequest, receivedBadRequest, err)
-
-		return
-	}
-
-	kh, err := k.GetKeyHandle(keyID)
-	if err != nil {
-		o.writeErrorResponse(rw, http.StatusInternalServerError, computeMACFailure, err)
 
 		return
 	}
@@ -835,32 +718,27 @@ func (o *Operation) computeMACHandler(rw http.ResponseWriter, req *http.Request)
 // Responses:
 //        200: emptyRes
 //    default: errorResp
-func (o *Operation) verifyMACHandler(rw http.ResponseWriter, req *http.Request) { //nolint:dupl // better readability
-	ctx, span := o.traceSpan(req, "verifyMACHandler")
-	defer span.End()
-
-	start := time.Now()
-
-	k, err := o.kmsService.ResolveKeystore(req.WithContext(ctx))
+func (o *Operation) verifyMACHandler(rw http.ResponseWriter, req *http.Request) {
+	k, err := o.kmsService.ResolveKeystore(req)
 	if err != nil {
 		o.writeErrorResponse(rw, http.StatusInternalServerError, resolveKeystoreFailure, err)
 
 		return
 	}
 
-	span.AddEvent("ResolveKeystore completed",
-		trace.WithAttributes(label.String("duration", time.Since(start).String())))
+	keyID := mux.Vars(req)[keyIDQueryParam]
+
+	kh, err := k.GetKeyHandle(keyID)
+	if err != nil {
+		o.writeErrorResponse(rw, http.StatusInternalServerError, verifyMACFailure, err)
+
+		return
+	}
 
 	var request verifyMACReq
 	if ok := o.parseRequest(&request, rw, req); !ok {
 		return
 	}
-
-	keystoreID := mux.Vars(req)[keystoreIDQueryParam]
-	keyID := mux.Vars(req)[keyIDQueryParam]
-
-	span.SetAttributes(label.String("keystoreID", keystoreID))
-	span.SetAttributes(label.String("keyID", keyID))
 
 	mac, err := base64.URLEncoding.DecodeString(request.MAC)
 	if err != nil {
@@ -872,13 +750,6 @@ func (o *Operation) verifyMACHandler(rw http.ResponseWriter, req *http.Request) 
 	data, err := base64.URLEncoding.DecodeString(request.Data)
 	if err != nil {
 		o.writeErrorResponse(rw, http.StatusBadRequest, receivedBadRequest, err)
-
-		return
-	}
-
-	kh, err := k.GetKeyHandle(keyID)
-	if err != nil {
-		o.writeErrorResponse(rw, http.StatusInternalServerError, verifyMACFailure, err)
 
 		return
 	}
@@ -901,17 +772,10 @@ func (o *Operation) verifyMACHandler(rw http.ResponseWriter, req *http.Request) 
 //        200: wrapResp
 //    default: errorResp
 func (o *Operation) wrapHandler(rw http.ResponseWriter, req *http.Request) {
-	_, span := o.traceSpan(req, "wrapHandler")
-	defer span.End()
-
 	var request wrapReq
 	if ok := o.parseRequest(&request, rw, req); !ok {
 		return
 	}
-
-	keystoreID := mux.Vars(req)[keystoreIDQueryParam]
-
-	span.SetAttributes(label.String("keystoreID", keystoreID))
 
 	cek, err := base64.URLEncoding.DecodeString(request.CEK)
 	if err != nil {
@@ -967,31 +831,19 @@ func (o *Operation) wrapHandler(rw http.ResponseWriter, req *http.Request) {
 //    default: errorResp
 //nolint:gocyclo // TODO refactor
 func (o *Operation) unwrapHandler(rw http.ResponseWriter, req *http.Request) { //nolint:funlen // readability
-	ctx, span := o.traceSpan(req, "unwrapHandler")
-	defer span.End()
-
-	start := time.Now()
-
-	k, err := o.kmsService.ResolveKeystore(req.WithContext(ctx))
+	k, err := o.kmsService.ResolveKeystore(req)
 	if err != nil {
 		o.writeErrorResponse(rw, http.StatusInternalServerError, resolveKeystoreFailure, err)
 
 		return
 	}
 
-	span.AddEvent("ResolveKeystore completed",
-		trace.WithAttributes(label.String("duration", time.Since(start).String())))
-
 	var request unwrapReq
 	if ok := o.parseRequest(&request, rw, req); !ok {
 		return
 	}
 
-	keystoreID := mux.Vars(req)[keystoreIDQueryParam]
 	keyID := mux.Vars(req)[keyIDQueryParam]
-
-	span.SetAttributes(label.String("keystoreID", keystoreID))
-	span.SetAttributes(label.String("keyID", keyID))
 
 	kid, err := base64.URLEncoding.DecodeString(request.WrappedKey.KID)
 	if err != nil {
@@ -1070,33 +922,28 @@ func (o *Operation) unwrapHandler(rw http.ResponseWriter, req *http.Request) { /
 //        200: signResp
 //    default: errorResp
 func (o *Operation) signMultiHandler(rw http.ResponseWriter, req *http.Request) {
-	ctx, span := o.traceSpan(req, "signMultiHandler")
-	defer span.End()
-
 	o.logger.Debugf("handling request: %s", req.URL.String())
 
-	start := time.Now()
-
-	k, err := o.kmsService.ResolveKeystore(req.WithContext(ctx))
+	k, err := o.kmsService.ResolveKeystore(req)
 	if err != nil {
 		o.writeErrorResponse(rw, http.StatusInternalServerError, resolveKeystoreFailure, err)
 
 		return
 	}
 
-	span.AddEvent("ResolveKeystore completed",
-		trace.WithAttributes(label.String("duration", time.Since(start).String())))
+	keyID := mux.Vars(req)[keyIDQueryParam]
+
+	kh, err := k.GetKeyHandle(keyID)
+	if err != nil {
+		o.writeErrorResponse(rw, http.StatusInternalServerError, signMultiMessagesFailure, err)
+
+		return
+	}
 
 	var request signMultiReq
 	if ok := o.parseRequest(&request, rw, req); !ok {
 		return
 	}
-
-	keystoreID := mux.Vars(req)[keystoreIDQueryParam]
-	keyID := mux.Vars(req)[keyIDQueryParam]
-
-	span.SetAttributes(label.String("keystoreID", keystoreID))
-	span.SetAttributes(label.String("keyID", keyID))
 
 	var messages [][]byte
 
@@ -1109,13 +956,6 @@ func (o *Operation) signMultiHandler(rw http.ResponseWriter, req *http.Request) 
 		}
 
 		messages = append(messages, m)
-	}
-
-	kh, err := k.GetKeyHandle(keyID)
-	if err != nil {
-		o.writeErrorResponse(rw, http.StatusInternalServerError, signMultiMessagesFailure, err)
-
-		return
 	}
 
 	signature, err := o.kmsService.SignMulti(messages, kh)
@@ -1139,32 +979,27 @@ func (o *Operation) signMultiHandler(rw http.ResponseWriter, req *http.Request) 
 // Responses:
 //        200: emptyRes
 //    default: errorResp
-func (o *Operation) verifyMultiHandler(rw http.ResponseWriter, req *http.Request) { //nolint:funlen //ignore
-	ctx, span := o.traceSpan(req, "verifyMultiHandler")
-	defer span.End()
-
-	start := time.Now()
-
-	k, err := o.kmsService.ResolveKeystore(req.WithContext(ctx))
+func (o *Operation) verifyMultiHandler(rw http.ResponseWriter, req *http.Request) {
+	k, err := o.kmsService.ResolveKeystore(req)
 	if err != nil {
 		o.writeErrorResponse(rw, http.StatusInternalServerError, resolveKeystoreFailure, err)
 
 		return
 	}
 
-	span.AddEvent("ResolveKeystore completed",
-		trace.WithAttributes(label.String("duration", time.Since(start).String())))
+	keyID := mux.Vars(req)[keyIDQueryParam]
+
+	kh, err := k.GetKeyHandle(keyID)
+	if err != nil {
+		o.writeErrorResponse(rw, http.StatusInternalServerError, verifyMultiMessagesFailure, err)
+
+		return
+	}
 
 	var request verifyMultiReq
 	if ok := o.parseRequest(&request, rw, req); !ok {
 		return
 	}
-
-	keystoreID := mux.Vars(req)[keystoreIDQueryParam]
-	keyID := mux.Vars(req)[keyIDQueryParam]
-
-	span.SetAttributes(label.String("keystoreID", keystoreID))
-	span.SetAttributes(label.String("keyID", keyID))
 
 	signature, err := base64.URLEncoding.DecodeString(request.Signature)
 	if err != nil {
@@ -1186,13 +1021,6 @@ func (o *Operation) verifyMultiHandler(rw http.ResponseWriter, req *http.Request
 		messages = append(messages, m)
 	}
 
-	kh, err := k.GetKeyHandle(keyID)
-	if err != nil {
-		o.writeErrorResponse(rw, http.StatusInternalServerError, verifyMultiMessagesFailure, err)
-
-		return
-	}
-
 	err = o.kmsService.VerifyMulti(messages, signature, kh)
 	if err != nil {
 		o.writeErrorResponse(rw, http.StatusInternalServerError, verifyMultiMessagesFailure, err)
@@ -1210,32 +1038,27 @@ func (o *Operation) verifyMultiHandler(rw http.ResponseWriter, req *http.Request
 // Responses:
 //        200: deriveProofResp
 //    default: errorResp
-func (o *Operation) deriveProofHandler(rw http.ResponseWriter, req *http.Request) { //nolint:funlen //ignore
-	ctx, span := o.traceSpan(req, "deriveProofHandler")
-	defer span.End()
-
-	start := time.Now()
-
-	k, err := o.kmsService.ResolveKeystore(req.WithContext(ctx))
+func (o *Operation) deriveProofHandler(rw http.ResponseWriter, req *http.Request) {
+	k, err := o.kmsService.ResolveKeystore(req)
 	if err != nil {
 		o.writeErrorResponse(rw, http.StatusInternalServerError, resolveKeystoreFailure, err)
 
 		return
 	}
 
-	span.AddEvent("ResolveKeystore completed",
-		trace.WithAttributes(label.String("duration", time.Since(start).String())))
+	keyID := mux.Vars(req)[keyIDQueryParam]
+
+	kh, err := k.GetKeyHandle(keyID)
+	if err != nil {
+		o.writeErrorResponse(rw, http.StatusInternalServerError, deriveProofFailure, err)
+
+		return
+	}
 
 	var request deriveProofReq
 	if ok := o.parseRequest(&request, rw, req); !ok {
 		return
 	}
-
-	keystoreID := mux.Vars(req)[keystoreIDQueryParam]
-	keyID := mux.Vars(req)[keyIDQueryParam]
-
-	span.SetAttributes(label.String("keystoreID", keystoreID))
-	span.SetAttributes(label.String("keyID", keyID))
 
 	var messages [][]byte
 
@@ -1264,13 +1087,6 @@ func (o *Operation) deriveProofHandler(rw http.ResponseWriter, req *http.Request
 		return
 	}
 
-	kh, err := k.GetKeyHandle(keyID)
-	if err != nil {
-		o.writeErrorResponse(rw, http.StatusInternalServerError, deriveProofFailure, err)
-
-		return
-	}
-
 	proof, err := o.kmsService.DeriveProof(messages, signature, nonce, request.RevealedIndexes, kh)
 	if err != nil {
 		o.writeErrorResponse(rw, http.StatusInternalServerError, deriveProofFailure, err)
@@ -1290,32 +1106,27 @@ func (o *Operation) deriveProofHandler(rw http.ResponseWriter, req *http.Request
 // Responses:
 //        200: emptyRes
 //    default: errorResp
-func (o *Operation) verifyProofHandler(rw http.ResponseWriter, req *http.Request) { //nolint:funlen //ignore
-	ctx, span := o.traceSpan(req, "verifyProofHandler")
-	defer span.End()
-
-	start := time.Now()
-
-	k, err := o.kmsService.ResolveKeystore(req.WithContext(ctx))
+func (o *Operation) verifyProofHandler(rw http.ResponseWriter, req *http.Request) {
+	k, err := o.kmsService.ResolveKeystore(req)
 	if err != nil {
 		o.writeErrorResponse(rw, http.StatusInternalServerError, resolveKeystoreFailure, err)
 
 		return
 	}
 
-	span.AddEvent("ResolveKeystore completed",
-		trace.WithAttributes(label.String("duration", time.Since(start).String())))
+	keyID := mux.Vars(req)[keyIDQueryParam]
+
+	kh, err := k.GetKeyHandle(keyID)
+	if err != nil {
+		o.writeErrorResponse(rw, http.StatusInternalServerError, verifyProofFailure, err)
+
+		return
+	}
 
 	var request verifyProofReq
 	if ok := o.parseRequest(&request, rw, req); !ok {
 		return
 	}
-
-	keystoreID := mux.Vars(req)[keystoreIDQueryParam]
-	keyID := mux.Vars(req)[keyIDQueryParam]
-
-	span.SetAttributes(label.String("keystoreID", keystoreID))
-	span.SetAttributes(label.String("keyID", keyID))
 
 	proof, err := base64.URLEncoding.DecodeString(request.Proof)
 	if err != nil {
@@ -1344,13 +1155,6 @@ func (o *Operation) verifyProofHandler(rw http.ResponseWriter, req *http.Request
 		messages = append(messages, m)
 	}
 
-	kh, err := k.GetKeyHandle(keyID)
-	if err != nil {
-		o.writeErrorResponse(rw, http.StatusInternalServerError, verifyProofFailure, err)
-
-		return
-	}
-
 	err = o.kmsService.VerifyProof(messages, proof, nonce, kh)
 	if err != nil {
 		o.writeErrorResponse(rw, http.StatusInternalServerError, verifyProofFailure, err)
@@ -1359,16 +1163,6 @@ func (o *Operation) verifyProofHandler(rw http.ResponseWriter, req *http.Request
 	}
 
 	rw.WriteHeader(http.StatusOK)
-}
-
-func (o *Operation) traceSpan(req *http.Request, spanName string) (context.Context, trace.Span) {
-	ctx, span := o.tracer.Start(req.Context(), spanName)
-
-	span.SetAttributes(label.String("http.host", req.Host))
-	span.SetAttributes(label.String("http.method", req.Method))
-	span.SetAttributes(label.String("http.url", req.URL.String()))
-
-	return ctx, span
 }
 
 func (o *Operation) parseRequest(parsedReq interface{}, rw http.ResponseWriter, req *http.Request) bool {

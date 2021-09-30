@@ -1,0 +1,336 @@
+#
+# Copyright SecureKey Technologies Inc. All Rights Reserved.
+#
+# SPDX-License-Identifier: Apache-2.0
+#
+version: '2'
+
+services:
+  kms.trustbloc.local: # load balancer in front of KMS instances
+    container_name: kms.trustbloc.local
+    image: nginx:latest
+    ports:
+      - 8076:8076
+    volumes:
+      - ./keys/tls:/etc/nginx/certs
+      - ./nginx-config/nginx.conf:/etc/nginx/nginx.conf
+    depends_on:
+      - kms-1.trustbloc.local
+      - kms-2.trustbloc.local
+    networks:
+      - bdd_net
+
+  kms-1.trustbloc.local:
+    container_name: kms-1.trustbloc.local
+    image: ${KMS_REST_IMAGE}:latest
+    environment:
+      - KMS_HOST_URL=0.0.0.0:8074
+      - KMS_BASE_URL=https://kms.trustbloc.local:8076
+      - KMS_TLS_CACERTS=/etc/tls/ec-cacert.pem
+      - KMS_TLS_SERVE_CERT=/etc/tls/ec-pubCert.pem
+      - KMS_TLS_SERVE_KEY=/etc/tls/ec-key.pem
+      - KMS_DATABASE_TYPE=mongodb
+      - KMS_DATABASE_URL=mongodb://mongodb.example.com:27017
+      - KMS_DATABASE_PREFIX=opskeystore_
+      - KMS_SECRET_LOCK_KEY_PATH=/etc/tls/secret-lock.key
+      - KMS_PRIMARY_KEY_DATABASE_TYPE=mongodb
+      - KMS_PRIMARY_KEY_DATABASE_URL=mongodb://mongodb.example.com:27017
+      - KMS_PRIMARY_KEY_DATABASE_PREFIX=opskmspk_
+      - KMS_LOCAL_KMS_DATABASE_TYPE=mongodb
+      - KMS_LOCAL_KMS_DATABASE_URL=mongodb://mongodb.example.com:27017
+      - KMS_LOCAL_KMS_DATABASE_PREFIX=opskmslocal_
+      - KMS_KEY_MANAGER_STORAGE_TYPE=edv
+      - KMS_KEY_MANAGER_STORAGE_URL=https://edv.trustbloc.local:8081
+      - KMS_CACHE_EXPIRATION=10m
+      - KMS_ZCAP_ENABLE=true
+      - KMS_LOG_LEVEL=debug
+    ports:
+      - 8074:8074
+    entrypoint: ""
+    # TODO add retry for mongodb
+    command: /bin/sh -c "sleep 5;kms-rest start"
+    volumes:
+      - ./keys/tls:/etc/tls
+    depends_on:
+      - mongodb.example.com
+      - edv.trustbloc.local
+    networks:
+      - bdd_net
+
+  kms-2.trustbloc.local:
+    container_name: kms-2.trustbloc.local
+    image: ${KMS_REST_IMAGE}:latest
+    environment:
+      - KMS_HOST_URL=0.0.0.0:8074
+      - KMS_BASE_URL=https://kms.trustbloc.local:8076
+      - KMS_TLS_CACERTS=/etc/tls/ec-cacert.pem
+      - KMS_TLS_SERVE_CERT=/etc/tls/ec-pubCert.pem
+      - KMS_TLS_SERVE_KEY=/etc/tls/ec-key.pem
+      - KMS_DATABASE_TYPE=mongodb
+      - KMS_DATABASE_URL=mongodb://mongodb.example.com:27017
+      - KMS_DATABASE_PREFIX=opskeystore_
+      - KMS_SECRET_LOCK_KEY_PATH=/etc/tls/secret-lock.key
+      - KMS_PRIMARY_KEY_DATABASE_TYPE=mongodb
+      - KMS_PRIMARY_KEY_DATABASE_URL=mongodb://mongodb.example.com:27017
+      - KMS_PRIMARY_KEY_DATABASE_PREFIX=opskmspk_
+      - KMS_LOCAL_KMS_DATABASE_TYPE=mongodb
+      - KMS_LOCAL_KMS_DATABASE_URL=mongodb://mongodb.example.com:27017
+      - KMS_LOCAL_KMS_DATABASE_PREFIX=opskmslocal_
+      - KMS_KEY_MANAGER_STORAGE_TYPE=edv
+      - KMS_KEY_MANAGER_STORAGE_URL=https://edv.trustbloc.local:8081
+      - KMS_CACHE_EXPIRATION=10m
+      - KMS_ZCAP_ENABLE=true
+      - KMS_LOG_LEVEL=debug
+    ports:
+      - 8075:8075
+    entrypoint: ""
+    # TODO add retry for mongodb
+    command: /bin/sh -c "sleep 5;kms-rest start"
+    volumes:
+      - ./keys/tls:/etc/tls
+    depends_on:
+      - mongodb.example.com
+      - edv.trustbloc.local
+    networks:
+      - bdd_net
+
+  authz-kms.trustbloc.local:
+    container_name: authz-kms.trustbloc.local
+    image: ${KMS_REST_IMAGE}:latest
+    environment:
+      - KMS_HOST_URL=0.0.0.0:8077
+      - KMS_BASE_URL=https://authz-kms.trustbloc.local:8077
+      - KMS_TLS_CACERTS=/etc/tls/ec-cacert.pem
+      - KMS_TLS_SERVE_CERT=/etc/tls/ec-pubCert.pem
+      - KMS_TLS_SERVE_KEY=/etc/tls/ec-key.pem
+      - KMS_DATABASE_TYPE=mongodb
+      - KMS_DATABASE_URL=mongodb://mongodb.example.com:27017
+      - KMS_DATABASE_PREFIX=authzkeystore_
+      - KMS_SECRET_LOCK_KEY_PATH=/etc/tls/secret-lock.key
+      - KMS_PRIMARY_KEY_DATABASE_TYPE=mongodb
+      - KMS_PRIMARY_KEY_DATABASE_URL=mongodb://mongodb.example.com:27017
+      - KMS_PRIMARY_KEY_DATABASE_PREFIX=authzkmspk_
+      - KMS_LOCAL_KMS_DATABASE_TYPE=mongodb
+      - KMS_LOCAL_KMS_DATABASE_URL=mongodb://mongodb.example.com:27017
+      - KMS_LOCAL_KMS_DATABASE_PREFIX=authzkmslocal_
+      - KMS_KEY_MANAGER_STORAGE_TYPE=mongodb
+      - KMS_KEY_MANAGER_STORAGE_URL=mongodb://mongodb.example.com:27017
+      - KMS_KEY_MANAGER_STORAGE_PREFIX=authzkmskm_
+      - KMS_HUB_AUTH_URL=https://hub-auth.trustbloc.local:8070
+      - KMS_HUB_AUTH_API_TOKEN=test_token
+      - KMS_CACHE_EXPIRATION=10m
+      - KMS_LOG_LEVEL=debug
+    ports:
+      - 8077:8077
+    entrypoint: ""
+    command: /bin/sh -c "sleep 5;kms-rest start"
+    volumes:
+      - ./keys/tls:/etc/tls
+    depends_on:
+      - mongodb.example.com
+      - edv.trustbloc.local
+    networks:
+      - bdd_net
+
+  oathkeeper-auth-keyserver.trustbloc.local:
+    container_name: oathkeeper-auth-keyserver.trustbloc.local
+    image: oryd/oathkeeper:v0.38.4-alpine
+    ports:
+      - 4455:4455
+    command: /bin/sh -c "cp /etc/tls/ec-cacert.pem /usr/local/share/ca-certificates/;update-ca-certificates;oathkeeper serve proxy --config /oathkeeper/config.yaml"
+    user: root
+    entrypoint: ""
+    environment:
+      - LOG_LEVEL=debug
+      - PORT=4455
+      - ISSUER_URL=https://oathkeeper-proxy.trustbloc.local
+      - SERVE_PROXY_TLS_KEY_PATH=/etc/tls/ec-key.pem
+      - SERVE_PROXY_TLS_CERT_PATH=/etc/tls/ec-pubCert.pem
+    volumes:
+      - ./oathkeeper-config/auth-keyserver:/oathkeeper
+      - ./keys/tls:/etc/tls
+    networks:
+      - bdd_net
+
+  oathkeeper-ops-keyserver.trustbloc.local:
+    container_name: oathkeeper-ops-keyserver.trustbloc.local
+    image: oryd/oathkeeper:v0.38.4-alpine
+    ports:
+      - 4466:4466
+    command: /bin/sh -c "cp /etc/tls/ec-cacert.pem /usr/local/share/ca-certificates/;update-ca-certificates;oathkeeper serve proxy --config /oathkeeper/config.yaml"
+    user: root
+    entrypoint: ""
+    environment:
+      - LOG_LEVEL=debug
+      - PORT=4466
+      - ISSUER_URL=https://oathkeeper-proxy.trustbloc.local
+      - SERVE_PROXY_TLS_KEY_PATH=/etc/tls/ec-key.pem
+      - SERVE_PROXY_TLS_CERT_PATH=/etc/tls/ec-pubCert.pem
+    volumes:
+      - ./oathkeeper-config/ops-keyserver:/oathkeeper
+      - ./keys/tls:/etc/tls
+    networks:
+      - bdd_net
+
+  edv.trustbloc.local:
+    container_name: edv.trustbloc.local
+    image: ${EDV_REST_IMAGE}:${EDV_REST_IMAGE_TAG}
+    environment:
+      - EDV_HOST_URL=0.0.0.0:8081
+      - EDV_TLS_CERT_FILE=/etc/tls/ec-pubCert.pem
+      - EDV_TLS_KEY_FILE=/etc/tls/ec-key.pem
+      - EDV_DATABASE_TYPE=mongodb
+      - EDV_DATABASE_URL=mongodb://mongodb.example.com:27017
+      - EDV_DATABASE_PREFIX=edv_
+      - EDV_LOCALKMS_SECRETS_DATABASE_TYPE=mongodb
+      - EDV_LOCALKMS_SECRETS_DATABASE_URL=mongodb://mongodb.example.com:27017
+      - EDV_LOCALKMS_SECRETS_DATABASE_PREFIX=edv_kms_
+      - EDV_EXTENSIONS=ReturnFullDocumentsOnQuery,Batch
+      - EDV_DATABASE_TIMEOUT=60
+      - EDV_AUTH_ENABLE=true
+      - EDV_LOG_LEVEL=debug
+    ports:
+      - 8081:8081
+    volumes:
+      - ./keys/tls:/etc/tls
+    command: start
+    depends_on:
+      - mongodb.example.com
+    networks:
+      - bdd_net
+
+  hub-auth.trustbloc.local:
+    container_name: hub-auth.trustbloc.local
+    image: ${AUTH_REST_IMAGE}:${AUTH_REST_IMAGE_TAG}
+    environment:
+      - AUTH_REST_HOST_URL=0.0.0.0:8070
+      - AUTH_REST_TLS_CACERTS=/etc/keys/tls/ec-cacert.pem
+      - AUTH_REST_TLS_SYSTEMCERTPOOL=true
+      - AUTH_REST_TLS_SERVE_CERT=/etc/keys/tls/ec-pubCert.pem
+      - AUTH_REST_TLS_SERVE_KEY=/etc/keys/tls/ec-key.pem
+      - AUTH_REST_DATABASE_TYPE=mongodb
+      - AUTH_REST_DATABASE_URL=mongodb://mongodb.example.com:27017
+      - AUTH_REST_DATABASE_PREFIX=authrest_
+      - AUTH_REST_OIDC_CALLBACK=https://localhost:8070/oauth2/callback
+      - AUTH_REST_OIDC_PROVIDERS_CONFIG=/etc/oidc-config/providers.yaml
+      - AUTH_REST_SDS_DOCS_URL=https://TODO.docs.sds.org/
+      - AUTH_REST_SDS_OPSKEYS_URL=https://TODO.keys.sds.org/
+      - AUTH_REST_KEYSERVER_AUTH_URL=https://TODO.auth.keyserver.org/
+      - AUTH_REST_KEYSERVER_OPS_URL=https://TODO.ops.keyserver.org/
+      - AUTH_REST_HYDRA_URL=https://hydra.trustbloc.local:4445
+      - AUTH_REST_API_TOKEN=test_token
+      - AUTH_REST_COOKIE_AUTH_KEY=/etc/keys/session_cookies/auth.key
+      - AUTH_REST_COOKIE_ENC_KEY=/etc/keys/session_cookies/enc.key
+      - AUTH_REST_LOG_LEVEL=DEBUG
+      - AUTH_REST_STATIC_IMAGES=/etc/static/images
+    ports:
+      - 8070:8070
+    entrypoint: ""
+    command:  /bin/sh -c "sleep 30 && auth-rest start"
+    volumes:
+      - ./keys:/etc/keys
+      - ./oidc-config:/etc/oidc-config
+      - ./static:/etc/static
+    depends_on:
+      - hydra.trustbloc.local
+      - mongodb.example.com
+    networks:
+      - bdd_net
+
+  hydra.trustbloc.local:
+    container_name: hydra.trustbloc.local
+    image: oryd/hydra:${HYDRA_IMAGE_TAG}
+    ports:
+      - 4444:4444
+      - 4445:4445
+    command:  /bin/sh -c "hydra migrate sql --read-from-env --yes; hydra serve all"
+    entrypoint: ""
+    environment:
+      - DSN=mysql://hydra:hydra-secret-pw@tcp(mysql:3306)/hydra?max_conns=20&max_idle_conns=4
+      - URLS_SELF_ISSUER=https://localhost:4444/
+      - URLS_CONSENT=https://localhost:8070/hydra/consent
+      - URLS_LOGIN=https://localhost:8070/hydra/login
+      - SECRETS_SYSTEM=testSecretsSystem
+      - OIDC_SUBJECT_TYPES_SUPPORTED=public
+      - OIDC_SUBJECT_TYPE_PAIRWISE_SALT=testSecretsSystem
+      - SERVE_TLS_KEY_PATH=/etc/tls/ec-key.pem
+      - SERVE_TLS_CERT_PATH=/etc/tls/ec-pubCert.pem
+    restart: unless-stopped
+    volumes:
+      - ./keys/tls:/etc/tls
+    depends_on:
+      - mysql
+    networks:
+      - bdd_net
+
+  oidc.provider.example.com:
+    container_name: oidc.provider.example.com
+    image: oryd/hydra:${HYDRA_IMAGE_TAG}
+    ports:
+      - 5555:5555
+      - 5556:5556
+    command: /bin/sh -c "hydra migrate sql --read-from-env --yes; tmp/hydra_configure.sh& hydra serve all"
+    entrypoint: ""
+    environment:
+      - DSN=mysql://thirdpartyoidc:thirdpartyoidc-secret-pw@tcp(mysql:3306)/thirdpartyoidc?max_conns=20&max_idle_conns=4
+      - URLS_SELF_ISSUER=https://oidc.provider.example.com:5555/
+      - URLS_CONSENT=https://localhost:8099/mock/consent
+      - URLS_LOGIN=https://localhost:8099/mock/login
+      - SECRETS_SYSTEM=testSecretsSystem
+      - OIDC_SUBJECT_TYPES_SUPPORTED=public
+      - OIDC_SUBJECT_TYPE_PAIRWISE_SALT=testSecretsSystem
+      - SERVE_TLS_KEY_PATH=/etc/tls/ec-key.pem
+      - SERVE_TLS_CERT_PATH=/etc/tls/ec-pubCert.pem
+      - SERVE_PUBLIC_PORT=5555
+      - SERVE_ADMIN_PORT=5556
+    restart: unless-stopped
+    volumes:
+      - ./keys/tls:/etc/tls
+      - ./hydra-config/hydra_configure.sh:/tmp/hydra_configure.sh
+    depends_on:
+      - mysql
+      - mock.login.consent.example.com
+    networks:
+      - bdd_net
+
+  mock.login.consent.example.com:
+    container_name: mock.login.consent.example.com
+    image: ${MOCK_LOGIN_CONSENT_IMAGE}:latest
+    environment:
+      - LISTEN_ADDR=:8099
+      - HYDRA_ADMIN_URL=https://oidc.provider.example.com:5556
+      - TLS_CERT_PATH=/etc/tls/ec-pubCert.pem
+      - TLS_KEY_PATH=/etc/tls/ec-key.pem
+      - ROOT_CA_CERTS_PATH=/etc/tls/ec-cacert.pem
+    ports:
+      - 8099:8099
+    volumes:
+      - ./keys/tls:/etc/tls
+    networks:
+      - bdd_net
+
+  mongodb.example.com:
+    container_name: mongodb.example.com
+    image: ${MONGODB_IMAGE}:${MONGODB_IMAGE_TAG}
+    ports:
+      - ${MONGODB_PORT}:${MONGODB_PORT}
+    networks:
+      - bdd_net
+
+  mysql:
+    container_name: mysql
+    image: mysql:${MYSQL_IMAGE_TAG}
+    restart: always
+    command: --default-authentication-plugin=mysql_native_password
+    environment:
+      MYSQL_ROOT_PASSWORD: secret
+    logging:
+      driver: "none"
+    volumes:
+      - ./mysql-config:/docker-entrypoint-initdb.d
+    networks:
+      - bdd_net
+
+networks:
+  bdd_net:
+    driver: bridge

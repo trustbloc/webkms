@@ -20,6 +20,5 @@ require (
 	github.com/rs/xid v1.2.1
 	github.com/stretchr/testify v1.7.0
 	github.com/trustbloc/edge-core v0.1.7
-	go.opentelemetry.io/otel v0.16.0
 	golang.org/x/net v0.0.0-20210226172049-e18ecbb05110
 )

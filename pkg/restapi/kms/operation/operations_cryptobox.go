@@ -9,11 +9,8 @@ package operation
 import (
 	"encoding/base64"
 	"net/http"
-	"time"
 
 	"github.com/gorilla/mux"
-	"go.opentelemetry.io/otel/label"
-	"go.opentelemetry.io/otel/trace"
 )
 
 // swagger:route POST /kms/keystores/{keystoreID}/keys/{keyID}/easy crypto-box easyReq
@@ -23,34 +20,20 @@ import (
 // Responses:
 //        200: easyResp
 //    default: errorResp
-func (o *Operation) easyHandler(rw http.ResponseWriter, req *http.Request) { //nolint:funlen // TODO refactor
-	ctx, span := o.tracer.Start(req.Context(), "easyHandler")
-	defer span.End()
-
+func (o *Operation) easyHandler(rw http.ResponseWriter, req *http.Request) {
 	o.logger.Debugf("handling request: %s", req.URL.String())
 
-	start := time.Now()
-
-	k, err := o.kmsService.ResolveKeystore(req.WithContext(ctx))
+	k, err := o.kmsService.ResolveKeystore(req)
 	if err != nil {
 		o.writeErrorResponse(rw, http.StatusInternalServerError, resolveKeystoreFailure, err)
 
 		return
 	}
 
-	span.AddEvent("ResolveKeystore completed",
-		trace.WithAttributes(label.String("duration", time.Since(start).String())))
-
 	var request easyReq
 	if ok := o.parseRequest(&request, rw, req); !ok {
 		return
 	}
-
-	keystoreID := mux.Vars(req)[keystoreIDQueryParam]
-	keyID := mux.Vars(req)[keyIDQueryParam]
-
-	span.SetAttributes(label.String("keystoreID", keystoreID))
-	span.SetAttributes(label.String("keyID", keyID))
 
 	payload, err := base64.URLEncoding.DecodeString(request.Payload)
 	if err != nil {
@@ -80,6 +63,8 @@ func (o *Operation) easyHandler(rw http.ResponseWriter, req *http.Request) { //n
 		return
 	}
 
+	keyID := mux.Vars(req)[keyIDQueryParam]
+
 	cipherText, err := cryptoBox.Easy(payload, nonce, theirPub, keyID)
 	if err != nil {
 		o.writeErrorResponse(rw, http.StatusInternalServerError, easyMessageFailure, err)
@@ -99,32 +84,20 @@ func (o *Operation) easyHandler(rw http.ResponseWriter, req *http.Request) { //n
 // Responses:
 //        200: easyOpenResp
 //    default: errorResp
-func (o *Operation) easyOpenHandler(rw http.ResponseWriter, req *http.Request) { //nolint:funlen // TODO refactor
-	ctx, span := o.tracer.Start(req.Context(), "easyOpenHandler")
-	defer span.End()
-
+func (o *Operation) easyOpenHandler(rw http.ResponseWriter, req *http.Request) {
 	o.logger.Debugf("handling request: %s", req.URL.String())
 
-	start := time.Now()
-
-	k, err := o.kmsService.ResolveKeystore(req.WithContext(ctx))
+	k, err := o.kmsService.ResolveKeystore(req)
 	if err != nil {
 		o.writeErrorResponse(rw, http.StatusInternalServerError, resolveKeystoreFailure, err)
 
 		return
 	}
 
-	span.AddEvent("ResolveKeystore completed",
-		trace.WithAttributes(label.String("duration", time.Since(start).String())))
-
 	var request easyOpenReq
 	if ok := o.parseRequest(&request, rw, req); !ok {
 		return
 	}
-
-	keystoreID := mux.Vars(req)[keystoreIDQueryParam]
-
-	span.SetAttributes(label.String("keystoreID", keystoreID))
 
 	cipherText, err := base64.URLEncoding.DecodeString(request.CipherText)
 	if err != nil {
@@ -181,31 +154,19 @@ func (o *Operation) easyOpenHandler(rw http.ResponseWriter, req *http.Request) {
 //        200: sealOpenResp
 //    default: errorResp
 func (o *Operation) sealOpenHandler(rw http.ResponseWriter, req *http.Request) {
-	ctx, span := o.tracer.Start(req.Context(), "sealOpenHandler")
-	defer span.End()
-
 	o.logger.Debugf("handling request: %s", req.URL.String())
 
-	start := time.Now()
-
-	k, err := o.kmsService.ResolveKeystore(req.WithContext(ctx))
+	k, err := o.kmsService.ResolveKeystore(req)
 	if err != nil {
 		o.writeErrorResponse(rw, http.StatusInternalServerError, resolveKeystoreFailure, err)
 
 		return
 	}
 
-	span.AddEvent("ResolveKeystore completed",
-		trace.WithAttributes(label.String("duration", time.Since(start).String())))
-
 	var request sealOpenReq
 	if ok := o.parseRequest(&request, rw, req); !ok {
 		return
 	}
-
-	keystoreID := mux.Vars(req)[keystoreIDQueryParam]
-
-	span.SetAttributes(label.String("keystoreID", keystoreID))
 
 	cipherText, err := base64.URLEncoding.DecodeString(request.CipherText)
 	if err != nil {

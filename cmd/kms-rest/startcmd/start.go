@@ -40,11 +40,6 @@ import (
 	cmdutils "github.com/trustbloc/edge-core/pkg/utils/cmd"
 	tlsutils "github.com/trustbloc/edge-core/pkg/utils/tls"
 	zcapldcore "github.com/trustbloc/edge-core/pkg/zcapld"
-	"go.opentelemetry.io/otel"
-	"go.opentelemetry.io/otel/exporters/trace/jaeger"
-	"go.opentelemetry.io/otel/propagation"
-	sdktrace "go.opentelemetry.io/otel/sdk/trace"
-	"go.opentelemetry.io/otel/trace"
 
 	"github.com/trustbloc/kms/pkg/auth/zcapld"
 	"github.com/trustbloc/kms/pkg/kms"
@@ -220,13 +215,6 @@ const (
 )
 
 const (
-	jaegerURLFlagName  = "jaeger-url"
-	jaegerURLFlagUsage = "The URL of Jaeger endpoint to use for sending trace data. If not specified " +
-		"noop implementation is used. " + commonEnvVarUsageText + jaegerURLFlagName
-	jaegerURLEnvKey = "KMS_JAEGER_URL"
-)
-
-const (
 	syncTimeoutFlagName  = "sync-timeout"
 	syncTimeoutFlagUsage = "Total time in seconds to resolve config values." +
 		" Alternatively, this can be set with the following environment variable: " + syncTimeoutEnvKey
@@ -339,8 +327,6 @@ func createFlags(startCmd *cobra.Command) {
 	startCmd.Flags().StringP(enableZCAPsFlagName, "", "", enableZCAPsFlagUsage)
 	startCmd.Flags().StringP(enableCORSFlagName, "", "", enableCORSFlagUsage)
 
-	startCmd.Flags().StringP(jaegerURLFlagName, "", "", jaegerURLFlagUsage)
-
 	startCmd.Flags().StringP(didDomainFlagName, "", "", didDomainFlagUsage)
 
 	startCmd.Flags().String(syncTimeoutFlagName, "", syncTimeoutFlagUsage)
@@ -363,7 +349,6 @@ type kmsRestParameters struct {
 	logLevel                string
 	enableZCAPs             bool
 	enableCORS              bool
-	jaegerURL               string
 	didDomain               string
 	syncTimeout             uint64
 }
@@ -485,11 +470,6 @@ func getKmsRestParameters(cmd *cobra.Command) (*kmsRestParameters, error) { //no
 		return nil, err
 	}
 
-	jaegerURL, err := cmdutils.GetUserSetVarFromString(cmd, jaegerURLFlagName, jaegerURLEnvKey, true)
-	if err != nil {
-		return nil, err
-	}
-
 	return &kmsRestParameters{
 		hostURL:                 strings.TrimSpace(hostURL),
 		baseURL:                 baseURL,
@@ -507,7 +487,6 @@ func getKmsRestParameters(cmd *cobra.Command) (*kmsRestParameters, error) { //no
 		logLevel:                logLevel,
 		enableZCAPs:             enableZCAPs,
 		enableCORS:              enableCORS,
-		jaegerURL:               jaegerURL,
 		didDomain:               didDomain,
 		syncTimeout:             syncTimeout,
 	}, nil
@@ -668,19 +647,10 @@ func getKeyManagerStorageParameters(cmd *cobra.Command) (*storageParameters, err
 	}, nil
 }
 
-func startKmsService(params *kmsRestParameters, srv Server) error { //nolint:funlen // TODO: refactor
+func startKmsService(params *kmsRestParameters, srv Server) error {
 	if params.logLevel != "" {
 		setLogLevel(params.logLevel, srv)
 	}
-
-	tracerFlush, err := initTracer(params.jaegerURL)
-	if err != nil {
-		return err
-	}
-
-	defer tracerFlush()
-
-	otel.SetTextMapPropagator(propagation.TraceContext{})
 
 	router := mux.NewRouter()
 
@@ -746,24 +716,6 @@ func setLogLevel(level string, srv Server) {
 	log.SetLevel("", logLevel)
 }
 
-// initTracer creates a new trace provider instance and registers it as global trace provider.
-func initTracer(jaegerURL string) (func(), error) {
-	if jaegerURL == "" {
-		return func() {
-			trace.NewNoopTracerProvider()
-		}, nil
-	}
-
-	// create and install Jaeger export pipeline
-	return jaeger.InstallNewPipeline(
-		jaeger.WithCollectorEndpoint(jaegerURL),
-		jaeger.WithProcess(jaeger.Process{
-			ServiceName: "kms",
-		}),
-		jaeger.WithSDK(&sdktrace.Config{DefaultSampler: sdktrace.AlwaysSample()}),
-	)
-}
-
 func prepareOperationConfig(params *kmsRestParameters) (*operation.Config, error) {
 	storageProvider, err := prepareStorageProvider(params.storageParams)
 	if err != nil {
@@ -815,7 +767,6 @@ func prepareOperationConfig(params *kmsRestParameters) (*operation.Config, error
 		AuthService:  authService,
 		KMSService:   kmsService,
 		Logger:       log.New("kms/restapi"),
-		Tracer:       otel.Tracer("kms"),
 		BaseURL:      params.baseURL,
 		JSONLDLoader: jsonLDLoader,
 		CryptoBoxCreator: func(keyManager arieskms.KeyManager) (arieskms.CryptoBox, error) {

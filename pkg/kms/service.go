@@ -7,7 +7,6 @@ SPDX-License-Identifier: Apache-2.0
 package kms
 
 import (
-	"context"
 	"crypto/tls"
 	"encoding/base64"
 	"encoding/json"
@@ -137,7 +136,7 @@ func (s *service) ResolveKeystore(req *http.Request) (keystore.Keystore, error) 
 	storageProvider := s.config.KeyManagerStorageProvider
 
 	if s.config.EDVServerURL != "" {
-		p, e := s.prepareEDVStorageProvider(req.Context(), keystoreData)
+		p, e := s.prepareEDVStorageProvider(keystoreData)
 		if e != nil {
 			return nil, fmt.Errorf("resolve keystore: %w", e)
 		}
@@ -180,7 +179,7 @@ func (s *service) ResolveKeystore(req *http.Request) (keystore.Keystore, error) 
 	return k, nil
 }
 
-func (s *service) prepareEDVStorageProvider(ctx context.Context, kd *KeystoreData) (storage.Provider, error) {
+func (s *service) prepareEDVStorageProvider(kd *KeystoreData) (storage.Provider, error) {
 	edvConfig := &edv.Config{
 		KeyManager:     s.localKMS,
 		CryptoService:  s.config.CryptoService,
@@ -194,7 +193,7 @@ func (s *service) prepareEDVStorageProvider(ctx context.Context, kd *KeystoreDat
 		MACKeyID:       kd.MACKeyID,
 	}
 
-	p, err := edv.NewStorageProvider(ctx, edvConfig)
+	p, err := edv.NewStorageProvider(edvConfig)
 	if err != nil {
 		return nil, fmt.Errorf("new edv provider: %w", err)
 	}

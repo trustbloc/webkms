@@ -25,8 +25,6 @@ import (
 	"github.com/trustbloc/edge-core/pkg/log"
 	"github.com/trustbloc/edge-core/pkg/log/mocklogger"
 	"github.com/trustbloc/edge-core/pkg/zcapld"
-	"go.opentelemetry.io/otel/oteltest"
-	"go.opentelemetry.io/otel/trace"
 
 	"github.com/trustbloc/kms/pkg/internal/mock/keystore"
 	mockkms "github.com/trustbloc/kms/pkg/internal/mock/kms"
@@ -1381,7 +1379,6 @@ type options struct {
 	cryptoBox           arieskms.CryptoBox
 	cryptoBoxCreatorErr error
 	logger              log.Logger
-	tracer              trace.Tracer
 }
 
 type optionFn func(opts *options)
@@ -1392,7 +1389,6 @@ func newConfig(opts ...optionFn) *operation.Config {
 		kmsService:  mockKMSService(),
 		cryptoBox:   &mockCryptoBox{},
 		logger:      &mocklogger.MockLogger{},
-		tracer:      oteltest.NewTracerProvider().Tracer("test"),
 	}
 
 	for i := range opts {
@@ -1412,7 +1408,6 @@ func newConfig(opts ...optionFn) *operation.Config {
 		KMSService:       cOpts.kmsService,
 		CryptoBoxCreator: cryptoBoxCreator,
 		Logger:           cOpts.logger,
-		Tracer:           cOpts.tracer,
 	}
 
 	return config

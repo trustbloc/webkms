@@ -6,17 +6,13 @@
 #
 set -e
 
-DEMO_COMPOSE_OP="${DEMO_COMPOSE_OP:-up --force-recreate}"
+DEMO_COMPOSE_OP="${DEMO_COMPOSE_OP:-up --force-recreate -d}"
+COMPOSE_FILES="${DEMO_COMPOSE_FILES}"
+DEMO_PATH="$PWD/${DEMO_COMPOSE_PATH}"
 
-FIXTURES_ABS_PATH="$PWD/$FIXTURES_PATH"
+set -o allexport
+[[ -f $DEMO_PATH/.env ]] && source $DEMO_PATH/.env
+set +o allexport
 
-declare -a features=(
-                "couchdb"
-                "openapi-demo"
-               )
-
-for feature in "${features[@]}"
-do
-   cd "$FIXTURES_ABS_PATH/$feature"
-   docker-compose -f docker-compose.yml ${DEMO_COMPOSE_OP} -d
-done
+cd $DEMO_PATH
+docker-compose -f docker-compose.yml ${DEMO_COMPOSE_OP}
