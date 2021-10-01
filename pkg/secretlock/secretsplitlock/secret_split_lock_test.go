@@ -314,7 +314,7 @@ func newSecretSplitLock(t *testing.T, opts ...optionFn) (secretlock.Service, err
 	}
 
 	params := &secretsplitlock.HubAuthParams{
-		URL:      "https://hub-auth.example.com",
+		URL:      "https://hub-auth.trustbloc.local",
 		APIToken: "token",
 		Subject:  "subject",
 	}

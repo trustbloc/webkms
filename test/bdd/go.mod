@@ -8,7 +8,6 @@ go 1.16
 
 require (
 	github.com/cucumber/godog v0.10.0
-	github.com/fsouza/go-dockerclient v1.6.6
 	github.com/hyperledger/aries-framework-go v0.1.7
 	github.com/hyperledger/aries-framework-go/component/storageutil v0.0.0-20210913152107-80cff90741e9
 	github.com/hyperledger/aries-framework-go/spi v0.0.0-20210913152107-80cff90741e9

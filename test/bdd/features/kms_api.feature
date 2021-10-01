@@ -51,7 +51,7 @@ Feature: KMS and crypto operations
     When  "Bob" makes an HTTP POST to "https://localhost:4466/kms/keystores/{keystoreID}/import" to import a private key with ID "keyID"
     Then  "Bob" gets a response with HTTP status "201 Created"
      And  "Bob" gets a response with "Location" header with a valid URL
-     And  "Bob" gets a response with "location" with value "https://kms.example.com:8076/kms/keystores/([^/]+)/keys/keyID"
+     And  "Bob" gets a response with "location" with value "https://kms.trustbloc.local:8076/kms/keystores/([^/]+)/keys/keyID"
 
   Scenario: User signs a message and verifies a signature
     Given "Alice" has created a keystore with "ED25519" key on Key Server

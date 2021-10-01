@@ -83,7 +83,7 @@ generate-openapi-demo-specs: clean generate-openapi-spec kms-docker
 .PHONY: run-openapi-demo
 run-openapi-demo: generate-openapi-demo-specs
 	@echo "Starting OpenAPI demo..."
-	@FIXTURES_PATH=test/bdd/fixtures  \
+	@DEMO_COMPOSE_PATH=test/bdd/fixtures/openapi-demo  \
         scripts/run-openapi-demo.sh
 
 .PHONY: clean

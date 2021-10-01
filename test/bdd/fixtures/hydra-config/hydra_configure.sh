@@ -5,7 +5,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
-echo "Creating client for hub-auth.example.com..."
+echo "Creating client for hub-auth..."
 # will use --skip-tls-verify because hydra doesn't trust self-signed certificate
 # remove it when using real certificate
 hydra clients create \

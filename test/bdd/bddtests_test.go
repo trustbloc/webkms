@@ -8,17 +8,17 @@ package bdd_test
 
 import (
 	"flag"
-	"fmt"
 	"os"
+	"os/exec"
 	"strconv"
 	"strings"
 	"testing"
 	"time"
 
 	"github.com/cucumber/godog"
+	"github.com/hyperledger/aries-framework-go/pkg/common/log"
 	authbddctx "github.com/trustbloc/hub-auth/test/bdd/pkg/context"
 
-	"github.com/trustbloc/kms/test/bdd/dockerutil"
 	"github.com/trustbloc/kms/test/bdd/pkg/common"
 	"github.com/trustbloc/kms/test/bdd/pkg/context"
 	"github.com/trustbloc/kms/test/bdd/pkg/healthcheck"
@@ -27,14 +27,14 @@ import (
 )
 
 const (
-	featuresPath              = "features"
-	caCertPath                = "fixtures/keys/tls/ec-cacert.pem"
-	kmsComposeFilePath        = "./fixtures/kms"
-	edvComposeFilePath        = "./fixtures/edv"
-	mongoDBComposeFilePath    = "./fixtures/mongodb"
-	hubAuthComposeFilePath    = "./fixtures/auth"
-	oathKeeperComposeFilePath = "./fixtures/oathkeeper"
+	featuresPath    = "features"
+	caCertPath      = "fixtures/keys/tls/ec-cacert.pem"
+	composeDir      = "./fixtures/"
+	composeFilePath = composeDir + "docker-compose.yml"
 )
+
+//nolint:gochecknoglobals // ignore
+var logger = log.New("kms/bdd")
 
 func TestMain(m *testing.M) {
 	// default is to run all tests with tag @all
@@ -64,6 +64,15 @@ func TestMain(m *testing.M) {
 	os.Exit(status)
 }
 
+func getCmdArg(argName string) string {
+	cmdTags := flag.CommandLine.Lookup(argName)
+	if cmdTags != nil && cmdTags.Value != nil && cmdTags.Value.String() != "" {
+		return cmdTags.Value.String()
+	}
+
+	return ""
+}
+
 func runBDDTests(tags, format string) int {
 	return godog.TestSuite{
 		Name:                 "kms test suite",
@@ -74,61 +83,39 @@ func runBDDTests(tags, format string) int {
 }
 
 func initializeTestSuite(ctx *godog.TestSuiteContext) {
-	composeFiles := []string{
-		mongoDBComposeFilePath,
-		edvComposeFilePath,
-		hubAuthComposeFilePath,
-		kmsComposeFilePath,
-		oathKeeperComposeFilePath,
-	}
-
-	var composition []*dockerutil.Composition
+	var (
+		dockerComposeUp   = []string{"docker-compose", "-f", composeFilePath, "up", "--force-recreate", "-d"}
+		dockerComposeDown = []string{"docker-compose", "-f", composeFilePath, "down"}
+	)
 
 	ctx.BeforeSuite(func() {
-		if os.Getenv("DISABLE_COMPOSITION") == "true" {
-			return
+		logger.Infof("Running %s", strings.Join(dockerComposeUp, " "))
+
+		cmd := exec.Command(dockerComposeUp[0], dockerComposeUp[1:]...) //nolint:gosec // ignore G204
+		if out, err := cmd.CombinedOutput(); err != nil {
+			logger.Fatalf("%s: %s", err.Error(), string(out))
 		}
-
-		// need a unique name, but docker does not allow '-' in names
-		composeProjectName := strings.ReplaceAll(generateUUID(), "-", "")
-
-		for _, v := range composeFiles {
-			newComposition, err := dockerutil.NewComposition(composeProjectName, "docker-compose.yml", v)
-			if err != nil {
-				panic(fmt.Sprintf("Error composing system in BDD context: %s", err))
-			}
-
-			composition = append(composition, newComposition)
-		}
-
-		fmt.Println("docker-compose up ... waiting for containers to start ...")
 
 		testSleep := 60
 		if os.Getenv("TEST_SLEEP") != "" {
 			s, err := strconv.Atoi(os.Getenv("TEST_SLEEP"))
 			if err != nil {
-				panic(fmt.Sprintf("Invalid value found in 'TEST_SLEEP': %s", err))
+				logger.Errorf("invalid 'TEST_SLEEP' value: %w", err)
+			} else {
+				testSleep = s
 			}
-
-			testSleep = s
 		}
 
-		fmt.Printf("*** testSleep=%d\n\n", testSleep)
+		logger.Infof("*** testSleep=%d\n\n", testSleep)
 		time.Sleep(time.Second * time.Duration(testSleep))
 	})
 
 	ctx.AfterSuite(func() {
-		for _, c := range composition {
-			if c != nil {
-				if err := c.GenerateLogs(c.Dir, "docker-compose.log"); err != nil {
-					// panic(err)
-					fmt.Println(err)
-				}
+		logger.Infof("Running %s", strings.Join(dockerComposeDown, " "))
 
-				if _, err := c.Decompose(c.Dir); err != nil {
-					panic(err)
-				}
-			}
+		cmd := exec.Command(dockerComposeDown[0], dockerComposeDown[1:]...) //nolint:gosec // ignore G204
+		if out, err := cmd.CombinedOutput(); err != nil {
+			logger.Fatalf("%s: %s", err.Error(), string(out))
 		}
 	})
 }
@@ -143,12 +130,12 @@ type feature interface {
 func initializeScenario(ctx *godog.ScenarioContext) {
 	bddContext, err := context.NewBDDContext(caCertPath)
 	if err != nil {
-		panic(fmt.Sprintf("Failed to create a new BDD context: %s", err))
+		logger.Fatalf("Failed to create a new BDD context: %s", err.Error())
 	}
 
 	authBDDContext, err := authbddctx.NewBDDContext(caCertPath)
 	if err != nil {
-		panic(fmt.Sprintf("Failed to create a new BDD context for Auth: %s", err))
+		logger.Fatalf("Failed to create a new BDD context for Auth: %s", err.Error())
 	}
 
 	features := []feature{
@@ -177,20 +164,4 @@ func buildOptions(tags, format string) *godog.Options {
 		Strict:        true,
 		StopOnFailure: true,
 	}
-}
-
-func getCmdArg(argName string) string {
-	cmdTags := flag.CommandLine.Lookup(argName)
-	if cmdTags != nil && cmdTags.Value != nil && cmdTags.Value.String() != "" {
-		return cmdTags.Value.String()
-	}
-
-	return ""
-}
-
-// generateUUID returns a UUID based on RFC 4122.
-func generateUUID() string {
-	id := dockerutil.GenerateBytesUUID()
-
-	return fmt.Sprintf("%x-%x-%x-%x-%x", id[0:4], id[4:6], id[6:8], id[8:10], id[10:])
 }

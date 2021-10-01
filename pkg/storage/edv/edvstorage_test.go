@@ -7,7 +7,6 @@ SPDX-License-Identifier: Apache-2.0
 package edv //nolint:testpackage // need to test local methods
 
 import (
-	"context"
 	"crypto/tls"
 	"errors"
 	"net/http"
@@ -26,7 +25,7 @@ import (
 )
 
 const (
-	testEDVServerURL   = "edv.example.com"
+	testEDVServerURL   = "edv.trustbloc.local"
 	testRecipientKeyID = "recipientKeyID"
 	testMACKeyID       = "macKeyID"
 )
@@ -54,7 +53,7 @@ func TestSignHeader(t *testing.T) {
 
 func TestNewStorageProvider(t *testing.T) {
 	t.Run("Success", func(t *testing.T) {
-		p, err := NewStorageProvider(context.Background(), newConfig(t))
+		p, err := NewStorageProvider(newConfig(t))
 
 		require.NotNil(t, p)
 		require.NoError(t, err)
@@ -64,7 +63,7 @@ func TestNewStorageProvider(t *testing.T) {
 		c := newConfig(t)
 		c.MACKeyID = "invalid key ID"
 
-		p, err := NewStorageProvider(context.Background(), c)
+		p, err := NewStorageProvider(c)
 
 		require.Nil(t, p)
 		require.Error(t, err)
@@ -74,7 +73,7 @@ func TestNewStorageProvider(t *testing.T) {
 		c := newConfig(t)
 		c.RecipientKeyID = "invalid key ID"
 
-		p, err := NewStorageProvider(context.Background(), c)
+		p, err := NewStorageProvider(c)
 
 		require.Nil(t, p)
 		require.Error(t, err)
@@ -88,7 +87,7 @@ func TestNewStorageProvider(t *testing.T) {
 
 		km.recipientKH = kh
 
-		p, err := NewStorageProvider(context.Background(), newConfig(t, withKeyManager(km)))
+		p, err := NewStorageProvider(newConfig(t, withKeyManager(km)))
 
 		require.Nil(t, p)
 		require.Error(t, err)
@@ -102,7 +101,7 @@ func TestNewStorageProvider(t *testing.T) {
 
 		km.recipientKH = kh
 
-		p, err := NewStorageProvider(context.Background(), newConfig(t, withKeyManager(km)))
+		p, err := NewStorageProvider(newConfig(t, withKeyManager(km)))
 
 		require.Nil(t, p)
 		require.Error(t, err)
