@@ -147,6 +147,7 @@ func TestResolveKeystore(t *testing.T) {
 			HubAuthURL:                "hubAuthURL",
 			HTTPClient:                httpClient,
 			TLSConfig:                 &tls.Config{MinVersion: tls.VersionTLS12},
+			Metrics:                   &mockMetrics{},
 		}
 
 		svc, err := kms.NewService(c)
@@ -296,4 +297,9 @@ type mockHeaderSigner struct {
 
 func (m *mockHeaderSigner) SignHeader(*http.Request, []byte) (*http.Header, error) {
 	return m.signVal, m.signErr
+}
+
+type mockMetrics struct{}
+
+func (m *mockMetrics) ResolveKeystoreTime(time.Duration) {
 }

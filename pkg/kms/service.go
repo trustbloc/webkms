@@ -37,6 +37,10 @@ const (
 	userHeader           = "Hub-Kms-User"
 )
 
+type metricsProvider interface {
+	ResolveKeystoreTime(value time.Duration)
+}
+
 // Config defines configuration for the KMS service.
 type Config struct {
 	StorageProvider           storage.Provider
@@ -46,6 +50,7 @@ type Config struct {
 	LocalKMS      kms.KeyManager
 	CryptoService crypto.Crypto
 	HeaderSigner  edv.HeaderSigner
+	Metrics       metricsProvider
 
 	PrimaryKeyStorageProvider storage.Provider
 	PrimaryKeyLock            secretlock.Service
@@ -66,6 +71,7 @@ type service struct {
 	localKMS kms.KeyManager
 	crypto   crypto.Crypto
 	config   *Config
+	metrics  metricsProvider
 }
 
 // NewService returns a new Service instance.
@@ -80,6 +86,7 @@ func NewService(c *Config) (Service, error) {
 		localKMS: c.LocalKMS,
 		crypto:   c.CryptoService,
 		config:   c,
+		metrics:  c.Metrics,
 	}, nil
 }
 
@@ -126,6 +133,9 @@ func (s *service) CreateKeystore(controller, vaultID string) (*KeystoreData, err
 
 // ResolveKeystore resolves Keystore for the given request.
 func (s *service) ResolveKeystore(req *http.Request) (keystore.Keystore, error) {
+	start := time.Now()
+	defer func() { s.metrics.ResolveKeystoreTime(time.Since(start)) }()
+
 	keystoreID := mux.Vars(req)[keystoreIDQueryParam]
 
 	keystoreData, err := s.GetKeystoreData(keystoreID)
