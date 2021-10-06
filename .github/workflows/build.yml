@@ -1,0 +1,135 @@
+#
+# Copyright SecureKey Technologies Inc. All Rights Reserved.
+#
+# SPDX-License-Identifier: Apache-2.0
+#
+
+name: "kms ci"
+
+env:
+  GO_VERSION: 1.16
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  Checks:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Set up Go
+        uses: actions/setup-go@v2
+        with:
+          go-version: ${{ env.GO_VERSION }}
+
+      - uses: actions/checkout@v2
+
+      - name: Run checks
+        run: make checks
+
+  UnitTest:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Set up Go
+        uses: actions/setup-go@v2
+        with:
+          go-version: ${{ env.GO_VERSION }}
+
+      - uses: actions/checkout@v2
+
+      - name: Run unit tests
+        run: make unit-test
+
+      - name: Upload coverage to Codecov
+        run: |
+          bash <(curl https://codecov.io/bash)
+        env:
+          CODECOV_UPLOAD_TOKEN: ${{ secrets.CODECOV_UPLOAD_TOKEN }}
+
+  BDDTest:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Set up Go
+        uses: actions/setup-go@v2
+        with:
+          go-version: ${{ env.GO_VERSION }}
+
+      - uses: actions/checkout@v2
+
+      - name: Run BDD tests
+        run: |
+          echo '127.0.0.1 oidc.provider.example.com' | sudo tee -a /etc/hosts
+          make bdd-test
+
+  Publish:
+    if: github.event_name == 'push' && (github.repository == 'trustbloc/kms' && github.ref == 'refs/heads/main')
+    needs: [Checks, UnitTest, BDDTest]
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Set up Go
+        uses: actions/setup-go@v2
+        with:
+          go-version: ${{ env.GO_VERSION }}
+
+      - uses: actions/checkout@v2
+        with:
+          fetch-depth: 0
+
+      - name: Get current published version
+        run: |
+          TAG=$(git describe --tags --always `git rev-list --tags --max-count=1`)
+          VERSION=$(git rev-parse --short=7 HEAD)
+          if [[ $TAG == $VERSION ]]; then
+              TAG=v0.0.0
+          fi
+          echo "CURRENT_SEMVER=${TAG:1}" >> $GITHUB_ENV
+          echo "repoTag=${TAG} repoVersion=${VERSION} currentSemVer=${TAG:1}"
+
+      - name: Bump published version
+        id: bump_version
+        uses: christian-draeger/increment-semantic-version@1.0.2
+        with:
+          current-version: "${{ env.CURRENT_SEMVER }}"
+          # TODO: needs to be configurable https://github.com/christian-draeger/increment-semantic-version#input--output-examples
+          version-fragment: "bug"
+
+      - name: Set ENV vars
+        run: |
+          VERSION=$(git rev-parse --short=7 HEAD)
+          echo "IMAGE_TAG"=v${{ steps.bump_version.outputs.next-version }}-snapshot-$VERSION >> $GITHUB_ENV
+          echo "KMS_IMAGE_PREFIX"=ghcr.io/trustbloc-cicd/kms >> $GITHUB_ENV
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v1
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v1
+
+      - name: Login to Github Container Registry
+        uses: docker/login-action@v1
+        with:
+          registry: ghcr.io
+          username: ${{ secrets.CR_USER }}
+          password: ${{ secrets.CR_PAT }}
+
+      - name: Build and push KMS image
+        uses: docker/build-push-action@v2
+        with:
+          context: .
+          file: ./images/kms-rest/Dockerfile
+          platforms: linux/amd64,linux/arm64
+          build-args: |
+            ALPINE_VER=3.12
+            GO_VER=${{ env.GO_VERSION }}
+          push: true
+          tags: |
+            ${{ env.KMS_IMAGE_PREFIX }}:${{ env.IMAGE_TAG }}
+            ${{ env.KMS_IMAGE_PREFIX }}:latest
