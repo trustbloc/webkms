@@ -25,6 +25,7 @@ services:
     image: ${KMS_REST_IMAGE}:latest
     environment:
       - KMS_HOST_URL=0.0.0.0:8074
+      - KMS_HOST_METRICS_URL=0.0.0.0:48831
       - KMS_BASE_URL=https://kms.trustbloc.local:8076
       - KMS_TLS_CACERTS=/etc/tls/ec-cacert.pem
       - KMS_TLS_SERVE_CERT=/etc/tls/ec-pubCert.pem
@@ -46,6 +47,7 @@ services:
       - KMS_LOG_LEVEL=debug
     ports:
       - 8074:8074
+      - 48831:48831
     entrypoint: ""
     # TODO add retry for mongodb
     command: /bin/sh -c "sleep 5;kms-rest start"
@@ -62,6 +64,7 @@ services:
     image: ${KMS_REST_IMAGE}:latest
     environment:
       - KMS_HOST_URL=0.0.0.0:8074
+      - KMS_HOST_METRICS_URL=0.0.0.0:48832
       - KMS_BASE_URL=https://kms.trustbloc.local:8076
       - KMS_TLS_CACERTS=/etc/tls/ec-cacert.pem
       - KMS_TLS_SERVE_CERT=/etc/tls/ec-pubCert.pem
@@ -83,6 +86,7 @@ services:
       - KMS_LOG_LEVEL=debug
     ports:
       - 8075:8075
+      - 48832:48832
     entrypoint: ""
     # TODO add retry for mongodb
     command: /bin/sh -c "sleep 5;kms-rest start"
@@ -306,6 +310,16 @@ services:
       - 8099:8099
     volumes:
       - ./keys/tls:/etc/tls
+    networks:
+      - bdd_net
+
+  metrics.example.com:
+    container_name: metrics.example.com
+    image: prom/prometheus
+    ports:
+      - 9095:9090
+    volumes:
+      - ./prometheus-config/prometheus.yml:/etc/prometheus/prometheus.yml
     networks:
       - bdd_net
 

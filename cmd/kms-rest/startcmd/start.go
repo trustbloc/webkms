@@ -33,6 +33,8 @@ import (
 	vdrkey "github.com/hyperledger/aries-framework-go/pkg/vdr/key"
 	"github.com/hyperledger/aries-framework-go/spi/storage"
 	jsonld "github.com/piprate/json-gold/ld"
+	promclient "github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/rs/cors"
 	"github.com/spf13/cobra"
 	"github.com/trustbloc/edge-core/pkg/log"
@@ -43,6 +45,7 @@ import (
 
 	"github.com/trustbloc/kms/pkg/auth/zcapld"
 	"github.com/trustbloc/kms/pkg/kms"
+	"github.com/trustbloc/kms/pkg/metrics/prometheus"
 	"github.com/trustbloc/kms/pkg/restapi/healthcheck"
 	"github.com/trustbloc/kms/pkg/restapi/kms/operation"
 	lock "github.com/trustbloc/kms/pkg/secretlock"
@@ -54,6 +57,10 @@ const (
 	hostURLFlagName  = "host-url"
 	hostURLFlagUsage = "The URL to run the KMS instance on. Format: HostName:Port."
 	hostURLEnvKey    = "KMS_HOST_URL"
+
+	hostMetricsURLFlagName  = "host-metrics-url"
+	hostMetricsURLFlagUsage = "URL that exposes the metrics endpoint. Format: HostName:Port."
+	hostMetricsURLEnvKey    = "KMS_HOST_METRICS_URL"
 
 	baseURLFlagName  = "base-url"
 	baseURLEnvKey    = "KMS_BASE_URL"
@@ -291,6 +298,7 @@ func createStartCmd(srv Server) *cobra.Command {
 
 func createFlags(startCmd *cobra.Command) {
 	startCmd.Flags().StringP(hostURLFlagName, "", "", hostURLFlagUsage)
+	startCmd.Flags().StringP(hostMetricsURLFlagName, "", "", hostMetricsURLFlagUsage)
 	startCmd.Flags().StringP(baseURLFlagName, "", "", baseURLFlagUsage)
 
 	startCmd.Flags().StringP(tlsSystemCertPoolFlagName, tlsSystemCertPoolFlagShorthand, "", tlsSystemCertPoolFlagUsage)
@@ -334,6 +342,7 @@ func createFlags(startCmd *cobra.Command) {
 
 type kmsRestParameters struct {
 	hostURL                 string
+	hostMetricsURL          string
 	baseURL                 string
 	tlsUseSystemCertPool    bool
 	tlsCACerts              []string
@@ -367,6 +376,11 @@ type storageParameters struct {
 //nolint:gocyclo // no complicated logic here.
 func getKmsRestParameters(cmd *cobra.Command) (*kmsRestParameters, error) { //nolint:funlen // better readability
 	hostURL, err := cmdutils.GetUserSetVarFromString(cmd, hostURLFlagName, hostURLEnvKey, false)
+	if err != nil {
+		return nil, err
+	}
+
+	hostMetricsURL, err := cmdutils.GetUserSetVarFromString(cmd, hostMetricsURLFlagName, hostMetricsURLEnvKey, true)
 	if err != nil {
 		return nil, err
 	}
@@ -472,6 +486,7 @@ func getKmsRestParameters(cmd *cobra.Command) (*kmsRestParameters, error) { //no
 
 	return &kmsRestParameters{
 		hostURL:                 strings.TrimSpace(hostURL),
+		hostMetricsURL:          hostMetricsURL,
 		baseURL:                 baseURL,
 		tlsUseSystemCertPool:    tlsUseSystemCertPool,
 		tlsCACerts:              tlsCACerts,
@@ -670,6 +685,12 @@ func startKmsService(params *kmsRestParameters, srv Server) error {
 
 	kmsRouter := router.PathPrefix(operation.KMSBasePath).Subrouter()
 
+	if params.hostMetricsURL != "" {
+		kmsRouter.Use(prometheus.Middleware)
+
+		go startMetrics(srv, params.hostMetricsURL)
+	}
+
 	kmsREST, err := operation.New(config)
 	if err != nil {
 		return fmt.Errorf("start KMS service: %w", err)
@@ -688,7 +709,7 @@ func startKmsService(params *kmsRestParameters, srv Server) error {
 		router.HandleFunc(handler.Path(), handler.Handle()).Methods(handler.Method())
 	}
 
-	srv.Logger().Infof("Starting KMS on host %s", params.hostURL)
+	srv.Logger().Infof("Starting KMS on host [%s]", params.hostURL)
 
 	var handler http.Handler
 	if params.enableCORS {
@@ -702,6 +723,26 @@ func startKmsService(params *kmsRestParameters, srv Server) error {
 		params.tlsServeParams.certPath,
 		params.tlsServeParams.keyPath,
 		handler)
+}
+
+func startMetrics(srv Server, metricsHost string) {
+	metricsRouter := mux.NewRouter()
+
+	h := promhttp.HandlerFor(promclient.DefaultGatherer,
+		promhttp.HandlerOpts{
+			EnableOpenMetrics: true,
+		},
+	)
+
+	metricsRouter.HandleFunc("/metrics", func(w http.ResponseWriter, r *http.Request) {
+		h.ServeHTTP(w, r)
+	})
+
+	srv.Logger().Infof("Starting KMS metrics on host [%s]", metricsHost)
+
+	if err := srv.ListenAndServe(metricsHost, "", "", metricsRouter); err != nil {
+		srv.Logger().Fatalf("%v", err)
+	}
 }
 
 func setLogLevel(level string, srv Server) {
@@ -863,6 +904,7 @@ func prepareLocalKMS(primaryKeyLock secretlock.Service, params *kmsRestParameter
 	return localkms.New(keystorePrimaryKeyURI, provider)
 }
 
+//nolint:funlen // ignore
 func prepareKMSService(storageProvider, primaryKeyStorageProvider storage.Provider, primaryKeyLock secretlock.Service,
 	localKMS arieskms.KeyManager, cryptoService crypto.Crypto, signer edv.HeaderSigner,
 	params *kmsRestParameters) (kms.Service, error) {
@@ -921,6 +963,11 @@ func prepareKMSService(storageProvider, primaryKeyStorageProvider storage.Provid
 		HTTPClient:                httpClient,
 		TLSConfig:                 tlsConfig,
 		SyncTimeout:               params.syncTimeout,
+		Metrics:                   &noopMetrics{},
+	}
+
+	if params.hostMetricsURL != "" {
+		config.Metrics = prometheus.GetMetrics()
 	}
 
 	return kms.NewService(config)
@@ -996,4 +1043,9 @@ func createJSONLDDocumentLoader(storageProvider storage.Provider) (jsonld.Docume
 	}
 
 	return documentLoader, nil
+}
+
+type noopMetrics struct{}
+
+func (m *noopMetrics) ResolveKeystoreTime(time.Duration) {
 }

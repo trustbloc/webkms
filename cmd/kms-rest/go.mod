@@ -16,6 +16,7 @@ require (
 	github.com/hyperledger/aries-framework-go/spi v0.0.0-20210910143505-343c246c837c
 	github.com/ory/dockertest/v3 v3.7.0
 	github.com/piprate/json-gold v0.4.1-0.20210813112359-33b90c4ca86c
+	github.com/prometheus/client_golang v1.11.0
 	github.com/rs/cors v1.7.0
 	github.com/spf13/cobra v1.1.3
 	github.com/stretchr/testify v1.7.0

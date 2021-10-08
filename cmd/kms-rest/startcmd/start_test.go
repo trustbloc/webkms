@@ -488,6 +488,18 @@ func TestStartKMSService(t *testing.T) {
 	})
 }
 
+func TestStartMetrics(t *testing.T) {
+	t.Run("Success", func(t *testing.T) {
+		srv := &mockServer{}
+
+		startMetrics(srv, "localhost:8081")
+
+		logger, ok := srv.Logger().(*mocklogger.MockLogger)
+		require.True(t, ok)
+		require.Empty(t, logger.FatalLogContents)
+	})
+}
+
 func requiredArgs(databaseType string) []string {
 	args := []string{
 		"--" + hostURLFlagName, "localhost:8080",
