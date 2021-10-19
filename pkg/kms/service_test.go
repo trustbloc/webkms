@@ -134,20 +134,19 @@ func TestResolveKeystore(t *testing.T) {
 		}
 
 		c := &kms.Config{
-			StorageProvider:           sp,
-			CacheProvider:             cache.NewProvider(),
-			KeyManagerStorageProvider: mockstorage.NewMockStoreProvider(),
-			LocalKMS:                  localKMS,
-			CryptoService:             &mockcrypto.Crypto{},
-			HeaderSigner:              &mockHeaderSigner{},
-			PrimaryKeyStorageProvider: mockstorage.NewMockStoreProvider(),
-			PrimaryKeyLock:            &mocksecretlock.MockSecretLock{},
-			CreateSecretLockFunc:      createSecretLockFunc,
-			EDVServerURL:              "edvServerURL",
-			HubAuthURL:                "hubAuthURL",
-			HTTPClient:                httpClient,
-			TLSConfig:                 &tls.Config{MinVersion: tls.VersionTLS12},
-			Metrics:                   &mockMetrics{},
+			StorageProvider:         sp,
+			CacheProvider:           cache.NewProvider(),
+			UserKeysStorageProvider: mockstorage.NewMockStoreProvider(),
+			LocalKMS:                localKMS,
+			CryptoService:           &mockcrypto.Crypto{},
+			HeaderSigner:            &mockHeaderSigner{},
+			PrimaryKeyLock:          &mocksecretlock.MockSecretLock{},
+			CreateSecretLockFunc:    createSecretLockFunc,
+			EDVServerURL:            "edvServerURL",
+			HubAuthURL:              "hubAuthURL",
+			HTTPClient:              httpClient,
+			TLSConfig:               &tls.Config{MinVersion: tls.VersionTLS12},
+			Metrics:                 &mockMetrics{},
 		}
 
 		svc, err := kms.NewService(c)

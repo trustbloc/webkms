@@ -73,9 +73,7 @@ func TestStartCmdWithBlankArg(t *testing.T) {
 		hostURLFlagName, baseURLFlagName, logLevelFlagName,
 		tlsServeCertPathFlagName, tlsServeKeyPathFlagName, secretLockKeyPathFlagName,
 		databaseTypeFlagName, databaseURLFlagName, databasePrefixFlagName,
-		primaryKeyDatabaseTypeFlagName, primaryKeyDatabaseURLFlagName, primaryKeyDatabasePrefixFlagName,
-		localKMSDatabaseTypeFlagName, localKMSDatabaseURLFlagName, localKMSDatabasePrefixFlagName,
-		keyManagerStorageTypeFlagName, keyManagerStorageURLFlagName, keyManagerStoragePrefixFlagName,
+		userKeysStorageTypeFlagName, userKeysStorageURLFlagName, userKeysStoragePrefixFlagName,
 	}
 
 	t.Parallel()
@@ -101,8 +99,7 @@ func TestStartCmdWithMissingArg(t *testing.T) {
 
 		args := []string{
 			"--" + databaseTypeFlagName, storageTypeMemOption,
-			"--" + localKMSDatabaseTypeFlagName, storageTypeMemOption,
-			"--" + keyManagerStorageTypeFlagName, storageTypeMemOption,
+			"--" + userKeysStorageTypeFlagName, storageTypeMemOption,
 		}
 		startCmd.SetArgs(args)
 
@@ -119,9 +116,7 @@ func TestStartCmdWithMissingArg(t *testing.T) {
 
 		args := []string{
 			"--" + hostURLFlagName, "hostname",
-			"--" + primaryKeyDatabaseTypeFlagName, storageTypeMemOption,
-			"--" + localKMSDatabaseTypeFlagName, storageTypeMemOption,
-			"--" + keyManagerStorageTypeFlagName, storageTypeMemOption,
+			"--" + userKeysStorageTypeFlagName, storageTypeMemOption,
 		}
 		startCmd.SetArgs(args)
 
@@ -132,60 +127,20 @@ func TestStartCmdWithMissingArg(t *testing.T) {
 			err.Error())
 	})
 
-	t.Run("test missing primary-key-database-type arg", func(t *testing.T) {
+	t.Run("test missing user-keys-storage-type arg", func(t *testing.T) {
 		startCmd := GetStartCmd(&mockServer{})
 
 		args := []string{
 			"--" + hostURLFlagName, "hostname",
 			"--" + databaseTypeFlagName, storageTypeMemOption,
-			"--" + localKMSDatabaseTypeFlagName, storageTypeMemOption,
-			"--" + keyManagerStorageTypeFlagName, storageTypeMemOption,
 		}
 		startCmd.SetArgs(args)
 
 		err := startCmd.Execute()
 
 		require.Error(t, err)
-		require.Equal(t, "Neither primary-key-database-type (command line flag) nor "+
-			"KMS_PRIMARY_KEY_DATABASE_TYPE (environment variable) have been set.",
-			err.Error())
-	})
-
-	t.Run("test missing local-kms-database-type arg", func(t *testing.T) {
-		startCmd := GetStartCmd(&mockServer{})
-
-		args := []string{
-			"--" + hostURLFlagName, "hostname",
-			"--" + databaseTypeFlagName, storageTypeMemOption,
-			"--" + primaryKeyDatabaseTypeFlagName, storageTypeMemOption,
-			"--" + keyManagerStorageTypeFlagName, storageTypeMemOption,
-		}
-		startCmd.SetArgs(args)
-
-		err := startCmd.Execute()
-
-		require.Error(t, err)
-		require.Equal(t, "Neither local-kms-database-type (command line flag) nor "+
-			"KMS_LOCAL_KMS_DATABASE_TYPE (environment variable) have been set.",
-			err.Error())
-	})
-
-	t.Run("test missing key-manager-storage-type arg", func(t *testing.T) {
-		startCmd := GetStartCmd(&mockServer{})
-
-		args := []string{
-			"--" + hostURLFlagName, "hostname",
-			"--" + databaseTypeFlagName, storageTypeMemOption,
-			"--" + primaryKeyDatabaseTypeFlagName, storageTypeMemOption,
-			"--" + localKMSDatabaseTypeFlagName, storageTypeMemOption,
-		}
-		startCmd.SetArgs(args)
-
-		err := startCmd.Execute()
-
-		require.Error(t, err)
-		require.Equal(t, "Neither key-manager-storage-type (command line flag) nor "+
-			"KMS_KEY_MANAGER_STORAGE_TYPE (environment variable) have been set.",
+		require.Equal(t, "Neither user-keys-storage-type (command line flag) nor "+
+			"KMS_USER_KEYS_STORAGE_TYPE (environment variable) have been set.",
 			err.Error())
 	})
 }
@@ -470,22 +425,6 @@ func TestStartKMSService(t *testing.T) {
 		err := startKmsService(params, &mockServer{})
 		require.Error(t, err)
 	})
-
-	t.Run("Fail with invalid primary key storage option", func(t *testing.T) {
-		params := kmsRestParams(t)
-		params.primaryKeyStorageParams.storageType = invalidStorageOption
-
-		err := startKmsService(params, &mockServer{})
-		require.Error(t, err)
-	})
-
-	t.Run("Fail with invalid local kms storage option", func(t *testing.T) {
-		params := kmsRestParams(t)
-		params.localKMSStorageParams.storageType = invalidStorageOption
-
-		err := startKmsService(params, &mockServer{})
-		require.Error(t, err)
-	})
 }
 
 func TestStartMetrics(t *testing.T) {
@@ -504,17 +443,13 @@ func requiredArgs(databaseType string) []string {
 	args := []string{
 		"--" + hostURLFlagName, "localhost:8080",
 		"--" + databaseTypeFlagName, databaseType,
-		"--" + primaryKeyDatabaseTypeFlagName, databaseType,
-		"--" + localKMSDatabaseTypeFlagName, databaseType,
-		"--" + keyManagerStorageTypeFlagName, databaseType,
+		"--" + userKeysStorageTypeFlagName, databaseType,
 	}
 
 	if databaseType == storageTypeMongoDBOption {
 		args = append(args,
 			"--"+databaseURLFlagName, "mongodb://localhost:27017",
-			"--"+primaryKeyDatabaseURLFlagName, "mongodb://localhost:27017",
-			"--"+localKMSDatabaseURLFlagName, "mongodb://localhost:27017",
-			"--"+keyManagerStorageURLFlagName, "mongodb://localhost:27017")
+			"--"+userKeysStorageURLFlagName, "mongodb://localhost:27017")
 	}
 
 	return args
@@ -560,13 +495,7 @@ func setEnvVars(t *testing.T) {
 	err = os.Setenv(databaseTypeEnvKey, storageTypeMemOption)
 	require.NoError(t, err)
 
-	err = os.Setenv(primaryKeyDatabaseTypeEnvKey, storageTypeMemOption)
-	require.NoError(t, err)
-
-	err = os.Setenv(localKMSDatabaseTypeEnvKey, storageTypeMemOption)
-	require.NoError(t, err)
-
-	err = os.Setenv(keyManagerStorageTypeEnvKey, storageTypeMemOption)
+	err = os.Setenv(userKeysStorageTypeEnvKey, storageTypeMemOption)
 	require.NoError(t, err)
 }
 
@@ -579,13 +508,7 @@ func unsetEnvVars(t *testing.T) {
 	err = os.Unsetenv(databaseTypeEnvKey)
 	require.NoError(t, err)
 
-	err = os.Unsetenv(primaryKeyDatabaseTypeEnvKey)
-	require.NoError(t, err)
-
-	err = os.Unsetenv(localKMSDatabaseTypeEnvKey)
-	require.NoError(t, err)
-
-	err = os.Unsetenv(keyManagerStorageTypeEnvKey)
+	err = os.Unsetenv(userKeysStorageTypeEnvKey)
 	require.NoError(t, err)
 }
 
