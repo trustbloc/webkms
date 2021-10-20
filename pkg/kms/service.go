@@ -43,18 +43,17 @@ type metricsProvider interface {
 
 // Config defines configuration for the KMS service.
 type Config struct {
-	StorageProvider           storage.Provider
-	CacheProvider             storage.Provider
-	KeyManagerStorageProvider storage.Provider
+	StorageProvider         storage.Provider
+	CacheProvider           storage.Provider
+	UserKeysStorageProvider storage.Provider
 
 	LocalKMS      kms.KeyManager
 	CryptoService crypto.Crypto
 	HeaderSigner  edv.HeaderSigner
 	Metrics       metricsProvider
 
-	PrimaryKeyStorageProvider storage.Provider
-	PrimaryKeyLock            secretlock.Service
-	CreateSecretLockFunc      func(keyURI string, provider lock.Provider, timeout uint64) (secretlock.Service, error)
+	PrimaryKeyLock       secretlock.Service
+	CreateSecretLockFunc func(keyURI string, provider lock.Provider, timeout uint64) (secretlock.Service, error)
 
 	EDVServerURL    string
 	HubAuthURL      string
@@ -143,7 +142,7 @@ func (s *service) ResolveKeystore(req *http.Request) (keystore.Keystore, error) 
 		return nil, fmt.Errorf("resolve keystore: %w", err)
 	}
 
-	storageProvider := s.config.KeyManagerStorageProvider
+	storageProvider := s.config.UserKeysStorageProvider
 
 	if s.config.EDVServerURL != "" {
 		p, e := s.prepareEDVStorageProvider(keystoreData)
@@ -168,7 +167,7 @@ func (s *service) ResolveKeystore(req *http.Request) (keystore.Keystore, error) 
 	}
 
 	secLockProvider := &secretLockProvider{
-		storageProvider: s.config.PrimaryKeyStorageProvider,
+		storageProvider: storageProvider,
 		secretLock:      primaryKeyLock,
 	}
 

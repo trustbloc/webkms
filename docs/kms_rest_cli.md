@@ -28,17 +28,9 @@ Parameters can be set by command line arguments or environment variables:
     --database-url string                   The URL of the database. Not needed if using in-memory storage. For CouchDB, include the username:password@ text if required. Alternatively, this can be set with the following environment variable: KMS_DATABASE_URL
     --database-prefix string                An optional prefix to be used when creating and retrieving the underlying database. Alternatively, this can be set with the following environment variable: KMS_DATABASE_PREFIX
 
-    --primary-key-database-type string      The type of database to use for storing primary keys. Supported options: mem, couchdb. Alternatively, this can be set with the following environment variable: KMS_PRIMARY_KEY_DATABASE_TYPE
-    --primary-key-database-url string       The URL of the database for primary keys. Not needed if using in-memory storage. For CouchDB, include the username:password@ text if required. Alternatively, this can be set with the following environment variable: KMS_PRIMARY_KEY_DATABASE_URL
-    --primary-key-database-prefix string    An optional prefix to be used when creating and retrieving the underlying database for primary keys. Alternatively, this can be set with the following environment variable: KMS_PRIMARY_KEY_DATABASE_PREFIX
-
-    --local-kms-database-type string        The type of database to use for storing local KMS secrets (e.g. keys for Keystore). Supported options: mem, couchdb. Alternatively, this can be set with the following environment variable: KMS_LOCAL_KMS_DATABASE_TYPE
-    --local-kms-database-url string         The URL of the database for local KMS. Not needed if using in-memory storage. For CouchDB, include the username:password@ text if required. Alternatively, this can be set with the following environment variable: KMS_LOCAL_KMS_DATABASE_URL
-    --local-kms-database-prefix string      An optional prefix to be used when creating and retrieving the underlying local KMS database. Alternatively, this can be set with the following environment variable: KMS_LOCAL_KMS_DATABASE_PREFIX
-
-    --key-manager-storage-type string       The type of storage to use for key manager. Supported options: mem, couchdb, edv. Alternatively, this can be set with the following environment variable: KMS_KEY_MANAGER_STORAGE_TYPE
-    --key-manager-storage-url string        The URL of storage for key manager. Not needed if using in-memory storage. For CouchDB, include the username:password@ text if required. Alternatively, this can be set with the following environment variable: KMS_KEY_MANAGER_STORAGE_URL
-    --key-manager-storage-prefix string     An optional prefix to be used when creating and retrieving the underlying key manager storage. Alternatively, this can be set with the following environment variable: KMS_KEY_MANAGER_STORAGE_PREFIX
+    --user-keys-storage-type string         The type of storage to use for user keys. Supported options: mem, couchdb, mongodb, edv. Alternatively, this can be set with the following environment variable: KMS_USER_KEYS_STORAGE_TYPE
+    --user-keys-storage-url string          The URL of storage for user keys. Not needed if using in-memory storage. For CouchDB, include the username:password@ text if required. Alternatively, this can be set with the following environment variable: KMS_USER_KEYS_STORAGE_URL
+    --user-keys-storage-prefix string       An optional prefix to be used when creating and retrieving the underlying storage for user keys. Alternatively, this can be set with the following environment variable: KMS_USER_KEYS_STORAGE_PREFIX
 
     --cache-expiration string               An optional value for cache expiration. If not set caching is disabled. Supports valid duration strings, e.g. 10m, 60s, etc. Alternatively, this can be set with the following environment variable: KMS_CACHE_EXPIRATION
 
@@ -54,8 +46,6 @@ Parameters can be set by command line arguments or environment variables:
 ```sh
 $ cd cmd/kms-rest
 $ go build
-$ ./kms-rest start --host-url localhost:8076 --database-type couchdb --database-url admin:password@couchdb.example.com:5984 --database-prefix keystore \
---primary-key-database-type couchdb --primary-key-database-url admin:password@couchdb.example.com:5984 --primary-key-database-prefix kms_pk \
---local-kms-database-type couchdb --local-kms-database-url admin:password@couchdb.example.com:5984 --local-kms-database-prefix kms \
---key-manager-storage-type couchdb --key-manager-storage-url admin:password@couchdb.example.com:5984 --key-manager-storage-prefix kms_km
+$ ./kms-rest start --host-url localhost:8076 --database-type couchdb --database-url admin:password@couchdb.example.com:5984 --database-prefix kms \
+--user-keys-storage-type couchdb --user-keys-storage-url admin:password@couchdb.example.com:5984 --user-keys-storage-prefix kms_keys
 ```
