@@ -101,7 +101,7 @@ services:
       - KMS_SECRET_LOCK_KEY_PATH=/etc/tls/secret-lock.key
       - KMS_USER_KEYS_STORAGE_TYPE=mongodb
       - KMS_USER_KEYS_STORAGE_URL=mongodb://mongodb.example.com:27017
-      - KMS_USER_KEYS_MANAGER_STORAGE_PREFIX=authzkmskeys_
+      - KMS_USER_KEYS_STORAGE_PREFIX=authzkmskeys_
       - KMS_HUB_AUTH_URL=https://hub-auth.trustbloc.local:8070
       - KMS_HUB_AUTH_API_TOKEN=test_token
       - KMS_CACHE_EXPIRATION=10m
