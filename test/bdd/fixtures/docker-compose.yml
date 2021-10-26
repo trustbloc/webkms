@@ -39,6 +39,7 @@ services:
       - KMS_CACHE_EXPIRATION=10m
       - KMS_ZCAP_ENABLE=true
       - KMS_LOG_LEVEL=debug
+      - KMS_EDV_RECIPIENT_KEY_TYPE=NISTP384ECDHKW
     ports:
       - 8074:8074
       - 48831:48831
@@ -72,6 +73,7 @@ services:
       - KMS_CACHE_EXPIRATION=10m
       - KMS_ZCAP_ENABLE=true
       - KMS_LOG_LEVEL=debug
+      - KMS_EDV_RECIPIENT_KEY_TYPE=NISTP384ECDHKW
     ports:
       - 8075:8075
       - 48832:48832

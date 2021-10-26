@@ -62,7 +62,8 @@ type Config struct {
 	HTTPClient support.HTTPClient
 	TLSConfig  *tls.Config
 
-	SyncTimeout uint64
+	SyncTimeout         uint64
+	EdvRecipientKeyType kms.KeyType
 }
 
 type service struct {
@@ -94,9 +95,7 @@ func (s *service) CreateKeystore(controller, vaultID string) (*KeystoreData, err
 	var recipientKeyID, macKeyID string
 
 	if vaultID != "" {
-		// TODO make default keystore's main key type configurable (for recKID only, macKID has fixed type)
-		// TODO available types: NISTP256ECDHKW, NISTP384ECDHKW, NISTP521ECDHKW or X25519ECDHKW #154
-		recKID, _, err := s.localKMS.Create(kms.NISTP256ECDHKW)
+		recKID, _, err := s.localKMS.Create(s.config.EdvRecipientKeyType)
 		if err != nil {
 			return nil, fmt.Errorf("create keystore: %w", err)
 		}

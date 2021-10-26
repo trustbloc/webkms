@@ -408,6 +408,38 @@ func TestStartCmdWithCacheExpirationParam(t *testing.T) {
 	})
 }
 
+func TestStartCmdWithEdvRecipientKeyTypeParam(t *testing.T) {
+	tests := []struct {
+		in    string
+		valid bool
+	}{
+		{"NISTP256ECDHKW", true},
+		{"NISTP384ECDHKW", true},
+		{"NISTP521ECDHKW", true},
+		{"X25519ECDHKW", true},
+		{"invalid", false},
+	}
+
+	for _, tt := range tests {
+		t.Run("Success with "+edvRecipientKeyTypeFlagName+"set to "+tt.in, func(t *testing.T) {
+			startCmd := GetStartCmd(&mockServer{})
+
+			args := requiredArgs(storageTypeMemOption)
+			args = append(args, "--"+edvRecipientKeyTypeFlagName, tt.in)
+
+			startCmd.SetArgs(args)
+
+			err := startCmd.Execute()
+
+			if tt.valid {
+				require.NoError(t, err)
+			} else {
+				require.Error(t, err)
+			}
+		})
+	}
+}
+
 func TestStartKMSService(t *testing.T) {
 	const invalidStorageOption = "invalid"
 

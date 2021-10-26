@@ -241,7 +241,13 @@ func prepareOperationConfig(params *kmsRestParameters) (*operation.Config, error
 		return nil, err
 	}
 
-	kmsService, err := prepareKMSService(storageProvider, primaryKeyLock, localKMS, cryptoService, authService, params)
+	edvRecipientKeyType, err := prepareEdvRecipientKeyType(params.edvRecipientKeyType)
+	if err != nil {
+		return nil, err
+	}
+
+	kmsService, err := prepareKMSService(storageProvider, primaryKeyLock, localKMS, cryptoService, authService,
+		edvRecipientKeyType, params)
 	if err != nil {
 		return nil, err
 	}
@@ -344,6 +350,7 @@ func prepareLocalKMS(storageProvider storage.Provider, primaryKeyLock secretlock
 //nolint:funlen // ignore
 func prepareKMSService(storageProvider storage.Provider, primaryKeyLock secretlock.Service,
 	localKMS arieskms.KeyManager, cryptoService crypto.Crypto, signer edv.HeaderSigner,
+	edvRecipientKeyType arieskms.KeyType,
 	params *kmsRestParameters) (kms.Service, error) {
 	var (
 		cacheProvider           storage.Provider
@@ -400,6 +407,7 @@ func prepareKMSService(storageProvider storage.Provider, primaryKeyLock secretlo
 		TLSConfig:               tlsConfig,
 		SyncTimeout:             params.syncTimeout,
 		Metrics:                 &noopMetrics{},
+		EdvRecipientKeyType:     edvRecipientKeyType,
 	}
 
 	if params.hostMetricsURL != "" {
@@ -471,4 +479,27 @@ func createJSONLDDocumentLoader(storageProvider storage.Provider) (jsonld.Docume
 type noopMetrics struct{}
 
 func (m *noopMetrics) ResolveKeystoreTime(time.Duration) {
+}
+
+func prepareEdvRecipientKeyType(keystoreKeyType string) (arieskms.KeyType, error) {
+	switch {
+	case strings.EqualFold(keystoreKeyType, arieskms.NISTP256ECDHKW):
+		return arieskms.NISTP256ECDHKWType, nil
+
+	case strings.EqualFold(keystoreKeyType, arieskms.NISTP384ECDHKW):
+		return arieskms.NISTP384ECDHKWType, nil
+
+	case strings.EqualFold(keystoreKeyType, arieskms.NISTP521ECDHKW):
+		return arieskms.NISTP521ECDHKWType, nil
+
+	case strings.EqualFold(keystoreKeyType, arieskms.X25519ECDHKW):
+		return arieskms.X25519ECDHKWType, nil
+
+	// If key type is not set use NISTP256ECDHKW as the default
+	case keystoreKeyType == "":
+		return arieskms.NISTP256ECDHKWType, nil
+
+	default:
+		return "", errors.New("keystore key not set to a valid type")
+	}
 }
