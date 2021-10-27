@@ -128,6 +128,12 @@ const (
 	syncTimeoutFlagUsage = "Total time in seconds to resolve config values." +
 		" Alternatively, this can be set with the following environment variable: " + syncTimeoutEnvKey
 	syncTimeoutEnvKey = "KMS_SYNC_TIMEOUT"
+
+	edvRecipientKeyTypeFlagName  = "edv-recipient-key-type"
+	edvRecipientKeyTypeEnvKey    = "KMS_EDV_RECIPIENT_KEY_TYPE"
+	edvRecipientKeyTypeFlagUsage = "Type of EDV recipient key. " +
+		"Possible values NISTP256ECDHKW, NISTP384ECDHKW, NISTP521ECDHKW or X25519ECDHKW. " +
+		commonEnvVarUsageText + edvRecipientKeyTypeEnvKey
 )
 
 const (
@@ -157,6 +163,7 @@ type kmsRestParameters struct {
 	enableCORS            bool
 	didDomain             string
 	syncTimeout           uint64
+	edvRecipientKeyType   string
 }
 
 type tlsServeParameters struct {
@@ -243,6 +250,12 @@ func getKmsRestParameters(cmd *cobra.Command) (*kmsRestParameters, error) { //no
 		return nil, err
 	}
 
+	edvRecipientKeyType, err := cmdutils.GetUserSetVarFromString(cmd, edvRecipientKeyTypeFlagName,
+		edvRecipientKeyTypeEnvKey, true)
+	if err != nil {
+		return nil, err
+	}
+
 	if syncTimeoutStr == "" {
 		syncTimeoutStr = defaultSyncTimeout
 	}
@@ -289,6 +302,7 @@ func getKmsRestParameters(cmd *cobra.Command) (*kmsRestParameters, error) { //no
 		enableCORS:            enableCORS,
 		didDomain:             didDomain,
 		syncTimeout:           syncTimeout,
+		edvRecipientKeyType:   edvRecipientKeyType,
 	}, nil
 }
 
@@ -429,4 +443,6 @@ func createFlags(startCmd *cobra.Command) {
 	startCmd.Flags().StringP(didDomainFlagName, "", "", didDomainFlagUsage)
 
 	startCmd.Flags().String(syncTimeoutFlagName, "", syncTimeoutFlagUsage)
+
+	startCmd.Flags().String(edvRecipientKeyTypeFlagName, "", edvRecipientKeyTypeFlagUsage)
 }
