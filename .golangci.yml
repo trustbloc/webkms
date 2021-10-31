@@ -10,7 +10,6 @@ run:
   issues-exit-code: 1
   tests: true
   build-tags: [""]
-  skip-dirs:  [""]
 
 output:
   format: colored-line-number
@@ -31,7 +30,9 @@ linters-settings:
   goimports:
     local-prefixes: github.com/trustbloc/kms
   gocyclo:
-    min-complexity: 10
+    min-complexity: 15
+  cyclop:
+    max-complexity: 15
   maligned:
     suggest-new: true
   dupl:
@@ -60,6 +61,7 @@ linters-settings:
       - opinionated
     disabled-checks:
       - unnamedResult
+      - whyNoLint
   funlen:
     lines: 60
     statements: 40
@@ -69,8 +71,6 @@ linters-settings:
     allow-multiline-assign: true
     allow-case-traling-whitespace: true
     allow-cuddle-declarations: false
-  testpackage:
-    skip-regexp: (main|start)_test\.go # TODO(#72): Enable testpackage linter option for cmd packages
 
 linters:
   enable-all: true
@@ -86,7 +86,8 @@ linters:
     - cyclop # for calculating cyclomatic complexities `gocyclo` is used
     - gomoddirectives
     - forbidigo
-    - wrapcheck # TODO: Enable
+    - wrapcheck
+    - stylecheck
 
 issues:
   exclude-use-default: false
@@ -102,6 +103,6 @@ issues:
         - lll
 
   exclude:
-    -  Line contains TODO/BUG/FIXME
-    # Add comments for package
-    -  at least one file in a package should have a package comment
+    - Line contains TODO/BUG/FIXME
+    # Allow package logger variables
+    - logger is a global variable

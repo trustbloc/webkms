@@ -14,9 +14,9 @@ import (
 	"os"
 
 	"github.com/hyperledger/aries-framework-go/component/storageutil/mem"
+	"github.com/hyperledger/aries-framework-go/pkg/common/log"
 	"github.com/hyperledger/aries-framework-go/spi/storage"
-	"github.com/trustbloc/edge-core/pkg/log"
-	tlsutils "github.com/trustbloc/edge-core/pkg/utils/tls"
+	tlsutil "github.com/trustbloc/edge-core/pkg/utils/tls"
 )
 
 var logger = log.New("mock-login-consent")
@@ -72,7 +72,7 @@ func loadConfig() (*config, error) {
 		return nil, fmt.Errorf("env variable ROOT_CA_CERTS_PATH required")
 	}
 
-	rootCACerts, err := tlsutils.GetCertPool(false, []string{rootCaCertsPath})
+	rootCACerts, err := tlsutil.GetCertPool(false, []string{rootCaCertsPath})
 	if err != nil {
 		return nil, fmt.Errorf("failed to init tls cert pool from path %s: %w", rootCaCertsPath, err)
 	}

@@ -37,18 +37,17 @@ import (
 	"github.com/trustbloc/edge-core/pkg/zcapld"
 	authbddctx "github.com/trustbloc/hub-auth/test/bdd/pkg/context"
 
-	zcapld2 "github.com/trustbloc/kms/pkg/auth/zcapld"
-	"github.com/trustbloc/kms/pkg/restapi/kms/operation"
+	zcapsvc "github.com/trustbloc/kms/pkg/zcapld"
 	bddcontext "github.com/trustbloc/kms/test/bdd/pkg/context"
 	"github.com/trustbloc/kms/test/bdd/pkg/internal/cryptoutil"
 )
 
 const (
-	createKeystoreEndpoint = "/kms/keystores"
-	keysEndpoint           = "/kms/keystores/{keystoreID}/keys"
-	exportKeyEndpoint      = "/kms/keystores/{keystoreID}/keys/{keyID}/export"
-	signEndpoint           = "/kms/keystores/{keystoreID}/keys/{keyID}/sign"
-	capabilityEndpoint     = "/kms/keystores/{keystoreID}/capability"
+	createKeystoreEndpoint = "/v1/keystore"
+	keysEndpoint           = "/v1/keystore/{keystoreID}/key"
+	exportKeyEndpoint      = "/v1/keystore/{keystoreID}/key/{keyID}/export"
+	signEndpoint           = "/v1/keystore/{keystoreID}/key/{keyID}/sign"
+	capabilityEndpoint     = "/v1/keystore/{keystoreID}/capability"
 )
 
 // Steps defines steps context for the KMS operations.
@@ -80,10 +79,10 @@ func (s *Steps) SetContext(ctx *bddcontext.BDDContext) {
 // RegisterSteps defines scenario steps.
 func (s *Steps) RegisterSteps(ctx *godog.ScenarioContext) {
 	// common creation steps
-	ctx.Step(`^"([^"]*)" wallet has stored secret on Hub Auth$`, s.storeSecretInHubAuth)
+	ctx.Step(`^"([^"]*)" wallet has stored secret on Auth server$`, s.storeSecretInHubAuth)
 	ctx.Step(`^"([^"]*)" has created a data vault on EDV for storing keys$`, s.createEDVDataVault)
-	ctx.Step(`^"([^"]*)" has created an empty keystore on Key Server$`, s.createKeystore)
-	ctx.Step(`^"([^"]*)" has created a keystore with "([^"]*)" key on Key Server$`, s.createKeystoreAndKey)
+	ctx.Step(`^"([^"]*)" has created an empty keystore on key server$`, s.createKeystore)
+	ctx.Step(`^"([^"]*)" has created a keystore with "([^"]*)" key on key server$`, s.createKeystoreAndKey)
 	// common response checking steps
 	ctx.Step(`^"([^"]*)" gets a response with HTTP status "([^"]*)"$`, s.checkRespStatus)
 	ctx.Step(`^"([^"]*)" gets a response with HTTP status "([^"]*)" for each request$`, s.checkMultiRespStatus)
@@ -175,7 +174,9 @@ func (s *Steps) updateCapability(u *user) error {
 		return err
 	}
 
-	r := &operation.UpdateCapabilityReq{
+	r := struct {
+		EDVCapability json.RawMessage `json:"edvCapability,omitempty"`
+	}{
 		EDVCapability: chainCapabilityBytes,
 	}
 
@@ -1015,7 +1016,7 @@ func delegateCapability(c *zcapld.Capability, s signer, verificationMethod, invo
 		return "", fmt.Errorf("failed to delegate zcap unto user: %w", err)
 	}
 
-	compressed, err := zcapld2.CompressZCAP(delegatedCapability)
+	compressed, err := zcapsvc.CompressZCAP(delegatedCapability)
 	if err != nil {
 		return "", fmt.Errorf("failed to compress zcap: %w", err)
 	}

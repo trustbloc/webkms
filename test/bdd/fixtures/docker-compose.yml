@@ -22,10 +22,10 @@ services:
 
   kms-1.trustbloc.local:
     container_name: kms-1.trustbloc.local
-    image: ${KMS_REST_IMAGE}:latest
+    image: ${KMS_SERVER_IMAGE}:latest
     environment:
-      - KMS_HOST_URL=0.0.0.0:8074
-      - KMS_HOST_METRICS_URL=0.0.0.0:48831
+      - KMS_HOST=0.0.0.0:8074
+      - KMS_METRICS_HOST=0.0.0.0:48831
       - KMS_BASE_URL=https://kms.trustbloc.local:8076
       - KMS_TLS_CACERTS=/etc/tls/ec-cacert.pem
       - KMS_TLS_SERVE_CERT=/etc/tls/ec-pubCert.pem
@@ -33,21 +33,15 @@ services:
       - KMS_DATABASE_TYPE=mongodb
       - KMS_DATABASE_URL=mongodb://mongodb.example.com:27017
       - KMS_DATABASE_PREFIX=opskms_
-      - KMS_SECRET_LOCK_KEY_PATH=/etc/tls/secret-lock.key
-      - KMS_USER_KEYS_STORAGE_TYPE=edv
-      - KMS_USER_KEYS_STORAGE_URL=https://edv.trustbloc.local:8081
       - KMS_CACHE_EXPIRATION=10m
       - KMS_ZCAP_ENABLE=true
       - KMS_LOG_LEVEL=debug
-      - KMS_EDV_RECIPIENT_KEY_TYPE=NISTP384ECDHKW
     ports:
       - 8074:8074
       - 48831:48831
-    entrypoint: ""
-    # TODO add retry for mongodb
-    command: /bin/sh -c "sleep 5;kms-rest start"
     volumes:
       - ./keys/tls:/etc/tls
+    command: start
     depends_on:
       - mongodb.example.com
       - edv.trustbloc.local
@@ -56,10 +50,10 @@ services:
 
   kms-2.trustbloc.local:
     container_name: kms-2.trustbloc.local
-    image: ${KMS_REST_IMAGE}:latest
+    image: ${KMS_SERVER_IMAGE}:latest
     environment:
-      - KMS_HOST_URL=0.0.0.0:8074
-      - KMS_HOST_METRICS_URL=0.0.0.0:48832
+      - KMS_HOST=0.0.0.0:8074
+      - KMS_METRICS_HOST=0.0.0.0:48832
       - KMS_BASE_URL=https://kms.trustbloc.local:8076
       - KMS_TLS_CACERTS=/etc/tls/ec-cacert.pem
       - KMS_TLS_SERVE_CERT=/etc/tls/ec-pubCert.pem
@@ -67,21 +61,15 @@ services:
       - KMS_DATABASE_TYPE=mongodb
       - KMS_DATABASE_URL=mongodb://mongodb.example.com:27017
       - KMS_DATABASE_PREFIX=opskms_
-      - KMS_SECRET_LOCK_KEY_PATH=/etc/tls/secret-lock.key
-      - KMS_USER_KEYS_STORAGE_TYPE=edv
-      - KMS_USER_KEYS_STORAGE_URL=https://edv.trustbloc.local:8081
       - KMS_CACHE_EXPIRATION=10m
       - KMS_ZCAP_ENABLE=true
       - KMS_LOG_LEVEL=debug
-      - KMS_EDV_RECIPIENT_KEY_TYPE=NISTP384ECDHKW
     ports:
       - 8075:8075
       - 48832:48832
-    entrypoint: ""
-    # TODO add retry for mongodb
-    command: /bin/sh -c "sleep 5;kms-rest start"
     volumes:
       - ./keys/tls:/etc/tls
+    command: start
     depends_on:
       - mongodb.example.com
       - edv.trustbloc.local
@@ -90,9 +78,9 @@ services:
 
   authz-kms.trustbloc.local:
     container_name: authz-kms.trustbloc.local
-    image: ${KMS_REST_IMAGE}:latest
+    image: ${KMS_SERVER_IMAGE}:latest
     environment:
-      - KMS_HOST_URL=0.0.0.0:8077
+      - KMS_HOST=0.0.0.0:8077
       - KMS_BASE_URL=https://authz-kms.trustbloc.local:8077
       - KMS_TLS_CACERTS=/etc/tls/ec-cacert.pem
       - KMS_TLS_SERVE_CERT=/etc/tls/ec-pubCert.pem
@@ -100,20 +88,15 @@ services:
       - KMS_DATABASE_TYPE=mongodb
       - KMS_DATABASE_URL=mongodb://mongodb.example.com:27017
       - KMS_DATABASE_PREFIX=authzkms_
-      - KMS_SECRET_LOCK_KEY_PATH=/etc/tls/secret-lock.key
-      - KMS_USER_KEYS_STORAGE_TYPE=mongodb
-      - KMS_USER_KEYS_STORAGE_URL=mongodb://mongodb.example.com:27017
-      - KMS_USER_KEYS_STORAGE_PREFIX=authzkmskeys_
-      - KMS_HUB_AUTH_URL=https://hub-auth.trustbloc.local:8070
-      - KMS_HUB_AUTH_API_TOKEN=test_token
+      - KMS_AUTH_SERVER_URL=https://hub-auth.trustbloc.local:8070
+      - KMS_AUTH_SERVER_API_TOKEN=test_token
       - KMS_CACHE_EXPIRATION=10m
       - KMS_LOG_LEVEL=debug
     ports:
       - 8077:8077
-    entrypoint: ""
-    command: /bin/sh -c "sleep 5;kms-rest start"
     volumes:
       - ./keys/tls:/etc/tls
+    command: start
     depends_on:
       - mongodb.example.com
       - edv.trustbloc.local

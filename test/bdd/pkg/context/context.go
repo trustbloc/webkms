@@ -17,16 +17,16 @@ import (
 	"github.com/hyperledger/aries-framework-go/pkg/secretlock"
 	"github.com/hyperledger/aries-framework-go/pkg/secretlock/noop"
 	ariesstorage "github.com/hyperledger/aries-framework-go/spi/storage"
-	tlsutils "github.com/trustbloc/edge-core/pkg/utils/tls"
+	tlsutil "github.com/trustbloc/edge-core/pkg/utils/tls"
 )
 
 // BDDContext is a global context shared between different test suites in bdd tests.
 type BDDContext struct {
-	KeyServerURL      string
-	AuthZKeyServerURL string
-	EDVServerURL      string
-	HubAuthURL        string
-	tlsConfig         *tls.Config
+	KeyServerURL     string
+	AuthKeyServerURL string
+	EDVServerURL     string
+	AuthServerURL string
+	tlsConfig     *tls.Config
 	KeyManager        kms.KeyManager
 	Crypto            cryptoapi.Crypto
 }
@@ -46,7 +46,7 @@ func (k kmsProvider) SecretLock() secretlock.Service {
 
 // NewBDDContext creates a new BDD context.
 func NewBDDContext(caCertPath string) (*BDDContext, error) {
-	rootCAs, err := tlsutils.GetCertPool(false, []string{caCertPath})
+	rootCAs, err := tlsutil.GetCertPool(false, []string{caCertPath})
 	if err != nil {
 		return nil, err
 	}

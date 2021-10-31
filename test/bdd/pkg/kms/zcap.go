@@ -54,7 +54,7 @@ func newAuthzKMSSigner(s *Steps, authzUser *user) *authzKMSSigner {
 
 func (a *authzKMSSigner) Sign(data []byte) ([]byte, error) {
 	enc := base64.URLEncoding.EncodeToString(data)
-	uri := a.s.bddContext.AuthZKeyServerURL + signEndpoint
+	uri := a.s.bddContext.AuthKeyServerURL + signEndpoint
 
 	if err := a.s.makeSignMessageReqAuthzKMS(a.authzUser, uri, enc); err != nil {
 		return nil, err

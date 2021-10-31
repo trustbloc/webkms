@@ -5,7 +5,7 @@
       "url": "https://authz-kms.trustbloc.local:8077"
     },
     "match": {
-      "url": "https://localhost:4455/kms/keystores",
+      "url": "https://localhost:4455/v1/keystore",
       "methods": ["POST"]
     },
     "authenticators": [{
@@ -31,7 +31,7 @@
       "url": "https://authz-kms.trustbloc.local:8077"
     },
     "match": {
-      "url": "https://localhost:4455/kms/keystores/<*>",
+      "url": "https://localhost:4455/v1/keystore/<*>",
       "methods": ["POST", "GET"]
     },
     "authenticators": [{

@@ -7,7 +7,7 @@
 name: "kms ci"
 
 env:
-  GO_VERSION: 1.16
+  GO_VERSION: 1.17
 
 on:
   push:
@@ -124,7 +124,7 @@ jobs:
         uses: docker/build-push-action@v2
         with:
           context: .
-          file: ./images/kms-rest/Dockerfile
+          file: ./images/kms-server/Dockerfile
           platforms: linux/amd64,linux/arm64
           build-args: |
             ALPINE_VER=3.12

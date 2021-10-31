@@ -11,6 +11,3 @@ coverage:
       default:
         target: 85%
         only_pulls: true
-
-ignore:
-  - "test/bdd"  # ignore bdd tests

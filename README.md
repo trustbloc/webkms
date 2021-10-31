@@ -13,8 +13,8 @@ The TrustBloc kms is an implementation of the remote Key Management System. It e
 ## Documentation
 
 - [Build](docs/build.md)
-- [Run via CLI](docs/kms_rest_cli.md)
-- [Run as a Docker container](docs/kms_rest_docker.md)
+- [Run via CLI](docs/kms_server_cli.md)
+- [Run as a Docker container](docs/kms_server_docker.md)
 - [OpenAPI spec and demo](docs/openapi.md)
 
 ## Contributing
