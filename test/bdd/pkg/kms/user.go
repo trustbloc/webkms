@@ -23,7 +23,7 @@ import (
 	"github.com/igor-pavlenko/httpsignatures-go"
 	"github.com/trustbloc/edge-core/pkg/zcapld"
 
-	zcapld2 "github.com/trustbloc/kms/pkg/auth/zcapld"
+	zcapld2 "github.com/trustbloc/kms/pkg/zcapld"
 )
 
 type user struct {

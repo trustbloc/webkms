@@ -55,7 +55,7 @@ func (s *Steps) storeSecretInHubAuth(userName string) error {
 		Secret: secretB,
 	}
 
-	request, err := u.preparePostRequest(r, s.bddContext.HubAuthURL+secretEndpoint)
+	request, err := u.preparePostRequest(r, s.bddContext.AuthServerURL+secretEndpoint)
 	if err != nil {
 		return err
 	}
@@ -131,7 +131,7 @@ func (s *Steps) createEDVDataVault(userName string) error {
 	}
 
 	u.authCrypto = &remoteAuthCrypto{
-		baseURL: s.bddContext.AuthZKeyServerURL,
+		baseURL: s.bddContext.AuthKeyServerURL,
 		httpClient: &http.Client{
 			Transport: &http.Transport{
 				TLSClientConfig: s.bddContext.TLSConfig(),
@@ -150,12 +150,12 @@ func (s *Steps) prepareDataVaultConfig(u *user) (*models.DataVaultConfiguration,
 	}
 
 	if errCreate := s.makeCreateKeyReqAuthzKMS(u,
-		s.bddContext.AuthZKeyServerURL+keysEndpoint, "ED25519"); errCreate != nil {
+		s.bddContext.AuthKeyServerURL+keysEndpoint, "ED25519"); errCreate != nil {
 		return nil, fmt.Errorf("failed to create auth keystore key: %w", errCreate)
 	}
 
 	if errExport := s.makeExportPubKeyReqAuthzKMS(u,
-		s.bddContext.AuthZKeyServerURL+exportKeyEndpoint); errExport != nil {
+		s.bddContext.AuthKeyServerURL+exportKeyEndpoint); errExport != nil {
 		return nil, fmt.Errorf("failed to export authz keystore key: %w", errExport)
 	}
 
@@ -177,7 +177,7 @@ func (s *Steps) createKeystoreAuthzKMS(u *user) error {
 		Controller: u.name,
 	}
 
-	request, err := u.preparePostRequest(r, s.bddContext.AuthZKeyServerURL+createKeystoreEndpoint)
+	request, err := u.preparePostRequest(r, s.bddContext.AuthKeyServerURL+createKeystoreEndpoint)
 	if err != nil {
 		return err
 	}

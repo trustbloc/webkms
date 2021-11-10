@@ -4,30 +4,8 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
-# Binaries for programs and plugins
-*.exe
-*.exe~
-*.dll
-*.so
-*.dylib
-
-# Editor and go temporary files & folders
-.swp
-vendor
-
-# Test binary, build with `go test -c`
-*.test
-
-# Output of the go coverage tool, specifically when used with LiteIDE
-*.out
-.idea
-.DS_Store
-
+build/
+.idea/
 coverage.out
-
-# Exclude build directory
-.build
-*.log
-
 test/bdd/fixtures/keys
-test/bdd/fixtures/openapi-demo/specs/
+openAPI.yml

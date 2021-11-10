@@ -30,7 +30,7 @@ type Steps struct {
 
 // NewSteps creates a new Steps.
 func NewSteps() *Steps {
-	return &Steps{logger: log.New("kms-rest/tests/common")}
+	return &Steps{logger: log.New("kms/tests/common")}
 }
 
 // SetContext sets a fresh context for every scenario.
@@ -40,10 +40,10 @@ func (s *Steps) SetContext(ctx *context.BDDContext) {
 
 // RegisterSteps defines scenario steps.
 func (s *Steps) RegisterSteps(ctx *godog.ScenarioContext) {
-	ctx.Step(`^Key Server is running on "([^"]*)" port "([^"]*)"$`, s.checkKeyServerIsRun)
-	ctx.Step(`^AuthZ Key Server is running on "([^"]*)" port "([^"]*)"$`, s.checkAuthzKeyServerIsRun)
+	ctx.Step(`^Key server is running on "([^"]*)" port "([^"]*)"$`, s.checkKeyServerIsRun)
+	ctx.Step(`^Auth key server is running on "([^"]*)" port "([^"]*)"$`, s.checkAuthKeyServerIsRun)
 	ctx.Step(`^EDV is running on "([^"]*)" port "([^"]*)"$`, s.checkEDVServerIsRun)
-	ctx.Step(`^Hub Auth is running on "([^"]*)" port "([^"]*)"$`, s.checkHubAuthIsRun)
+	ctx.Step(`^Auth server is running on "([^"]*)" port "([^"]*)"$`, s.checkAuthServerIsRun)
 }
 
 func (s *Steps) checkKeyServerIsRun(host string, port int) error {
@@ -57,13 +57,13 @@ func (s *Steps) checkKeyServerIsRun(host string, port int) error {
 	return nil
 }
 
-func (s *Steps) checkAuthzKeyServerIsRun(host string, port int) error {
+func (s *Steps) checkAuthKeyServerIsRun(host string, port int) error {
 	url, err := s.healthCheck(host, port)
 	if err != nil {
 		return err
 	}
 
-	s.bddContext.AuthZKeyServerURL = url
+	s.bddContext.AuthKeyServerURL = url
 
 	return nil
 }
@@ -79,13 +79,13 @@ func (s *Steps) checkEDVServerIsRun(host string, port int) error {
 	return nil
 }
 
-func (s *Steps) checkHubAuthIsRun(host string, port int) error {
+func (s *Steps) checkAuthServerIsRun(host string, port int) error {
 	url, err := s.healthCheck(host, port)
 	if err != nil {
 		return err
 	}
 
-	s.bddContext.HubAuthURL = url
+	s.bddContext.AuthServerURL = url
 
 	return nil
 }
