@@ -16,7 +16,7 @@
         "handler": "header",
         "config": {
           "headers": {
-            "Hub-Kms-User": "{{ print .Subject }}"
+            "Kms-User": "{{ print .Subject }}"
           }
         }
       }
@@ -42,7 +42,7 @@
         "handler": "header",
         "config": {
           "headers": {
-            "Hub-Kms-User": "{{ print .Subject }}"
+            "Kms-User": "{{ print .Subject }}"
           }
         }
       }

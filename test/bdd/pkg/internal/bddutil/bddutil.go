@@ -31,5 +31,10 @@ func HTTPDo(method, url string, headers map[string]string, body io.Reader,
 		},
 	}
 
-	return httpClient.Do(req)
+	resp, err := httpClient.Do(req)
+	if err != nil {
+		return nil, err
+	}
+
+	return resp, nil
 }

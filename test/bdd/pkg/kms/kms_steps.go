@@ -65,7 +65,7 @@ func NewSteps(authBDDContext *authbddctx.BDDContext, tlsConfig *tls.Config) *Ste
 	return &Steps{
 		authBDDContext: authBDDContext,
 		httpClient:     &http.Client{Transport: &http.Transport{TLSClientConfig: tlsConfig}},
-		logger:         log.New("kms-rest/tests/kms"),
+		logger:         log.New("kms/tests/kms"),
 		users:          map[string]*user{},
 		keys:           map[string][]byte{"testCEK": cryptoutil.GenerateKey()},
 	}
@@ -79,10 +79,10 @@ func (s *Steps) SetContext(ctx *bddcontext.BDDContext) {
 // RegisterSteps defines scenario steps.
 func (s *Steps) RegisterSteps(ctx *godog.ScenarioContext) {
 	// common creation steps
-	ctx.Step(`^"([^"]*)" wallet has stored secret on Auth server$`, s.storeSecretInHubAuth)
+	ctx.Step(`^"([^"]*)" wallet has stored secret on Hub Auth$`, s.storeSecretInHubAuth)
 	ctx.Step(`^"([^"]*)" has created a data vault on EDV for storing keys$`, s.createEDVDataVault)
-	ctx.Step(`^"([^"]*)" has created an empty keystore on key server$`, s.createKeystore)
-	ctx.Step(`^"([^"]*)" has created a keystore with "([^"]*)" key on key server$`, s.createKeystoreAndKey)
+	ctx.Step(`^"([^"]*)" has created an empty keystore on Key Server$`, s.createKeystore)
+	ctx.Step(`^"([^"]*)" has created a keystore with "([^"]*)" key on Key Server$`, s.createKeystoreAndKey)
 	// common response checking steps
 	ctx.Step(`^"([^"]*)" gets a response with HTTP status "([^"]*)"$`, s.checkRespStatus)
 	ctx.Step(`^"([^"]*)" gets a response with HTTP status "([^"]*)" for each request$`, s.checkMultiRespStatus)

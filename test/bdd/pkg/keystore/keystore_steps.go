@@ -10,7 +10,9 @@ import (
 	"bytes"
 	"compress/gzip"
 	"encoding/base64"
+	"encoding/json"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"net/http"
 	"net/url"
@@ -39,7 +41,7 @@ const (
 type Steps struct {
 	bddContext     *context.BDDContext
 	status         string
-	headers        http.Header
+	response       []byte
 	logger         log.Logger
 	authBDDContext *authbddctx.BDDContext
 }
@@ -60,7 +62,7 @@ func (s *Steps) SetContext(ctx *context.BDDContext) {
 // RegisterSteps defines scenario steps.
 func (s *Steps) RegisterSteps(ctx *godog.ScenarioContext) {
 	ctx.Step(`^user makes an HTTP POST to "([^"]*)" to create a keystore$`, s.sendCreateKeystoreRequest)
-	ctx.Step(`^user gets a response with HTTP status "([^"]*)" and with valid "([^"]*)" and "([^"]*)" headers$`,
+	ctx.Step(`^user gets a response with HTTP status "([^"]*)" and valid key store URL and root capabilities$`,
 		s.checkResponse)
 }
 
@@ -91,27 +93,37 @@ func (s *Steps) sendCreateKeystoreRequest(endpoint string) error {
 	}()
 
 	s.status = resp.Status
-	s.headers = resp.Header
+
+	respBody, er := io.ReadAll(resp.Body)
+	if er != nil {
+		return fmt.Errorf("read response body: %w", er)
+	}
+
+	s.response = respBody
 
 	return nil
 }
 
-func (s *Steps) checkResponse(status, locationHeader, capabilityHeader string) error {
+func (s *Steps) checkResponse(status string) error {
 	if s.status != status {
 		return fmt.Errorf("expected HTTP response status %q, got: %q", status, s.status)
 	}
 
-	_, err := url.ParseRequestURI(s.headers.Get(locationHeader))
+	var resp struct {
+		KeyStoreURL    string `json:"key_store_url"`
+		RootCapability []byte `json:"root_capability"`
+	}
+
+	if err := json.Unmarshal(s.response, &resp); err != nil {
+		return fmt.Errorf("%s", err)
+	}
+
+	_, err := url.ParseRequestURI(resp.KeyStoreURL)
 	if err != nil {
-		return fmt.Errorf("expected %q header to be a valid URL, got error: %w", locationHeader, err)
+		return fmt.Errorf("invalid key store URL: %w", err)
 	}
 
-	encoded := s.headers.Get(capabilityHeader)
-	if encoded == "" {
-		return fmt.Errorf("header '%s' not found in response", capabilityHeader)
-	}
-
-	decoded, err := base64.URLEncoding.DecodeString(encoded)
+	decoded, err := base64.URLEncoding.DecodeString(string(resp.RootCapability))
 	if err != nil {
 		return fmt.Errorf("failed to base64-decode capability header: %w", err)
 	}

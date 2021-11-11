@@ -41,7 +41,7 @@ const (
 type keyStoreMeta struct {
 	ID         string        `json:"id"`
 	Controller string        `json:"controller"`
-	MainKeyURI string        `json:"main_key_uri"`
+	MainKeyID  string        `json:"main_key_id"`
 	EDV        edvParameters `json:"edv,omitempty"`
 	CreatedAt  time.Time     `json:"created_at"`
 }
@@ -57,7 +57,7 @@ type edvParameters struct {
 func (c *Command) CreateKeyStore(w io.Writer, r io.Reader) error { //nolint:funlen
 	var req CreateKeyStoreRequest
 
-	wr, err := unwrapRequest(req, r)
+	wr, err := unwrapRequest(&req, r)
 	if err != nil {
 		return fmt.Errorf("unwrap request: %w", err)
 	}
@@ -67,7 +67,7 @@ func (c *Command) CreateKeyStore(w io.Writer, r io.Reader) error { //nolint:funl
 	}
 
 	var (
-		mainKeyURI      string
+		mainKeyID       string
 		edvParams       edvParameters
 		storageProvider storage.Provider
 	)
@@ -89,12 +89,10 @@ func (c *Command) CreateKeyStore(w io.Writer, r io.Reader) error { //nolint:funl
 			return fmt.Errorf("create shamir secret lock: %w", err)
 		}
 	} else { // key-based secret lock
-		keyID, _, createErr := c.kms.Create(c.mainKeyType)
-		if createErr != nil {
-			return fmt.Errorf("create main key: %w", createErr)
+		mainKeyID, _, err = c.kms.Create(c.mainKeyType)
+		if err != nil {
+			return fmt.Errorf("create main key: %w", err)
 		}
-
-		mainKeyURI = localKeyURIPrefix + keyID
 
 		secretLock = key.NewLock(&keyLockProvider{
 			kms:    c.kms,
@@ -105,12 +103,16 @@ func (c *Command) CreateKeyStore(w io.Writer, r io.Reader) error { //nolint:funl
 	meta := &keyStoreMeta{
 		ID:         xid.New().String(),
 		Controller: req.Controller,
-		MainKeyURI: mainKeyURI,
+		MainKeyID:  mainKeyID,
 		EDV:        edvParams,
 		CreatedAt:  time.Now().UTC(),
 	}
 
-	_, err = c.keyStoreCreator.Create(mainKeyURI, &keyStoreProvider{
+	if mainKeyID == "" {
+		mainKeyID = "noop"
+	}
+
+	_, err = c.keyStoreCreator.Create(localKeyURIPrefix+mainKeyID, &keyStoreProvider{
 		storageProvider: storageProvider,
 		secretLock:      secretLock,
 	})
@@ -129,10 +131,15 @@ func (c *Command) CreateKeyStore(w io.Writer, r io.Reader) error { //nolint:funl
 		return fmt.Errorf("save key store metadata: %w", err)
 	}
 
-	return json.NewEncoder(w).Encode(CreateKeyStoreResponse{
+	err = json.NewEncoder(w).Encode(CreateKeyStoreResponse{
 		KeyStoreURL:    keyStoreURL,
-		RootCapability: json.RawMessage(rootCapability),
+		RootCapability: []byte(rootCapability),
 	})
+	if err != nil {
+		return fmt.Errorf("encode CreateKeyStore response: %w", err)
+	}
+
+	return nil
 }
 
 func (c *Command) prepareEDVProvider(vaultURL string, capability []byte) (storage.Provider, edvParameters, error) {
@@ -296,16 +303,26 @@ func (c *Command) fetchSecretShare(sub string) ([]byte, error) {
 		return nil, fmt.Errorf("decode response body: %w", err)
 	}
 
-	return []byte(body.Secret), nil
+	secret, err := base64.StdEncoding.DecodeString(body.Secret)
+	if err != nil {
+		return nil, fmt.Errorf("decode secret: %w", err)
+	}
+
+	return secret, nil
 }
 
 func getError(reader io.Reader) error {
+	body, er := io.ReadAll(reader)
+	if er != nil {
+		return fmt.Errorf("read body: %w", er)
+	}
+
 	var errMsg struct {
 		Message string `json:"message"`
 	}
 
-	if err := json.NewDecoder(reader).Decode(&errMsg); err != nil {
-		return fmt.Errorf("decode error response: %w", err)
+	if err := json.Unmarshal(body, &errMsg); err != nil {
+		return errors.New(string(body))
 	}
 
 	return errors.New(errMsg.Message)

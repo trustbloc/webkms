@@ -132,7 +132,7 @@ func (c *Command) CreateDID(w io.Writer, _ io.Reader) error {
 func (c *Command) CreateKey(w io.Writer, r io.Reader) error {
 	var req CreateKeyRequest
 
-	wr, err := unwrapRequest(req, r)
+	wr, err := unwrapRequest(&req, r)
 	if err != nil {
 		return fmt.Errorf("unwrap request: %w", err)
 	}
@@ -184,7 +184,7 @@ func (c *Command) ExportKey(w io.Writer, r io.Reader) error {
 func (c *Command) ImportKey(w io.Writer, r io.Reader) error {
 	var req ImportKeyRequest
 
-	wr, err := unwrapRequest(req, r)
+	wr, err := unwrapRequest(&req, r)
 	if err != nil {
 		return fmt.Errorf("unwrap request: %w", err)
 	}
@@ -233,7 +233,7 @@ func (c *Command) ImportKey(w io.Writer, r io.Reader) error {
 func (c *Command) Sign(w io.Writer, r io.Reader) error {
 	var req SignRequest
 
-	wr, err := unwrapRequest(req, r)
+	wr, err := unwrapRequest(&req, r)
 	if err != nil {
 		return fmt.Errorf("unwrap request: %w", err)
 	}
@@ -310,7 +310,13 @@ func (c *Command) resolveKeyStore(keyStoreID, user string, secretShare []byte) (
 		})
 	}
 
-	return c.keyStoreCreator.Create(meta.MainKeyURI, &keyStoreProvider{
+	keyID := meta.MainKeyID
+
+	if keyID == "" {
+		keyID = "noop"
+	}
+
+	return c.keyStoreCreator.Create(localKeyURIPrefix+keyID, &keyStoreProvider{
 		storageProvider: storageProvider,
 		secretLock:      secretLock,
 	})

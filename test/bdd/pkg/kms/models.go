@@ -12,7 +12,7 @@ type createKeystoreReq struct {
 }
 
 type createKeyReq struct {
-	KeyType   string `json:"keyType"`
+	KeyType   string `json:"key_type"`
 	ExportKey bool   `json:"export"`
 }
 
