@@ -13,7 +13,13 @@ import (
 	"strings"
 	"time"
 
+	"github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/aws/credentials"
+	"github.com/aws/aws-sdk-go/aws/session"
+	awskms "github.com/aws/aws-sdk-go/service/kms"
 	"github.com/cenkalti/backoff"
+	"github.com/google/tink/go/core/registry"
+	tinkawskms "github.com/google/tink/go/integration/awskms"
 	"github.com/gorilla/mux"
 	"github.com/hyperledger/aries-framework-go-ext/component/storage/couchdb"
 	"github.com/hyperledger/aries-framework-go-ext/component/storage/mongodb"
@@ -25,6 +31,7 @@ import (
 	"github.com/hyperledger/aries-framework-go/pkg/kms"
 	"github.com/hyperledger/aries-framework-go/pkg/kms/localkms"
 	"github.com/hyperledger/aries-framework-go/pkg/secretlock"
+	"github.com/hyperledger/aries-framework-go/pkg/secretlock/local"
 	"github.com/hyperledger/aries-framework-go/pkg/secretlock/noop"
 	ldstore "github.com/hyperledger/aries-framework-go/pkg/store/ld"
 	"github.com/hyperledger/aries-framework-go/pkg/vdr"
@@ -38,7 +45,12 @@ import (
 
 	"github.com/trustbloc/kms/pkg/controller/command"
 	"github.com/trustbloc/kms/pkg/controller/rest"
+	awssecretlock "github.com/trustbloc/kms/pkg/secretlock/aws"
 	zcapsvc "github.com/trustbloc/kms/pkg/zcapld"
+)
+
+const (
+	keystoreLocalPrimaryKeyURI = "local-lock://keystorekms"
 )
 
 var logger = log.New("kms-server")
@@ -84,7 +96,7 @@ func createStartCmd(srv server) *cobra.Command {
 	}
 }
 
-func startServer(srv server, params *serverParameters) error {
+func startServer(srv server, params *serverParameters) error { //nolint:funlen
 	rootCAs, err := tlsutil.GetCertPool(params.tlsParams.systemCertPool, params.tlsParams.caCerts)
 	if err != nil {
 		return fmt.Errorf("get cert pool: %w", err)
@@ -112,7 +124,7 @@ func startServer(srv server, params *serverParameters) error {
 		return fmt.Errorf("create store provider: %w", err)
 	}
 
-	kmsService, err := createKMS(store)
+	kmsService, err := createKMS(store, params.secretLockParams)
 	if err != nil {
 		return fmt.Errorf("create kms: %w", err)
 	}
@@ -242,11 +254,13 @@ func (p kmsProvider) SecretLock() secretlock.Service {
 	return p.secretLock
 }
 
-func createKMS(store storage.Provider) (kms.KeyManager, error) {
-	// TODO: Implement support for secret lock based on local.NewService() and private key from pem file
-	secretLock := &noop.NoLock{}
+func createKMS(store storage.Provider, secretLockParams *secretLockParameters) (kms.KeyManager, error) {
+	secretLock, primaryKeyURI, err := createSecretLock(secretLockParams)
+	if err != nil {
+		return nil, fmt.Errorf("create kms secretlock: %w", err)
+	}
 
-	return localkms.New("local-lock://noop", &kmsProvider{
+	return localkms.New(primaryKeyURI, &kmsProvider{
 		store:      store,
 		secretLock: secretLock,
 	})
@@ -262,6 +276,57 @@ func createVDR(didDomain string, tlsConfig *tls.Config) (zcapld.VDRResolver, err
 		vdr.WithVDR(vdrkey.New()),
 		vdr.WithVDR(orbVDR),
 	), nil
+}
+
+func createSecretLock(parameters *secretLockParameters) (secretlock.Service, string, error) {
+	if parameters.secretLockType == secretLockTypeAWSOption {
+		secretLock, err := createAwsSecretLock(parameters)
+
+		return secretLock, keystoreLocalPrimaryKeyURI /*parameters.awsKeyURI*/, err
+	}
+
+	if parameters.secretLockType == secretLockTypeLocalOption {
+		secretLock, err := createLocalSecretLock(parameters.localKeyPath)
+
+		return secretLock, keystoreLocalPrimaryKeyURI, err
+	}
+
+	return nil, "", fmt.Errorf("invalid secret lock key type: %s", parameters.secretLockType)
+}
+
+func createAwsSecretLock(parameters *secretLockParameters) (secretlock.Service, error) {
+	primaryKeyLock, err := awssecretlock.New(
+		parameters.awsKeyURI,
+
+		&awsProvider{
+			awsEndpoint:     parameters.awsEndpoint,
+			accessKeyID:     parameters.awsAccessKeyID,
+			secretAccessKey: parameters.awsSecretAccessKey,
+		},
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	return primaryKeyLock, nil
+}
+
+func createLocalSecretLock(keyPath string) (secretlock.Service, error) {
+	if keyPath == "" {
+		return &noop.NoLock{}, nil
+	}
+
+	primaryKeyReader, err := local.MasterKeyFromPath(keyPath)
+	if err != nil {
+		return nil, err
+	}
+
+	secretLock, err := local.NewService(primaryKeyReader, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return secretLock, nil
 }
 
 type ldStoreProvider struct {
@@ -306,4 +371,24 @@ type keyStoreCreator struct {
 
 func (c *keyStoreCreator) Create(keyURI string, provider kms.Provider) (kms.KeyManager, error) {
 	return localkms.New(keyURI, provider)
+}
+
+type awsProvider struct {
+	awsEndpoint     string
+	accessKeyID     string
+	secretAccessKey string
+}
+
+// NewSession creates a new AWS session with given credentials.
+func (a *awsProvider) NewSession(region string) (*session.Session, error) {
+	return session.NewSession(&aws.Config{
+		Endpoint:    &a.awsEndpoint,
+		Credentials: credentials.NewStaticCredentials(a.accessKeyID, a.secretAccessKey, ""),
+		Region:      aws.String(region),
+	})
+}
+
+// NewClient returns tink KMSClient that.
+func (a *awsProvider) NewClient(uriPrefix string, sess *session.Session) (registry.KMSClient, error) {
+	return tinkawskms.NewClientWithKMS(uriPrefix, awskms.New(sess))
 }

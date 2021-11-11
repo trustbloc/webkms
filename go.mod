@@ -7,7 +7,9 @@ module github.com/trustbloc/kms
 go 1.17
 
 require (
+	github.com/aws/aws-sdk-go v1.36.29
 	github.com/bluele/gcache v0.0.2
+	github.com/google/tink/go v1.6.1
 	github.com/google/uuid v1.3.0
 	github.com/gorilla/mux v1.7.3
 	github.com/hashicorp/vault v1.2.1-0.20200911125421-dba37adcb55a
@@ -30,9 +32,9 @@ require (
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/golang/protobuf v1.5.2 // indirect
 	github.com/golang/snappy v0.0.1 // indirect
-	github.com/google/tink/go v1.6.1 // indirect
 	github.com/hashicorp/errwrap v1.0.0 // indirect
 	github.com/jinzhu/copier v0.0.0-20190924061706-b57f9002281a // indirect
+	github.com/jmespath/go-jmespath v0.4.0 // indirect
 	github.com/kilic/bls12-381 v0.1.1-0.20210503002446-7b7597926c69 // indirect
 	github.com/minio/blake2b-simd v0.0.0-20160723061019-3f5f724cb5b1 // indirect
 	github.com/minio/sha256-simd v0.1.1 // indirect
