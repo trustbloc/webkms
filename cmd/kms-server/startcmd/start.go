@@ -144,7 +144,7 @@ func startServer(srv server, params *serverParameters) error {
 		Crypto:              cryptoService,
 		VDRResolver:         vdrResolver,
 		DocumentLoader:      documentLoader,
-		KeyStoreCreator:     nil,
+		KeyStoreCreator:     &keyStoreCreator{},
 		ZCAPService:         zcapService,
 		HeaderSigner:        zcapService,
 		HTTPClient:          httpClient,
@@ -299,4 +299,11 @@ func createJSONLDDocumentLoader(store storage.Provider) (jsonld.DocumentLoader, 
 	}
 
 	return documentLoader, nil
+}
+
+type keyStoreCreator struct {
+}
+
+func (c *keyStoreCreator) Create(keyURI string, provider kms.Provider) (kms.KeyManager, error) {
+	return localkms.New(keyURI, provider)
 }
