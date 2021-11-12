@@ -83,8 +83,8 @@ const (
 	authServerURLFlagUsage = "The URL of Auth server to use for fetching secret share for shamir secret lock. " +
 		"If not specified secret lock based on key is used. " + commonEnvVarUsageText + authServerURLEnvKey
 
-	authServerTokenEnvKey    = "KMS_AUTH_SERVER_TOKEN"
-	authServerTokenFlagName  = "auth-server-token"
+	authServerTokenEnvKey    = "KMS_AUTH_SERVER_TOKEN" //nolint:gosec // not hard-coded credentials
+	authServerTokenFlagName  = "auth-server-token"     //nolint:gosec // not hard-coded credentials
 	authServerTokenFlagUsage = "A static token used to protect the GET /secrets API in Auth server. " +
 		commonEnvVarUsageText + authServerTokenEnvKey
 
@@ -107,24 +107,60 @@ const (
 	logLevelFlagName  = "log-level"
 	logLevelFlagUsage = "Logging level. Supported options: critical, error, warning, info, debug. Defaults to info. " +
 		commonEnvVarUsageText + logLevelEnvKey
+
+	secretLockTypeFlagName  = "secret-lock-type"
+	secretLockTypeEnvKey    = "KMS_SECRET_LOCK_TYPE" //nolint:gosec // not hard-coded credentials
+	secretLockTypeFlagUsage = "Type of a secret lock used to protect server KMS. Supported options: local, aws. " +
+		commonEnvVarUsageText + secretLockTypeEnvKey
+
+	secretLockKeyPathFlagName  = "secret-lock-key-path"
+	secretLockKeyPathEnvKey    = "KMS_SECRET_LOCK_KEY_PATH" //nolint:gosec // not hard-coded credentials
+	secretLockKeyPathFlagUsage = "The path to the file with key to be used by local secret lock. If missing noop " +
+		"service lock is used. " + commonEnvVarUsageText + secretLockKeyPathEnvKey
+
+	secretLockAWSKeyURIFlagName  = "secret-lock-aws-key-uri"
+	secretLockAWSKeyURIEnvKey    = "KMS_SECRET_LOCK_AWS_KEY_URI" //nolint:gosec // not hard-coded credentials
+	secretLockAWSKeyURIFlagUsage = "The URI of AWS key to be used by server secret lock" +
+		"if the secret lock key type is aws." + commonEnvVarUsageText + secretLockAWSKeyURIEnvKey
+
+	secretLockAWSAccessKeyFlagName  = "secret-lock-aws-access-key"
+	secretLockAWSAccessKeyEnvKey    = "KMS_SECRET_LOCK_AWS_ACCESS_KEY" //nolint:gosec // not hard-coded credentials
+	secretLockAWSAccessKeyFlagUsage = "The AWS access key ID to be used by server secret lock " +
+		"if the secret lock key type is aws." + commonEnvVarUsageText + secretLockAWSAccessKeyEnvKey
+
+	secretLockAWSSecretKeyFlagName  = "secret-lock-aws-secret-key"
+	secretLockAWSSecretKeyEnvKey    = "KMS_SECRET_LOCK_AWS_SECRET_KEY" //nolint:gosec // not hard-coded credentials
+	secretLockAWSSecretKeyFlagUsage = "The AWS secret access key to be used by server secret lock " +
+		"if the secret lock key type is aws." + commonEnvVarUsageText + secretLockAWSSecretKeyEnvKey
+
+	secretLockAWSEndpointFlagName  = "secret-lock-aws-endpoint"
+	secretLockAWSEndpointEnvKey    = "KMS_SECRET_LOCK_AWS_ENDPOINT" //nolint:gosec // not hard-coded credentials
+	secretLockAWSEndpointFlagUsage = "The endpoint of AWS KMS service. Should be set only in test environment. " +
+		commonEnvVarUsageText + secretLockAWSEndpointEnvKey
+)
+
+const (
+	secretLockTypeAWSOption   = "aws"
+	secretLockTypeLocalOption = "local"
 )
 
 type serverParameters struct {
-	host            string
-	metricsHost     string
-	baseURL         string
-	tlsParams       *tlsParameters
-	databaseType    string
-	databaseURL     string
-	databasePrefix  string
-	databaseTimeout time.Duration
-	didDomain       string
-	authServerURL   string
-	authServerToken string
-	cacheExpiration time.Duration
-	enableZCAPs     bool
-	enableCORS      bool
-	logLevel        string
+	host             string
+	metricsHost      string
+	baseURL          string
+	tlsParams        *tlsParameters
+	databaseType     string
+	databaseURL      string
+	databasePrefix   string
+	databaseTimeout  time.Duration
+	didDomain        string
+	authServerURL    string
+	authServerToken  string
+	cacheExpiration  time.Duration
+	enableZCAPs      bool
+	enableCORS       bool
+	logLevel         string
+	secretLockParams *secretLockParameters
 }
 
 type tlsParameters struct {
@@ -134,7 +170,16 @@ type tlsParameters struct {
 	serveKeyPath   string
 }
 
-func getParameters(cmd *cobra.Command) (*serverParameters, error) {
+type secretLockParameters struct {
+	secretLockType     string
+	localKeyPath       string
+	awsKeyURI          string
+	awsAccessKeyID     string
+	awsSecretAccessKey string
+	awsEndpoint        string
+}
+
+func getParameters(cmd *cobra.Command) (*serverParameters, error) { //nolint:funlen
 	host := getUserSetVarOptional(cmd, hostFlagName, hostEnvKey)
 	metricsHost := getUserSetVarOptional(cmd, hostMetricsFlagName, hostMetricsEnvKey)
 	baseURL := getUserSetVarOptional(cmd, baseURLFlagName, baseURLEnvKey)
@@ -179,22 +224,28 @@ func getParameters(cmd *cobra.Command) (*serverParameters, error) {
 		return nil, fmt.Errorf("parse enableCORS: %w", err)
 	}
 
+	secretLockParams, err := getSecretLockParameters(cmd)
+	if err != nil {
+		return nil, err
+	}
+
 	return &serverParameters{
-		host:            host,
-		metricsHost:     metricsHost,
-		baseURL:         baseURL,
-		tlsParams:       tlsParams,
-		databaseType:    databaseType,
-		databaseURL:     databaseURL,
-		databasePrefix:  databasePrefix,
-		databaseTimeout: databaseTimeout,
-		didDomain:       didDomain,
-		authServerURL:   authServerURL,
-		authServerToken: authServerToken,
-		cacheExpiration: cacheExpiration,
-		enableZCAPs:     enableZCAPs,
-		enableCORS:      enableCORS,
-		logLevel:        logLevel,
+		host:             host,
+		metricsHost:      metricsHost,
+		baseURL:          baseURL,
+		tlsParams:        tlsParams,
+		databaseType:     databaseType,
+		databaseURL:      databaseURL,
+		databasePrefix:   databasePrefix,
+		databaseTimeout:  databaseTimeout,
+		didDomain:        didDomain,
+		authServerURL:    authServerURL,
+		authServerToken:  authServerToken,
+		cacheExpiration:  cacheExpiration,
+		enableZCAPs:      enableZCAPs,
+		enableCORS:       enableCORS,
+		logLevel:         logLevel,
+		secretLockParams: secretLockParams,
 	}, nil
 }
 
@@ -247,6 +298,49 @@ func getTLS(cmd *cobra.Command) (*tlsParameters, error) {
 	}, nil
 }
 
+func getSecretLockParameters(cmd *cobra.Command) (*secretLockParameters, error) {
+	secretLockType, err := getUserSetVar(cmd, secretLockTypeFlagName, secretLockTypeEnvKey, false)
+	if err != nil {
+		return nil, err
+	}
+
+	localKeyPath, err := getUserSetVar(cmd, secretLockKeyPathFlagName, secretLockKeyPathEnvKey, true)
+	if err != nil {
+		return nil, err
+	}
+
+	isAWS := secretLockType == secretLockTypeAWSOption
+
+	keyURI, err := getUserSetVar(cmd, secretLockAWSKeyURIFlagName, secretLockAWSKeyURIEnvKey, !isAWS)
+	if err != nil {
+		return nil, err
+	}
+
+	awsAccessKeyID, err := getUserSetVar(cmd, secretLockAWSAccessKeyFlagName, secretLockAWSAccessKeyEnvKey, !isAWS)
+	if err != nil {
+		return nil, err
+	}
+
+	awsSecretAccessKey, err := getUserSetVar(cmd, secretLockAWSSecretKeyFlagName, secretLockAWSSecretKeyEnvKey, !isAWS)
+	if err != nil {
+		return nil, err
+	}
+
+	awsEndpoint, err := getUserSetVar(cmd, secretLockAWSEndpointFlagName, secretLockAWSEndpointEnvKey, true)
+	if err != nil {
+		return nil, err
+	}
+
+	return &secretLockParameters{
+		secretLockType:     secretLockType,
+		localKeyPath:       localKeyPath,
+		awsKeyURI:          keyURI,
+		awsAccessKeyID:     awsAccessKeyID,
+		awsSecretAccessKey: awsSecretAccessKey,
+		awsEndpoint:        awsEndpoint,
+	}, nil
+}
+
 func createFlags(startCmd *cobra.Command) {
 	startCmd.Flags().String(hostFlagName, "", hostFlagUsage)
 	startCmd.Flags().String(hostMetricsFlagName, "", hostMetricsFlagUsage)
@@ -265,5 +359,10 @@ func createFlags(startCmd *cobra.Command) {
 	startCmd.Flags().String(cacheExpirationFlagName, "", cacheExpirationFlagUsage)
 	startCmd.Flags().String(enableZCAPsFlagName, "false", enableZCAPsFlagUsage)
 	startCmd.Flags().String(enableCORSFlagName, "false", enableCORSFlagUsage)
-	startCmd.Flags().String(logLevelFlagName, "", logLevelFlagUsage)
+	startCmd.Flags().String(secretLockTypeFlagName, "", secretLockTypeFlagUsage)
+	startCmd.Flags().String(secretLockKeyPathFlagName, "", secretLockKeyPathFlagUsage)
+	startCmd.Flags().String(secretLockAWSKeyURIFlagName, "", secretLockAWSKeyURIFlagUsage)
+	startCmd.Flags().String(secretLockAWSAccessKeyFlagName, "", secretLockAWSAccessKeyFlagUsage)
+	startCmd.Flags().String(secretLockAWSSecretKeyFlagName, "", secretLockAWSSecretKeyFlagUsage)
+	startCmd.Flags().String(secretLockAWSEndpointFlagName, "", secretLockAWSEndpointFlagUsage)
 }
