@@ -15,6 +15,7 @@ require (
 	github.com/hashicorp/vault v1.2.1-0.20200911125421-dba37adcb55a
 	github.com/hyperledger/aries-framework-go v0.1.8-0.20211101152315-ac0a0a19b02d
 	github.com/hyperledger/aries-framework-go/component/storage/edv v0.0.0-20211101152315-ac0a0a19b02d
+	github.com/hyperledger/aries-framework-go/component/storageutil v0.0.0-20210820175050-dcc7a225178d
 	github.com/hyperledger/aries-framework-go/spi v0.0.0-20211101152315-ac0a0a19b02d
 	github.com/igor-pavlenko/httpsignatures-go v0.0.23
 	github.com/piprate/json-gold v0.4.1-0.20210813112359-33b90c4ca86c
