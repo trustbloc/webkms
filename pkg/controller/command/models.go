@@ -97,3 +97,9 @@ type SignRequest struct {
 type SignResponse struct {
 	Signature []byte `json:"signature"`
 }
+
+// VerifyRequest is a request to verify a signature.
+type VerifyRequest struct {
+	Signature []byte `json:"signature"`
+	Message   []byte `json:"message"`
+}

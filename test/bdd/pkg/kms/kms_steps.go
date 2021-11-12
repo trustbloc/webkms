@@ -14,9 +14,7 @@ import (
 	"crypto/x509"
 	"encoding/base64"
 	"encoding/json"
-	"errors"
 	"fmt"
-	"io"
 	"net/http"
 	"net/url"
 	"regexp"
@@ -98,7 +96,7 @@ func (s *Steps) RegisterSteps(ctx *godog.ScenarioContext) {
 	ctx.Step(`^"([^"]*)" makes an HTTP GET to "([^"]*)" to export public key$`, s.makeExportPubKeyReq)
 	ctx.Step(`^"([^"]*)" makes an HTTP POST to "([^"]*)" to create and export "([^"]*)" key$`,
 		s.makeCreateAndExportKeyReq)
-	ctx.Step(`^"([^"]*)" makes an HTTP POST to "([^"]*)" to import a private key with ID "([^"]*)"$`,
+	ctx.Step(`^"([^"]*)" makes an HTTP PUT to "([^"]*)" to import a private key with ID "([^"]*)"$`,
 		s.makeImportKeyReq)
 	// sign/verify message steps
 	ctx.Step(`^"([^"]*)" makes an HTTP POST to "([^"]*)" to sign "([^"]*)"$`, s.makeSignMessageReq)
@@ -155,11 +153,17 @@ func (s *Steps) createKeystore(userName string) error {
 		}
 	}()
 
-	if err := u.processResponse(nil, response); err != nil {
+	var resp createKeyStoreResp
+
+	if err := u.processResponse(&resp, response); err != nil {
 		return err
 	}
 
-	return s.updateCapability(u)
+	parts := strings.Split(resp.KeyStoreURL, "/")
+
+	u.keystoreID = parts[len(parts)-1]
+
+	return nil
 }
 
 func (s *Steps) updateCapability(u *user) error {
@@ -254,24 +258,21 @@ func (s *Steps) makeCreateKeyReq(userName, endpoint, keyType string) error {
 }
 
 func processCreateKeyResp(u *user, resp *http.Response) error {
-	respData, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return fmt.Errorf("reading response body failed: %w", err)
+	var r createKeyResp
+
+	if err := u.processResponse(&r, resp); err != nil {
+		return fmt.Errorf("process response: %w", err)
 	}
 
-	var data struct {
-		Location string `json:"location"`
+	parts := strings.Split(r.KeyURL, "/")
+
+	u.keyID = parts[len(parts)-1]
+
+	u.data = map[string]string{
+		"key_url": r.KeyURL,
 	}
 
-	if err := json.Unmarshal(respData, &data); err != nil {
-		return fmt.Errorf("keystore resp err : %w", err)
-	}
-
-	if data.Location == "" {
-		return errors.New("location in resp body is nil")
-	}
-
-	return u.processResponse(nil, resp)
+	return nil
 }
 
 func buildCreateKeyReq(u *user, endpoint, keyType string) (*http.Request, error) {
@@ -392,13 +393,8 @@ func (s *Steps) makeExportPubKeyReq(userName, endpoint string) error {
 		return respErr
 	}
 
-	publicKey, err := base64.URLEncoding.DecodeString(exportKeyResponse.PublicKey)
-	if err != nil {
-		return err
-	}
-
 	u.data = map[string]string{
-		"publicKey": string(publicKey),
+		"public_key": string(exportKeyResponse.PublicKey),
 	}
 
 	return nil
@@ -445,14 +441,9 @@ func (s *Steps) makeCreateAndExportKeyReq(user, endpoint, keyType string) error 
 		return respErr
 	}
 
-	publicKey, err := base64.URLEncoding.DecodeString(createKeyResponse.PublicKey)
-	if err != nil {
-		return err
-	}
-
 	u.data = map[string]string{
-		"location":  createKeyResponse.Location,
-		"publicKey": string(publicKey),
+		"key_url":  createKeyResponse.KeyURL,
+		"public_key": string(createKeyResponse.PublicKey),
 	}
 
 	return nil
@@ -472,12 +463,12 @@ func (s *Steps) makeImportKeyReq(userName, endpoint, keyID string) error {
 	}
 
 	r := &importKeyReq{
-		KeyBytes: base64.URLEncoding.EncodeToString(der),
-		KeyType:  "ED25519",
-		KeyID:    keyID,
+		Key:     der,
+		KeyType: "ED25519",
+		KeyID:   keyID,
 	}
 
-	request, err := u.preparePostRequest(r, endpoint)
+	request, err := u.preparePutRequest(r, endpoint)
 	if err != nil {
 		return err
 	}
@@ -511,7 +502,7 @@ func (s *Steps) makeImportKeyReq(userName, endpoint, keyID string) error {
 	}
 
 	u.data = map[string]string{
-		"location": importKeyResponse.Location,
+		"key_url": importKeyResponse.KeyURL,
 	}
 
 	return nil
@@ -521,7 +512,7 @@ func (s *Steps) makeSignMessageReq(userName, endpoint, message string) error { /
 	u := s.users[userName]
 
 	r := &signReq{
-		Message: base64.URLEncoding.EncodeToString([]byte(message)),
+		Message: []byte(message),
 	}
 
 	request, err := u.preparePostRequest(r, endpoint)
@@ -557,13 +548,8 @@ func (s *Steps) makeSignMessageReq(userName, endpoint, message string) error { /
 		return respErr
 	}
 
-	signature, err := base64.URLEncoding.DecodeString(signResponse.Signature)
-	if err != nil {
-		return err
-	}
-
 	u.data = map[string]string{
-		"signature": string(signature),
+		"signature": string(signResponse.Signature),
 	}
 
 	return nil
@@ -573,8 +559,8 @@ func (s *Steps) makeVerifySignatureReq(userName, endpoint, tag, message string) 
 	u := s.users[userName]
 
 	r := &verifyReq{
-		Signature: base64.URLEncoding.EncodeToString([]byte(u.data[tag])),
-		Message:   base64.URLEncoding.EncodeToString([]byte(message)),
+		Signature: []byte(u.data[tag]),
+		Message:   []byte(message),
 	}
 
 	return s.makeVerifyReq(u, actionVerify, r, endpoint)
@@ -954,16 +940,11 @@ func (s *Steps) getPubKeyOfRecipient(userName, recipientName string) error {
 		return respErr
 	}
 
-	keyBytes, err := base64.URLEncoding.DecodeString(exportKeyResponse.PublicKey)
-	if err != nil {
-		return err
-	}
-
 	keyData := &publicKeyData{
-		rawBytes: keyBytes,
+		rawBytes: exportKeyResponse.PublicKey,
 	}
 
-	if key, ok := parsePublicKey(keyBytes); ok {
+	if key, ok := parsePublicKey(exportKeyResponse.PublicKey); ok {
 		keyData.parsedKey = key
 	}
 

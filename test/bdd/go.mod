@@ -8,7 +8,7 @@ go 1.17
 
 require (
 	github.com/cucumber/godog v0.10.0
-	github.com/hyperledger/aries-framework-go v0.1.8-0.20211101152315-ac0a0a19b02d
+	github.com/hyperledger/aries-framework-go v0.1.8-0.20211115171141-22ed9679f6cd
 	github.com/hyperledger/aries-framework-go/component/storageutil v0.0.0-20211101152315-ac0a0a19b02d
 	github.com/hyperledger/aries-framework-go/spi v0.0.0-20211101152315-ac0a0a19b02d
 	github.com/igor-pavlenko/httpsignatures-go v0.0.23

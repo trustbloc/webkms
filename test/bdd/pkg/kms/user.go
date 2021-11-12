@@ -112,6 +112,22 @@ func (u *user) preparePostRequest(req interface{}, endpoint string) (*http.Reque
 	return request, nil
 }
 
+func (u *user) preparePutRequest(req interface{}, endpoint string) (*http.Request, error) {
+	uri := buildURI(endpoint, u.keystoreID, u.keyID)
+
+	payload, err := json.Marshal(req)
+	if err != nil {
+		return nil, fmt.Errorf("marshal request: %w", err)
+	}
+
+	request, err := http.NewRequestWithContext(context.Background(), http.MethodPut, uri, bytes.NewReader(payload))
+	if err != nil {
+		return nil, fmt.Errorf("create http request: %w", err)
+	}
+
+	return request, nil
+}
+
 func buildURI(endpoint, keystoreID, keyID string) string {
 	return strings.NewReplacer(
 		"{keystoreID}", keystoreID,
@@ -119,32 +135,11 @@ func buildURI(endpoint, keystoreID, keyID string) string {
 	).Replace(endpoint)
 }
 
-func (u *user) processResponse(parsedResp interface{}, resp *http.Response) error { //nolint:gocyclo // ignore
-	keystoreID, keyID := parseLocationHeader(resp.Header)
-
-	if keystoreID != "" {
-		u.keystoreID = keystoreID
-	}
-
-	if keyID != "" {
-		u.keyID = keyID
-	}
-
+func (u *user) processResponse(parsedResp interface{}, resp *http.Response) error {
 	u.response = &response{
 		status:     resp.Status,
 		statusCode: resp.StatusCode,
 	}
-
-	kmsCapability, err := parseRootCapabilityHeader(resp.Header)
-	if err != nil {
-		return fmt.Errorf("parse root capability header: %w", err)
-	}
-
-	if kmsCapability != nil {
-		u.kmsCapability = kmsCapability
-	}
-
-	u.response.headers = processHeaders(resp.Header)
 
 	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusCreated {
 		var errResp errorResponse
@@ -154,7 +149,7 @@ func (u *user) processResponse(parsedResp interface{}, resp *http.Response) erro
 			return fmt.Errorf("read response body: %w", er)
 		}
 
-		if err = json.Unmarshal(respBody, &errResp); err != nil {
+		if err := json.Unmarshal(respBody, &errResp); err != nil {
 			return fmt.Errorf("%s", respBody)
 		}
 
@@ -169,7 +164,7 @@ func (u *user) processResponse(parsedResp interface{}, resp *http.Response) erro
 		return nil
 	}
 
-	err = json.NewDecoder(resp.Body).Decode(parsedResp)
+	err := json.NewDecoder(resp.Body).Decode(parsedResp)
 	if err != nil {
 		return fmt.Errorf("parse response: %w", err)
 	}
