@@ -32,6 +32,7 @@ const (
 	KeyPath         = KeyStorePath + "/{" + keyStoreVarName + "}/key"
 	ExportKeyPath   = KeyPath + "/{" + keyVarName + "}/export"
 	SignPath        = KeyPath + "/{" + keyVarName + "}/sign"
+	VerifyPath      = KeyPath + "/{" + keyVarName + "}/verify"
 	HealthCheckPath = "/healthcheck"
 )
 
@@ -50,6 +51,7 @@ type Cmd interface {
 	ExportKey(w io.Writer, r io.Reader) error
 	ImportKey(w io.Writer, r io.Reader) error
 	Sign(w io.Writer, r io.Reader) error
+	Verify(w io.Writer, r io.Reader) error
 }
 
 // Operation represents REST API controller.
@@ -68,9 +70,10 @@ func (o *Operation) GetRESTHandlers() []Handler {
 		NewHTTPHandler(DIDPath, http.MethodPost, o.CreateDID),
 		NewHTTPHandler(KeyStorePath, http.MethodPost, o.CreateKeyStore),
 		NewHTTPHandler(KeyPath, http.MethodPost, o.CreateKey),
-		NewHTTPHandler(ExportKeyPath, http.MethodPut, o.ExportKey),
 		NewHTTPHandler(KeyPath, http.MethodPut, o.ImportKey),
+		NewHTTPHandler(ExportKeyPath, http.MethodGet, o.ExportKey),
 		NewHTTPHandler(SignPath, http.MethodPost, o.Sign),
+		NewHTTPHandler(VerifyPath, http.MethodPost, o.Verify),
 		NewHTTPHandler(HealthCheckPath, http.MethodGet, o.HealthCheck),
 	}
 }
@@ -108,17 +111,6 @@ func (o *Operation) CreateKey(rw http.ResponseWriter, req *http.Request) {
 	execute(o.cmd.CreateKey, rw, req)
 }
 
-// ExportKey swagger:route GET /v1/keystore/{keystoreID}/key/{keyID} kms exportKeyReq
-//
-// Exports a public key.
-//
-// Responses:
-//        200: exportKeyResp
-//    default: errorResp
-func (o *Operation) ExportKey(rw http.ResponseWriter, req *http.Request) {
-	execute(o.cmd.ExportKey, rw, req)
-}
-
 // ImportKey swagger:route PUT /v1/keystore/{keystoreID}/key kms importKeyReq
 //
 // Imports a private key.
@@ -130,6 +122,17 @@ func (o *Operation) ImportKey(rw http.ResponseWriter, req *http.Request) {
 	execute(o.cmd.ImportKey, rw, req)
 }
 
+// ExportKey swagger:route GET /v1/keystore/{keystoreID}/key/{keyID} kms exportKeyReq
+//
+// Exports a public key.
+//
+// Responses:
+//        200: exportKeyResp
+//    default: errorResp
+func (o *Operation) ExportKey(rw http.ResponseWriter, req *http.Request) {
+	execute(o.cmd.ExportKey, rw, req)
+}
+
 // Sign swagger:route POST /v1/keystore/{keystoreID}/key/{keyID}/sign crypto signReq
 //
 // Signs a message.
@@ -138,7 +141,18 @@ func (o *Operation) ImportKey(rw http.ResponseWriter, req *http.Request) {
 //        200: signResp
 //    default: errorResp
 func (o *Operation) Sign(rw http.ResponseWriter, req *http.Request) {
-	execute(o.cmd.ImportKey, rw, req)
+	execute(o.cmd.Sign, rw, req)
+}
+
+// Verify swagger:route POST /v1/keystore/{keystoreID}/key/{keyID}/verify crypto verifyReq
+//
+// Verifies a signature.
+//
+// Responses:
+//        200: signResp
+//    default: errorResp
+func (o *Operation) Verify(rw http.ResponseWriter, req *http.Request) {
+	execute(o.cmd.Verify, rw, req)
 }
 
 // HealthCheck swagger:route GET /healthcheck kms healthCheckRequest

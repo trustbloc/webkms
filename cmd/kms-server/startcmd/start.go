@@ -164,7 +164,7 @@ func startServer(srv server, params *serverParameters) error { //nolint:funlen
 		BaseKeyStoreURL:     params.baseURL + rest.KeyStorePath,
 		AuthServerURL:       params.authServerURL,
 		AuthServerToken:     params.authServerToken,
-		MainKeyType:         kms.ChaCha20Poly1305,
+		MainKeyType:         kms.AES256GCMType,
 		EDVRecipientKeyType: kms.NISTP256ECDHKW,
 		EDVMACKeyType:       kms.HMACSHA256Tag256,
 	})
@@ -183,7 +183,7 @@ func startServer(srv server, params *serverParameters) error { //nolint:funlen
 	if params.enableCORS {
 		handler = cors.New(
 			cors.Options{
-				AllowedMethods: []string{http.MethodGet, http.MethodPost, http.MethodOptions},
+				AllowedMethods: []string{http.MethodGet, http.MethodPost, http.MethodPut, http.MethodOptions},
 				AllowedHeaders: []string{"*"},
 			},
 		).Handler(router)

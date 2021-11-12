@@ -7,9 +7,11 @@ module github.com/trustbloc/kms/cmd/kms-server
 go 1.17
 
 require (
+	github.com/aws/aws-sdk-go v1.37.0
 	github.com/cenkalti/backoff v2.2.1+incompatible
+	github.com/google/tink/go v1.6.1
 	github.com/gorilla/mux v1.8.0
-	github.com/hyperledger/aries-framework-go v0.1.8-0.20211101152315-ac0a0a19b02d
+	github.com/hyperledger/aries-framework-go v0.1.8-0.20211115171141-22ed9679f6cd
 	github.com/hyperledger/aries-framework-go-ext/component/storage/couchdb v0.0.0-20211014145537-7da54ab5fdb9
 	github.com/hyperledger/aries-framework-go-ext/component/storage/mongodb v0.0.0-20211014145537-7da54ab5fdb9
 	github.com/hyperledger/aries-framework-go-ext/component/vdr/orb v0.1.4-0.20211014145537-7da54ab5fdb9
@@ -24,7 +26,6 @@ require (
 
 require (
 	github.com/VictoriaMetrics/fastcache v1.5.7 // indirect
-	github.com/aws/aws-sdk-go v1.37.0 // indirect
 	github.com/bluele/gcache v0.0.2 // indirect
 	github.com/btcsuite/btcd v0.22.0-beta // indirect
 	github.com/btcsuite/btcutil v1.0.3-0.20201208143702-a53e38424cce // indirect
@@ -38,7 +39,6 @@ require (
 	github.com/go-stack/stack v1.8.1 // indirect
 	github.com/golang/protobuf v1.5.2 // indirect
 	github.com/golang/snappy v0.0.4 // indirect
-	github.com/google/tink/go v1.6.1 // indirect
 	github.com/google/uuid v1.3.0 // indirect
 	github.com/hashicorp/errwrap v1.0.0 // indirect
 	github.com/hashicorp/vault v1.2.1-0.20200911125421-dba37adcb55a // indirect

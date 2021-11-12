@@ -25,7 +25,7 @@
     },
     "match": {
       "url": "https://localhost:4466/v1/keystore/<*>",
-      "methods": ["POST", "GET"]
+      "methods": ["POST","PUT","GET"]
     },
     "authenticators": [{
       "handler": "noop"

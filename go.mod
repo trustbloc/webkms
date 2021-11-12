@@ -13,7 +13,7 @@ require (
 	github.com/google/uuid v1.3.0
 	github.com/gorilla/mux v1.7.3
 	github.com/hashicorp/vault v1.2.1-0.20200911125421-dba37adcb55a
-	github.com/hyperledger/aries-framework-go v0.1.8-0.20211101152315-ac0a0a19b02d
+	github.com/hyperledger/aries-framework-go v0.1.8-0.20211115171141-22ed9679f6cd
 	github.com/hyperledger/aries-framework-go/component/storage/edv v0.0.0-20211101152315-ac0a0a19b02d
 	github.com/hyperledger/aries-framework-go/component/storageutil v0.0.0-20210820175050-dcc7a225178d
 	github.com/hyperledger/aries-framework-go/spi v0.0.0-20211101152315-ac0a0a19b02d
