@@ -36,6 +36,8 @@ services:
       - KMS_CACHE_EXPIRATION=10m
       - KMS_ZCAP_ENABLE=true
       - KMS_LOG_LEVEL=debug
+      - KMS_SECRET_LOCK_TYPE=local
+      - KMS_SECRET_LOCK_KEY_PATH=/etc/tls/secret-lock.key
     ports:
       - 8074:8074
       - 48831:48831
@@ -64,6 +66,8 @@ services:
       - KMS_CACHE_EXPIRATION=10m
       - KMS_ZCAP_ENABLE=true
       - KMS_LOG_LEVEL=debug
+      - KMS_SECRET_LOCK_TYPE=local
+      - KMS_SECRET_LOCK_KEY_PATH=/etc/tls/secret-lock.key
     ports:
       - 8075:8075
       - 48832:48832
@@ -92,6 +96,8 @@ services:
       - KMS_AUTH_SERVER_TOKEN=test_token
       - KMS_CACHE_EXPIRATION=10m
       - KMS_LOG_LEVEL=debug
+      - KMS_SECRET_LOCK_TYPE=local
+      - KMS_SECRET_LOCK_KEY_PATH=/etc/tls/secret-lock.key
     ports:
       - 8077:8077
     volumes:

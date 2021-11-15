@@ -6,9 +6,16 @@ SPDX-License-Identifier: Apache-2.0
 
 package kms
 
+import "github.com/hyperledger/aries-framework-go/pkg/kms"
+
 type createKeystoreReq struct {
 	Controller string `json:"controller"`
 	VaultID    string `json:"vaultID"`
+}
+
+type createKeyStoreResp struct {
+	KeyStoreURL    string `json:"key_store_url"`
+	RootCapability []byte `json:"root_capability"`
 }
 
 type createKeyReq struct {
@@ -17,35 +24,35 @@ type createKeyReq struct {
 }
 
 type createKeyResp struct {
-	Location  string `json:"location"`
-	PublicKey string `json:"publicKey"`
+	KeyURL    string `json:"key_url"`
+	PublicKey []byte `json:"public_key"`
 }
 
 type exportKeyResp struct {
-	PublicKey string `json:"publicKey"`
+	PublicKey []byte `json:"public_key"`
 }
 
 type importKeyReq struct {
-	KeyBytes string `json:"keyBytes"`
-	KeyType  string `json:"keyType"`
-	KeyID    string `json:"keyID"`
+	Key     []byte      `json:"key"`
+	KeyType kms.KeyType `json:"key_type"`
+	KeyID   string      `json:"key_id,omitempty"`
 }
 
 type importKeyResp struct {
-	Location string `json:"location"`
+	KeyURL string `json:"key_url"`
 }
 
 type signReq struct {
-	Message string `json:"message"`
+	Message []byte `json:"message"`
 }
 
 type signResp struct {
-	Signature string `json:"signature"`
+	Signature []byte `json:"signature"`
 }
 
 type verifyReq struct {
-	Signature string `json:"signature"`
-	Message   string `json:"message"`
+	Signature []byte `json:"signature"`
+	Message   []byte `json:"message"`
 }
 
 type encryptReq struct {

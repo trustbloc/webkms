@@ -16,6 +16,7 @@ import (
 	"net/http"
 	"strings"
 
+	"github.com/google/tink/go/keyset"
 	"github.com/hyperledger/aries-framework-go/pkg/crypto"
 	"github.com/hyperledger/aries-framework-go/pkg/kms"
 	"github.com/hyperledger/aries-framework-go/pkg/secretlock"
@@ -254,6 +255,37 @@ func (c *Command) Sign(w io.Writer, r io.Reader) error {
 	}
 
 	return json.NewEncoder(w).Encode(SignResponse{Signature: signature})
+}
+
+// Verify verifies a signature.
+func (c *Command) Verify(_ io.Writer, r io.Reader) error {
+	var req VerifyRequest
+
+	wr, err := unwrapRequest(&req, r)
+	if err != nil {
+		return fmt.Errorf("unwrap request: %w", err)
+	}
+
+	ks, err := c.resolveKeyStore(wr.KeyStoreID, wr.User, wr.SecretShare)
+	if err != nil {
+		return fmt.Errorf("resolve key store: %w", err)
+	}
+
+	kh, err := ks.Get(wr.KeyID)
+	if err != nil {
+		return fmt.Errorf("get key: %w", err)
+	}
+
+	pub, err := kh.(*keyset.Handle).Public()
+	if err != nil {
+		return fmt.Errorf("verify: %w", err)
+	}
+
+	if err = c.crypto.Verify(req.Signature, req.Message, pub); err != nil {
+		return fmt.Errorf("verify: %w", err)
+	}
+
+	return nil
 }
 
 func unwrapRequest(req interface{}, r io.Reader) (*WrappedRequest, error) {

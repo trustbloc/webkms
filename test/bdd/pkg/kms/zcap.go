@@ -7,7 +7,6 @@ SPDX-License-Identifier: Apache-2.0
 package kms
 
 import (
-	"encoding/base64"
 	"fmt"
 	"net/http"
 
@@ -53,10 +52,9 @@ func newAuthzKMSSigner(s *Steps, authzUser *user) *authzKMSSigner {
 }
 
 func (a *authzKMSSigner) Sign(data []byte) ([]byte, error) {
-	enc := base64.URLEncoding.EncodeToString(data)
 	uri := a.s.bddContext.AuthZKeyServerURL + signEndpoint
 
-	if err := a.s.makeSignMessageReqAuthzKMS(a.authzUser, uri, enc); err != nil {
+	if err := a.s.makeSignMessageReqAuthzKMS(a.authzUser, uri, data); err != nil {
 		return nil, err
 	}
 
