@@ -69,7 +69,8 @@ func (u *user) SetCapabilityInvocation(r *http.Request, action string) error {
 
 	r.Header.Set(
 		zcapld.CapabilityInvocationHTTPHeader,
-		fmt.Sprintf(`zcap capability="%s",action="%s"`, compressed, action),
+		fmt.Sprintf(`zcap capability="%s",action="%s"`,
+			base64.URLEncoding.EncodeToString(compressed), action),
 	)
 
 	return nil
@@ -172,53 +173,8 @@ func (u *user) processResponse(parsedResp interface{}, resp *http.Response) erro
 	return nil
 }
 
-func processHeaders(header http.Header) map[string]string {
-	headers := make(map[string]string, len(header))
-	for k, v := range header {
-		headers[k] = v[0]
-	}
-
-	return headers
-}
-
-func parseLocationHeader(header http.Header) (string, string) {
-	const (
-		keystoreIDPos = 5 // https://localhost:8076/v1/keystore/{keystoreID}
-		keyIDPos      = 7 // https://localhost:8076/v1/keystore/{keystoreID}/key/{keyID}
-	)
-
-	location := header.Get("Location")
-	if location == "" {
-		return "", ""
-	}
-
-	s := strings.Split(location, "/")
-
-	keystoreID := ""
-	if len(s) > keystoreIDPos {
-		keystoreID = s[keystoreIDPos]
-	}
-
-	keyID := ""
-	if len(s) > keyIDPos {
-		keyID = s[keyIDPos]
-	}
-
-	return keystoreID, keyID
-}
-
-func parseRootCapabilityHeader(header http.Header) (*zcapld.Capability, error) {
-	zcap := header.Get("X-RootCapability")
-	if zcap == "" {
-		return nil, nil
-	}
-
-	decoded, err := base64.URLEncoding.DecodeString(zcap)
-	if err != nil {
-		return nil, fmt.Errorf("failed to base64URL-decode zcap: %w", err)
-	}
-
-	compressed, err := gzip.NewReader(bytes.NewReader(decoded))
+func parseRootCapability(zcap []byte) (*zcapld.Capability, error) {
+	compressed, err := gzip.NewReader(bytes.NewReader(zcap))
 	if err != nil {
 		return nil, fmt.Errorf("failed to open gzip reader: %w", err)
 	}
