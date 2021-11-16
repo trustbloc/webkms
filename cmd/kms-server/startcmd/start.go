@@ -152,6 +152,8 @@ func startServer(srv server, params *serverParameters) error { //nolint:funlen
 		return fmt.Errorf("create zcap service: %w", err)
 	}
 
+	baseKeyStoreURL := params.baseURL + rest.KeyStorePath
+
 	cmd, err := command.New(&command.Config{
 		StorageProvider:     store,
 		CacheProvider:       nil,
@@ -165,7 +167,7 @@ func startServer(srv server, params *serverParameters) error { //nolint:funlen
 		CryptBoxCreator:     &cryptoBoxCreator{},
 		HTTPClient:          httpClient,
 		TLSConfig:           tlsConfig,
-		BaseKeyStoreURL:     params.baseURL + rest.KeyStorePath,
+		BaseKeyStoreURL:     baseKeyStoreURL,
 		AuthServerURL:       params.authServerURL,
 		AuthServerToken:     params.authServerToken,
 		MainKeyType:         kms.AES256GCMType,
@@ -178,8 +180,25 @@ func startServer(srv server, params *serverParameters) error { //nolint:funlen
 
 	router := mux.NewRouter()
 
+	zcapConfig := &mw.ZCAPConfig{
+		AuthService:          zcapService,
+		JSONLDLoader:         documentLoader,
+		Logger:               logger,
+		VDRResolver:          vdrResolver,
+		BaseResourceURL:      baseKeyStoreURL,
+		ResourceIDQueryParam: rest.KeyStoreVarName,
+	}
+
 	for _, h := range rest.New(cmd).GetRESTHandlers() {
-		router.HandleFunc(h.Path(), h.Handle()).Methods(h.Method())
+		var handler http.Handler
+		handler = h.Handle()
+
+		if params.enableZCAPs && h.ZCAPProtect() {
+			zcapMiddleware := mw.ZCAPLDMiddleware(zcapConfig, h.Action())
+			handler = zcapMiddleware(handler)
+		}
+
+		router.Handle(h.Path(), handler).Methods(h.Method())
 	}
 
 	var handler http.Handler = router
