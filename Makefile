@@ -86,7 +86,7 @@ open-api-spec:
 	@echo "Validating generated spec"
 	@$(GOBIN_PATH)/swagger validate $(SWAGGER_OUTPUT)
 
-.PHONY: run-open-api-demo
-run-open-api-demo: clean kms-server-docker generate-test-keys open-api-spec
+.PHONY: open-api-demo
+open-api-demo: clean kms-server-docker generate-test-keys open-api-spec
 	@echo "Running Open API demo on http://localhost:8089/openapi"
-	@docker-compose -f test/bdd/fixtures/openapi-demo/docker-compose.yml up --force-recreate -d kms-server.openapi.com
+	@docker-compose -f test/bdd/fixtures/docker-compose.yml up --force-recreate -d kms-server.openapi.com

@@ -33,6 +33,8 @@ const (
 	ExportKeyPath   = KeyPath + "/{" + keyVarName + "}/export"
 	SignPath        = KeyPath + "/{" + keyVarName + "}/sign"
 	VerifyPath      = KeyPath + "/{" + keyVarName + "}/verify"
+	EncryptPath     = KeyPath + "/{" + keyVarName + "}/encrypt"
+	DecryptPath     = KeyPath + "/{" + keyVarName + "}/decrypt"
 	HealthCheckPath = "/healthcheck"
 )
 
@@ -52,6 +54,8 @@ type Cmd interface {
 	ImportKey(w io.Writer, r io.Reader) error
 	Sign(w io.Writer, r io.Reader) error
 	Verify(w io.Writer, r io.Reader) error
+	Encrypt(w io.Writer, r io.Reader) error
+	Decrypt(w io.Writer, r io.Reader) error
 }
 
 // Operation represents REST API controller.
@@ -74,6 +78,8 @@ func (o *Operation) GetRESTHandlers() []Handler {
 		NewHTTPHandler(ExportKeyPath, http.MethodGet, o.ExportKey),
 		NewHTTPHandler(SignPath, http.MethodPost, o.Sign),
 		NewHTTPHandler(VerifyPath, http.MethodPost, o.Verify),
+		NewHTTPHandler(EncryptPath, http.MethodPost, o.Encrypt),
+		NewHTTPHandler(DecryptPath, http.MethodPost, o.Decrypt),
 		NewHTTPHandler(HealthCheckPath, http.MethodGet, o.HealthCheck),
 	}
 }
@@ -100,7 +106,7 @@ func (o *Operation) CreateKeyStore(rw http.ResponseWriter, req *http.Request) {
 	execute(o.cmd.CreateKeyStore, rw, req)
 }
 
-// CreateKey swagger:route POST /v1/keystore/{keystoreID}/key kms createKeyReq
+// CreateKey swagger:route POST /v1/keystore/{key_store_id}/key kms createKeyReq
 //
 // Creates a new key.
 //
@@ -111,7 +117,7 @@ func (o *Operation) CreateKey(rw http.ResponseWriter, req *http.Request) {
 	execute(o.cmd.CreateKey, rw, req)
 }
 
-// ImportKey swagger:route PUT /v1/keystore/{keystoreID}/key kms importKeyReq
+// ImportKey swagger:route PUT /v1/keystore/{key_store_id}/key kms importKeyReq
 //
 // Imports a private key.
 //
@@ -122,7 +128,7 @@ func (o *Operation) ImportKey(rw http.ResponseWriter, req *http.Request) {
 	execute(o.cmd.ImportKey, rw, req)
 }
 
-// ExportKey swagger:route GET /v1/keystore/{keystoreID}/key/{keyID} kms exportKeyReq
+// ExportKey swagger:route GET /v1/keystore/{key_store_id}/key/{key_id} kms exportKeyReq
 //
 // Exports a public key.
 //
@@ -133,7 +139,7 @@ func (o *Operation) ExportKey(rw http.ResponseWriter, req *http.Request) {
 	execute(o.cmd.ExportKey, rw, req)
 }
 
-// Sign swagger:route POST /v1/keystore/{keystoreID}/key/{keyID}/sign crypto signReq
+// Sign swagger:route POST /v1/keystore/{key_store_id}/key/{key_id}/sign crypto signReq
 //
 // Signs a message.
 //
@@ -144,24 +150,52 @@ func (o *Operation) Sign(rw http.ResponseWriter, req *http.Request) {
 	execute(o.cmd.Sign, rw, req)
 }
 
-// Verify swagger:route POST /v1/keystore/{keystoreID}/key/{keyID}/verify crypto verifyReq
+// Verify swagger:route POST /v1/keystore/{key_store_id}/key/{key_id}/verify crypto verifyReq
 //
 // Verifies a signature.
 //
 // Responses:
-//        200: signResp
+//        200: verifyResp
 //    default: errorResp
 func (o *Operation) Verify(rw http.ResponseWriter, req *http.Request) {
 	execute(o.cmd.Verify, rw, req)
 }
 
-// HealthCheck swagger:route GET /healthcheck kms healthCheckRequest
+// Encrypt swagger:route POST /v1/keystore/{key_store_id}/key/{key_id}/encrypt crypto encryptReq
+//
+// Encrypts a message with associated authenticated data.
+//
+// Encryption with associated data ensures authenticity (who the sender is) and integrity (the data has not been
+// tampered with) of that data, but not its secrecy.
+//
+// Responses:
+//        200: encryptResp
+//    default: errorResp
+func (o *Operation) Encrypt(rw http.ResponseWriter, req *http.Request) {
+	execute(o.cmd.Encrypt, rw, req)
+}
+
+// Decrypt swagger:route POST /v1/keystore/{key_store_id}/key/{key_id}/decrypt crypto decryptReq
+//
+// Decrypts a ciphertext with associated authenticated data.
+//
+// The decryption verifies the authenticity and integrity of the associated data, but there are no guarantees with
+// regard to secrecy of that data.
+//
+// Responses:
+//        200: decryptResp
+//    default: errorResp
+func (o *Operation) Decrypt(rw http.ResponseWriter, req *http.Request) {
+	execute(o.cmd.Decrypt, rw, req)
+}
+
+// HealthCheck swagger:route GET /healthcheck server healthCheckReq
 //
 // Returns a health check status.
 //
 // Responses:
-//        200: healthCheckResponse
-//    default: genericError
+//        200: healthCheckResp
+//    default: errorResp
 func (o *Operation) HealthCheck(rw http.ResponseWriter, _ *http.Request) {
 	rw.Header().Set(contentType, applicationJSON)
 

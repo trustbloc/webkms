@@ -7,7 +7,7 @@ SPDX-License-Identifier: Apache-2.0
 // Package kms-server for handling key management and crypto operations.
 //
 //     Schemes: http
-//     Version: 0.1.0
+//     Version: 0.1.8
 //     License: SPDX-License-Identifier: Apache-2.0
 //
 //     Consumes:

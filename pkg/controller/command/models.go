@@ -71,11 +71,6 @@ type CreateKeyResponse struct {
 	PublicKey []byte `json:"public_key"`
 }
 
-// ExportKeyResponse is a response for ExportKey request.
-type ExportKeyResponse struct {
-	PublicKey []byte `json:"public_key"`
-}
-
 // ImportKeyRequest is a request to import a key.
 type ImportKeyRequest struct {
 	Key     []byte      `json:"key"`
@@ -83,9 +78,14 @@ type ImportKeyRequest struct {
 	KeyID   string      `json:"key_id,omitempty"`
 }
 
-// ImportKeyResponse is a response for ImportKey response.
+// ImportKeyResponse is a response for ImportKey request.
 type ImportKeyResponse struct {
 	KeyURL string `json:"key_url"`
+}
+
+// ExportKeyResponse is a response for ExportKey request.
+type ExportKeyResponse struct {
+	PublicKey []byte `json:"public_key"`
 }
 
 // SignRequest is a request to sign a message.
@@ -102,4 +102,34 @@ type SignResponse struct {
 type VerifyRequest struct {
 	Signature []byte `json:"signature"`
 	Message   []byte `json:"message"`
+}
+
+// EncryptRequest is a request to encrypt a message with associated data.
+type EncryptRequest struct {
+	// Message is the plaintext to be encrypted. It must be non-nil.
+	Message []byte `json:"message"`
+	// AssociatedData to be authenticated, but not encrypted. Associated data is optional, so this parameter can be nil.
+	// For successful decryption the same associated data must be provided along with the ciphertext and nonce.
+	AssociatedData []byte `json:"associated_data,omitempty"`
+}
+
+// EncryptResponse is a response for Encrypt request.
+type EncryptResponse struct {
+	Ciphertext []byte `json:"ciphertext"`
+	Nonce      []byte `json:"nonce"`
+}
+
+// DecryptRequest is a request to decrypt a ciphertext.
+type DecryptRequest struct {
+	// Ciphertext to be decrypted. It must be non-nil.
+	Ciphertext []byte `json:"ciphertext"`
+	// AssociatedData to be authenticated. For successful decryption it must be the same as associated data used
+	// during encryption.
+	AssociatedData []byte `json:"associated_data,omitempty"`
+	Nonce          []byte `json:"nonce"`
+}
+
+// DecryptResponse is a response for Decrypt request.
+type DecryptResponse struct {
+	Plaintext []byte `json:"plaintext"`
 }
