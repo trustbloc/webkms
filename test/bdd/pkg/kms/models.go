@@ -56,23 +56,23 @@ type verifyReq struct {
 }
 
 type encryptReq struct {
-	Message        string `json:"message"`
-	AdditionalData string `json:"aad"`
+	Message        []byte `json:"message"`
+	AssociatedData []byte `json:"associated_data,omitempty"`
 }
 
 type encryptResp struct {
-	CipherText string `json:"cipherText"`
-	Nonce      string `json:"nonce"`
+	Ciphertext []byte `json:"ciphertext"`
+	Nonce      []byte `json:"nonce"`
 }
 
 type decryptReq struct {
-	CipherText     string `json:"cipherText"`
-	AdditionalData string `json:"aad"`
-	Nonce          string `json:"nonce"`
+	Ciphertext     []byte `json:"ciphertext"`
+	AssociatedData []byte `json:"associated_data,omitempty"`
+	Nonce          []byte `json:"nonce"`
 }
 
 type decryptResp struct {
-	PlainText string `json:"plainText"`
+	Plaintext []byte `json:"plaintext"`
 }
 
 type computeMACReq struct {

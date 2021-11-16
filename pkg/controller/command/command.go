@@ -288,6 +288,63 @@ func (c *Command) Verify(_ io.Writer, r io.Reader) error {
 	return nil
 }
 
+// Encrypt encrypts a message.
+func (c *Command) Encrypt(w io.Writer, r io.Reader) error {
+	var req EncryptRequest
+
+	wr, err := unwrapRequest(&req, r)
+	if err != nil {
+		return fmt.Errorf("unwrap request: %w", err)
+	}
+
+	ks, err := c.resolveKeyStore(wr.KeyStoreID, wr.User, wr.SecretShare)
+	if err != nil {
+		return fmt.Errorf("resolve key store: %w", err)
+	}
+
+	kh, err := ks.Get(wr.KeyID)
+	if err != nil {
+		return fmt.Errorf("get key: %w", err)
+	}
+
+	cipher, nonce, err := c.crypto.Encrypt(req.Message, req.AssociatedData, kh)
+	if err != nil {
+		return fmt.Errorf("encrypt: %w", err)
+	}
+
+	return json.NewEncoder(w).Encode(EncryptResponse{
+		Ciphertext: cipher,
+		Nonce:      nonce,
+	})
+}
+
+// Decrypt decrypts a ciphertext.
+func (c *Command) Decrypt(w io.Writer, r io.Reader) error {
+	var req DecryptRequest
+
+	wr, err := unwrapRequest(&req, r)
+	if err != nil {
+		return fmt.Errorf("unwrap request: %w", err)
+	}
+
+	ks, err := c.resolveKeyStore(wr.KeyStoreID, wr.User, wr.SecretShare)
+	if err != nil {
+		return fmt.Errorf("resolve key store: %w", err)
+	}
+
+	kh, err := ks.Get(wr.KeyID)
+	if err != nil {
+		return fmt.Errorf("get key: %w", err)
+	}
+
+	plain, err := c.crypto.Decrypt(req.Ciphertext, req.AssociatedData, req.Nonce, kh)
+	if err != nil {
+		return fmt.Errorf("decrypt: %w", err)
+	}
+
+	return json.NewEncoder(w).Encode(DecryptResponse{Plaintext: plain})
+}
+
 func unwrapRequest(req interface{}, r io.Reader) (*WrappedRequest, error) {
 	var wr WrappedRequest
 

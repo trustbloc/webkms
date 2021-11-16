@@ -68,12 +68,12 @@ Feature: KMS and crypto operations
 
     When  "Bob" makes an HTTP POST to "https://localhost:4466/v1/keystore/{keystoreID}/key/{keyID}/encrypt" to encrypt "test message"
     Then  "Bob" gets a response with HTTP status "200 OK"
-     And  "Bob" gets a response with non-empty "cipherText"
+     And  "Bob" gets a response with non-empty "ciphertext"
      And  "Bob" gets a response with non-empty "nonce"
 
-    When  "Bob" makes an HTTP POST to "https://localhost:4466/v1/keystore/{keystoreID}/key/{keyID}/decrypt" to decrypt "cipherText"
+    When  "Bob" makes an HTTP POST to "https://localhost:4466/v1/keystore/{keystoreID}/key/{keyID}/decrypt" to decrypt "ciphertext"
     Then  "Bob" gets a response with HTTP status "200 OK"
-     And  "Bob" gets a response with "plainText" with value "test message"
+     And  "Bob" gets a response with "plaintext" with value "test message"
 
   Scenario: User computes/verifies MAC for data
     Given "Alice" has created a keystore with "HMACSHA256Tag256" key on Key Server

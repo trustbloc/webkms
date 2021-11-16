@@ -286,6 +286,21 @@ services:
     networks:
       - bdd_net
 
+  kms-server.openapi.com:
+    container_name: kms-server.openapi.com
+    image: swaggerapi/swagger-ui
+    environment:
+      - SWAGGER_JSON=/specs/openAPI.yml
+      - BASE_URL=/openapi
+    ports:
+      - 8089:8080
+    volumes:
+      - ./specs:/specs
+    depends_on:
+      - kms.trustbloc.local
+    networks:
+      - bdd_net
+
   metrics.example.com:
     container_name: metrics.example.com
     image: prom/prometheus
