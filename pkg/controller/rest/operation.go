@@ -35,6 +35,8 @@ const (
 	VerifyPath      = KeyPath + "/{" + keyVarName + "}/verify"
 	EncryptPath     = KeyPath + "/{" + keyVarName + "}/encrypt"
 	DecryptPath     = KeyPath + "/{" + keyVarName + "}/decrypt"
+	ComputeMACPath  = KeyPath + "/{" + keyVarName + "}/computemac"
+	VerifyMACPath   = KeyPath + "/{" + keyVarName + "}/verifymac"
 	HealthCheckPath = "/healthcheck"
 )
 
@@ -56,6 +58,8 @@ type Cmd interface {
 	Verify(w io.Writer, r io.Reader) error
 	Encrypt(w io.Writer, r io.Reader) error
 	Decrypt(w io.Writer, r io.Reader) error
+	ComputeMAC(w io.Writer, r io.Reader) error
+	VerifyMAC(w io.Writer, r io.Reader) error
 }
 
 // Operation represents REST API controller.
@@ -80,6 +84,8 @@ func (o *Operation) GetRESTHandlers() []Handler {
 		NewHTTPHandler(VerifyPath, http.MethodPost, o.Verify),
 		NewHTTPHandler(EncryptPath, http.MethodPost, o.Encrypt),
 		NewHTTPHandler(DecryptPath, http.MethodPost, o.Decrypt),
+		NewHTTPHandler(ComputeMACPath, http.MethodPost, o.ComputeMAC),
+		NewHTTPHandler(VerifyMACPath, http.MethodPost, o.VerifyMAC),
 		NewHTTPHandler(HealthCheckPath, http.MethodGet, o.HealthCheck),
 	}
 }
@@ -187,6 +193,31 @@ func (o *Operation) Encrypt(rw http.ResponseWriter, req *http.Request) {
 //    default: errorResp
 func (o *Operation) Decrypt(rw http.ResponseWriter, req *http.Request) {
 	execute(o.cmd.Decrypt, rw, req)
+}
+
+// ComputeMAC swagger:route POST /v1/keystore/{key_store_id}/key/{key_id}/computemac crypto computeMACReq
+//
+// Computes message authentication code (MAC) for data.
+//
+// MAC provides symmetric message authentication. Computed authentication tag for given data allows the recipient
+// to verify that data are from the expected sender and have not been modified.
+//
+// Responses:
+//        200: computeMACResp
+//    default: errorResp
+func (o *Operation) ComputeMAC(rw http.ResponseWriter, req *http.Request) {
+	execute(o.cmd.ComputeMAC, rw, req)
+}
+
+// VerifyMAC swagger:route POST /v1/keystore/{key_store_id}/key/{key_id}/verifymac crypto verifyMACReq
+//
+// Verifies whether MAC is a correct authentication code for data.
+//
+// Responses:
+//        200: verifyMACResp
+//    default: errorResp
+func (o *Operation) VerifyMAC(rw http.ResponseWriter, req *http.Request) {
+	execute(o.cmd.VerifyMAC, rw, req)
 }
 
 // HealthCheck swagger:route GET /healthcheck server healthCheckReq

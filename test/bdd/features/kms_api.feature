@@ -78,11 +78,11 @@ Feature: KMS and crypto operations
   Scenario: User computes/verifies MAC for data
     Given "Alice" has created a keystore with "HMACSHA256Tag256" key on Key Server
 
-    When  "Alice" makes an HTTP POST to "https://localhost:4466/kms/keystores/{keystoreID}/keys/{keyID}/computemac" to compute MAC for "test data"
+    When  "Alice" makes an HTTP POST to "https://localhost:4466/v1/keystore/{keystoreID}/key/{keyID}/computemac" to compute MAC for "test data"
     Then  "Alice" gets a response with HTTP status "200 OK"
      And  "Alice" gets a response with non-empty "mac"
 
-    When  "Alice" makes an HTTP POST to "https://localhost:4466/kms/keystores/{keystoreID}/keys/{keyID}/verifymac" to verify MAC "mac" for "test data"
+    When  "Alice" makes an HTTP POST to "https://localhost:4466/v1/keystore/{keystoreID}/key/{keyID}/verifymac" to verify MAC "mac" for "test data"
     Then  "Alice" gets a response with HTTP status "200 OK"
      And  "Alice" gets a response with no "errMessage"
 

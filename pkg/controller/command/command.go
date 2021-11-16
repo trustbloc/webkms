@@ -234,19 +234,9 @@ func (c *Command) ImportKey(w io.Writer, r io.Reader) error {
 func (c *Command) Sign(w io.Writer, r io.Reader) error {
 	var req SignRequest
 
-	wr, err := unwrapRequest(&req, r)
+	kh, err := c.getKeyHandle(&req, r)
 	if err != nil {
-		return fmt.Errorf("unwrap request: %w", err)
-	}
-
-	ks, err := c.resolveKeyStore(wr.KeyStoreID, wr.User, wr.SecretShare)
-	if err != nil {
-		return fmt.Errorf("resolve key store: %w", err)
-	}
-
-	kh, err := ks.Get(wr.KeyID)
-	if err != nil {
-		return fmt.Errorf("get key: %w", err)
+		return err
 	}
 
 	signature, err := c.crypto.Sign(req.Message, kh)
@@ -261,19 +251,9 @@ func (c *Command) Sign(w io.Writer, r io.Reader) error {
 func (c *Command) Verify(_ io.Writer, r io.Reader) error {
 	var req VerifyRequest
 
-	wr, err := unwrapRequest(&req, r)
+	kh, err := c.getKeyHandle(&req, r)
 	if err != nil {
-		return fmt.Errorf("unwrap request: %w", err)
-	}
-
-	ks, err := c.resolveKeyStore(wr.KeyStoreID, wr.User, wr.SecretShare)
-	if err != nil {
-		return fmt.Errorf("resolve key store: %w", err)
-	}
-
-	kh, err := ks.Get(wr.KeyID)
-	if err != nil {
-		return fmt.Errorf("get key: %w", err)
+		return err
 	}
 
 	pub, err := kh.(*keyset.Handle).Public()
@@ -292,19 +272,9 @@ func (c *Command) Verify(_ io.Writer, r io.Reader) error {
 func (c *Command) Encrypt(w io.Writer, r io.Reader) error {
 	var req EncryptRequest
 
-	wr, err := unwrapRequest(&req, r)
+	kh, err := c.getKeyHandle(&req, r)
 	if err != nil {
-		return fmt.Errorf("unwrap request: %w", err)
-	}
-
-	ks, err := c.resolveKeyStore(wr.KeyStoreID, wr.User, wr.SecretShare)
-	if err != nil {
-		return fmt.Errorf("resolve key store: %w", err)
-	}
-
-	kh, err := ks.Get(wr.KeyID)
-	if err != nil {
-		return fmt.Errorf("get key: %w", err)
+		return err
 	}
 
 	cipher, nonce, err := c.crypto.Encrypt(req.Message, req.AssociatedData, kh)
@@ -322,19 +292,9 @@ func (c *Command) Encrypt(w io.Writer, r io.Reader) error {
 func (c *Command) Decrypt(w io.Writer, r io.Reader) error {
 	var req DecryptRequest
 
-	wr, err := unwrapRequest(&req, r)
+	kh, err := c.getKeyHandle(&req, r)
 	if err != nil {
-		return fmt.Errorf("unwrap request: %w", err)
-	}
-
-	ks, err := c.resolveKeyStore(wr.KeyStoreID, wr.User, wr.SecretShare)
-	if err != nil {
-		return fmt.Errorf("resolve key store: %w", err)
-	}
-
-	kh, err := ks.Get(wr.KeyID)
-	if err != nil {
-		return fmt.Errorf("get key: %w", err)
+		return err
 	}
 
 	plain, err := c.crypto.Decrypt(req.Ciphertext, req.AssociatedData, req.Nonce, kh)
@@ -345,6 +305,58 @@ func (c *Command) Decrypt(w io.Writer, r io.Reader) error {
 	return json.NewEncoder(w).Encode(DecryptResponse{Plaintext: plain})
 }
 
+// ComputeMAC computes message authentication code for data.
+func (c *Command) ComputeMAC(w io.Writer, r io.Reader) error {
+	var req ComputeMACRequest
+
+	kh, err := c.getKeyHandle(&req, r)
+	if err != nil {
+		return err
+	}
+
+	mac, err := c.crypto.ComputeMAC(req.Data, kh)
+	if err != nil {
+		return fmt.Errorf("compute mac: %w", err)
+	}
+
+	return json.NewEncoder(w).Encode(ComputeMACResponse{MAC: mac})
+}
+
+// VerifyMAC verifies message authentication code for data.
+func (c *Command) VerifyMAC(_ io.Writer, r io.Reader) error {
+	var req VerifyMACRequest
+
+	kh, err := c.getKeyHandle(&req, r)
+	if err != nil {
+		return err
+	}
+
+	if err = c.crypto.VerifyMAC(req.MAC, req.Data, kh); err != nil {
+		return fmt.Errorf("verify mac: %w", err)
+	}
+
+	return nil
+}
+
+func (c *Command) getKeyHandle(req interface{}, r io.Reader) (interface{}, error) {
+	wr, err := unwrapRequest(req, r)
+	if err != nil {
+		return nil, fmt.Errorf("unwrap request: %w", err)
+	}
+
+	ks, err := c.resolveKeyStore(wr.KeyStoreID, wr.User, wr.SecretShare)
+	if err != nil {
+		return nil, fmt.Errorf("resolve key store: %w", err)
+	}
+
+	kh, err := ks.Get(wr.KeyID)
+	if err != nil {
+		return nil, fmt.Errorf("get key: %w", err)
+	}
+
+	return kh, nil
+}
+
 func unwrapRequest(req interface{}, r io.Reader) (*WrappedRequest, error) {
 	var wr WrappedRequest
 
@@ -353,7 +365,7 @@ func unwrapRequest(req interface{}, r io.Reader) (*WrappedRequest, error) {
 	}
 
 	if req != nil {
-		if err := json.Unmarshal(wr.Request, &req); err != nil {
+		if err := json.Unmarshal(wr.Request, req); err != nil {
 			return nil, fmt.Errorf("%w: decode request", errors.ErrInternal)
 		}
 	}

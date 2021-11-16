@@ -110,8 +110,8 @@ func (s *Steps) checkResponse(status string) error {
 	}
 
 	var resp struct {
-		KeyStoreURL    string `json:"key_store_url"`
-		RootCapability []byte `json:"root_capability"`
+		KeyStoreURL string `json:"key_store_url"`
+		Capability  []byte `json:"capability"`
 	}
 
 	if err := json.Unmarshal(s.response, &resp); err != nil {
@@ -123,7 +123,7 @@ func (s *Steps) checkResponse(status string) error {
 		return fmt.Errorf("invalid key store URL: %w", err)
 	}
 
-	decoded, err := base64.URLEncoding.DecodeString(string(resp.RootCapability))
+	decoded, err := base64.URLEncoding.DecodeString(string(resp.Capability))
 	if err != nil {
 		return fmt.Errorf("failed to base64-decode capability header: %w", err)
 	}
