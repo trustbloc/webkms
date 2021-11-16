@@ -133,7 +133,7 @@ func (c *Command) CreateKeyStore(w io.Writer, r io.Reader) error { //nolint:funl
 
 	err = json.NewEncoder(w).Encode(CreateKeyStoreResponse{
 		KeyStoreURL: keyStoreURL,
-		Capability:  []byte(rootCapability),
+		Capability:  rootCapability,
 	})
 	if err != nil {
 		return fmt.Errorf("encode CreateKeyStore response: %w", err)
@@ -194,20 +194,20 @@ func (c *Command) createMACKey() (string, interface{}, error) {
 	return kid, kh, nil
 }
 
-func (c *Command) newCompressedZCAP(ctx context.Context, resource, controller string) (string, error) {
+func (c *Command) newCompressedZCAP(ctx context.Context, resource, controller string) ([]byte, error) {
 	capability, err := c.zcap.NewCapability(ctx,
 		zcapld.WithInvocationTarget(resource, "urn:kms:keystore"),
 		zcapld.WithInvoker(controller),
 		zcapld.WithID(resource),
-		// zcapld.WithAllowedActions(allActions()...),
+		zcapld.WithAllowedActions(allActions()...),
 	)
 	if err != nil {
-		return "", fmt.Errorf("create zcap: %w", err)
+		return nil, fmt.Errorf("create zcap: %w", err)
 	}
 
 	compressed, err := zcapldsvc.CompressZCAP(capability)
 	if err != nil {
-		return "", fmt.Errorf("compress zcap: %w", err)
+		return nil, fmt.Errorf("compress zcap: %w", err)
 	}
 
 	return compressed, nil

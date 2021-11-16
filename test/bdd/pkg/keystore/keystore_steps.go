@@ -9,7 +9,6 @@ package keystore
 import (
 	"bytes"
 	"compress/gzip"
-	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -123,12 +122,7 @@ func (s *Steps) checkResponse(status string) error {
 		return fmt.Errorf("invalid key store URL: %w", err)
 	}
 
-	decoded, err := base64.URLEncoding.DecodeString(string(resp.Capability))
-	if err != nil {
-		return fmt.Errorf("failed to base64-decode capability header: %w", err)
-	}
-
-	compressed, err := gzip.NewReader(bytes.NewReader(decoded))
+	compressed, err := gzip.NewReader(bytes.NewReader(resp.Capability))
 	if err != nil {
 		return fmt.Errorf("failed to open new gzip reader: %w", err)
 	}

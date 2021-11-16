@@ -84,7 +84,8 @@ func (s *Service) SignHeader(req *http.Request, capabilityBytes []byte) (*http.H
 	}
 
 	req.Header.Set(zcapld.CapabilityInvocationHTTPHeader,
-		fmt.Sprintf(`zcap capability="%s",action="%s"`, compressedZcap, action))
+		fmt.Sprintf(`zcap capability="%s",action="%s"`,
+			base64.URLEncoding.EncodeToString(compressedZcap), action))
 
 	hs := httpsignatures.NewHTTPSignatures(&zcapld.AriesDIDKeySecrets{})
 	hs.SetSignatureHashAlgorithm(&zcapld.AriesDIDKeySignatureHashAlgorithm{
@@ -159,10 +160,14 @@ func (s *Service) Crypto() cryptoapi.Crypto {
 }
 
 // CompressZCAP gzips the zcap, then base64URL-encodes it.
-func CompressZCAP(zcap *zcapld.Capability) (string, error) {
+func CompressZCAP(zcap *zcapld.Capability) ([]byte, error) {
+	if zcap == nil {
+		return nil, fmt.Errorf("marshal zcap: %s", "zcap is nil")
+	}
+
 	raw, err := json.Marshal(zcap)
 	if err != nil {
-		return "", fmt.Errorf("marshal zcap: %w", err)
+		return nil, fmt.Errorf("marshal zcap: %w", err)
 	}
 
 	compressed := bytes.NewBuffer(nil)
@@ -171,15 +176,15 @@ func CompressZCAP(zcap *zcapld.Capability) (string, error) {
 
 	_, err = w.Write(raw)
 	if err != nil {
-		return "", fmt.Errorf("compress zcap: %w", err)
+		return nil, fmt.Errorf("compress zcap: %w", err)
 	}
 
 	err = w.Close()
 	if err != nil {
-		return "", fmt.Errorf("close gzip writer: %w", err)
+		return nil, fmt.Errorf("close gzip writer: %w", err)
 	}
 
-	return base64.URLEncoding.EncodeToString(compressed.Bytes()), nil
+	return compressed.Bytes(), nil
 }
 
 func didKeyURL(pubKeyBytes []byte) string {
