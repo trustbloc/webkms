@@ -570,8 +570,7 @@ func (s *Steps) makeEncryptMessageReq(userName, endpoint, message string) error 
 	u := s.users[userName]
 
 	r := &encryptReq{
-		Message:        base64.URLEncoding.EncodeToString([]byte(message)),
-		AdditionalData: base64.URLEncoding.EncodeToString([]byte("additional data")),
+		Message: []byte(message),
 	}
 
 	request, err := u.preparePostRequest(r, endpoint)
@@ -607,19 +606,9 @@ func (s *Steps) makeEncryptMessageReq(userName, endpoint, message string) error 
 		return respErr
 	}
 
-	cipherText, err := base64.URLEncoding.DecodeString(encryptResponse.CipherText)
-	if err != nil {
-		return err
-	}
-
-	nonce, err := base64.URLEncoding.DecodeString(encryptResponse.Nonce)
-	if err != nil {
-		return err
-	}
-
 	u.data = map[string]string{
-		"cipherText": string(cipherText),
-		"nonce":      string(nonce),
+		"ciphertext": string(encryptResponse.Ciphertext),
+		"nonce":      string(encryptResponse.Nonce),
 	}
 
 	return nil
@@ -629,9 +618,8 @@ func (s *Steps) makeDecryptCipherReq(userName, endpoint, tag string) error {
 	u := s.users[userName]
 
 	r := &decryptReq{
-		CipherText:     base64.URLEncoding.EncodeToString([]byte(u.data[tag])),
-		AdditionalData: base64.URLEncoding.EncodeToString([]byte("additional data")),
-		Nonce:          base64.URLEncoding.EncodeToString([]byte(u.data["nonce"])),
+		Ciphertext: []byte(u.data[tag]),
+		Nonce:      []byte(u.data["nonce"]),
 	}
 
 	request, err := u.preparePostRequest(r, endpoint)
@@ -667,13 +655,8 @@ func (s *Steps) makeDecryptCipherReq(userName, endpoint, tag string) error {
 		return respErr
 	}
 
-	plainText, err := base64.URLEncoding.DecodeString(decryptResponse.PlainText)
-	if err != nil {
-		return err
-	}
-
 	u.data = map[string]string{
-		"plainText": string(plainText),
+		"plaintext": string(decryptResponse.Plaintext),
 	}
 
 	return nil
