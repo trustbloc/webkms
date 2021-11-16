@@ -47,10 +47,10 @@ type keyStoreMeta struct {
 }
 
 type edvParameters struct {
-	VaultURL       string          `json:"vault_url"`
-	RecipientKeyID string          `json:"recipient_key_id"`
-	MACKeyID       string          `json:"mac_key_id"`
-	Capability     json.RawMessage `json:"capability"`
+	VaultURL       string `json:"vault_url"`
+	RecipientKeyID string `json:"recipient_key_id"`
+	MACKeyID       string `json:"mac_key_id"`
+	Capability     []byte `json:"capability"`
 }
 
 // CreateKeyStore creates a new key store.
@@ -132,8 +132,8 @@ func (c *Command) CreateKeyStore(w io.Writer, r io.Reader) error { //nolint:funl
 	}
 
 	err = json.NewEncoder(w).Encode(CreateKeyStoreResponse{
-		KeyStoreURL:    keyStoreURL,
-		RootCapability: []byte(rootCapability),
+		KeyStoreURL: keyStoreURL,
+		Capability:  []byte(rootCapability),
 	})
 	if err != nil {
 		return fmt.Errorf("encode CreateKeyStore response: %w", err)

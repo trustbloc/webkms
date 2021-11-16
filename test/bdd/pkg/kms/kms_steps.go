@@ -666,7 +666,7 @@ func (s *Steps) makeComputeMACReq(userName, endpoint, data string) error { //nol
 	u := s.users[userName]
 
 	r := &computeMACReq{
-		Data: base64.URLEncoding.EncodeToString([]byte(data)),
+		Data: []byte(data),
 	}
 
 	request, err := u.preparePostRequest(r, endpoint)
@@ -702,13 +702,8 @@ func (s *Steps) makeComputeMACReq(userName, endpoint, data string) error { //nol
 		return respErr
 	}
 
-	mac, err := base64.URLEncoding.DecodeString(computeMACResponse.MAC)
-	if err != nil {
-		return err
-	}
-
 	u.data = map[string]string{
-		"mac": string(mac),
+		"mac": string(computeMACResponse.MAC),
 	}
 
 	return nil
@@ -718,8 +713,8 @@ func (s *Steps) makeVerifyMACReq(userName, endpoint, tag, data string) error {
 	u := s.users[userName]
 
 	r := &verifyMACReq{
-		MAC:  base64.URLEncoding.EncodeToString([]byte(u.data[tag])),
-		Data: base64.URLEncoding.EncodeToString([]byte(data)),
+		MAC:  []byte(u.data[tag]),
+		Data: []byte(data),
 	}
 
 	return s.makeVerifyReq(u, actionVerifyMAC, r, endpoint)

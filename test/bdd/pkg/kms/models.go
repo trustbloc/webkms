@@ -14,8 +14,8 @@ type createKeystoreReq struct {
 }
 
 type createKeyStoreResp struct {
-	KeyStoreURL    string `json:"key_store_url"`
-	RootCapability []byte `json:"root_capability"`
+	KeyStoreURL string `json:"key_store_url"`
+	Capability  []byte `json:"capability"`
 }
 
 type createKeyReq struct {
@@ -76,16 +76,16 @@ type decryptResp struct {
 }
 
 type computeMACReq struct {
-	Data string `json:"data"`
+	Data []byte `json:"data"`
 }
 
 type computeMACResp struct {
-	MAC string `json:"mac"`
+	MAC []byte `json:"mac"`
 }
 
 type verifyMACReq struct {
-	MAC  string `json:"mac"`
-	Data string `json:"data"`
+	MAC  []byte `json:"mac"`
+	Data []byte `json:"data"`
 }
 
 type wrapReq struct {

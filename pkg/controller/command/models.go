@@ -7,7 +7,6 @@ SPDX-License-Identifier: Apache-2.0
 package command
 
 import (
-	"encoding/json"
 	"fmt"
 
 	"github.com/hyperledger/aries-framework-go/pkg/kms"
@@ -15,7 +14,7 @@ import (
 	"github.com/trustbloc/kms/pkg/controller/errors"
 )
 
-// WrappedRequest is a command request with wrapped original request from user.
+// WrappedRequest is a command request with a wrapped original request from user.
 type WrappedRequest struct {
 	KeyStoreID  string `json:"key_store_id"`
 	KeyID       string `json:"key_id"`
@@ -37,8 +36,8 @@ type CreateKeyStoreRequest struct {
 
 // EDVOptions represents options for creating data vault on EDV.
 type EDVOptions struct {
-	VaultURL   string          `json:"vault_url"`
-	Capability json.RawMessage `json:"capability"`
+	VaultURL   string `json:"vault_url"`
+	Capability []byte `json:"capability"`
 }
 
 // Validate validates CreateKeyStore request.
@@ -56,8 +55,8 @@ func (r *CreateKeyStoreRequest) Validate() error {
 
 // CreateKeyStoreResponse is a response for CreateKeyStore request.
 type CreateKeyStoreResponse struct {
-	KeyStoreURL    string `json:"key_store_url"`
-	RootCapability []byte `json:"root_capability"`
+	KeyStoreURL string `json:"key_store_url"`
+	Capability  []byte `json:"capability"`
 }
 
 // CreateKeyRequest is a request to create a key.
@@ -106,10 +105,7 @@ type VerifyRequest struct {
 
 // EncryptRequest is a request to encrypt a message with associated data.
 type EncryptRequest struct {
-	// Message is the plaintext to be encrypted. It must be non-nil.
-	Message []byte `json:"message"`
-	// AssociatedData to be authenticated, but not encrypted. Associated data is optional, so this parameter can be nil.
-	// For successful decryption the same associated data must be provided along with the ciphertext and nonce.
+	Message        []byte `json:"message"`
 	AssociatedData []byte `json:"associated_data,omitempty"`
 }
 
@@ -121,10 +117,7 @@ type EncryptResponse struct {
 
 // DecryptRequest is a request to decrypt a ciphertext.
 type DecryptRequest struct {
-	// Ciphertext to be decrypted. It must be non-nil.
-	Ciphertext []byte `json:"ciphertext"`
-	// AssociatedData to be authenticated. For successful decryption it must be the same as associated data used
-	// during encryption.
+	Ciphertext     []byte `json:"ciphertext"`
 	AssociatedData []byte `json:"associated_data,omitempty"`
 	Nonce          []byte `json:"nonce"`
 }
@@ -132,4 +125,20 @@ type DecryptRequest struct {
 // DecryptResponse is a response for Decrypt request.
 type DecryptResponse struct {
 	Plaintext []byte `json:"plaintext"`
+}
+
+// ComputeMACRequest is a request to compute MAC for data.
+type ComputeMACRequest struct {
+	Data []byte `json:"data"`
+}
+
+// ComputeMACResponse is a response for ComputeMAC request.
+type ComputeMACResponse struct {
+	MAC []byte `json:"mac"`
+}
+
+// VerifyMACRequest is a request to verify MAC for data.
+type VerifyMACRequest struct {
+	MAC  []byte `json:"mac"`
+	Data []byte `json:"data"`
 }
