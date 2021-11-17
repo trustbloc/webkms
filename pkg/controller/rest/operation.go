@@ -37,6 +37,10 @@ const (
 	DecryptPath     = KeyPath + "/{" + keyVarName + "}/decrypt"
 	ComputeMACPath  = KeyPath + "/{" + keyVarName + "}/computemac"
 	VerifyMACPath   = KeyPath + "/{" + keyVarName + "}/verifymac"
+	SignMultiPath   = KeyPath + "/{" + keyVarName + "}/signmulti"
+	VerifyMultiPath = KeyPath + "/{" + keyVarName + "}/verifymulti"
+	DeriveProofPath = KeyPath + "/{" + keyVarName + "}/deriveproof"
+	VerifyProofPath = KeyPath + "/{" + keyVarName + "}/verifyproof"
 	HealthCheckPath = "/healthcheck"
 )
 
@@ -60,6 +64,10 @@ type Cmd interface {
 	Decrypt(w io.Writer, r io.Reader) error
 	ComputeMAC(w io.Writer, r io.Reader) error
 	VerifyMAC(w io.Writer, r io.Reader) error
+	SignMulti(w io.Writer, r io.Reader) error
+	VerifyMulti(w io.Writer, r io.Reader) error
+	DeriveProof(w io.Writer, r io.Reader) error
+	VerifyProof(w io.Writer, r io.Reader) error
 }
 
 // Operation represents REST API controller.
@@ -86,6 +94,10 @@ func (o *Operation) GetRESTHandlers() []Handler {
 		NewHTTPHandler(DecryptPath, http.MethodPost, o.Decrypt),
 		NewHTTPHandler(ComputeMACPath, http.MethodPost, o.ComputeMAC),
 		NewHTTPHandler(VerifyMACPath, http.MethodPost, o.VerifyMAC),
+		NewHTTPHandler(SignMultiPath, http.MethodPost, o.SignMulti),
+		NewHTTPHandler(VerifyMultiPath, http.MethodPost, o.VerifyMulti),
+		NewHTTPHandler(DeriveProofPath, http.MethodPost, o.DeriveProof),
+		NewHTTPHandler(VerifyProofPath, http.MethodPost, o.VerifyProof),
 		NewHTTPHandler(HealthCheckPath, http.MethodGet, o.HealthCheck),
 	}
 }
@@ -218,6 +230,50 @@ func (o *Operation) ComputeMAC(rw http.ResponseWriter, req *http.Request) {
 //    default: errorResp
 func (o *Operation) VerifyMAC(rw http.ResponseWriter, req *http.Request) {
 	execute(o.cmd.VerifyMAC, rw, req)
+}
+
+// SignMulti swagger:route POST /v1/keystore/{key_store_id}/key/{key_id}/signmulti crypto signMultiReq
+//
+// Creates a BBS+ signature of messages.
+//
+// Responses:
+//        200: signMultiResp
+//    default: errorResp
+func (o *Operation) SignMulti(rw http.ResponseWriter, req *http.Request) {
+	execute(o.cmd.SignMulti, rw, req)
+}
+
+// VerifyMulti swagger:route POST /v1/keystore/{key_store_id}/key/{key_id}/verifymulti crypto verifyMultiReq
+//
+// Verifies a signature of messages (BBS+).
+//
+// Responses:
+//        200: verifyMultiResp
+//    default: errorResp
+func (o *Operation) VerifyMulti(rw http.ResponseWriter, req *http.Request) {
+	execute(o.cmd.VerifyMulti, rw, req)
+}
+
+// DeriveProof swagger:route POST /v1/keystore/{key_store_id}/key/{key_id}/deriveproof crypto deriveProofReq
+//
+// Creates a BBS+ signature proof for a list of revealed messages.
+//
+// Responses:
+//        200: deriveProofResp
+//    default: errorResp
+func (o *Operation) DeriveProof(rw http.ResponseWriter, req *http.Request) {
+	execute(o.cmd.DeriveProof, rw, req)
+}
+
+// VerifyProof swagger:route POST /v1/keystore/{key_store_id}/key/{key_id}/verifyproof crypto verifyProofReq
+//
+// Verifies a BBS+ signature proof for revealed messages.
+//
+// Responses:
+//        200: verifyProofResp
+//    default: errorResp
+func (o *Operation) VerifyProof(rw http.ResponseWriter, req *http.Request) {
+	execute(o.cmd.VerifyProof, rw, req)
 }
 
 // HealthCheck swagger:route GET /healthcheck server healthCheckReq
