@@ -178,3 +178,39 @@ type VerifyProofRequest struct {
 	Messages [][]byte `json:"messages"`
 	Nonce    []byte   `json:"nonce"`
 }
+
+// EasyRequest is a request to seal payload with a provided nonce.
+type EasyRequest struct {
+	Payload  []byte `json:"payload"`
+	Nonce    []byte `json:"nonce"`
+	TheirPub []byte `json:"their_pub"`
+}
+
+// EasyResponse is a response for Easy request.
+type EasyResponse struct {
+	Ciphertext []byte `json:"ciphertext"`
+}
+
+// EasyOpenRequest is a request to unseal a ciphertext sealed with Easy.
+type EasyOpenRequest struct {
+	Ciphertext []byte `json:"ciphertext"`
+	Nonce      []byte `json:"nonce"`
+	TheirPub   []byte `json:"their_pub"`
+	MyPub      []byte `json:"my_pub"`
+}
+
+// EasyOpenResponse is a response for EasyOpen request.
+type EasyOpenResponse struct {
+	Plaintext []byte `json:"plaintext"`
+}
+
+// SealOpenRequest is a request to decrypt a ciphertext encrypted with Seal.
+type SealOpenRequest struct {
+	Ciphertext []byte `json:"ciphertext"`
+	MyPub      []byte `json:"my_pub"`
+}
+
+// SealOpenResponse is a response for SealOpen request.
+type SealOpenResponse struct {
+	Plaintext []byte `json:"plaintext"`
+}

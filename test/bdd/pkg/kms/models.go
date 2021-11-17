@@ -143,31 +143,31 @@ type errorResponse struct {
 }
 
 type easyReq struct {
-	Payload  string `json:"payload"`
-	Nonce    string `json:"nonce"`
-	TheirPub string `json:"theirPub"`
+	Payload  []byte `json:"payload"`
+	Nonce    []byte `json:"nonce"`
+	TheirPub []byte `json:"their_pub"`
 }
 
 type easyResp struct {
-	CipherText string `json:"cipherText"`
+	Ciphertext []byte `json:"ciphertext"`
 }
 
 type easyOpenReq struct {
-	CipherText string `json:"cipherText"`
-	Nonce      string `json:"nonce"`
-	TheirPub   string `json:"theirPub"`
-	MyPub      string `json:"myPub"`
+	Ciphertext []byte `json:"ciphertext"`
+	Nonce      []byte `json:"nonce"`
+	TheirPub   []byte `json:"their_pub"`
+	MyPub      []byte `json:"my_pub"`
 }
 
 type easyOpenResp struct {
-	PlainText string `json:"plainText"`
+	Plaintext []byte `json:"plaintext"`
 }
 
 type sealOpenReq struct {
-	CipherText string `json:"cipherText"`
-	MyPub      string `json:"myPub"`
+	Ciphertext []byte `json:"ciphertext"`
+	MyPub      []byte `json:"my_pub"`
 }
 
 type sealOpenResp struct {
-	PlainText string `json:"plainText"`
+	Plaintext []byte `json:"plaintext"`
 }
