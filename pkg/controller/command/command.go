@@ -338,6 +338,72 @@ func (c *Command) VerifyMAC(_ io.Writer, r io.Reader) error {
 	return nil
 }
 
+// SignMulti creates a BBS+ signature of messages.
+func (c *Command) SignMulti(w io.Writer, r io.Reader) error {
+	var req SignMultiRequest
+
+	kh, err := c.getKeyHandle(&req, r)
+	if err != nil {
+		return err
+	}
+
+	signature, err := c.crypto.SignMulti(req.Messages, kh)
+	if err != nil {
+		return fmt.Errorf("sign multi: %w", err)
+	}
+
+	return json.NewEncoder(w).Encode(SignMultiResponse{Signature: signature})
+}
+
+// VerifyMulti verifies a signature of messages (BBS+).
+func (c *Command) VerifyMulti(_ io.Writer, r io.Reader) error {
+	var req VerifyMultiRequest
+
+	kh, err := c.getKeyHandle(&req, r)
+	if err != nil {
+		return err
+	}
+
+	if err = c.crypto.VerifyMulti(req.Messages, req.Signature, kh); err != nil {
+		return fmt.Errorf("verify multi: %w", err)
+	}
+
+	return nil
+}
+
+// DeriveProof creates a BBS+ signature proof for a list of revealed messages.
+func (c *Command) DeriveProof(w io.Writer, r io.Reader) error {
+	var req DeriveProofRequest
+
+	kh, err := c.getKeyHandle(&req, r)
+	if err != nil {
+		return err
+	}
+
+	proof, err := c.crypto.DeriveProof(req.Messages, req.Signature, req.Nonce, req.RevealedIndexes, kh)
+	if err != nil {
+		return fmt.Errorf("derive proof: %w", err)
+	}
+
+	return json.NewEncoder(w).Encode(DeriveProofResponse{Proof: proof})
+}
+
+// VerifyProof verifies a BBS+ signature proof for revealed messages.
+func (c *Command) VerifyProof(_ io.Writer, r io.Reader) error {
+	var req VerifyProofRequest
+
+	kh, err := c.getKeyHandle(&req, r)
+	if err != nil {
+		return err
+	}
+
+	if err = c.crypto.VerifyProof(req.Messages, req.Proof, req.Nonce, kh); err != nil {
+		return fmt.Errorf("verify proof: %w", err)
+	}
+
+	return nil
+}
+
 func (c *Command) getKeyHandle(req interface{}, r io.Reader) (interface{}, error) {
 	wr, err := unwrapRequest(req, r)
 	if err != nil {

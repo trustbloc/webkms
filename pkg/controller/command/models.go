@@ -142,3 +142,39 @@ type VerifyMACRequest struct {
 	MAC  []byte `json:"mac"`
 	Data []byte `json:"data"`
 }
+
+// SignMultiRequest is a request to create a BBS+ signature of messages.
+type SignMultiRequest struct {
+	Messages [][]byte `json:"messages"`
+}
+
+// SignMultiResponse is a response for SignMulti request.
+type SignMultiResponse struct {
+	Signature []byte `json:"signature"`
+}
+
+// VerifyMultiRequest is a request to verify a signature of messages (BBS+).
+type VerifyMultiRequest struct {
+	Signature []byte   `json:"signature"`
+	Messages  [][]byte `json:"messages"`
+}
+
+// DeriveProofRequest is a request to create a BBS+ signature proof for a list of revealed messages.
+type DeriveProofRequest struct {
+	Messages        [][]byte `json:"messages"`
+	Signature       []byte   `json:"signature"`
+	Nonce           []byte   `json:"nonce"`
+	RevealedIndexes []int    `json:"revealed_indexes"`
+}
+
+// DeriveProofResponse is a response for DeriveProof request.
+type DeriveProofResponse struct {
+	Proof []byte `json:"proof"`
+}
+
+// VerifyProofRequest is a request to verify a BBS+ signature proof for revealed messages.
+type VerifyProofRequest struct {
+	Proof    []byte   `json:"proof"`
+	Messages [][]byte `json:"messages"`
+	Nonce    []byte   `json:"nonce"`
+}

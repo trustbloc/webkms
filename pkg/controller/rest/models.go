@@ -170,13 +170,13 @@ type exportKeyResp struct { //nolint:unused,deadcode
 //
 // swagger:parameters signReq
 type signReq struct { //nolint:unused,deadcode
-	// The key store's ID
+	// The key store's ID.
 	//
 	// in: path
 	// required: true
 	KeyStoreID string `json:"key_store_id"`
 
-	// The key's ID
+	// The key's ID.
 	//
 	// in: path
 	// required: true
@@ -204,13 +204,13 @@ type signResp struct { //nolint:unused,deadcode
 //
 // swagger:parameters verifyReq
 type verifyReq struct { //nolint:unused,deadcode
-	// The key store's ID
+	// The key store's ID.
 	//
 	// in: path
 	// required: true
 	KeyStoreID string `json:"key_store_id"`
 
-	// The key's ID
+	// The key's ID.
 	//
 	// in: path
 	// required: true
@@ -383,6 +383,155 @@ type verifyMACReq struct { //nolint:unused,deadcode
 //
 // swagger:response verifyMACResp
 type verifyMACResp struct{} //nolint:unused,deadcode
+
+// signMultiReq model
+//
+// swagger:parameters signMultiReq
+type signMultiReq struct { //nolint:unused,deadcode
+	// The key store's ID.
+	//
+	// in: path
+	// required: true
+	KeyStoreID string `json:"key_store_id"`
+
+	// The key's ID.
+	//
+	// in: path
+	// required: true
+	KeyID string `json:"key_id"`
+
+	// in: body
+	Body struct {
+		// Base64-encoded messages to sign.
+		Messages []string `json:"messages"`
+	}
+}
+
+// signMultiResp model
+//
+// swagger:response signMultiResp
+type signMultiResp struct { //nolint:unused,deadcode
+	// in: body
+	Body struct {
+		// A base64-encoded signature.
+		Signature string `json:"signature"`
+	}
+}
+
+// verifyMultiReq model
+//
+// swagger:parameters verifyMultiReq
+type verifyMultiReq struct { //nolint:unused,deadcode
+	// The key store's ID.
+	//
+	// in: path
+	// required: true
+	KeyStoreID string `json:"key_store_id"`
+
+	// The key's ID.
+	//
+	// in: path
+	// required: true
+	KeyID string `json:"key_id"`
+
+	// in: body
+	Body struct {
+		// A base64-encoded signature.
+		Signature string `json:"signature"`
+
+		// Base64-encoded messages to verify.
+		Messages []string `json:"messages"`
+	}
+}
+
+// verifyMultiResp model
+//
+// swagger:response verifyMultiResp
+type verifyMultiResp struct{} //nolint:unused,deadcode
+
+// deriveProofReq model
+//
+// swagger:parameters deriveProofReq
+type deriveProofReq struct { //nolint:unused,deadcode
+	// The key store's ID.
+	//
+	// in: path
+	// required: true
+	KeyStoreID string `json:"key_store_id"`
+
+	// The key's ID.
+	//
+	// in: path
+	// required: true
+	KeyID string `json:"key_id"`
+
+	// in: body
+	Body struct {
+		// Base64-encoded messages.
+		// required: true
+		Messages []string `json:"messages"`
+
+		// A base64-encoded signature.
+		// required: true
+		Signature string `json:"signature"`
+
+		// A base64-encoded nonce.
+		// required: true
+		Nonce string `json:"nonce"`
+
+		// A vector of revealed messages.
+		// required: true
+		RevealedIndexes []int `json:"revealed_indexes"`
+	}
+}
+
+// deriveProofResp model
+//
+// swagger:response deriveProofResp
+type deriveProofResp struct { //nolint:unused,deadcode
+	// in: body
+	Body struct {
+		// A base64-encoded BBS+ signature proof.
+		Proof string `json:"proof"`
+	}
+}
+
+// verifyProofReq model
+//
+// swagger:parameters verifyProofReq
+type verifyProofReq struct { //nolint:unused,deadcode
+	// The key store's ID.
+	//
+	// in: path
+	// required: true
+	KeyStoreID string `json:"key_store_id"`
+
+	// The key's ID.
+	//
+	// in: path
+	// required: true
+	KeyID string `json:"key_id"`
+
+	// in: body
+	Body struct {
+		// A base64-encoded proof.
+		// required: true
+		Proof string `json:"proof"`
+
+		// Base64-encoded messages.
+		// required: true
+		Messages []string `json:"messages"`
+
+		// A base64-encoded nonce.
+		// required: true
+		Nonce string `json:"nonce"`
+	}
+}
+
+// verifyProofResp model
+//
+// swagger:response verifyProofResp
+type verifyProofResp struct{} //nolint:unused,deadcode
 
 // healthCheckReq model
 //
