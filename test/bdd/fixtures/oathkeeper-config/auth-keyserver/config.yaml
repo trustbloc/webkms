@@ -32,6 +32,6 @@ mutators:
     enabled: true
     config:
       headers:
-        KMS-USER: '{{ print .Subject }}'
+        AUTH-USER: '{{ print .Subject }}'
   noop:
     enabled: true

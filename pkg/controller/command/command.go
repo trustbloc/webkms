@@ -45,6 +45,17 @@ type keyStoreCreator interface {
 	Create(keyURI string, provider kms.Provider) (kms.KeyManager, error)
 }
 
+// CryptoBox represents crypto box API.
+type CryptoBox interface {
+	Easy(payload, nonce, theirPub []byte, myKID string) ([]byte, error)
+	EasyOpen(ciphertext, nonce, theirPub, myPub []byte) ([]byte, error)
+	SealOpen(ciphertext, myPub []byte) ([]byte, error)
+}
+
+type cryptoBoxCreator interface {
+	Create(km kms.KeyManager) (CryptoBox, error)
+}
+
 type httpClient interface {
 	Do(req *http.Request) (*http.Response, error)
 }
@@ -60,6 +71,7 @@ type Config struct {
 	KeyStoreCreator     keyStoreCreator
 	ZCAPService         zcapService
 	HeaderSigner        headerSigner
+	CryptBoxCreator     cryptoBoxCreator
 	HTTPClient          httpClient
 	TLSConfig           *tls.Config
 	BaseKeyStoreURL     string
@@ -81,6 +93,7 @@ type Command struct {
 	documentLoader      ld.DocumentLoader
 	keyStoreCreator     keyStoreCreator // user's key manager creator
 	headerSigner        headerSigner
+	cryptoBox           cryptoBoxCreator
 	httpClient          httpClient
 	tlsConfig           *tls.Config
 	baseKeyStoreURL     string
@@ -108,6 +121,7 @@ func New(c *Config) (*Command, error) {
 		documentLoader:      c.DocumentLoader,
 		keyStoreCreator:     c.KeyStoreCreator,
 		headerSigner:        c.HeaderSigner,
+		cryptoBox:           c.CryptBoxCreator,
 		httpClient:          c.HTTPClient,
 		tlsConfig:           c.TLSConfig,
 		baseKeyStoreURL:     c.BaseKeyStoreURL,
@@ -404,6 +418,72 @@ func (c *Command) VerifyProof(_ io.Writer, r io.Reader) error {
 	return nil
 }
 
+// Easy seals a payload.
+func (c *Command) Easy(w io.Writer, r io.Reader) error { //nolint:dupl
+	var req EasyRequest
+
+	wr, err := unwrapRequest(&req, r)
+	if err != nil {
+		return fmt.Errorf("unwrap request: %w", err)
+	}
+
+	cryptoBox, err := c.getCryptoBox(wr.KeyStoreID, wr.User, wr.SecretShare)
+	if err != nil {
+		return err
+	}
+
+	ciphertext, err := cryptoBox.Easy(req.Payload, req.Nonce, req.TheirPub, wr.KeyID)
+	if err != nil {
+		return fmt.Errorf("easy: %w", err)
+	}
+
+	return json.NewEncoder(w).Encode(EasyResponse{Ciphertext: ciphertext})
+}
+
+// EasyOpen unseals a ciphertext sealed with Easy.
+func (c *Command) EasyOpen(w io.Writer, r io.Reader) error { //nolint:dupl
+	var req EasyOpenRequest
+
+	wr, err := unwrapRequest(&req, r)
+	if err != nil {
+		return fmt.Errorf("unwrap request: %w", err)
+	}
+
+	cryptoBox, err := c.getCryptoBox(wr.KeyStoreID, wr.User, wr.SecretShare)
+	if err != nil {
+		return err
+	}
+
+	plaintext, err := cryptoBox.EasyOpen(req.Ciphertext, req.Nonce, req.TheirPub, req.MyPub)
+	if err != nil {
+		return fmt.Errorf("easy open: %w", err)
+	}
+
+	return json.NewEncoder(w).Encode(EasyOpenResponse{Plaintext: plaintext})
+}
+
+// SealOpen decrypts a ciphertext encrypted with Seal.
+func (c *Command) SealOpen(w io.Writer, r io.Reader) error {
+	var req SealOpenRequest
+
+	wr, err := unwrapRequest(&req, r)
+	if err != nil {
+		return fmt.Errorf("unwrap request: %w", err)
+	}
+
+	cryptoBox, err := c.getCryptoBox(wr.KeyStoreID, wr.User, wr.SecretShare)
+	if err != nil {
+		return err
+	}
+
+	plaintext, err := cryptoBox.SealOpen(req.Ciphertext, req.MyPub)
+	if err != nil {
+		return fmt.Errorf("seal open: %w", err)
+	}
+
+	return json.NewEncoder(w).Encode(SealOpenResponse{Plaintext: plaintext})
+}
+
 func (c *Command) getKeyHandle(req interface{}, r io.Reader) (interface{}, error) {
 	wr, err := unwrapRequest(req, r)
 	if err != nil {
@@ -421,6 +501,20 @@ func (c *Command) getKeyHandle(req interface{}, r io.Reader) (interface{}, error
 	}
 
 	return kh, nil
+}
+
+func (c *Command) getCryptoBox(keyStoreID, user string, secretShare []byte) (CryptoBox, error) {
+	ks, err := c.resolveKeyStore(keyStoreID, user, secretShare)
+	if err != nil {
+		return nil, fmt.Errorf("resolve key store: %w", err)
+	}
+
+	cryptoBox, err := c.cryptoBox.Create(ks)
+	if err != nil {
+		return nil, fmt.Errorf("create crypto box: %w", err)
+	}
+
+	return cryptoBox, nil
 }
 
 func unwrapRequest(req interface{}, r io.Reader) (*WrappedRequest, error) {

@@ -890,15 +890,15 @@ func (s *Steps) getPubKeyOfRecipient(userName, recipientName string) error {
 	}
 
 	// recipient delegates authority on the user to export their public key
-	c, err := delegateCapability(recipient.kmsCapability, recipient.signer, recipient.controller, u.controller)
-	if err != nil {
-		return err
-	}
-
-	err = setCapabilityHeader(request, c, u.controller, u.authKMS, u.authCrypto)
-	if err != nil {
-		return err
-	}
+	//c, err := delegateCapability(recipient.kmsCapability, recipient.signer, recipient.controller, u.controller)
+	//if err != nil {
+	//	return err
+	//}
+	//
+	//err = setCapabilityHeader(request, c, u.controller, u.authKMS, u.authCrypto)
+	//if err != nil {
+	//	return err
+	//}
 
 	response, err := s.httpClient.Do(request)
 	if err != nil {

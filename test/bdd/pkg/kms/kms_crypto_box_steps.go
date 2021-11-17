@@ -8,7 +8,6 @@ package kms
 
 import (
 	"crypto/rand"
-	"encoding/base64"
 	"fmt"
 	"net/http"
 
@@ -30,9 +29,9 @@ func (s *Steps) makeEasyPayloadReq(userName, endpoint, payload, recipient string
 	nonce := cryptoutil.GenerateNonceForCryptoBox()
 
 	r := &easyReq{
-		Payload:  base64.URLEncoding.EncodeToString([]byte(payload)),
-		Nonce:    base64.URLEncoding.EncodeToString(nonce),
-		TheirPub: base64.URLEncoding.EncodeToString(recPubCurve25519),
+		Payload:  []byte(payload),
+		Nonce:    nonce,
+		TheirPub: recPubCurve25519,
 	}
 
 	response, closeBody, err := s.makeHTTPReq(u, r, endpoint, actionEasy)
@@ -48,14 +47,9 @@ func (s *Steps) makeEasyPayloadReq(userName, endpoint, payload, recipient string
 		return respErr
 	}
 
-	cipherText, err := base64.URLEncoding.DecodeString(easyResponse.CipherText)
-	if err != nil {
-		return err
-	}
-
 	u.data = map[string]string{
-		"cipherText": string(cipherText),
-		"nonce":      r.Nonce,
+		"ciphertext": string(easyResponse.Ciphertext),
+		"nonce":      string(r.Nonce),
 	}
 
 	return nil
@@ -76,10 +70,10 @@ func (s *Steps) makeEasyOpenReq(userName, endpoint, tag, sender string) error {
 	}
 
 	r := &easyOpenReq{
-		CipherText: base64.URLEncoding.EncodeToString([]byte(cipherText)),
-		Nonce:      nonce,
-		TheirPub:   base64.URLEncoding.EncodeToString(theirPubCurve25519),
-		MyPub:      base64.URLEncoding.EncodeToString(myPub),
+		Ciphertext: []byte(cipherText),
+		Nonce:      []byte(nonce),
+		TheirPub:   theirPubCurve25519,
+		MyPub:      myPub,
 	}
 
 	response, closeBody, err := s.makeHTTPReq(u, r, endpoint, actionEasyOpen)
@@ -95,13 +89,8 @@ func (s *Steps) makeEasyOpenReq(userName, endpoint, tag, sender string) error {
 		return respErr
 	}
 
-	plainText, err := base64.URLEncoding.DecodeString(easyOpenResponse.PlainText)
-	if err != nil {
-		return err
-	}
-
 	u.data = map[string]string{
-		"plainText": string(plainText),
+		"plaintext": string(easyOpenResponse.Plaintext),
 	}
 
 	return nil
@@ -122,13 +111,13 @@ func (s *Steps) sealPayloadForRecipient(userName, payload, recipient string) err
 		return err
 	}
 
-	cipherText, err := cb.Seal([]byte(payload), theirPubCurve25519, rand.Reader)
+	ciphertext, err := cb.Seal([]byte(payload), theirPubCurve25519, rand.Reader)
 	if err != nil {
 		return err
 	}
 
 	u.data = map[string]string{
-		"cipherText": string(cipherText),
+		"ciphertext": string(ciphertext),
 	}
 
 	return nil
@@ -137,12 +126,12 @@ func (s *Steps) sealPayloadForRecipient(userName, payload, recipient string) err
 func (s *Steps) makeSealOpenReq(userName, endpoint, tag, sender string) error {
 	u := s.users[userName]
 
-	cipherText := s.users[sender].data[tag]
+	ciphertext := s.users[sender].data[tag]
 	myPub := s.users[sender].recipientPubKeys[userName].rawBytes
 
 	r := &sealOpenReq{
-		CipherText: base64.URLEncoding.EncodeToString([]byte(cipherText)),
-		MyPub:      base64.URLEncoding.EncodeToString(myPub),
+		Ciphertext: []byte(ciphertext),
+		MyPub:      myPub,
 	}
 
 	response, closeBody, err := s.makeHTTPReq(u, r, endpoint, actionSealOpen)
@@ -158,13 +147,8 @@ func (s *Steps) makeSealOpenReq(userName, endpoint, tag, sender string) error {
 		return respErr
 	}
 
-	plainText, err := base64.URLEncoding.DecodeString(sealOpenResponse.PlainText)
-	if err != nil {
-		return err
-	}
-
 	u.data = map[string]string{
-		"plainText": string(plainText),
+		"plaintext": string(sealOpenResponse.Plaintext),
 	}
 
 	return nil
