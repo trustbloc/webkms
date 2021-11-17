@@ -38,12 +38,15 @@ import (
 	vdrkey "github.com/hyperledger/aries-framework-go/pkg/vdr/key"
 	"github.com/hyperledger/aries-framework-go/spi/storage"
 	jsonld "github.com/piprate/json-gold/ld"
+	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/rs/cors"
 	"github.com/spf13/cobra"
 	tlsutil "github.com/trustbloc/edge-core/pkg/utils/tls"
 	"github.com/trustbloc/edge-core/pkg/zcapld"
 
 	"github.com/trustbloc/kms/pkg/controller/command"
+	"github.com/trustbloc/kms/pkg/controller/mw"
 	"github.com/trustbloc/kms/pkg/controller/rest"
 	awssecretlock "github.com/trustbloc/kms/pkg/secretlock/aws"
 	zcapsvc "github.com/trustbloc/kms/pkg/zcapld"
@@ -187,6 +190,12 @@ func startServer(srv server, params *serverParameters) error { //nolint:funlen
 				AllowedHeaders: []string{"*"},
 			},
 		).Handler(router)
+	}
+
+	if params.metricsHost != "" {
+		router.Use(mw.PrometheusMiddleware)
+
+		go startMetrics(srv, params.metricsHost)
 	}
 
 	logger.Infof("Starting kms-server on host [%s]", params.host)
@@ -391,4 +400,24 @@ func (a *awsProvider) NewSession(region string) (*session.Session, error) {
 // NewClient returns tink KMSClient that.
 func (a *awsProvider) NewClient(uriPrefix string, sess *session.Session) (registry.KMSClient, error) {
 	return tinkawskms.NewClientWithKMS(uriPrefix, awskms.New(sess))
+}
+
+func startMetrics(srv server, metricsHost string) {
+	metricsRouter := mux.NewRouter()
+
+	h := promhttp.HandlerFor(prometheus.DefaultGatherer,
+		promhttp.HandlerOpts{
+			EnableOpenMetrics: true,
+		},
+	)
+
+	metricsRouter.HandleFunc("/metrics", func(w http.ResponseWriter, r *http.Request) {
+		h.ServeHTTP(w, r)
+	})
+
+	logger.Infof("Starting KMS metrics on host [%s]", metricsHost)
+
+	if err := srv.ListenAndServe(metricsHost, "", "", metricsRouter); err != nil {
+		logger.Fatalf("%v", err)
+	}
 }
