@@ -24,12 +24,12 @@ import (
 
 // API endpoints.
 const (
-	keyStoreVarName = "keystore"
+	KeyStoreVarName = "keystore"
 	keyVarName      = "key"
 	BaseV1Path      = "/v1"
 	KeyStorePath    = BaseV1Path + "/keystore"
 	DIDPath         = KeyStorePath + "/did"
-	KeyPath         = KeyStorePath + "/{" + keyStoreVarName + "}/key"
+	KeyPath         = KeyStorePath + "/{" + KeyStoreVarName + "}/key"
 	ExportKeyPath   = KeyPath + "/{" + keyVarName + "}/export"
 	SignPath        = KeyPath + "/{" + keyVarName + "}/sign"
 	VerifyPath      = KeyPath + "/{" + keyVarName + "}/verify"
@@ -42,8 +42,8 @@ const (
 	DeriveProofPath = KeyPath + "/{" + keyVarName + "}/deriveproof"
 	VerifyProofPath = KeyPath + "/{" + keyVarName + "}/verifyproof"
 	EasyPath        = KeyPath + "/{" + keyVarName + "}/easy"
-	EasyOpenPath    = KeyStorePath + "/{" + keyStoreVarName + "}/easyopen"
-	SealOpenPath    = KeyStorePath + "/{" + keyStoreVarName + "}/sealopen"
+	EasyOpenPath    = KeyStorePath + "/{" + KeyStoreVarName + "}/easyopen"
+	SealOpenPath    = KeyStorePath + "/{" + KeyStoreVarName + "}/sealopen"
 	HealthCheckPath = "/healthcheck"
 )
 
@@ -89,25 +89,25 @@ func New(cmd Cmd) *Operation {
 // GetRESTHandlers returns list of all handlers supported by this controller.
 func (o *Operation) GetRESTHandlers() []Handler {
 	return []Handler{
-		NewHTTPHandler(DIDPath, http.MethodPost, o.CreateDID),
-		NewHTTPHandler(KeyStorePath, http.MethodPost, o.CreateKeyStore),
-		NewHTTPHandler(KeyPath, http.MethodPost, o.CreateKey),
-		NewHTTPHandler(KeyPath, http.MethodPut, o.ImportKey),
-		NewHTTPHandler(ExportKeyPath, http.MethodGet, o.ExportKey),
-		NewHTTPHandler(SignPath, http.MethodPost, o.Sign),
-		NewHTTPHandler(VerifyPath, http.MethodPost, o.Verify),
-		NewHTTPHandler(EncryptPath, http.MethodPost, o.Encrypt),
-		NewHTTPHandler(DecryptPath, http.MethodPost, o.Decrypt),
-		NewHTTPHandler(ComputeMACPath, http.MethodPost, o.ComputeMAC),
-		NewHTTPHandler(VerifyMACPath, http.MethodPost, o.VerifyMAC),
-		NewHTTPHandler(SignMultiPath, http.MethodPost, o.SignMulti),
-		NewHTTPHandler(VerifyMultiPath, http.MethodPost, o.VerifyMulti),
-		NewHTTPHandler(DeriveProofPath, http.MethodPost, o.DeriveProof),
-		NewHTTPHandler(VerifyProofPath, http.MethodPost, o.VerifyProof),
-		NewHTTPHandler(EasyPath, http.MethodPost, o.Easy),
-		NewHTTPHandler(EasyOpenPath, http.MethodPost, o.EasyOpen),
-		NewHTTPHandler(SealOpenPath, http.MethodPost, o.SealOpen),
-		NewHTTPHandler(HealthCheckPath, http.MethodGet, o.HealthCheck),
+		NewHTTPHandler(DIDPath, http.MethodPost, o.CreateDID, "", false),
+		NewHTTPHandler(KeyStorePath, http.MethodPost, o.CreateKeyStore, "", false),
+		NewHTTPHandler(KeyPath, http.MethodPost, o.CreateKey, actionCreateKey, true),
+		NewHTTPHandler(KeyPath, http.MethodPut, o.ImportKey, actionImportKey, true),
+		NewHTTPHandler(ExportKeyPath, http.MethodGet, o.ExportKey, actionExportKey, true),
+		NewHTTPHandler(SignPath, http.MethodPost, o.Sign, actionSign, true),
+		NewHTTPHandler(VerifyPath, http.MethodPost, o.Verify, actionVerify, true),
+		NewHTTPHandler(EncryptPath, http.MethodPost, o.Encrypt, actionEncrypt, true),
+		NewHTTPHandler(DecryptPath, http.MethodPost, o.Decrypt, actionDecrypt, true),
+		NewHTTPHandler(ComputeMACPath, http.MethodPost, o.ComputeMAC, actionComputeMac, true),
+		NewHTTPHandler(VerifyMACPath, http.MethodPost, o.VerifyMAC, actionVerifyMAC, true),
+		NewHTTPHandler(SignMultiPath, http.MethodPost, o.SignMulti, actionSignMulti, true),
+		NewHTTPHandler(VerifyMultiPath, http.MethodPost, o.VerifyMulti, actionVerifyMulti, true),
+		NewHTTPHandler(DeriveProofPath, http.MethodPost, o.DeriveProof, actionDeriveProof, true),
+		NewHTTPHandler(VerifyProofPath, http.MethodPost, o.VerifyProof, actionVerifyProof, true),
+		NewHTTPHandler(EasyPath, http.MethodPost, o.Easy, actionEasy, true),
+		NewHTTPHandler(EasyOpenPath, http.MethodPost, o.EasyOpen, actionEasyOpen, true),
+		NewHTTPHandler(SealOpenPath, http.MethodPost, o.SealOpen, actionSealOpen, true),
+		NewHTTPHandler(HealthCheckPath, http.MethodGet, o.HealthCheck, "", false),
 	}
 }
 
@@ -374,7 +374,7 @@ func wrapRequest(req *http.Request) ([]byte, error) {
 	vars := mux.Vars(req)
 
 	return json.Marshal(&command.WrappedRequest{
-		KeyStoreID:  vars[keyStoreVarName],
+		KeyStoreID:  vars[KeyStoreVarName],
 		KeyID:       vars[keyVarName],
 		User:        req.Header.Get("Auth-User"),
 		SecretShare: secret,
