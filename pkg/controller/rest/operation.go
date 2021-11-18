@@ -41,6 +41,9 @@ const (
 	VerifyMultiPath = KeyPath + "/{" + keyVarName + "}/verifymulti"
 	DeriveProofPath = KeyPath + "/{" + keyVarName + "}/deriveproof"
 	VerifyProofPath = KeyPath + "/{" + keyVarName + "}/verifyproof"
+	EasyPath        = KeyPath + "/{" + keyVarName + "}/easy"
+	EasyOpenPath    = KeyStorePath + "/{" + keyStoreVarName + "}/easyopen"
+	SealOpenPath    = KeyStorePath + "/{" + keyStoreVarName + "}/sealopen"
 	HealthCheckPath = "/healthcheck"
 )
 
@@ -68,6 +71,9 @@ type Cmd interface {
 	VerifyMulti(w io.Writer, r io.Reader) error
 	DeriveProof(w io.Writer, r io.Reader) error
 	VerifyProof(w io.Writer, r io.Reader) error
+	Easy(w io.Writer, r io.Reader) error
+	EasyOpen(w io.Writer, r io.Reader) error
+	SealOpen(w io.Writer, r io.Reader) error
 }
 
 // Operation represents REST API controller.
@@ -98,6 +104,9 @@ func (o *Operation) GetRESTHandlers() []Handler {
 		NewHTTPHandler(VerifyMultiPath, http.MethodPost, o.VerifyMulti),
 		NewHTTPHandler(DeriveProofPath, http.MethodPost, o.DeriveProof),
 		NewHTTPHandler(VerifyProofPath, http.MethodPost, o.VerifyProof),
+		NewHTTPHandler(EasyPath, http.MethodPost, o.Easy),
+		NewHTTPHandler(EasyOpenPath, http.MethodPost, o.EasyOpen),
+		NewHTTPHandler(SealOpenPath, http.MethodPost, o.SealOpen),
 		NewHTTPHandler(HealthCheckPath, http.MethodGet, o.HealthCheck),
 	}
 }
@@ -276,6 +285,39 @@ func (o *Operation) VerifyProof(rw http.ResponseWriter, req *http.Request) {
 	execute(o.cmd.VerifyProof, rw, req)
 }
 
+// Easy swagger:route POST /v1/keystore/{key_store_id}/key/{key_id}/easy crypto easyReq
+//
+// Seals a message.
+//
+// Responses:
+//        200: easyResp
+//    default: errorResp
+func (o *Operation) Easy(rw http.ResponseWriter, req *http.Request) {
+	execute(o.cmd.Easy, rw, req)
+}
+
+// EasyOpen swagger:route POST /v1/keystore/{key_store_id}/easyopen crypto easyOpenReq
+//
+// Unseals a message sealed with Easy.
+//
+// Responses:
+//        200: easyOpenResp
+//    default: errorResp
+func (o *Operation) EasyOpen(rw http.ResponseWriter, req *http.Request) {
+	execute(o.cmd.EasyOpen, rw, req)
+}
+
+// SealOpen swagger:route POST /v1/keystore/{key_store_id}/sealopen crypto sealOpenReq
+//
+// Decrypts a payload encrypted with Seal.
+//
+// Responses:
+//        200: sealOpenResp
+//    default: errorResp
+func (o *Operation) SealOpen(rw http.ResponseWriter, req *http.Request) {
+	execute(o.cmd.SealOpen, rw, req)
+}
+
 // HealthCheck swagger:route GET /healthcheck server healthCheckReq
 //
 // Returns a health check status.
@@ -320,7 +362,7 @@ func wrapRequest(req *http.Request) ([]byte, error) {
 
 	var secret []byte
 
-	secretHeader := req.Header.Get("Kms-Secret")
+	secretHeader := req.Header.Get("Secret-Share")
 
 	if secretHeader != "" {
 		secret, err = base64.StdEncoding.DecodeString(secretHeader)
@@ -334,7 +376,7 @@ func wrapRequest(req *http.Request) ([]byte, error) {
 	return json.Marshal(&command.WrappedRequest{
 		KeyStoreID:  vars[keyStoreVarName],
 		KeyID:       vars[keyVarName],
-		User:        req.Header.Get("Kms-User"),
+		User:        req.Header.Get("Auth-User"),
 		SecretShare: secret,
 		Request:     buf.Bytes(),
 	})

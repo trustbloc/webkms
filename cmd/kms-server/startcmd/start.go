@@ -162,6 +162,7 @@ func startServer(srv server, params *serverParameters) error { //nolint:funlen
 		KeyStoreCreator:     &keyStoreCreator{},
 		ZCAPService:         zcapService,
 		HeaderSigner:        zcapService,
+		CryptBoxCreator:     &cryptoBoxCreator{},
 		HTTPClient:          httpClient,
 		TLSConfig:           tlsConfig,
 		BaseKeyStoreURL:     params.baseURL + rest.KeyStorePath,
@@ -375,8 +376,7 @@ func createJSONLDDocumentLoader(store storage.Provider) (jsonld.DocumentLoader, 
 	return documentLoader, nil
 }
 
-type keyStoreCreator struct {
-}
+type keyStoreCreator struct{}
 
 func (c *keyStoreCreator) Create(keyURI string, provider kms.Provider) (kms.KeyManager, error) {
 	return localkms.New(keyURI, provider)
@@ -420,4 +420,10 @@ func startMetrics(srv server, metricsHost string) {
 	if err := srv.ListenAndServe(metricsHost, "", "", metricsRouter); err != nil {
 		logger.Fatalf("%v", err)
 	}
+}
+
+type cryptoBoxCreator struct{}
+
+func (c *cryptoBoxCreator) Create(km kms.KeyManager) (command.CryptoBox, error) {
+	return localkms.NewCryptoBox(km)
 }

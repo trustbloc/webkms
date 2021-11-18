@@ -533,6 +533,123 @@ type verifyProofReq struct { //nolint:unused,deadcode
 // swagger:response verifyProofResp
 type verifyProofResp struct{} //nolint:unused,deadcode
 
+// easyReq model
+//
+// swagger:parameters easyReq
+type easyReq struct { //nolint:unused,deadcode
+	// The key store's ID.
+	//
+	// in: path
+	// required: true
+	KeyStoreID string `json:"key_store_id"`
+
+	// The key's ID.
+	//
+	// in: path
+	// required: true
+	KeyID string `json:"key_id"`
+
+	// in: body
+	Body struct {
+		// A base64-encoded payload.
+		// required: true
+		Payload string `json:"payload"`
+
+		// A base64-encoded nonce.
+		// required: true
+		Nonce string `json:"nonce"`
+
+		// A base64-encoded public key.
+		// required: true
+		TheirPub string `json:"theirPub"`
+	}
+}
+
+// easyResp model
+//
+// swagger:response easyResp
+type easyResp struct { //nolint:unused,deadcode
+	// in: body
+	Body struct {
+		// A base64-encoded ciphertext.
+		Ciphertext string `json:"ciphertext"`
+	}
+}
+
+// easyOpenReq model
+//
+// swagger:parameters easyOpenReq
+type easyOpenReq struct { //nolint:unused,deadcode
+	// The key store's ID.
+	//
+	// in: path
+	// required: true
+	KeyStoreID string `json:"key_store_id"`
+
+	// in: body
+	Body struct {
+		// A base64-encoded ciphertext.
+		// required: true
+		Ciphertext string `json:"ciphertext"`
+
+		// A base64-encoded nonce.
+		// required: true
+		Nonce string `json:"nonce"`
+
+		// A base64-encoded their public key.
+		// required: true
+		TheirPub string `json:"their_pub"`
+
+		// A base64-encoded my public key.
+		// required: true
+		MyPub string `json:"my_pub"`
+	}
+}
+
+// easyOpenResp model
+//
+// swagger:response easyOpenResp
+type easyOpenResp struct { //nolint:unused,deadcode
+	// in: body
+	Body struct {
+		// A base64-encoded plaintext.
+		Plaintext string `json:"plaintext"`
+	}
+}
+
+// sealOpenReq model
+//
+// swagger:parameters sealOpenReq
+type sealOpenReq struct { //nolint:unused,deadcode
+	// The key store's ID.
+	//
+	// in: path
+	// required: true
+	KeyStoreID string `json:"key_store_id"`
+
+	// in: body
+	Body struct {
+		// A base64-encoded ciphertext.
+		// required: true
+		Ciphertext string `json:"ciphertext"`
+
+		// A base64-encoded my public key.
+		// required: true
+		MyPub string `json:"my_pub"`
+	}
+}
+
+// sealOpenResp model
+//
+// swagger:response sealOpenResp
+type sealOpenResp struct { //nolint:unused,deadcode
+	// in: body
+	Body struct {
+		// A base64-encoded plaintext.
+		Plaintext string `json:"plaintext"`
+	}
+}
+
 // healthCheckReq model
 //
 // swagger:parameters healthCheckRequest

@@ -183,7 +183,7 @@ func (s *Steps) createKeystoreAuthzKMS(u *user) error {
 	}
 
 	request.Header.Set("Authorization", fmt.Sprintf("Bearer %s", u.accessToken))
-	request.Header.Set("Kms-Secret", base64.StdEncoding.EncodeToString(u.secretShare))
+	request.Header.Set("Secret-Share", base64.StdEncoding.EncodeToString(u.secretShare))
 
 	response, err := s.httpClient.Do(request)
 	if err != nil {
@@ -222,7 +222,7 @@ func (s *Steps) makeCreateKeyReqAuthzKMS(u *user, endpoint, keyType string) erro
 	}
 
 	request.Header.Set("Authorization", fmt.Sprintf("Bearer %s", u.accessToken))
-	request.Header.Set("Kms-Secret", base64.StdEncoding.EncodeToString(u.secretShare))
+	request.Header.Set("Secret-Share", base64.StdEncoding.EncodeToString(u.secretShare))
 
 	response, err := s.httpClient.Do(request)
 	if err != nil {
@@ -257,7 +257,7 @@ func (s *Steps) makeExportPubKeyReqAuthzKMS(u *user, endpoint string) error {
 	}
 
 	request.Header.Set("Authorization", fmt.Sprintf("Bearer %s", u.accessToken))
-	request.Header.Set("Kms-Secret", base64.StdEncoding.EncodeToString(u.secretShare))
+	request.Header.Set("Secret-Share", base64.StdEncoding.EncodeToString(u.secretShare))
 
 	response, err := s.httpClient.Do(request)
 	if err != nil {
@@ -295,7 +295,7 @@ func (s *Steps) makeSignMessageReqAuthzKMS(u *user, endpoint string, message []b
 	}
 
 	request.Header.Set("Authorization", fmt.Sprintf("Bearer %s", u.accessToken))
-	request.Header.Set("Kms-Secret", base64.StdEncoding.EncodeToString(u.secretShare))
+	request.Header.Set("Secret-Share", base64.StdEncoding.EncodeToString(u.secretShare))
 
 	response, err := s.httpClient.Do(request)
 	if err != nil {
