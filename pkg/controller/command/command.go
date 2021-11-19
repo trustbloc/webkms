@@ -484,6 +484,70 @@ func (c *Command) SealOpen(w io.Writer, r io.Reader) error {
 	return json.NewEncoder(w).Encode(SealOpenResponse{Plaintext: plaintext})
 }
 
+// WrapKey wraps a key.
+func (c *Command) WrapKey(w io.Writer, r io.Reader) error {
+	var req WrapKeyRequest
+
+	wr, err := unwrapRequest(&req, r)
+	if err != nil {
+		return fmt.Errorf("unwrap request: %w", err)
+	}
+
+	var opts []crypto.WrapKeyOpts
+
+	if wr.KeyID != "" {
+		ks, resolveErr := c.resolveKeyStore(wr.KeyStoreID, wr.User, wr.SecretShare)
+		if err != nil {
+			return fmt.Errorf("resolve key store: %w", resolveErr)
+		}
+
+		kh, getErr := ks.Get(wr.KeyID)
+		if err != nil {
+			return fmt.Errorf("get key: %w", getErr)
+		}
+
+		opts = append(opts, crypto.WithSender(kh))
+
+		if req.Tag != nil {
+			opts = append(opts, crypto.WithTag(req.Tag))
+		}
+	}
+
+	wk, err := c.crypto.WrapKey(req.CEK, req.APU, req.APV, req.RecipientPubKey, opts...)
+	if err != nil {
+		return fmt.Errorf("wrap key: %w", err)
+	}
+
+	return json.NewEncoder(w).Encode(WrapKeyResponse{*wk})
+}
+
+// UnwrapKey unwraps a wrapped key.
+func (c *Command) UnwrapKey(w io.Writer, r io.Reader) error {
+	var req UnwrapKeyRequest
+
+	kh, err := c.getKeyHandle(&req, r)
+	if err != nil {
+		return err
+	}
+
+	var opts []crypto.WrapKeyOpts
+
+	if req.SenderPubKey != nil {
+		opts = append(opts, crypto.WithSender(req.SenderPubKey))
+
+		if req.Tag != nil {
+			opts = append(opts, crypto.WithTag(req.Tag))
+		}
+	}
+
+	k, err := c.crypto.UnwrapKey(&req.WrappedKey, kh, opts...)
+	if err != nil {
+		return fmt.Errorf("unwrap key: %w", err)
+	}
+
+	return json.NewEncoder(w).Encode(UnwrapKeyResponse{Key: k})
+}
+
 func (c *Command) getKeyHandle(req interface{}, r io.Reader) (interface{}, error) {
 	wr, err := unwrapRequest(req, r)
 	if err != nil {

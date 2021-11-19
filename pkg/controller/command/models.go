@@ -9,6 +9,7 @@ package command
 import (
 	"fmt"
 
+	"github.com/hyperledger/aries-framework-go/pkg/crypto"
 	"github.com/hyperledger/aries-framework-go/pkg/kms"
 
 	"github.com/trustbloc/kms/pkg/controller/errors"
@@ -213,4 +214,30 @@ type SealOpenRequest struct {
 // SealOpenResponse is a response for SealOpen request.
 type SealOpenResponse struct {
 	Plaintext []byte `json:"plaintext"`
+}
+
+// WrapKeyRequest is a request to wrap CEK.
+type WrapKeyRequest struct {
+	CEK             []byte            `json:"cek"`
+	APU             []byte            `json:"apu"`
+	APV             []byte            `json:"apv"`
+	RecipientPubKey *crypto.PublicKey `json:"recipient_pub_key"`
+	Tag             []byte            `json:"tag,omitempty"`
+}
+
+// WrapKeyResponse is a response for WrapKey request.
+type WrapKeyResponse struct {
+	crypto.RecipientWrappedKey
+}
+
+// UnwrapKeyRequest is a request to unwrap a wrapped key.
+type UnwrapKeyRequest struct {
+	WrappedKey   crypto.RecipientWrappedKey `json:"wrapped_key"`
+	SenderPubKey *crypto.PublicKey          `json:"sender_pub_key,omitempty"`
+	Tag          []byte                     `json:"tag,omitempty"`
+}
+
+// UnwrapKeyResponse is a response for UnwrapKey request.
+type UnwrapKeyResponse struct {
+	Key []byte `json:"key"`
 }
