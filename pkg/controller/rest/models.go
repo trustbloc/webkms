@@ -650,6 +650,177 @@ type sealOpenResp struct { //nolint:unused,deadcode
 	}
 }
 
+type publicKey struct { //nolint:unused
+	// Key ID.
+	// required: true
+	KID string `json:"kid"`
+
+	// A base64-encoded X.
+	// required: true
+	X string `json:"x"`
+
+	// A base64-encoded Y.
+	// required: true
+	Y string `json:"y"`
+
+	// Curve.
+	// required: true
+	Curve string `json:"curve"`
+
+	// Key type.
+	// required: true
+	Type string `json:"type"`
+}
+
+type wrappedKey struct { //nolint:unused
+	// Key ID.
+	// required: true
+	KID string `json:"kid"`
+
+	// A base64-encoded encrypted CEK.
+	// required: true
+	EncryptedCEK string `json:"encryptedcek"`
+
+	// Ephemeral public key.
+	// required: true
+	EPK publicKey `json:"epk"`
+
+	// Algorithm.
+	// required: true
+	Alg string `json:"alg"`
+
+	// A base64-encoded APU.
+	// required: true
+	APU string `json:"apu"`
+
+	// A base64-encoded APV.
+	// required: true
+	APV string `json:"apv"`
+}
+
+// wrapKeyReq model
+//
+// swagger:parameters wrapKeyReq
+type wrapKeyReq struct { //nolint:unused,deadcode
+	// The key store's ID.
+	//
+	// in: path
+	// required: true
+	KeyStoreID string `json:"key_store_id"`
+
+	// in: body
+	Body struct {
+		// A base64-encoded CEK.
+		// required: true
+		CEK string `json:"cek"`
+
+		// A base64-encoded APU.
+		// required: true
+		APU string `json:"apu"`
+
+		// A base64-encoded APV.
+		// required: true
+		APV string `json:"apv"`
+
+		// Recipient public key.
+		// required: true
+		RecipientPubKey publicKey `json:"recipient_pub_key"`
+	}
+}
+
+// wrapKeyAEReq model
+//
+// swagger:parameters wrapKeyAEReq
+type wrapKeyAEReq struct { //nolint:unused,deadcode
+	// The key store's ID.
+	//
+	// in: path
+	// required: true
+	KeyStoreID string `json:"key_store_id"`
+
+	// The key's ID.
+	//
+	// in: path
+	// required: true
+	KeyID string `json:"key_id"`
+
+	// in: body
+	Body struct {
+		// A base64-encoded CEK.
+		// required: true
+		CEK string `json:"cek"`
+
+		// A base64-encoded APU.
+		// required: true
+		APU string `json:"apu"`
+
+		// A base64-encoded APV.
+		// required: true
+		APV string `json:"apv"`
+
+		// Recipient public key.
+		// required: true
+		RecipientPubKey publicKey `json:"recipient_pub_key"`
+
+		// A base64-encoded authentication tag.
+		// required: true
+		Tag string `json:"tag"`
+	}
+}
+
+// wrapKeyResp model
+//
+// swagger:response wrapKeyResp
+type wrapKeyResp struct { //nolint:unused,deadcode
+	// in: body
+	Body struct {
+		wrappedKey
+	}
+}
+
+// unwrapKeyReq model
+//
+// swagger:parameters unwrapKeyReq
+type unwrapKeyReq struct { //nolint:unused,deadcode
+	// The key store's ID.
+	//
+	// in: path
+	// required: true
+	KeyStoreID string `json:"key_store_id"`
+
+	// The key's ID.
+	//
+	// in: path
+	// required: true
+	KeyID string `json:"key_id"`
+
+	// in: body
+	Body struct {
+		// Wrapped key.
+		// required: true
+		WrappedKey wrappedKey `json:"wrapped_key"`
+
+		// Sender's public key used for ECDH-1PU key agreement for authenticating the sender.
+		// required: true
+		SenderPubKey *publicKey `json:"sender_pub_key,omitempty"`
+
+		// A base64-encoded authentication tag.
+		// required: true
+		Tag string `json:"tag,omitempty"`
+	}
+}
+
+// unwrapKeyResp model
+//
+// swagger:response unwrapKeyResp
+type unwrapKeyResp struct { //nolint:unused,deadcode
+	// in: body
+	Body struct {
+		// A base64-encoded unwrapped key.
+		Key string `json:"key"`
+	}
+}
+
 // healthCheckReq model
 //
 // swagger:parameters healthCheckRequest

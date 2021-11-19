@@ -23,8 +23,6 @@ const (
 	actionEasy        = "easy"
 	actionEasyOpen    = "easyOpen"
 	actionSealOpen    = "sealOpen"
-
-	// actionWrap            = "wrap
-	// actionUnwrap          = "unwrap
-	// actionStoreCapability = "updateEDVCapability.
+	actionWrap        = "wrap"
+	actionUnwrap      = "unwrap"
 )
