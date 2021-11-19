@@ -44,6 +44,9 @@ const (
 	EasyPath        = KeyPath + "/{" + keyVarName + "}/easy"
 	EasyOpenPath    = KeyStorePath + "/{" + KeyStoreVarName + "}/easyopen"
 	SealOpenPath    = KeyStorePath + "/{" + KeyStoreVarName + "}/sealopen"
+	WrapKeyPath     = KeyStorePath + "/{" + KeyStoreVarName + "}/wrap"
+	WrapKeyAEPath   = KeyPath + "/{" + keyVarName + "}/wrap"
+	UnwrapKeyPath   = KeyPath + "/{" + keyVarName + "}/unwrap"
 	HealthCheckPath = "/healthcheck"
 )
 
@@ -74,6 +77,8 @@ type Cmd interface {
 	Easy(w io.Writer, r io.Reader) error
 	EasyOpen(w io.Writer, r io.Reader) error
 	SealOpen(w io.Writer, r io.Reader) error
+	WrapKey(w io.Writer, r io.Reader) error
+	UnwrapKey(w io.Writer, r io.Reader) error
 }
 
 // Operation represents REST API controller.
@@ -107,6 +112,9 @@ func (o *Operation) GetRESTHandlers() []Handler {
 		NewHTTPHandler(EasyPath, http.MethodPost, o.Easy, actionEasy, true),
 		NewHTTPHandler(EasyOpenPath, http.MethodPost, o.EasyOpen, actionEasyOpen, true),
 		NewHTTPHandler(SealOpenPath, http.MethodPost, o.SealOpen, actionSealOpen, true),
+		NewHTTPHandler(WrapKeyPath, http.MethodPost, o.WrapKey, actionWrap, true),
+		NewHTTPHandler(WrapKeyAEPath, http.MethodPost, o.WrapKeyAE, actionWrap, true),
+		NewHTTPHandler(UnwrapKeyPath, http.MethodPost, o.UnwrapKey, actionUnwrap, true),
 		NewHTTPHandler(HealthCheckPath, http.MethodGet, o.HealthCheck, "", false),
 	}
 }
@@ -316,6 +324,39 @@ func (o *Operation) EasyOpen(rw http.ResponseWriter, req *http.Request) {
 //    default: errorResp
 func (o *Operation) SealOpen(rw http.ResponseWriter, req *http.Request) {
 	execute(o.cmd.SealOpen, rw, req)
+}
+
+// WrapKey swagger:route POST /v1/keystore/{key_store_id}/wrap crypto wrapKeyReq
+//
+// Wraps CEK using ECDH-ES key wrapping (Anoncrypt).
+//
+// Responses:
+//        200: wrapKeyResp
+//    default: errorResp
+func (o *Operation) WrapKey(rw http.ResponseWriter, req *http.Request) {
+	execute(o.cmd.WrapKey, rw, req)
+}
+
+// WrapKeyAE swagger:route POST /v1/keystore/{key_store_id}/key/{key_id}/wrap crypto wrapKeyAEReq
+//
+// Wraps CEK using ECDH-1PU key wrapping (Authcrypt).
+//
+// Responses:
+//        200: wrapKeyResp
+//    default: errorResp
+func (o *Operation) WrapKeyAE(rw http.ResponseWriter, req *http.Request) {
+	execute(o.cmd.WrapKey, rw, req)
+}
+
+// UnwrapKey swagger:route POST /v1/keystore/{key_store_id}/key/{key_id}/unwrap crypto unwrapKeyReq
+//
+// Unwraps a wrapped key.
+//
+// Responses:
+//        200: unwrapKeyResp
+//    default: errorResp
+func (o *Operation) UnwrapKey(rw http.ResponseWriter, req *http.Request) {
+	execute(o.cmd.UnwrapKey, rw, req)
 }
 
 // HealthCheck swagger:route GET /healthcheck server healthCheckReq
