@@ -52,7 +52,7 @@ type user struct {
 
 type publicKeyData struct {
 	rawBytes  []byte
-	parsedKey *publicKey
+	parsedKey *crypto.PublicKey
 }
 
 type response struct {
