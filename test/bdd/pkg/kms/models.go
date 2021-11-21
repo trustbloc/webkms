@@ -6,7 +6,10 @@ SPDX-License-Identifier: Apache-2.0
 
 package kms
 
-import "github.com/hyperledger/aries-framework-go/pkg/kms"
+import (
+	"github.com/hyperledger/aries-framework-go/pkg/crypto"
+	"github.com/hyperledger/aries-framework-go/pkg/kms"
+)
 
 type createKeystoreReq struct {
 	Controller string `json:"controller"`
@@ -89,49 +92,25 @@ type verifyMACReq struct {
 }
 
 type wrapReq struct {
-	CEK             string       `json:"cek,omitempty"`
-	APU             string       `json:"apu,omitempty"`
-	APV             string       `json:"apv,omitempty"`
-	RecipientPubKey publicKeyReq `json:"recPubKey,omitempty"`
-	SenderKID       string       `json:"senderKID,omitempty"`
+	CEK             []byte            `json:"cek"`
+	APU             []byte            `json:"apu"`
+	APV             []byte            `json:"apv"`
+	RecipientPubKey *crypto.PublicKey `json:"recipient_pub_key"`
+	Tag             []byte            `json:"tag,omitempty"`
 }
 
 type wrapResp struct {
-	WrappedKey recipientWrappedKey `json:"wrappedKey,omitempty"`
-}
-
-type recipientWrappedKey struct {
-	KID          string       `json:"kid,omitempty"`
-	EncryptedCEK string       `json:"encryptedCEK,omitempty"`
-	EPK          publicKeyReq `json:"epk,omitempty"`
-	Alg          string       `json:"alg,omitempty"`
-	APU          string       `json:"apu,omitempty"`
-	APV          string       `json:"apv,omitempty"`
+	crypto.RecipientWrappedKey
 }
 
 type unwrapReq struct {
-	WrappedKey recipientWrappedKey `json:"wrappedKey,omitempty"`
-	SenderKID  string              `json:"senderKID,omitempty"`
+	WrappedKey   crypto.RecipientWrappedKey `json:"wrapped_key"`
+	SenderPubKey *crypto.PublicKey          `json:"sender_pub_key,omitempty"`
+	Tag          []byte                     `json:"tag,omitempty"`
 }
 
 type unwrapResp struct {
-	Key string `json:"key,omitempty"`
-}
-
-type publicKeyReq struct {
-	KID   string `json:"kid,omitempty"`
-	X     string `json:"x,omitempty"`
-	Y     string `json:"y,omitempty"`
-	Curve string `json:"curve,omitempty"`
-	Type  string `json:"type,omitempty"`
-}
-
-type publicKey struct {
-	KID   string `json:"kid,omitempty"`
-	X     []byte `json:"x,omitempty"`
-	Y     []byte `json:"y,omitempty"`
-	Curve string `json:"curve,omitempty"`
-	Type  string `json:"type,omitempty"`
+	Key []byte `json:"key"`
 }
 
 type setSecretRequest struct {

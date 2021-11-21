@@ -757,15 +757,15 @@ func (s *Steps) makeWrapKeyReq(userName, endpoint, keyID, recipient string) erro
 	recipientPubKey := u.recipientPubKeys[recipient].parsedKey
 
 	r := &wrapReq{
-		CEK: base64.URLEncoding.EncodeToString(s.keys[keyID]),
-		APU: base64.URLEncoding.EncodeToString([]byte("sender")),
-		APV: base64.URLEncoding.EncodeToString([]byte("recipient")),
-		RecipientPubKey: publicKeyReq{
-			KID:   base64.URLEncoding.EncodeToString([]byte(recipientPubKey.KID)),
-			X:     base64.URLEncoding.EncodeToString(recipientPubKey.X),
-			Y:     base64.URLEncoding.EncodeToString(recipientPubKey.Y),
-			Curve: base64.URLEncoding.EncodeToString([]byte(recipientPubKey.Curve)),
-			Type:  base64.URLEncoding.EncodeToString([]byte(recipientPubKey.Type)),
+		CEK: s.keys[keyID],
+		APU: []byte("sender"),
+		APV: []byte("recipient"),
+		RecipientPubKey: &crypto.PublicKey{
+			KID:   recipientPubKey.KID,
+			X:     recipientPubKey.X,
+			Y:     recipientPubKey.Y,
+			Curve: recipientPubKey.Curve,
+			Type:  recipientPubKey.Type,
 		},
 	}
 
@@ -802,13 +802,13 @@ func (s *Steps) makeWrapKeyReq(userName, endpoint, keyID, recipient string) erro
 		return respErr
 	}
 
-	wrappedKey, err := json.Marshal(wrapResponse.WrappedKey)
+	wrappedKey, err := json.Marshal(wrapResponse.RecipientWrappedKey)
 	if err != nil {
 		return err
 	}
 
 	u.data = map[string]string{
-		"wrappedKey": string(wrappedKey),
+		"wrapped_key": string(wrappedKey),
 	}
 
 	return nil
@@ -819,7 +819,7 @@ func (s *Steps) makeUnwrapKeyReq(userName, endpoint, tag, sender string) error {
 
 	wrappedKeyContent := s.users[sender].data[tag]
 
-	var wrappedKey recipientWrappedKey
+	var wrappedKey crypto.RecipientWrappedKey
 
 	err := json.Unmarshal([]byte(wrappedKeyContent), &wrappedKey)
 	if err != nil {
@@ -828,7 +828,6 @@ func (s *Steps) makeUnwrapKeyReq(userName, endpoint, tag, sender string) error {
 
 	r := &unwrapReq{
 		WrappedKey: wrappedKey,
-		SenderKID:  "",
 	}
 
 	request, err := u.preparePostRequest(r, endpoint)
@@ -864,13 +863,8 @@ func (s *Steps) makeUnwrapKeyReq(userName, endpoint, tag, sender string) error {
 		return respErr
 	}
 
-	key, err := base64.URLEncoding.DecodeString(unwrapResponse.Key)
-	if err != nil {
-		return err
-	}
-
 	u.data = map[string]string{
-		"key": string(key),
+		"key": string(unwrapResponse.Key),
 	}
 
 	return nil
@@ -933,9 +927,9 @@ func (s *Steps) getPubKeyOfRecipient(userName, recipientName string) error {
 	return nil
 }
 
-func parsePublicKey(rawBytes []byte) (*publicKey, bool) {
+func parsePublicKey(rawBytes []byte) (*crypto.PublicKey, bool) {
 	// depending on key type, raw bytes might not represent publicKey structure
-	var k publicKey
+	var k crypto.PublicKey
 	if err := json.Unmarshal(rawBytes, &k); err != nil {
 		return nil, false
 	}
