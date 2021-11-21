@@ -86,28 +86,28 @@ Feature: KMS and crypto operations
     Then  "Alice" gets a response with HTTP status "200 OK"
      And  "Alice" gets a response with no "errMessage"
 
-#  Scenario: User A wraps A256GCM key for User B, User B successfully unwraps it (Anoncrypt)
-#    Given "Alice" has created a keystore with "NISTP256ECDHKW" key on Key Server
-#      And "Bob" has created a keystore with "NISTP256ECDHKW" key on Key Server
-#      And "Alice" has a public key of "Bob"
-#
-#    When  "Alice" makes an HTTP POST to "https://localhost:4466/kms/keystores/{keystoreID}/wrap" to wrap "testCEK" for "Bob"
-#    Then  "Alice" gets a response with HTTP status "200 OK"
-#     And  "Alice" gets a response with non-empty "wrappedKey"
-#
-#    When  "Bob" makes an HTTP POST to "https://localhost:4466/kms/keystores/{keystoreID}/keys/{keyID}/unwrap" to unwrap "wrappedKey" from "Alice"
-#    Then  "Bob" gets a response with HTTP status "200 OK"
-#     And  "Bob" gets a response with content of "testCEK" key
-#
-#  Scenario: User A wraps XC20P key for User B, User B successfully unwraps it (Anoncrypt)
-#    Given "Alice" has created a keystore with "X25519ECDHKW" key on Key Server
-#      And "Bob" has created a keystore with "X25519ECDHKW" key on Key Server
-#      And "Alice" has a public key of "Bob"
-#
-#    When  "Alice" makes an HTTP POST to "https://localhost:4466/kms/keystores/{keystoreID}/wrap" to wrap "testCEK" for "Bob"
-#    Then  "Alice" gets a response with HTTP status "200 OK"
-#     And  "Alice" gets a response with non-empty "wrappedKey"
-#
-#    When  "Bob" makes an HTTP POST to "https://localhost:4466/kms/keystores/{keystoreID}/keys/{keyID}/unwrap" to unwrap "wrappedKey" from "Alice"
-#    Then  "Bob" gets a response with HTTP status "200 OK"
-#     And  "Bob" gets a response with content of "testCEK" key
+  Scenario: User A wraps A256GCM key for User B, User B successfully unwraps it (Anoncrypt)
+    Given "Alice" has created a keystore with "NISTP256ECDHKW" key on Key Server
+      And "Bob" has created a keystore with "NISTP256ECDHKW" key on Key Server
+      And "Alice" has a public key of "Bob"
+
+    When  "Alice" makes an HTTP POST to "https://localhost:4466/v1/keystore/{keystoreID}/wrap" to wrap "testCEK" for "Bob"
+    Then  "Alice" gets a response with HTTP status "200 OK"
+     And  "Alice" gets a response with non-empty "wrapped_key"
+
+    When  "Bob" makes an HTTP POST to "https://localhost:4466/v1/keystore/{keystoreID}/key/{keyID}/unwrap" to unwrap "wrapped_key" from "Alice"
+    Then  "Bob" gets a response with HTTP status "200 OK"
+     And  "Bob" gets a response with content of "testCEK" key
+
+  Scenario: User A wraps XC20P key for User B, User B successfully unwraps it (Anoncrypt)
+    Given "Alice" has created a keystore with "X25519ECDHKW" key on Key Server
+      And "Bob" has created a keystore with "X25519ECDHKW" key on Key Server
+      And "Alice" has a public key of "Bob"
+
+    When  "Alice" makes an HTTP POST to "https://localhost:4466/v1/keystore/{keystoreID}/wrap" to wrap "testCEK" for "Bob"
+    Then  "Alice" gets a response with HTTP status "200 OK"
+     And  "Alice" gets a response with non-empty "wrapped_key"
+
+    When  "Bob" makes an HTTP POST to "https://localhost:4466/v1/keystore/{keystoreID}/key/{keyID}/unwrap" to unwrap "wrapped_key" from "Alice"
+    Then  "Bob" gets a response with HTTP status "200 OK"
+     And  "Bob" gets a response with content of "testCEK" key
