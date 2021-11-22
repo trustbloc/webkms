@@ -163,6 +163,15 @@ func (s *Steps) createKeystore(userName string) error {
 
 	u.keystoreID = parts[len(parts)-1]
 
+	kmsCapability, err := parseRootCapability(resp.Capability)
+	if err != nil {
+		return fmt.Errorf("parse root capability: %w", err)
+	}
+
+	if kmsCapability != nil {
+		u.kmsCapability = kmsCapability
+	}
+
 	return nil
 }
 
@@ -442,7 +451,7 @@ func (s *Steps) makeCreateAndExportKeyReq(user, endpoint, keyType string) error 
 	}
 
 	u.data = map[string]string{
-		"key_url":  createKeyResponse.KeyURL,
+		"key_url":    createKeyResponse.KeyURL,
 		"public_key": string(createKeyResponse.PublicKey),
 	}
 
@@ -884,15 +893,15 @@ func (s *Steps) getPubKeyOfRecipient(userName, recipientName string) error {
 	}
 
 	// recipient delegates authority on the user to export their public key
-	//c, err := delegateCapability(recipient.kmsCapability, recipient.signer, recipient.controller, u.controller)
-	//if err != nil {
-	//	return err
-	//}
-	//
-	//err = setCapabilityHeader(request, c, u.controller, u.authKMS, u.authCrypto)
-	//if err != nil {
-	//	return err
-	//}
+	c, err := delegateCapability(recipient.kmsCapability, recipient.signer, recipient.controller, u.controller)
+	if err != nil {
+		return fmt.Errorf("delegate capability: %w", err)
+	}
+
+	err = setCapabilityHeader(request, base64.URLEncoding.EncodeToString(c), u.controller, u.authKMS, u.authCrypto)
+	if err != nil {
+		return err
+	}
 
 	response, err := s.httpClient.Do(request)
 	if err != nil {
@@ -909,7 +918,7 @@ func (s *Steps) getPubKeyOfRecipient(userName, recipientName string) error {
 	var exportKeyResponse exportKeyResp
 
 	if respErr := recipient.processResponse(&exportKeyResponse, response); respErr != nil {
-		return respErr
+		return fmt.Errorf("responce error: %w", respErr)
 	}
 
 	keyData := &publicKeyData{
@@ -937,7 +946,7 @@ func parsePublicKey(rawBytes []byte) (*crypto.PublicKey, bool) {
 	return &k, true
 }
 
-func delegateCapability(c *zcapld.Capability, s signer, verificationMethod, invoker string) (string, error) {
+func delegateCapability(c *zcapld.Capability, s signer, verificationMethod, invoker string) ([]byte, error) {
 	var chain []interface{}
 
 	untyped, ok := c.Proof[0]["capabilityChain"].([]interface{})
@@ -949,7 +958,7 @@ func delegateCapability(c *zcapld.Capability, s signer, verificationMethod, invo
 
 	loader, err := createJSONLDDocumentLoader(mem.NewProvider())
 	if err != nil {
-		return "", fmt.Errorf("create document loader: %w", err)
+		return nil, fmt.Errorf("create document loader: %w", err)
 	}
 
 	delegatedCapability, err := zcapld.NewCapability(
@@ -966,12 +975,12 @@ func delegateCapability(c *zcapld.Capability, s signer, verificationMethod, invo
 		zcapld.WithCapabilityChain(chain...),
 	)
 	if err != nil {
-		return "", fmt.Errorf("failed to delegate zcap unto user: %w", err)
+		return nil, fmt.Errorf("failed to delegate zcap unto user: %w", err)
 	}
 
 	compressed, err := zcapsvc.CompressZCAP(delegatedCapability)
 	if err != nil {
-		return "", fmt.Errorf("failed to compress zcap: %w", err)
+		return nil, fmt.Errorf("failed to compress zcap: %w", err)
 	}
 
 	return compressed, nil
