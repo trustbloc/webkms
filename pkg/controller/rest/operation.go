@@ -51,8 +51,10 @@ const (
 )
 
 const (
-	contentType     = "Content-Type"
-	applicationJSON = "application/json"
+	contentType       = "Content-Type"
+	applicationJSON   = "application/json"
+	authUserHeader    = "Auth-User"
+	secretShareHeader = "Secret-Share"
 )
 
 var logger = log.New("controller/rest")
@@ -94,27 +96,27 @@ func New(cmd Cmd) *Operation {
 // GetRESTHandlers returns list of all handlers supported by this controller.
 func (o *Operation) GetRESTHandlers() []Handler {
 	return []Handler{
-		NewHTTPHandler(DIDPath, http.MethodPost, o.CreateDID, "", false),
-		NewHTTPHandler(KeyStorePath, http.MethodPost, o.CreateKeyStore, "", false),
-		NewHTTPHandler(KeyPath, http.MethodPost, o.CreateKey, actionCreateKey, true),
-		NewHTTPHandler(KeyPath, http.MethodPut, o.ImportKey, actionImportKey, true),
-		NewHTTPHandler(ExportKeyPath, http.MethodGet, o.ExportKey, actionExportKey, true),
-		NewHTTPHandler(SignPath, http.MethodPost, o.Sign, actionSign, true),
-		NewHTTPHandler(VerifyPath, http.MethodPost, o.Verify, actionVerify, true),
-		NewHTTPHandler(EncryptPath, http.MethodPost, o.Encrypt, actionEncrypt, true),
-		NewHTTPHandler(DecryptPath, http.MethodPost, o.Decrypt, actionDecrypt, true),
-		NewHTTPHandler(ComputeMACPath, http.MethodPost, o.ComputeMAC, actionComputeMac, true),
-		NewHTTPHandler(VerifyMACPath, http.MethodPost, o.VerifyMAC, actionVerifyMAC, true),
-		NewHTTPHandler(SignMultiPath, http.MethodPost, o.SignMulti, actionSignMulti, true),
-		NewHTTPHandler(VerifyMultiPath, http.MethodPost, o.VerifyMulti, actionVerifyMulti, true),
-		NewHTTPHandler(DeriveProofPath, http.MethodPost, o.DeriveProof, actionDeriveProof, true),
-		NewHTTPHandler(VerifyProofPath, http.MethodPost, o.VerifyProof, actionVerifyProof, true),
-		NewHTTPHandler(EasyPath, http.MethodPost, o.Easy, actionEasy, true),
-		NewHTTPHandler(EasyOpenPath, http.MethodPost, o.EasyOpen, actionEasyOpen, true),
-		NewHTTPHandler(SealOpenPath, http.MethodPost, o.SealOpen, actionSealOpen, true),
-		NewHTTPHandler(WrapKeyPath, http.MethodPost, o.WrapKey, actionWrap, true),
-		NewHTTPHandler(WrapKeyAEPath, http.MethodPost, o.WrapKeyAE, actionWrap, true),
-		NewHTTPHandler(UnwrapKeyPath, http.MethodPost, o.UnwrapKey, actionUnwrap, true),
+		NewHTTPHandler(DIDPath, http.MethodPost, o.CreateDID, command.ActionCreateDID, false),
+		NewHTTPHandler(KeyStorePath, http.MethodPost, o.CreateKeyStore, command.ActionCreateKeyStore, false),
+		NewHTTPHandler(KeyPath, http.MethodPost, o.CreateKey, command.ActionCreateKey, true),
+		NewHTTPHandler(KeyPath, http.MethodPut, o.ImportKey, command.ActionImportKey, true),
+		NewHTTPHandler(ExportKeyPath, http.MethodGet, o.ExportKey, command.ActionExportKey, true),
+		NewHTTPHandler(SignPath, http.MethodPost, o.Sign, command.ActionSign, true),
+		NewHTTPHandler(VerifyPath, http.MethodPost, o.Verify, command.ActionVerify, true),
+		NewHTTPHandler(EncryptPath, http.MethodPost, o.Encrypt, command.ActionEncrypt, true),
+		NewHTTPHandler(DecryptPath, http.MethodPost, o.Decrypt, command.ActionDecrypt, true),
+		NewHTTPHandler(ComputeMACPath, http.MethodPost, o.ComputeMAC, command.ActionComputeMac, true),
+		NewHTTPHandler(VerifyMACPath, http.MethodPost, o.VerifyMAC, command.ActionVerifyMAC, true),
+		NewHTTPHandler(SignMultiPath, http.MethodPost, o.SignMulti, command.ActionSignMulti, true),
+		NewHTTPHandler(VerifyMultiPath, http.MethodPost, o.VerifyMulti, command.ActionVerifyMulti, true),
+		NewHTTPHandler(DeriveProofPath, http.MethodPost, o.DeriveProof, command.ActionDeriveProof, true),
+		NewHTTPHandler(VerifyProofPath, http.MethodPost, o.VerifyProof, command.ActionVerifyProof, true),
+		NewHTTPHandler(EasyPath, http.MethodPost, o.Easy, command.ActionEasy, true),
+		NewHTTPHandler(EasyOpenPath, http.MethodPost, o.EasyOpen, command.ActionEasyOpen, true),
+		NewHTTPHandler(SealOpenPath, http.MethodPost, o.SealOpen, command.ActionSealOpen, true),
+		NewHTTPHandler(WrapKeyPath, http.MethodPost, o.WrapKey, command.ActionWrap, true),
+		NewHTTPHandler(WrapKeyAEPath, http.MethodPost, o.WrapKeyAE, command.ActionWrap, true),
+		NewHTTPHandler(UnwrapKeyPath, http.MethodPost, o.UnwrapKey, command.ActionUnwrap, true),
 		NewHTTPHandler(HealthCheckPath, http.MethodGet, o.HealthCheck, "", false),
 	}
 }
@@ -403,7 +405,7 @@ func wrapRequest(req *http.Request) ([]byte, error) {
 
 	var secret []byte
 
-	secretHeader := req.Header.Get("Secret-Share")
+	secretHeader := req.Header.Get(secretShareHeader)
 
 	if secretHeader != "" {
 		secret, err = base64.StdEncoding.DecodeString(secretHeader)
@@ -417,7 +419,7 @@ func wrapRequest(req *http.Request) ([]byte, error) {
 	return json.Marshal(&command.WrappedRequest{
 		KeyStoreID:  vars[KeyStoreVarName],
 		KeyID:       vars[keyVarName],
-		User:        req.Header.Get("Auth-User"),
+		User:        req.Header.Get(authUserHeader),
 		SecretShare: secret,
 		Request:     buf.Bytes(),
 	})

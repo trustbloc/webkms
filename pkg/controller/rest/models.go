@@ -561,7 +561,7 @@ type easyReq struct { //nolint:unused,deadcode
 
 		// A base64-encoded public key.
 		// required: true
-		TheirPub string `json:"theirPub"`
+		TheirPub string `json:"their_pub"`
 	}
 }
 
