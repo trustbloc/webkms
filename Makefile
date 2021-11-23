@@ -4,6 +4,7 @@
 
 GOBIN_PATH      =$(abspath .)/build/bin
 LINT_VERSION    ?=v1.39.0
+MOCK_VERSION 	?=v1.6.0
 SWAGGER_VERSION ?=v0.27.0
 SWAGGER_DIR     ="./test/bdd/fixtures/specs"
 SWAGGER_OUTPUT  =$(SWAGGER_DIR)"/openAPI.yml"
@@ -31,13 +32,18 @@ checks: clean license lint
 license:
 	@scripts/check_license.sh
 
+.PHONY: mocks
+mocks:
+	@GOBIN=$(GOBIN_PATH) go install github.com/golang/mock/mockgen@$(MOCK_VERSION)
+	@go generate ./...
+
 .PHONY: lint
-lint:
+lint: mocks
 	@GOBIN=$(GOBIN_PATH) go install github.com/golangci/golangci-lint/cmd/golangci-lint@$(LINT_VERSION)
 	@$(GOBIN_PATH)/golangci-lint run
 
 .PHONY: unit-test
-unit-test:
+unit-test: mocks
 	@go test $(shell go list ./... | grep -v /test/bdd) -count=1 -race -coverprofile=coverage.out -covermode=atomic -timeout=10m
 
 .PHONY: bdd-test
@@ -76,6 +82,7 @@ clean:
 	@rm -rf ./test/bdd/build
 	@rm -rf coverage.out
 	@rm -rf $(SWAGGER_DIR)
+	@find . -name "gomocks_test.go" -delete
 
 .PHONY: open-api-spec
 open-api-spec:
