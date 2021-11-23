@@ -78,9 +78,13 @@ func (s *Steps) SetContext(ctx *bddcontext.BDDContext) {
 func (s *Steps) RegisterSteps(ctx *godog.ScenarioContext) {
 	// common creation steps
 	ctx.Step(`^"([^"]*)" wallet has stored secret on Hub Auth$`, s.storeSecretInHubAuth)
+	ctx.Step(`^"([^"]*)" users wallets has stored secret on Hub Auth$`, s.storeSecretInHubAuthForMultipleUsers)
 	ctx.Step(`^"([^"]*)" has created a data vault on EDV for storing keys$`, s.createEDVDataVault)
+	ctx.Step(`^"([^"]*)" users has created a data vault on EDV for storing keys$`, s.createEDVDataVaultForMultipleUsers)
 	ctx.Step(`^"([^"]*)" has created an empty keystore on Key Server$`, s.createKeystore)
 	ctx.Step(`^"([^"]*)" has created a keystore with "([^"]*)" key on Key Server$`, s.createKeystoreAndKey)
+	ctx.Step(`^"([^"]*)" users has created a keystore with "([^"]*)" key using "([^"]*)" concurrent requests$`,
+		s.createKeystoreForMultipleUsers)
 	// common response checking steps
 	ctx.Step(`^"([^"]*)" gets a response with HTTP status "([^"]*)"$`, s.checkRespStatus)
 	ctx.Step(`^"([^"]*)" gets a response with HTTP status "([^"]*)" for each request$`, s.checkMultiRespStatus)
@@ -101,6 +105,10 @@ func (s *Steps) RegisterSteps(ctx *godog.ScenarioContext) {
 	// sign/verify message steps
 	ctx.Step(`^"([^"]*)" makes an HTTP POST to "([^"]*)" to sign "([^"]*)"$`, s.makeSignMessageReq)
 	ctx.Step(`^"([^"]*)" makes an HTTP POST to "([^"]*)" to verify "([^"]*)" for "([^"]*)"$`, s.makeVerifySignatureReq)
+
+	ctx.Step(`^"([^"]*)" users makes an HTTP POST to "([^"]*)" to sign and verify "([^"]*)" times `+
+		`using "([^"]*)" concurrent requests$`, s.makeSignVerifyMultipleTimeForMultipleUsers)
+
 	// encrypt/decrypt message steps
 	ctx.Step(`^"([^"]*)" makes an HTTP POST to "([^"]*)" to encrypt "([^"]*)"$`, s.makeEncryptMessageReq)
 	ctx.Step(`^"([^"]*)" makes an HTTP POST to "([^"]*)" to decrypt "([^"]*)"$`, s.makeDecryptCipherReq)
