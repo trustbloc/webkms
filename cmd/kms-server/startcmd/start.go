@@ -36,6 +36,7 @@ import (
 	ldstore "github.com/hyperledger/aries-framework-go/pkg/store/ld"
 	"github.com/hyperledger/aries-framework-go/pkg/vdr"
 	vdrkey "github.com/hyperledger/aries-framework-go/pkg/vdr/key"
+	logspi "github.com/hyperledger/aries-framework-go/spi/log"
 	"github.com/hyperledger/aries-framework-go/spi/storage"
 	jsonld "github.com/piprate/json-gold/ld"
 	"github.com/prometheus/client_golang/prometheus"
@@ -100,6 +101,8 @@ func createStartCmd(srv server) *cobra.Command {
 }
 
 func startServer(srv server, params *serverParameters) error { //nolint:funlen
+	setLogLevel(params.logLevel)
+
 	rootCAs, err := tlsutil.GetCertPool(params.tlsParams.systemCertPool, params.tlsParams.caCerts)
 	if err != nil {
 		return fmt.Errorf("get cert pool: %w", err)
@@ -228,6 +231,18 @@ func startServer(srv server, params *serverParameters) error { //nolint:funlen
 	)
 }
 
+func setLogLevel(level string) {
+	logLevel, err := log.ParseLevel(level)
+	if err != nil {
+		logger.Warnf("%s is not a valid logging level. It must be one of the following: "+
+			"critical, error, warning, info, debug. Defaulting to info.", level)
+
+		logLevel = logspi.INFO
+	}
+
+	log.SetLevel("", logLevel)
+}
+
 const (
 	storageTypeMemOption     = "mem"
 	storageTypeCouchDBOption = "couchdb"
@@ -255,6 +270,7 @@ func createStoreProvider(typ, url, prefix string, timeout time.Duration) (storag
 	}
 
 	var store storage.Provider
+
 	var err error
 
 	return store, backoff.RetryNotify(

@@ -183,7 +183,12 @@ func getParameters(cmd *cobra.Command) (*serverParameters, error) { //nolint:fun
 	host := getUserSetVarOptional(cmd, hostFlagName, hostEnvKey)
 	metricsHost := getUserSetVarOptional(cmd, hostMetricsFlagName, hostMetricsEnvKey)
 	baseURL := getUserSetVarOptional(cmd, baseURLFlagName, baseURLEnvKey)
-	databaseType := getUserSetVarOptional(cmd, databaseTypeFlagName, databaseTypeEnvKey)
+
+	databaseType, err := getUserSetVar(cmd, databaseTypeFlagName, databaseTypeEnvKey, false)
+	if err != nil {
+		return nil, err
+	}
+
 	databaseURL := getUserSetVarOptional(cmd, databaseURLFlagName, databaseURLEnvKey)
 	databasePrefix := getUserSetVarOptional(cmd, databasePrefixFlagName, databasePrefixEnvKey)
 	databaseTimeoutStr := getUserSetVarOptional(cmd, databaseTimeoutFlagName, databaseTimeoutEnvKey)
@@ -359,6 +364,7 @@ func createFlags(startCmd *cobra.Command) {
 	startCmd.Flags().String(cacheExpirationFlagName, "", cacheExpirationFlagUsage)
 	startCmd.Flags().String(enableZCAPsFlagName, "false", enableZCAPsFlagUsage)
 	startCmd.Flags().String(enableCORSFlagName, "false", enableCORSFlagUsage)
+	startCmd.Flags().String(logLevelFlagName, "", logLevelFlagUsage)
 	startCmd.Flags().String(secretLockTypeFlagName, "", secretLockTypeFlagUsage)
 	startCmd.Flags().String(secretLockKeyPathFlagName, "", secretLockKeyPathFlagUsage)
 	startCmd.Flags().String(secretLockAWSKeyURIFlagName, "", secretLockAWSKeyURIFlagUsage)
