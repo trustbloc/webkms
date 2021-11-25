@@ -13,7 +13,6 @@ require (
 	github.com/google/tink/go v1.6.1
 	github.com/google/uuid v1.3.0
 	github.com/gorilla/mux v1.7.3
-	github.com/hashicorp/vault v1.2.1-0.20200911125421-dba37adcb55a
 	github.com/hyperledger/aries-framework-go v0.1.8-0.20211115171141-22ed9679f6cd
 	github.com/hyperledger/aries-framework-go/component/storage/edv v0.0.0-20211101152315-ac0a0a19b02d
 	github.com/hyperledger/aries-framework-go/component/storageutil v0.0.0-20210820175050-dcc7a225178d
@@ -36,7 +35,6 @@ require (
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/golang/protobuf v1.5.2 // indirect
 	github.com/golang/snappy v0.0.1 // indirect
-	github.com/hashicorp/errwrap v1.0.0 // indirect
 	github.com/jinzhu/copier v0.0.0-20190924061706-b57f9002281a // indirect
 	github.com/jmespath/go-jmespath v0.4.0 // indirect
 	github.com/kilic/bls12-381 v0.1.1-0.20210503002446-7b7597926c69 // indirect

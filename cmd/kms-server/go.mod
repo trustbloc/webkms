@@ -11,6 +11,7 @@ require (
 	github.com/cenkalti/backoff v2.2.1+incompatible
 	github.com/google/tink/go v1.6.1
 	github.com/gorilla/mux v1.8.0
+	github.com/hashicorp/vault v1.2.1-0.20200911125421-dba37adcb55a
 	github.com/hyperledger/aries-framework-go v0.1.8-0.20211115182008-a05b96ee7ab1
 	github.com/hyperledger/aries-framework-go-ext/component/storage/couchdb v0.0.0-20211014145537-7da54ab5fdb9
 	github.com/hyperledger/aries-framework-go-ext/component/storage/mongodb v0.0.0-20211014145537-7da54ab5fdb9
@@ -55,7 +56,6 @@ require (
 	github.com/google/shlex v0.0.0-20191202100458-e7afc7fbc510 // indirect
 	github.com/google/uuid v1.3.0 // indirect
 	github.com/hashicorp/errwrap v1.0.0 // indirect
-	github.com/hashicorp/vault v1.2.1-0.20200911125421-dba37adcb55a // indirect
 	github.com/hyperledger/aries-framework-go-ext/component/vdr/sidetree v0.0.0-20210817192417-e46e251f4caf // indirect
 	github.com/hyperledger/aries-framework-go/component/storage/edv v0.0.0-20211101152315-ac0a0a19b02d // indirect
 	github.com/igor-pavlenko/httpsignatures-go v0.0.23 // indirect

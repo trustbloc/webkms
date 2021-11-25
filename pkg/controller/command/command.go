@@ -56,30 +56,35 @@ type cryptoBoxCreator interface {
 	Create(km kms.KeyManager) (CryptoBox, error)
 }
 
+type shamirSecretLockCreator interface {
+	Create(secretShares [][]byte) (secretlock.Service, error)
+}
+
 type httpClient interface {
 	Do(req *http.Request) (*http.Response, error)
 }
 
 // Config is a configuration for Command.
 type Config struct {
-	StorageProvider     storage.Provider
-	CacheProvider       storage.Provider
-	KMS                 kms.KeyManager
-	Crypto              crypto.Crypto
-	VDRResolver         zcapld.VDRResolver
-	DocumentLoader      ld.DocumentLoader
-	KeyStoreCreator     keyStoreCreator
-	ZCAPService         zcapService
-	HeaderSigner        headerSigner
-	CryptBoxCreator     cryptoBoxCreator
-	HTTPClient          httpClient
-	TLSConfig           *tls.Config
-	BaseKeyStoreURL     string
-	AuthServerURL       string
-	AuthServerToken     string
-	MainKeyType         kms.KeyType
-	EDVRecipientKeyType kms.KeyType
-	EDVMACKeyType       kms.KeyType
+	StorageProvider         storage.Provider
+	CacheProvider           storage.Provider
+	KMS                     kms.KeyManager
+	Crypto                  crypto.Crypto
+	VDRResolver             zcapld.VDRResolver
+	DocumentLoader          ld.DocumentLoader
+	KeyStoreCreator         keyStoreCreator
+	ShamirSecretLockCreator shamirSecretLockCreator
+	CryptBoxCreator         cryptoBoxCreator
+	ZCAPService             zcapService
+	HeaderSigner            headerSigner
+	HTTPClient              httpClient
+	TLSConfig               *tls.Config
+	BaseKeyStoreURL         string
+	AuthServerURL           string
+	AuthServerToken         string
+	MainKeyType             kms.KeyType
+	EDVRecipientKeyType     kms.KeyType
+	EDVMACKeyType           kms.KeyType
 }
 
 // Command is a controller for commands.
@@ -92,8 +97,9 @@ type Command struct {
 	vdr                 zcapld.VDRResolver
 	documentLoader      ld.DocumentLoader
 	keyStoreCreator     keyStoreCreator // user's key manager creator
-	headerSigner        headerSigner
 	cryptoBox           cryptoBoxCreator
+	shamirLock          shamirSecretLockCreator
+	headerSigner        headerSigner
 	httpClient          httpClient
 	tlsConfig           *tls.Config
 	baseKeyStoreURL     string
@@ -120,8 +126,9 @@ func New(c *Config) (*Command, error) {
 		vdr:                 c.VDRResolver,
 		documentLoader:      c.DocumentLoader,
 		keyStoreCreator:     c.KeyStoreCreator,
-		headerSigner:        c.HeaderSigner,
+		shamirLock:          c.ShamirSecretLockCreator,
 		cryptoBox:           c.CryptBoxCreator,
+		headerSigner:        c.HeaderSigner,
 		httpClient:          c.HTTPClient,
 		tlsConfig:           c.TLSConfig,
 		baseKeyStoreURL:     c.BaseKeyStoreURL,

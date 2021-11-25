@@ -379,7 +379,6 @@ github.com/hashicorp/consul-template v0.25.1/go.mod h1:/vUsrJvDuuQHcxEw0zik+YXTS
 github.com/hashicorp/consul/api v1.4.0/go.mod h1:xc8u05kyMa3Wjr9eEAsIAo3dg8+LywT5E/Cl7cNS5nU=
 github.com/hashicorp/consul/sdk v0.1.1/go.mod h1:VKf9jXwCTEY1QZP2MOLRhb5i/I/ssyNV1vwHyQBF0x8=
 github.com/hashicorp/consul/sdk v0.4.0/go.mod h1:fY08Y9z5SvJqevyZNy6WWPXiG3KwBPAvlcdx16zZ0fM=
-github.com/hashicorp/errwrap v1.0.0 h1:hLrqtEDnRye3+sgx6z4qVLNuviH3MR5aQ0ykNJa/UYA=
 github.com/hashicorp/errwrap v1.0.0/go.mod h1:YH+1FKiLXxHSkmPseP+kNlulaMuP3n2brvKWEqk/Jc4=
 github.com/hashicorp/go-bindata v3.0.8-0.20180209072458-bf7910af8997+incompatible/go.mod h1:+IrDq36jUYG0q6TsDY9uO2p77C8f8S5y+RbYHr2UI+U=
 github.com/hashicorp/go-cleanhttp v0.5.0/go.mod h1:JpRdi6/HCYpAwUzNwuwqhbovhLtngrth3wmdIIUrZ80=
@@ -442,7 +441,6 @@ github.com/hashicorp/raft-boltdb v0.0.0-20171010151810-6e5ba93211ea/go.mod h1:pN
 github.com/hashicorp/raft-snapshot v1.0.2-0.20190827162939-8117efcc5aab/go.mod h1:5sL9eUn72lH5DzsFIJ9jaysITbHksSSszImWSOTC8Ic=
 github.com/hashicorp/serf v0.8.2/go.mod h1:6hOLApaqBFA1NXqRQAsxw9QxuDEvNxSQRwA/JwenrHc=
 github.com/hashicorp/serf v0.8.3/go.mod h1:UpNcs7fFbpKIyZaUuSW6EPiH+eZC7OuyFD+wc1oal+k=
-github.com/hashicorp/vault v1.2.1-0.20200911125421-dba37adcb55a h1:4cBHXpugMTz4anYA27/SmM2a7c2+ot99UsrBSE1+DLM=
 github.com/hashicorp/vault v1.2.1-0.20200911125421-dba37adcb55a/go.mod h1:5AXfH3xGJffb77funy/WHkcsQfpTYwTZo6PkDl8iOrk=
 github.com/hashicorp/vault-plugin-auth-alicloud v0.5.5/go.mod h1:sQ+VNwPQlemgXHXikYH6onfH9gPwDZ1GUVRLz0ZvHx8=
 github.com/hashicorp/vault-plugin-auth-azure v0.5.6/go.mod h1:xUpcusehlkR1cNbA+wNta9W4slS64pYe7CXx5UYM2OQ=
