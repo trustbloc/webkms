@@ -28,7 +28,6 @@ import (
 
 	"github.com/trustbloc/kms/pkg/controller/errors"
 	"github.com/trustbloc/kms/pkg/secretlock/key"
-	"github.com/trustbloc/kms/pkg/secretlock/shamir"
 	zcapldsvc "github.com/trustbloc/kms/pkg/zcapld"
 )
 
@@ -264,9 +263,9 @@ func (c *Command) createShamirSecretLock(user string, secretShare []byte) (secre
 		return nil, fmt.Errorf("fetch secret share: %w", err)
 	}
 
-	secretLock, err := shamir.NewLock([][]byte{secretShare, share})
+	secretLock, err := c.shamirLock.Create([][]byte{secretShare, share})
 	if err != nil {
-		return nil, fmt.Errorf("new lock: %w", err)
+		return nil, fmt.Errorf("create shamir lock: %w", err)
 	}
 
 	return secretLock, nil

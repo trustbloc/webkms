@@ -7,6 +7,7 @@ SPDX-License-Identifier: Apache-2.0
 package startcmd
 
 import (
+	"crypto/sha256"
 	"crypto/tls"
 	"fmt"
 	"net/http"
@@ -21,6 +22,7 @@ import (
 	"github.com/google/tink/go/core/registry"
 	tinkawskms "github.com/google/tink/go/integration/awskms"
 	"github.com/gorilla/mux"
+	"github.com/hashicorp/vault/shamir"
 	"github.com/hyperledger/aries-framework-go-ext/component/storage/couchdb"
 	"github.com/hyperledger/aries-framework-go-ext/component/storage/mongodb"
 	"github.com/hyperledger/aries-framework-go-ext/component/vdr/orb"
@@ -32,6 +34,7 @@ import (
 	"github.com/hyperledger/aries-framework-go/pkg/kms/localkms"
 	"github.com/hyperledger/aries-framework-go/pkg/secretlock"
 	"github.com/hyperledger/aries-framework-go/pkg/secretlock/local"
+	"github.com/hyperledger/aries-framework-go/pkg/secretlock/local/masterlock/hkdf"
 	"github.com/hyperledger/aries-framework-go/pkg/secretlock/noop"
 	ldstore "github.com/hyperledger/aries-framework-go/pkg/store/ld"
 	"github.com/hyperledger/aries-framework-go/pkg/vdr"
@@ -158,24 +161,25 @@ func startServer(srv server, params *serverParameters) error { //nolint:funlen
 	baseKeyStoreURL := params.baseURL + rest.KeyStorePath
 
 	cmd, err := command.New(&command.Config{
-		StorageProvider:     store,
-		CacheProvider:       nil,
-		KMS:                 kmsService,
-		Crypto:              cryptoService,
-		VDRResolver:         vdrResolver,
-		DocumentLoader:      documentLoader,
-		KeyStoreCreator:     &keyStoreCreator{},
-		ZCAPService:         zcapService,
-		HeaderSigner:        zcapService,
-		CryptBoxCreator:     &cryptoBoxCreator{},
-		HTTPClient:          httpClient,
-		TLSConfig:           tlsConfig,
-		BaseKeyStoreURL:     baseKeyStoreURL,
-		AuthServerURL:       params.authServerURL,
-		AuthServerToken:     params.authServerToken,
-		MainKeyType:         kms.AES256GCMType,
-		EDVRecipientKeyType: kms.NISTP256ECDHKW,
-		EDVMACKeyType:       kms.HMACSHA256Tag256,
+		StorageProvider:         store,
+		CacheProvider:           nil,
+		KMS:                     kmsService,
+		Crypto:                  cryptoService,
+		VDRResolver:             vdrResolver,
+		DocumentLoader:          documentLoader,
+		KeyStoreCreator:         &keyStoreCreator{},
+		ShamirSecretLockCreator: &shamirSecretLockCreator{},
+		CryptBoxCreator:         &cryptoBoxCreator{},
+		ZCAPService:             zcapService,
+		HeaderSigner:            zcapService,
+		HTTPClient:              httpClient,
+		TLSConfig:               tlsConfig,
+		BaseKeyStoreURL:         baseKeyStoreURL,
+		AuthServerURL:           params.authServerURL,
+		AuthServerToken:         params.authServerToken,
+		MainKeyType:             kms.AES256GCMType,
+		EDVRecipientKeyType:     kms.NISTP256ECDHKW,
+		EDVMACKeyType:           kms.HMACSHA256Tag256,
 	})
 	if err != nil {
 		return fmt.Errorf("create command: %w", err)
@@ -461,4 +465,20 @@ type cryptoBoxCreator struct{}
 
 func (c *cryptoBoxCreator) Create(km kms.KeyManager) (command.CryptoBox, error) {
 	return localkms.NewCryptoBox(km)
+}
+
+type shamirSecretLockCreator struct{}
+
+func (c *shamirSecretLockCreator) Create(secretShares [][]byte) (secretlock.Service, error) {
+	combined, err := shamir.Combine(secretShares)
+	if err != nil {
+		return nil, fmt.Errorf("shamir combine: %w", err)
+	}
+
+	lock, err := hkdf.NewMasterLock(string(combined), sha256.New, nil)
+	if err != nil {
+		return nil, fmt.Errorf("create hkdf lock: %w", err)
+	}
+
+	return lock, nil
 }
