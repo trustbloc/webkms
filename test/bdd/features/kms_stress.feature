@@ -4,7 +4,6 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
-@all
 @kms_stress
 Feature: KMS stress test
   Background:
