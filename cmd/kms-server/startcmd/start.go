@@ -258,7 +258,7 @@ func createStoreProvider(typ, url, prefix string, timeout time.Duration) (storag
 
 	switch {
 	case strings.EqualFold(typ, storageTypeMemOption):
-		createProvider = func(string, string) (storage.Provider, error) {
+		createProvider = func(string, string) (storage.Provider, error) { //nolint:unparam
 			return mem.NewProvider(), nil
 		}
 	case strings.EqualFold(typ, storageTypeCouchDBOption):
