@@ -29,6 +29,7 @@ import (
 type user struct {
 	name       string
 	controller string
+	edvDID     string
 
 	keystoreID string
 	keyID      string

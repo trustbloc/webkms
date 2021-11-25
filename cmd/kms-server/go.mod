@@ -12,7 +12,7 @@ require (
 	github.com/google/tink/go v1.6.1
 	github.com/gorilla/mux v1.8.0
 	github.com/hashicorp/vault v1.2.1-0.20200911125421-dba37adcb55a
-	github.com/hyperledger/aries-framework-go v0.1.8-0.20211115182008-a05b96ee7ab1
+	github.com/hyperledger/aries-framework-go v0.1.8-0.20211125052149-48c1c9597572
 	github.com/hyperledger/aries-framework-go-ext/component/storage/couchdb v0.0.0-20211014145537-7da54ab5fdb9
 	github.com/hyperledger/aries-framework-go-ext/component/storage/mongodb v0.0.0-20211014145537-7da54ab5fdb9
 	github.com/hyperledger/aries-framework-go-ext/component/vdr/orb v0.1.4-0.20211115235232-9c7453f469d0

@@ -11,9 +11,18 @@ import (
 	"github.com/hyperledger/aries-framework-go/pkg/kms"
 )
 
+type createDIDResp struct {
+	DID string `json:"did"`
+}
+
 type createKeystoreReq struct {
-	Controller string `json:"controller"`
-	VaultID    string `json:"vaultID"`
+	Controller string      `json:"controller"`
+	EDV        *edvOptions `json:"edv"`
+}
+
+type edvOptions struct {
+	VaultURL   string `json:"vault_url"`
+	Capability []byte `json:"capability"`
 }
 
 type createKeyStoreResp struct {

@@ -235,7 +235,7 @@ func (c *Command) createEDVStorageProvider(vaultURL string, recipientPubKey *cry
 
 	s := strings.Split(vaultURL, "/")
 
-	edvServerURL := strings.Join(s[:len(s)-1], "")
+	edvServerURL := strings.Join(s[:len(s)-1], "/")
 	vaultID := s[len(s)-1]
 
 	return edv.NewRESTProvider(

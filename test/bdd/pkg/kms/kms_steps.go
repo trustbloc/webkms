@@ -8,6 +8,7 @@ package kms
 
 import (
 	"bytes"
+	"context"
 	"crypto/ed25519"
 	"crypto/rand"
 	"crypto/tls"
@@ -42,6 +43,7 @@ import (
 
 const (
 	createKeystoreEndpoint = "/v1/keystore"
+	createDIDEndpoint      = "/v1/keystore/did"
 	keysEndpoint           = "/v1/keystore/{keystoreID}/key"
 	exportKeyEndpoint      = "/v1/keystore/{keystoreID}/key/{keyID}/export"
 	signEndpoint           = "/v1/keystore/{keystoreID}/key/{keyID}/sign"
@@ -137,9 +139,27 @@ func (s *Steps) createKeystoreAndKey(user, keyType string) error {
 func (s *Steps) createKeystore(userName string) error {
 	u := s.users[userName]
 
+	if err := s.createDID(u); err != nil {
+		return err
+	}
+
+	edvCapability, err := s.createChainCapability(u)
+	if err != nil {
+		return err
+	}
+
+	capabilityBytes, err := json.Marshal(edvCapability)
+	if err != nil {
+		return err
+	}
+
 	r := &createKeystoreReq{
 		Controller: u.controller,
-		VaultID:    u.vaultID,
+		EDV: &edvOptions{
+			// TODO: replace hardcoded URL with the proper s.bddContext.EDVServerURL
+			VaultURL:   "https://edv.trustbloc.local:8081" + edvBasePath + "/" + u.vaultID,
+			Capability: capabilityBytes,
+		},
 	}
 
 	request, err := u.preparePostRequest(r, s.bddContext.KeyServerURL+createKeystoreEndpoint)
@@ -183,38 +203,15 @@ func (s *Steps) createKeystore(userName string) error {
 	return nil
 }
 
-func (s *Steps) updateCapability(u *user) error {
-	// create chain capability
-	chainCapability, err := s.createChainCapability(u)
+func (s *Steps) createDID(u *user) error {
+	uri := buildURI(s.bddContext.KeyServerURL+createDIDEndpoint, u.keystoreID, u.keyID)
+
+	request, err := http.NewRequestWithContext(context.Background(), http.MethodPost, uri, nil)
 	if err != nil {
-		return err
+		return fmt.Errorf("create DID http request: %w", err)
 	}
 
-	chainCapabilityBytes, err := json.Marshal(chainCapability)
-	if err != nil {
-		return err
-	}
-
-	r := struct {
-		EDVCapability json.RawMessage `json:"edvCapability,omitempty"`
-	}{
-		EDVCapability: chainCapabilityBytes,
-	}
-
-	request, err := u.preparePostRequest(r, s.bddContext.KeyServerURL+capabilityEndpoint)
-	if err != nil {
-		return err
-	}
-
-	err = u.SetCapabilityInvocation(request, actionStoreCapability)
-	if err != nil {
-		return fmt.Errorf("user failed to set capability: %w", err)
-	}
-
-	err = u.Sign(request)
-	if err != nil {
-		return fmt.Errorf("user failed to sign request: %w", err)
-	}
+	request.Header.Set("Authorization", fmt.Sprintf("Bearer %s", u.accessToken))
 
 	response, err := s.httpClient.Do(request)
 	if err != nil {
@@ -228,7 +225,15 @@ func (s *Steps) updateCapability(u *user) error {
 		}
 	}()
 
-	return u.processResponse(nil, response)
+	var resp createDIDResp
+
+	if err := u.processResponse(&resp, response); err != nil {
+		return err
+	}
+
+	u.edvDID = resp.DID
+
+	return nil
 }
 
 func (s *Steps) createChainCapability(u *user) (*zcapld.Capability, error) {
@@ -245,7 +250,7 @@ func (s *Steps) createChainCapability(u *user) (*zcapld.Capability, error) {
 			ProcessorOpts:      []jsonld.ProcessorOpts{jsonld.WithDocumentLoader(loader)},
 		},
 		zcapld.WithParent(u.edvCapability.ID),
-		zcapld.WithInvoker(u.response.headers[edvDIDKeyHeader]),
+		zcapld.WithInvoker(u.edvDID),
 		zcapld.WithAllowedActions("read", "write"),
 		zcapld.WithInvocationTarget(u.vaultID, edvResource),
 		zcapld.WithCapabilityChain(u.edvCapability.Parent, u.edvCapability.ID))
