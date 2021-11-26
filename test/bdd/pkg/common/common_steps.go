@@ -30,7 +30,7 @@ type Steps struct {
 
 // NewSteps creates a new Steps.
 func NewSteps() *Steps {
-	return &Steps{logger: log.New("kms-rest/tests/common")}
+	return &Steps{logger: log.New("kms/tests/common")}
 }
 
 // SetContext sets a fresh context for every scenario.

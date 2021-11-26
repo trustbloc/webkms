@@ -6,125 +6,120 @@ SPDX-License-Identifier: Apache-2.0
 
 package kms
 
+import (
+	"github.com/hyperledger/aries-framework-go/pkg/crypto"
+	"github.com/hyperledger/aries-framework-go/pkg/kms"
+)
+
+type createDIDResp struct {
+	DID string `json:"did"`
+}
+
 type createKeystoreReq struct {
-	Controller string `json:"controller"`
-	VaultID    string `json:"vaultID"`
+	Controller string      `json:"controller"`
+	EDV        *edvOptions `json:"edv"`
+}
+
+type edvOptions struct {
+	VaultURL   string `json:"vault_url"`
+	Capability []byte `json:"capability"`
+}
+
+type createKeyStoreResp struct {
+	KeyStoreURL string `json:"key_store_url"`
+	Capability  []byte `json:"capability"`
 }
 
 type createKeyReq struct {
-	KeyType   string `json:"keyType"`
+	KeyType   string `json:"key_type"`
 	ExportKey bool   `json:"export"`
 }
 
 type createKeyResp struct {
-	Location  string `json:"location"`
-	PublicKey string `json:"publicKey"`
+	KeyURL    string `json:"key_url"`
+	PublicKey []byte `json:"public_key"`
 }
 
 type exportKeyResp struct {
-	PublicKey string `json:"publicKey"`
+	PublicKey []byte `json:"public_key"`
 }
 
 type importKeyReq struct {
-	KeyBytes string `json:"keyBytes"`
-	KeyType  string `json:"keyType"`
-	KeyID    string `json:"keyID"`
+	Key     []byte      `json:"key"`
+	KeyType kms.KeyType `json:"key_type"`
+	KeyID   string      `json:"key_id,omitempty"`
 }
 
 type importKeyResp struct {
-	Location string `json:"location"`
+	KeyURL string `json:"key_url"`
 }
 
 type signReq struct {
-	Message string `json:"message"`
+	Message []byte `json:"message"`
 }
 
 type signResp struct {
-	Signature string `json:"signature"`
+	Signature []byte `json:"signature"`
 }
 
 type verifyReq struct {
-	Signature string `json:"signature"`
-	Message   string `json:"message"`
+	Signature []byte `json:"signature"`
+	Message   []byte `json:"message"`
 }
 
 type encryptReq struct {
-	Message        string `json:"message"`
-	AdditionalData string `json:"aad"`
+	Message        []byte `json:"message"`
+	AssociatedData []byte `json:"associated_data,omitempty"`
 }
 
 type encryptResp struct {
-	CipherText string `json:"cipherText"`
-	Nonce      string `json:"nonce"`
+	Ciphertext []byte `json:"ciphertext"`
+	Nonce      []byte `json:"nonce"`
 }
 
 type decryptReq struct {
-	CipherText     string `json:"cipherText"`
-	AdditionalData string `json:"aad"`
-	Nonce          string `json:"nonce"`
+	Ciphertext     []byte `json:"ciphertext"`
+	AssociatedData []byte `json:"associated_data,omitempty"`
+	Nonce          []byte `json:"nonce"`
 }
 
 type decryptResp struct {
-	PlainText string `json:"plainText"`
+	Plaintext []byte `json:"plaintext"`
 }
 
 type computeMACReq struct {
-	Data string `json:"data"`
+	Data []byte `json:"data"`
 }
 
 type computeMACResp struct {
-	MAC string `json:"mac"`
+	MAC []byte `json:"mac"`
 }
 
 type verifyMACReq struct {
-	MAC  string `json:"mac"`
-	Data string `json:"data"`
+	MAC  []byte `json:"mac"`
+	Data []byte `json:"data"`
 }
 
 type wrapReq struct {
-	CEK             string       `json:"cek,omitempty"`
-	APU             string       `json:"apu,omitempty"`
-	APV             string       `json:"apv,omitempty"`
-	RecipientPubKey publicKeyReq `json:"recPubKey,omitempty"`
-	SenderKID       string       `json:"senderKID,omitempty"`
+	CEK             []byte            `json:"cek"`
+	APU             []byte            `json:"apu"`
+	APV             []byte            `json:"apv"`
+	RecipientPubKey *crypto.PublicKey `json:"recipient_pub_key"`
+	Tag             []byte            `json:"tag,omitempty"`
 }
 
 type wrapResp struct {
-	WrappedKey recipientWrappedKey `json:"wrappedKey,omitempty"`
-}
-
-type recipientWrappedKey struct {
-	KID          string       `json:"kid,omitempty"`
-	EncryptedCEK string       `json:"encryptedCEK,omitempty"`
-	EPK          publicKeyReq `json:"epk,omitempty"`
-	Alg          string       `json:"alg,omitempty"`
-	APU          string       `json:"apu,omitempty"`
-	APV          string       `json:"apv,omitempty"`
+	crypto.RecipientWrappedKey
 }
 
 type unwrapReq struct {
-	WrappedKey recipientWrappedKey `json:"wrappedKey,omitempty"`
-	SenderKID  string              `json:"senderKID,omitempty"`
+	WrappedKey   crypto.RecipientWrappedKey `json:"wrapped_key"`
+	SenderPubKey *crypto.PublicKey          `json:"sender_pub_key,omitempty"`
+	Tag          []byte                     `json:"tag,omitempty"`
 }
 
 type unwrapResp struct {
-	Key string `json:"key,omitempty"`
-}
-
-type publicKeyReq struct {
-	KID   string `json:"kid,omitempty"`
-	X     string `json:"x,omitempty"`
-	Y     string `json:"y,omitempty"`
-	Curve string `json:"curve,omitempty"`
-	Type  string `json:"type,omitempty"`
-}
-
-type publicKey struct {
-	KID   string `json:"kid,omitempty"`
-	X     []byte `json:"x,omitempty"`
-	Y     []byte `json:"y,omitempty"`
-	Curve string `json:"curve,omitempty"`
-	Type  string `json:"type,omitempty"`
+	Key []byte `json:"key"`
 }
 
 type setSecretRequest struct {
@@ -136,31 +131,31 @@ type errorResponse struct {
 }
 
 type easyReq struct {
-	Payload  string `json:"payload"`
-	Nonce    string `json:"nonce"`
-	TheirPub string `json:"theirPub"`
+	Payload  []byte `json:"payload"`
+	Nonce    []byte `json:"nonce"`
+	TheirPub []byte `json:"their_pub"`
 }
 
 type easyResp struct {
-	CipherText string `json:"cipherText"`
+	Ciphertext []byte `json:"ciphertext"`
 }
 
 type easyOpenReq struct {
-	CipherText string `json:"cipherText"`
-	Nonce      string `json:"nonce"`
-	TheirPub   string `json:"theirPub"`
-	MyPub      string `json:"myPub"`
+	Ciphertext []byte `json:"ciphertext"`
+	Nonce      []byte `json:"nonce"`
+	TheirPub   []byte `json:"their_pub"`
+	MyPub      []byte `json:"my_pub"`
 }
 
 type easyOpenResp struct {
-	PlainText string `json:"plainText"`
+	Plaintext []byte `json:"plaintext"`
 }
 
 type sealOpenReq struct {
-	CipherText string `json:"cipherText"`
-	MyPub      string `json:"myPub"`
+	Ciphertext []byte `json:"ciphertext"`
+	MyPub      []byte `json:"my_pub"`
 }
 
 type sealOpenResp struct {
-	PlainText string `json:"plainText"`
+	Plaintext []byte `json:"plaintext"`
 }

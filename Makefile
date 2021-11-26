@@ -2,95 +2,104 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
-KMS_REST_PATH=cmd/kms-rest
+GOBIN_PATH      =$(abspath .)/build/bin
+LINT_VERSION    ?=v1.39.0
+MOCK_VERSION 	?=v1.6.0
+SWAGGER_VERSION ?=v0.27.0
+SWAGGER_DIR     ="./test/bdd/fixtures/specs"
+SWAGGER_OUTPUT  =$(SWAGGER_DIR)"/openAPI.yml"
 
-# Namespace for the agent images
-DOCKER_OUTPUT_NS   ?= ghcr.io
-KMS_IMAGE_NAME   ?= trustbloc/kms
+DOCKER_OUTPUT_NS      ?=ghcr.io
+KMS_SERVER_IMAGE_NAME ?=trustbloc/kms
 
-# OpenAPI spec
-OPENAPI_DOCKER_IMG=quay.io/goswagger/swagger
-OPENAPI_SPEC_PATH=.build/rest/openapi/spec
-OPENAPI_DOCKER_IMG_VERSION=v0.25.0
+ALPINE_VER ?= 3.14
+GO_VER     ?= 1.17
 
-# Tool commands (overridable)
-ALPINE_VER ?= 3.12
-GO_VER ?= 1.16
+OS := $(shell uname)
+ifeq  ($(OS),$(filter $(OS),Darwin Linux))
+	PATH:=$(PATH):$(GOBIN_PATH)
+else
+	PATH:=$(PATH);$(subst /,\\,$(GOBIN_PATH))
+endif
 
 .PHONY: all
-all: checks unit-test
+all: clean checks unit-test bdd-test
 
 .PHONY: checks
-checks: license lint generate-openapi-spec
-
-.PHONY: lint
-lint:
-	@scripts/check_lint.sh
+checks: clean license lint
 
 .PHONY: license
 license:
 	@scripts/check_license.sh
 
+.PHONY: mocks
+mocks:
+	@GOBIN=$(GOBIN_PATH) go install github.com/golang/mock/mockgen@$(MOCK_VERSION)
+	@go generate ./...
+
+.PHONY: lint
+lint: mocks
+	@GOBIN=$(GOBIN_PATH) go install github.com/golangci/golangci-lint/cmd/golangci-lint@$(LINT_VERSION)
+	@$(GOBIN_PATH)/golangci-lint run
+	@cd cmd/kms-server && $(GOBIN_PATH)/golangci-lint run -c ../../.golangci.yml
+
 .PHONY: unit-test
-unit-test:
-	@scripts/check_unit.sh
+unit-test: mocks
+	@go test ./... -count=1 -race -coverprofile=coverage.out -covermode=atomic -timeout=10m
+	@cd cmd/kms-server && MallocNanoZone=0 go test ./... -count=1 -race -coverprofile=coverage.out -covermode=atomic -timeout=10m
 
 .PHONY: bdd-test
-bdd-test: clean kms-docker generate-test-keys mock-login-consent-docker
-	@scripts/check_integration.sh
+bdd-test: generate-test-keys kms-server-docker mock-login-consent-docker
+	@cd test/bdd && MallocNanoZone=0 go test -count=1 -v -cover . -p 1 -timeout=10m -race # TODO: remove "MallocNanoZone=0" after resolving https://github.com/golang/go/issues/49138
 
-.PHONY: mock-login-consent-docker
-mock-login-consent-docker:
-	@echo "Building mock login consent server for BDD tests..."
-	@cd test/bdd/mock/loginconsent && docker build -f image/Dockerfile --build-arg GO_VER=$(GO_VER) --build-arg ALPINE_VER=$(ALPINE_VER) -t mockloginconsent:latest .
+.PHONY: stress-test
+stress-test: generate-test-keys kms-server-docker mock-login-consent-docker
+	@cd test/bdd && MallocNanoZone=0 TAGS=kms_stress go test -count=1 -v -cover . -p 1 -timeout=10m -race # TODO: remove "MallocNanoZone=0" after resolving https://github.com/golang/go/issues/49138
 
-.PHONY: kms-rest
-kms-rest:
-	@echo "Building kms-rest"
-	@mkdir -p ./.build/bin
-	@cd ${KMS_REST_PATH} && go build -o ../../.build/bin/kms-rest main.go
+.PHONY: kms-server
+kms-server:
+	@echo "Building kms-server"
+	@cd cmd/kms-server && go build -o ../../build/bin/kms-server
 
-.PHONY: kms-docker
-kms-docker:
-	@echo "Building kms rest docker image"
-	@docker build -f ./images/kms-rest/Dockerfile --no-cache -t $(DOCKER_OUTPUT_NS)/$(KMS_IMAGE_NAME):latest \
+.PHONY: kms-server-docker
+kms-server-docker:
+	@echo "Building kms-server docker image"
+	@docker build -f ./images/kms-server/Dockerfile --no-cache -t $(DOCKER_OUTPUT_NS)/$(KMS_SERVER_IMAGE_NAME):latest \
 	--build-arg GO_VER=$(GO_VER) \
 	--build-arg ALPINE_VER=$(ALPINE_VER) .
 
+.PHONY: mock-login-consent-docker
+mock-login-consent-docker:
+	@echo "Building mock login consent server"
+	@cd test/bdd/mock/loginconsent && docker build -f image/Dockerfile --build-arg GO_VER=$(GO_VER) --build-arg ALPINE_VER=$(ALPINE_VER) -t mockloginconsent:latest .
+
 .PHONY: generate-test-keys
-generate-test-keys: clean
-	@mkdir -p -p test/bdd/fixtures/keys/tls
+generate-test-keys:
+	@mkdir -p ./test/bdd/fixtures/keys/tls
 	@docker run -i --rm \
 		-v $(abspath .):/opt/workspace/kms \
 		--entrypoint "/opt/workspace/kms/scripts/generate_test_keys.sh" \
 		frapsoft/openssl
 
-.PHONY: generate-openapi-spec
-generate-openapi-spec: clean
-	@echo "Generating and validating controller API specifications using Open API"
-	@mkdir -p .build/rest/openapi/spec
-	@SPEC_META=$(VC_REST_PATH) SPEC_LOC=${OPENAPI_SPEC_PATH}  \
-	DOCKER_IMAGE=$(OPENAPI_DOCKER_IMG) DOCKER_IMAGE_VERSION=$(OPENAPI_DOCKER_IMG_VERSION)  \
-	scripts/generate-openapi-spec.sh
-
-.PHONY: generate-openapi-demo-specs
-generate-openapi-demo-specs: clean generate-openapi-spec kms-docker
-	@echo "Generate demo KMS rest controller API specifications using Open API"
-	@SPEC_PATH=${OPENAPI_SPEC_PATH} OPENAPI_DEMO_PATH=test/bdd/fixtures/openapi-demo \
-    	DOCKER_IMAGE=$(OPENAPI_DOCKER_IMG) DOCKER_IMAGE_VERSION=$(OPENAPI_DOCKER_IMG_VERSION)  \
-    	scripts/generate-openapi-demo-specs.sh
-
-.PHONY: run-openapi-demo
-run-openapi-demo: generate-openapi-demo-specs
-	@echo "Starting OpenAPI demo..."
-	@DEMO_COMPOSE_PATH=test/bdd/fixtures/openapi-demo  \
-        scripts/run-openapi-demo.sh
-
 .PHONY: clean
-clean: clean-build
+clean:
+	@rm -rf ./build
+	@rm -rf ./test/bdd/fixtures/kms/keys/tls
+	@rm -rf ./test/bdd/build
+	@rm -rf coverage.out
+	@rm -rf $(SWAGGER_DIR)
+	@find . -name "gomocks_test.go" -delete
 
-.PHONY: clean-build
-clean-build:
-	@rm -Rf ./.build
-	@rm -Rf ./test/bdd/fixtures/keys/tls
-	@rm -Rf ./test/bdd/docker-compose.log
+.PHONY: open-api-spec
+open-api-spec:
+	@GOBIN=$(GOBIN_PATH) go install github.com/go-swagger/go-swagger/cmd/swagger@$(SWAGGER_VERSION)
+	@echo "Generating Open API spec"
+	@mkdir $(SWAGGER_DIR)
+	@$(GOBIN_PATH)/swagger generate spec -w ./cmd/kms-server -o $(SWAGGER_OUTPUT)
+	@echo "Validating generated spec"
+	@$(GOBIN_PATH)/swagger validate $(SWAGGER_OUTPUT)
+
+.PHONY: open-api-demo
+open-api-demo: clean kms-server-docker generate-test-keys open-api-spec
+	@echo "Running Open API demo on http://localhost:8089/openapi"
+	@docker-compose -f test/bdd/fixtures/docker-compose.yml up --force-recreate -d kms-server.openapi.com
