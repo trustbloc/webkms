@@ -27,9 +27,9 @@ const (
 	KeyStoreVarName = "keystore"
 	keyVarName      = "key"
 	BaseV1Path      = "/v1"
-	KeyStorePath    = BaseV1Path + "/keystore"
+	KeyStorePath    = BaseV1Path + "/keystores"
 	DIDPath         = KeyStorePath + "/did"
-	KeyPath         = KeyStorePath + "/{" + KeyStoreVarName + "}/key"
+	KeyPath         = KeyStorePath + "/{" + KeyStoreVarName + "}/keys"
 	ExportKeyPath   = KeyPath + "/{" + keyVarName + "}/export"
 	SignPath        = KeyPath + "/{" + keyVarName + "}/sign"
 	VerifyPath      = KeyPath + "/{" + keyVarName + "}/verify"
@@ -121,7 +121,7 @@ func (o *Operation) GetRESTHandlers() []Handler {
 	}
 }
 
-// CreateDID swagger:route POST /v1/keystore/did kms createDIDReq
+// CreateDID swagger:route POST /v1/keystores/did kms createDIDReq
 //
 // Creates a DID.
 //
@@ -132,7 +132,7 @@ func (o *Operation) CreateDID(rw http.ResponseWriter, req *http.Request) {
 	execute(o.cmd.CreateDID, rw, req)
 }
 
-// CreateKeyStore swagger:route POST /v1/keystore kms createKeyStoreReq
+// CreateKeyStore swagger:route POST /v1/keystores kms createKeyStoreReq
 //
 // Creates a new key store.
 //
@@ -143,7 +143,7 @@ func (o *Operation) CreateKeyStore(rw http.ResponseWriter, req *http.Request) {
 	execute(o.cmd.CreateKeyStore, rw, req)
 }
 
-// CreateKey swagger:route POST /v1/keystore/{key_store_id}/key kms createKeyReq
+// CreateKey swagger:route POST /v1/keystores/{key_store_id}/keys kms createKeyReq
 //
 // Creates a new key.
 //
@@ -154,7 +154,7 @@ func (o *Operation) CreateKey(rw http.ResponseWriter, req *http.Request) {
 	execute(o.cmd.CreateKey, rw, req)
 }
 
-// ImportKey swagger:route PUT /v1/keystore/{key_store_id}/key kms importKeyReq
+// ImportKey swagger:route PUT /v1/keystores/{key_store_id}/keys kms importKeyReq
 //
 // Imports a private key.
 //
@@ -165,7 +165,7 @@ func (o *Operation) ImportKey(rw http.ResponseWriter, req *http.Request) {
 	execute(o.cmd.ImportKey, rw, req)
 }
 
-// ExportKey swagger:route GET /v1/keystore/{key_store_id}/key/{key_id} kms exportKeyReq
+// ExportKey swagger:route GET /v1/keystores/{key_store_id}/keys/{key_id} kms exportKeyReq
 //
 // Exports a public key.
 //
@@ -176,7 +176,7 @@ func (o *Operation) ExportKey(rw http.ResponseWriter, req *http.Request) {
 	execute(o.cmd.ExportKey, rw, req)
 }
 
-// Sign swagger:route POST /v1/keystore/{key_store_id}/key/{key_id}/sign crypto signReq
+// Sign swagger:route POST /v1/keystores/{key_store_id}/keys/{key_id}/sign crypto signReq
 //
 // Signs a message.
 //
@@ -187,7 +187,7 @@ func (o *Operation) Sign(rw http.ResponseWriter, req *http.Request) {
 	execute(o.cmd.Sign, rw, req)
 }
 
-// Verify swagger:route POST /v1/keystore/{key_store_id}/key/{key_id}/verify crypto verifyReq
+// Verify swagger:route POST /v1/keystores/{key_store_id}/keys/{key_id}/verify crypto verifyReq
 //
 // Verifies a signature.
 //
@@ -198,7 +198,7 @@ func (o *Operation) Verify(rw http.ResponseWriter, req *http.Request) {
 	execute(o.cmd.Verify, rw, req)
 }
 
-// Encrypt swagger:route POST /v1/keystore/{key_store_id}/key/{key_id}/encrypt crypto encryptReq
+// Encrypt swagger:route POST /v1/keystores/{key_store_id}/keys/{key_id}/encrypt crypto encryptReq
 //
 // Encrypts a message with associated authenticated data.
 //
@@ -212,7 +212,7 @@ func (o *Operation) Encrypt(rw http.ResponseWriter, req *http.Request) {
 	execute(o.cmd.Encrypt, rw, req)
 }
 
-// Decrypt swagger:route POST /v1/keystore/{key_store_id}/key/{key_id}/decrypt crypto decryptReq
+// Decrypt swagger:route POST /v1/keystores/{key_store_id}/keys/{key_id}/decrypt crypto decryptReq
 //
 // Decrypts a ciphertext with associated authenticated data.
 //
@@ -226,7 +226,7 @@ func (o *Operation) Decrypt(rw http.ResponseWriter, req *http.Request) {
 	execute(o.cmd.Decrypt, rw, req)
 }
 
-// ComputeMAC swagger:route POST /v1/keystore/{key_store_id}/key/{key_id}/computemac crypto computeMACReq
+// ComputeMAC swagger:route POST /v1/keystores/{key_store_id}/keys/{key_id}/computemac crypto computeMACReq
 //
 // Computes message authentication code (MAC) for data.
 //
@@ -240,7 +240,7 @@ func (o *Operation) ComputeMAC(rw http.ResponseWriter, req *http.Request) {
 	execute(o.cmd.ComputeMAC, rw, req)
 }
 
-// VerifyMAC swagger:route POST /v1/keystore/{key_store_id}/key/{key_id}/verifymac crypto verifyMACReq
+// VerifyMAC swagger:route POST /v1/keystores/{key_store_id}/keys/{key_id}/verifymac crypto verifyMACReq
 //
 // Verifies whether MAC is a correct authentication code for data.
 //
@@ -251,7 +251,7 @@ func (o *Operation) VerifyMAC(rw http.ResponseWriter, req *http.Request) {
 	execute(o.cmd.VerifyMAC, rw, req)
 }
 
-// SignMulti swagger:route POST /v1/keystore/{key_store_id}/key/{key_id}/signmulti crypto signMultiReq
+// SignMulti swagger:route POST /v1/keystores/{key_store_id}/keys/{key_id}/signmulti crypto signMultiReq
 //
 // Creates a BBS+ signature of messages.
 //
@@ -262,7 +262,7 @@ func (o *Operation) SignMulti(rw http.ResponseWriter, req *http.Request) {
 	execute(o.cmd.SignMulti, rw, req)
 }
 
-// VerifyMulti swagger:route POST /v1/keystore/{key_store_id}/key/{key_id}/verifymulti crypto verifyMultiReq
+// VerifyMulti swagger:route POST /v1/keystores/{key_store_id}/keys/{key_id}/verifymulti crypto verifyMultiReq
 //
 // Verifies a signature of messages (BBS+).
 //
@@ -273,7 +273,7 @@ func (o *Operation) VerifyMulti(rw http.ResponseWriter, req *http.Request) {
 	execute(o.cmd.VerifyMulti, rw, req)
 }
 
-// DeriveProof swagger:route POST /v1/keystore/{key_store_id}/key/{key_id}/deriveproof crypto deriveProofReq
+// DeriveProof swagger:route POST /v1/keystores/{key_store_id}/keys/{key_id}/deriveproof crypto deriveProofReq
 //
 // Creates a BBS+ signature proof for a list of revealed messages.
 //
@@ -284,7 +284,7 @@ func (o *Operation) DeriveProof(rw http.ResponseWriter, req *http.Request) {
 	execute(o.cmd.DeriveProof, rw, req)
 }
 
-// VerifyProof swagger:route POST /v1/keystore/{key_store_id}/key/{key_id}/verifyproof crypto verifyProofReq
+// VerifyProof swagger:route POST /v1/keystores/{key_store_id}/keys/{key_id}/verifyproof crypto verifyProofReq
 //
 // Verifies a BBS+ signature proof for revealed messages.
 //
@@ -295,7 +295,7 @@ func (o *Operation) VerifyProof(rw http.ResponseWriter, req *http.Request) {
 	execute(o.cmd.VerifyProof, rw, req)
 }
 
-// Easy swagger:route POST /v1/keystore/{key_store_id}/key/{key_id}/easy crypto easyReq
+// Easy swagger:route POST /v1/keystores/{key_store_id}/keys/{key_id}/easy crypto easyReq
 //
 // Seals a message.
 //
@@ -306,7 +306,7 @@ func (o *Operation) Easy(rw http.ResponseWriter, req *http.Request) {
 	execute(o.cmd.Easy, rw, req)
 }
 
-// EasyOpen swagger:route POST /v1/keystore/{key_store_id}/easyopen crypto easyOpenReq
+// EasyOpen swagger:route POST /v1/keystores/{key_store_id}/easyopen crypto easyOpenReq
 //
 // Unseals a message sealed with Easy.
 //
@@ -317,7 +317,7 @@ func (o *Operation) EasyOpen(rw http.ResponseWriter, req *http.Request) {
 	execute(o.cmd.EasyOpen, rw, req)
 }
 
-// SealOpen swagger:route POST /v1/keystore/{key_store_id}/sealopen crypto sealOpenReq
+// SealOpen swagger:route POST /v1/keystores/{key_store_id}/sealopen crypto sealOpenReq
 //
 // Decrypts a payload encrypted with Seal.
 //
@@ -328,7 +328,7 @@ func (o *Operation) SealOpen(rw http.ResponseWriter, req *http.Request) {
 	execute(o.cmd.SealOpen, rw, req)
 }
 
-// WrapKey swagger:route POST /v1/keystore/{key_store_id}/wrap crypto wrapKeyReq
+// WrapKey swagger:route POST /v1/keystores/{key_store_id}/wrap crypto wrapKeyReq
 //
 // Wraps CEK using ECDH-ES key wrapping (Anoncrypt).
 //
@@ -339,7 +339,7 @@ func (o *Operation) WrapKey(rw http.ResponseWriter, req *http.Request) {
 	execute(o.cmd.WrapKey, rw, req)
 }
 
-// WrapKeyAE swagger:route POST /v1/keystore/{key_store_id}/key/{key_id}/wrap crypto wrapKeyAEReq
+// WrapKeyAE swagger:route POST /v1/keystores/{key_store_id}/keys/{key_id}/wrap crypto wrapKeyAEReq
 //
 // Wraps CEK using ECDH-1PU key wrapping (Authcrypt).
 //
@@ -350,7 +350,7 @@ func (o *Operation) WrapKeyAE(rw http.ResponseWriter, req *http.Request) {
 	execute(o.cmd.WrapKey, rw, req)
 }
 
-// UnwrapKey swagger:route POST /v1/keystore/{key_store_id}/key/{key_id}/unwrap crypto unwrapKeyReq
+// UnwrapKey swagger:route POST /v1/keystores/{key_store_id}/keys/{key_id}/unwrap crypto unwrapKeyReq
 //
 // Unwraps a wrapped key.
 //

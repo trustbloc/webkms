@@ -23,11 +23,11 @@ Feature: KMS CryptoBox operations
       And "Alice" has a public key of "Bob"
       And "Bob" has a public key of "Alice"
 
-    When  "Alice" makes an HTTP POST to "https://localhost:4466/v1/keystore/{keystoreID}/key/{keyID}/easy" to easy "test payload" for "Bob"
+    When  "Alice" makes an HTTP POST to "https://localhost:4466/v1/keystores/{keystoreID}/keys/{keyID}/easy" to easy "test payload" for "Bob"
     Then  "Alice" gets a response with HTTP status "200 OK"
      And  "Alice" gets a response with non-empty "ciphertext"
 
-    When  "Bob" makes an HTTP POST to "https://localhost:4466/v1/keystore/{keystoreID}/easyopen" to easyOpen "ciphertext" from "Alice"
+    When  "Bob" makes an HTTP POST to "https://localhost:4466/v1/keystores/{keystoreID}/easyopen" to easyOpen "ciphertext" from "Alice"
     Then  "Bob" gets a response with HTTP status "200 OK"
      And  "Bob" gets a response with "plaintext" with value "test payload"
 
@@ -37,6 +37,6 @@ Feature: KMS CryptoBox operations
       And "Bob" has a public key of "Alice"
       And "Bob" has sealed "test payload" for "Alice"
 
-    When  "Alice" makes an HTTP POST to "https://localhost:4466/v1/keystore/{keystoreID}/sealopen" to sealOpen "ciphertext" from "Bob"
+    When  "Alice" makes an HTTP POST to "https://localhost:4466/v1/keystores/{keystoreID}/sealopen" to sealOpen "ciphertext" from "Bob"
     Then  "Alice" gets a response with HTTP status "200 OK"
      And  "Alice" gets a response with "plaintext" with value "test payload"
