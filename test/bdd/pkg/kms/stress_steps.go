@@ -8,10 +8,11 @@ package kms
 
 import (
 	"fmt"
-	"github.com/trustbloc/kms/test/bdd/pkg/internal/bddutil"
 	"os"
 	"strconv"
 	"time"
+
+	"github.com/trustbloc/kms/test/bdd/pkg/internal/bddutil"
 )
 
 const userNameTplt = "User%d"
@@ -172,7 +173,6 @@ type signVerifyRequest struct {
 }
 
 func (r *signVerifyRequest) Invoke() (interface{}, error) {
-
 	message := "test message"
 	for i := 0; i < r.times; i++ {
 		err := r.steps.makeSignMessageReq(r.userName, r.endpoint, message)

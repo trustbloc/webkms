@@ -32,7 +32,7 @@ import (
 )
 
 const (
-	keyStores         = "key_stores"
+	keyStores         = "keystores"
 	localKeyURIPrefix = "local-lock://"
 )
 

@@ -177,7 +177,7 @@ func (c *Command) CreateKey(w io.Writer, r io.Reader) error {
 	}
 
 	return json.NewEncoder(w).Encode(CreateKeyResponse{
-		KeyURL:    fmt.Sprintf("%s/%s/key/%s", c.baseKeyStoreURL, wr.KeyStoreID, kid),
+		KeyURL:    fmt.Sprintf("%s/%s/keys/%s", c.baseKeyStoreURL, wr.KeyStoreID, kid),
 		PublicKey: pub,
 	})
 }
@@ -247,7 +247,7 @@ func (c *Command) ImportKey(w io.Writer, r io.Reader) error {
 	}
 
 	return json.NewEncoder(w).Encode(ImportKeyResponse{
-		KeyURL: fmt.Sprintf("%s/%s/key/%s", c.baseKeyStoreURL, wr.KeyStoreID, kid),
+		KeyURL: fmt.Sprintf("%s/%s/keys/%s", c.baseKeyStoreURL, wr.KeyStoreID, kid),
 	})
 }
 

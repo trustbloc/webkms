@@ -42,12 +42,11 @@ import (
 )
 
 const (
-	createKeystoreEndpoint = "/v1/keystore"
-	createDIDEndpoint      = "/v1/keystore/did"
-	keysEndpoint           = "/v1/keystore/{keystoreID}/key"
-	exportKeyEndpoint      = "/v1/keystore/{keystoreID}/key/{keyID}/export"
-	signEndpoint           = "/v1/keystore/{keystoreID}/key/{keyID}/sign"
-	capabilityEndpoint     = "/v1/keystore/{keystoreID}/capability"
+	createKeystoreEndpoint = "/v1/keystores"
+	createDIDEndpoint      = "/v1/keystores/did"
+	keysEndpoint           = "/v1/keystores/{keystoreID}/keys"
+	exportKeyEndpoint      = "/v1/keystores/{keystoreID}/keys/{keyID}/export"
+	signEndpoint           = "/v1/keystores/{keystoreID}/keys/{keyID}/sign"
 )
 
 // Steps defines steps context for the KMS operations.
