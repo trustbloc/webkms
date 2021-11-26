@@ -127,7 +127,7 @@ jobs:
           file: ./images/kms-server/Dockerfile
           platforms: linux/amd64,linux/arm64
           build-args: |
-            ALPINE_VER=3.12
+            ALPINE_VER=3.14
             GO_VER=${{ env.GO_VERSION }}
           push: true
           tags: |
