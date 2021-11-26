@@ -23,12 +23,13 @@ import (
 	"github.com/igor-pavlenko/httpsignatures-go"
 	"github.com/trustbloc/edge-core/pkg/zcapld"
 
-	zcapld2 "github.com/trustbloc/kms/pkg/auth/zcapld"
+	zcapld2 "github.com/trustbloc/kms/pkg/zcapld"
 )
 
 type user struct {
 	name       string
 	controller string
+	edvDID     string
 
 	keystoreID string
 	keyID      string
@@ -52,7 +53,7 @@ type user struct {
 
 type publicKeyData struct {
 	rawBytes  []byte
-	parsedKey *publicKey
+	parsedKey *crypto.PublicKey
 }
 
 type response struct {
@@ -69,7 +70,8 @@ func (u *user) SetCapabilityInvocation(r *http.Request, action string) error {
 
 	r.Header.Set(
 		zcapld.CapabilityInvocationHTTPHeader,
-		fmt.Sprintf(`zcap capability="%s",action="%s"`, compressed, action),
+		fmt.Sprintf(`zcap capability="%s",action="%s"`,
+			base64.URLEncoding.EncodeToString(compressed), action),
 	)
 
 	return nil
@@ -112,6 +114,22 @@ func (u *user) preparePostRequest(req interface{}, endpoint string) (*http.Reque
 	return request, nil
 }
 
+func (u *user) preparePutRequest(req interface{}, endpoint string) (*http.Request, error) {
+	uri := buildURI(endpoint, u.keystoreID, u.keyID)
+
+	payload, err := json.Marshal(req)
+	if err != nil {
+		return nil, fmt.Errorf("marshal request: %w", err)
+	}
+
+	request, err := http.NewRequestWithContext(context.Background(), http.MethodPut, uri, bytes.NewReader(payload))
+	if err != nil {
+		return nil, fmt.Errorf("create http request: %w", err)
+	}
+
+	return request, nil
+}
+
 func buildURI(endpoint, keystoreID, keyID string) string {
 	return strings.NewReplacer(
 		"{keystoreID}", keystoreID,
@@ -119,32 +137,11 @@ func buildURI(endpoint, keystoreID, keyID string) string {
 	).Replace(endpoint)
 }
 
-func (u *user) processResponse(parsedResp interface{}, resp *http.Response) error { //nolint:gocyclo // ignore
-	keystoreID, keyID := parseLocationHeader(resp.Header)
-
-	if keystoreID != "" {
-		u.keystoreID = keystoreID
-	}
-
-	if keyID != "" {
-		u.keyID = keyID
-	}
-
+func (u *user) processResponse(parsedResp interface{}, resp *http.Response) error {
 	u.response = &response{
 		status:     resp.Status,
 		statusCode: resp.StatusCode,
 	}
-
-	kmsCapability, err := parseRootCapabilityHeader(resp.Header)
-	if err != nil {
-		return fmt.Errorf("parse root capability header: %w", err)
-	}
-
-	if kmsCapability != nil {
-		u.kmsCapability = kmsCapability
-	}
-
-	u.response.headers = processHeaders(resp.Header)
 
 	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusCreated {
 		var errResp errorResponse
@@ -154,7 +151,7 @@ func (u *user) processResponse(parsedResp interface{}, resp *http.Response) erro
 			return fmt.Errorf("read response body: %w", er)
 		}
 
-		if err = json.Unmarshal(respBody, &errResp); err != nil {
+		if err := json.Unmarshal(respBody, &errResp); err != nil {
 			return fmt.Errorf("%s", respBody)
 		}
 
@@ -169,7 +166,7 @@ func (u *user) processResponse(parsedResp interface{}, resp *http.Response) erro
 		return nil
 	}
 
-	err = json.NewDecoder(resp.Body).Decode(parsedResp)
+	err := json.NewDecoder(resp.Body).Decode(parsedResp)
 	if err != nil {
 		return fmt.Errorf("parse response: %w", err)
 	}
@@ -177,53 +174,8 @@ func (u *user) processResponse(parsedResp interface{}, resp *http.Response) erro
 	return nil
 }
 
-func processHeaders(header http.Header) map[string]string {
-	headers := make(map[string]string, len(header))
-	for k, v := range header {
-		headers[k] = v[0]
-	}
-
-	return headers
-}
-
-func parseLocationHeader(header http.Header) (string, string) {
-	const (
-		keystoreIDPos = 5 // https://localhost:8076/kms/keystores/{keystoreID}
-		keyIDPos      = 7 // https://localhost:8076/kms/keystores/{keystoreID}/keys/{keyID}
-	)
-
-	location := header.Get("Location")
-	if location == "" {
-		return "", ""
-	}
-
-	s := strings.Split(location, "/")
-
-	keystoreID := ""
-	if len(s) > keystoreIDPos {
-		keystoreID = s[keystoreIDPos]
-	}
-
-	keyID := ""
-	if len(s) > keyIDPos {
-		keyID = s[keyIDPos]
-	}
-
-	return keystoreID, keyID
-}
-
-func parseRootCapabilityHeader(header http.Header) (*zcapld.Capability, error) {
-	zcap := header.Get("X-RootCapability")
-	if zcap == "" {
-		return nil, nil
-	}
-
-	decoded, err := base64.URLEncoding.DecodeString(zcap)
-	if err != nil {
-		return nil, fmt.Errorf("failed to base64URL-decode zcap: %w", err)
-	}
-
-	compressed, err := gzip.NewReader(bytes.NewReader(decoded))
+func parseRootCapability(zcap []byte) (*zcapld.Capability, error) {
+	compressed, err := gzip.NewReader(bytes.NewReader(zcap))
 	if err != nil {
 		return nil, fmt.Errorf("failed to open gzip reader: %w", err)
 	}

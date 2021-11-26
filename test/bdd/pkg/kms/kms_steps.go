@@ -8,15 +8,14 @@ package kms
 
 import (
 	"bytes"
+	"context"
 	"crypto/ed25519"
 	"crypto/rand"
 	"crypto/tls"
 	"crypto/x509"
 	"encoding/base64"
 	"encoding/json"
-	"errors"
 	"fmt"
-	"io"
 	"net/http"
 	"net/url"
 	"regexp"
@@ -37,18 +36,17 @@ import (
 	"github.com/trustbloc/edge-core/pkg/zcapld"
 	authbddctx "github.com/trustbloc/hub-auth/test/bdd/pkg/context"
 
-	zcapld2 "github.com/trustbloc/kms/pkg/auth/zcapld"
-	"github.com/trustbloc/kms/pkg/restapi/kms/operation"
+	zcapsvc "github.com/trustbloc/kms/pkg/zcapld"
 	bddcontext "github.com/trustbloc/kms/test/bdd/pkg/context"
 	"github.com/trustbloc/kms/test/bdd/pkg/internal/cryptoutil"
 )
 
 const (
-	createKeystoreEndpoint = "/kms/keystores"
-	keysEndpoint           = "/kms/keystores/{keystoreID}/keys"
-	exportKeyEndpoint      = "/kms/keystores/{keystoreID}/keys/{keyID}/export"
-	signEndpoint           = "/kms/keystores/{keystoreID}/keys/{keyID}/sign"
-	capabilityEndpoint     = "/kms/keystores/{keystoreID}/capability"
+	createKeystoreEndpoint = "/v1/keystores"
+	createDIDEndpoint      = "/v1/keystores/did"
+	keysEndpoint           = "/v1/keystores/{keystoreID}/keys"
+	exportKeyEndpoint      = "/v1/keystores/{keystoreID}/keys/{keyID}/export"
+	signEndpoint           = "/v1/keystores/{keystoreID}/keys/{keyID}/sign"
 )
 
 // Steps defines steps context for the KMS operations.
@@ -66,7 +64,7 @@ func NewSteps(authBDDContext *authbddctx.BDDContext, tlsConfig *tls.Config) *Ste
 	return &Steps{
 		authBDDContext: authBDDContext,
 		httpClient:     &http.Client{Transport: &http.Transport{TLSClientConfig: tlsConfig}},
-		logger:         log.New("kms-rest/tests/kms"),
+		logger:         log.New("kms/tests/kms"),
 		users:          map[string]*user{},
 		keys:           map[string][]byte{"testCEK": cryptoutil.GenerateKey()},
 	}
@@ -81,9 +79,13 @@ func (s *Steps) SetContext(ctx *bddcontext.BDDContext) {
 func (s *Steps) RegisterSteps(ctx *godog.ScenarioContext) {
 	// common creation steps
 	ctx.Step(`^"([^"]*)" wallet has stored secret on Hub Auth$`, s.storeSecretInHubAuth)
+	ctx.Step(`^"([^"]*)" users wallets has stored secret on Hub Auth$`, s.storeSecretInHubAuthForMultipleUsers)
 	ctx.Step(`^"([^"]*)" has created a data vault on EDV for storing keys$`, s.createEDVDataVault)
+	ctx.Step(`^"([^"]*)" users has created a data vault on EDV for storing keys$`, s.createEDVDataVaultForMultipleUsers)
 	ctx.Step(`^"([^"]*)" has created an empty keystore on Key Server$`, s.createKeystore)
 	ctx.Step(`^"([^"]*)" has created a keystore with "([^"]*)" key on Key Server$`, s.createKeystoreAndKey)
+	ctx.Step(`^"([^"]*)" users has created a keystore with "([^"]*)" key using "([^"]*)" concurrent requests$`,
+		s.createKeystoreForMultipleUsers)
 	// common response checking steps
 	ctx.Step(`^"([^"]*)" gets a response with HTTP status "([^"]*)"$`, s.checkRespStatus)
 	ctx.Step(`^"([^"]*)" gets a response with HTTP status "([^"]*)" for each request$`, s.checkMultiRespStatus)
@@ -99,11 +101,15 @@ func (s *Steps) RegisterSteps(ctx *godog.ScenarioContext) {
 	ctx.Step(`^"([^"]*)" makes an HTTP GET to "([^"]*)" to export public key$`, s.makeExportPubKeyReq)
 	ctx.Step(`^"([^"]*)" makes an HTTP POST to "([^"]*)" to create and export "([^"]*)" key$`,
 		s.makeCreateAndExportKeyReq)
-	ctx.Step(`^"([^"]*)" makes an HTTP POST to "([^"]*)" to import a private key with ID "([^"]*)"$`,
+	ctx.Step(`^"([^"]*)" makes an HTTP PUT to "([^"]*)" to import a private key with ID "([^"]*)"$`,
 		s.makeImportKeyReq)
 	// sign/verify message steps
 	ctx.Step(`^"([^"]*)" makes an HTTP POST to "([^"]*)" to sign "([^"]*)"$`, s.makeSignMessageReq)
 	ctx.Step(`^"([^"]*)" makes an HTTP POST to "([^"]*)" to verify "([^"]*)" for "([^"]*)"$`, s.makeVerifySignatureReq)
+
+	ctx.Step(`^"([^"]*)" users makes an HTTP POST to "([^"]*)" to sign and verify "([^"]*)" times `+
+		`using "([^"]*)" concurrent requests$`, s.makeSignVerifyMultipleTimeForMultipleUsers)
+
 	// encrypt/decrypt message steps
 	ctx.Step(`^"([^"]*)" makes an HTTP POST to "([^"]*)" to encrypt "([^"]*)"$`, s.makeEncryptMessageReq)
 	ctx.Step(`^"([^"]*)" makes an HTTP POST to "([^"]*)" to decrypt "([^"]*)"$`, s.makeDecryptCipherReq)
@@ -132,9 +138,27 @@ func (s *Steps) createKeystoreAndKey(user, keyType string) error {
 func (s *Steps) createKeystore(userName string) error {
 	u := s.users[userName]
 
+	if err := s.createDID(u); err != nil {
+		return err
+	}
+
+	edvCapability, err := s.createChainCapability(u)
+	if err != nil {
+		return err
+	}
+
+	capabilityBytes, err := json.Marshal(edvCapability)
+	if err != nil {
+		return err
+	}
+
 	r := &createKeystoreReq{
 		Controller: u.controller,
-		VaultID:    u.vaultID,
+		EDV: &edvOptions{
+			// TODO: replace hardcoded URL with the proper s.bddContext.EDVServerURL
+			VaultURL:   "https://edv.trustbloc.local:8081" + edvBasePath + "/" + u.vaultID,
+			Capability: capabilityBytes,
+		},
 	}
 
 	request, err := u.preparePostRequest(r, s.bddContext.KeyServerURL+createKeystoreEndpoint)
@@ -156,43 +180,37 @@ func (s *Steps) createKeystore(userName string) error {
 		}
 	}()
 
-	if err := u.processResponse(nil, response); err != nil {
+	var resp createKeyStoreResp
+
+	if err := u.processResponse(&resp, response); err != nil {
 		return err
 	}
 
-	return s.updateCapability(u)
+	parts := strings.Split(resp.KeyStoreURL, "/")
+
+	u.keystoreID = parts[len(parts)-1]
+
+	kmsCapability, err := parseRootCapability(resp.Capability)
+	if err != nil {
+		return fmt.Errorf("parse root capability: %w", err)
+	}
+
+	if kmsCapability != nil {
+		u.kmsCapability = kmsCapability
+	}
+
+	return nil
 }
 
-func (s *Steps) updateCapability(u *user) error {
-	// create chain capability
-	chainCapability, err := s.createChainCapability(u)
+func (s *Steps) createDID(u *user) error {
+	uri := buildURI(s.bddContext.KeyServerURL+createDIDEndpoint, u.keystoreID, u.keyID)
+
+	request, err := http.NewRequestWithContext(context.Background(), http.MethodPost, uri, nil)
 	if err != nil {
-		return err
+		return fmt.Errorf("create DID http request: %w", err)
 	}
 
-	chainCapabilityBytes, err := json.Marshal(chainCapability)
-	if err != nil {
-		return err
-	}
-
-	r := &operation.UpdateCapabilityReq{
-		EDVCapability: chainCapabilityBytes,
-	}
-
-	request, err := u.preparePostRequest(r, s.bddContext.KeyServerURL+capabilityEndpoint)
-	if err != nil {
-		return err
-	}
-
-	err = u.SetCapabilityInvocation(request, actionStoreCapability)
-	if err != nil {
-		return fmt.Errorf("user failed to set capability: %w", err)
-	}
-
-	err = u.Sign(request)
-	if err != nil {
-		return fmt.Errorf("user failed to sign request: %w", err)
-	}
+	request.Header.Set("Authorization", fmt.Sprintf("Bearer %s", u.accessToken))
 
 	response, err := s.httpClient.Do(request)
 	if err != nil {
@@ -206,7 +224,15 @@ func (s *Steps) updateCapability(u *user) error {
 		}
 	}()
 
-	return u.processResponse(nil, response)
+	var resp createDIDResp
+
+	if err := u.processResponse(&resp, response); err != nil {
+		return err
+	}
+
+	u.edvDID = resp.DID
+
+	return nil
 }
 
 func (s *Steps) createChainCapability(u *user) (*zcapld.Capability, error) {
@@ -223,7 +249,7 @@ func (s *Steps) createChainCapability(u *user) (*zcapld.Capability, error) {
 			ProcessorOpts:      []jsonld.ProcessorOpts{jsonld.WithDocumentLoader(loader)},
 		},
 		zcapld.WithParent(u.edvCapability.ID),
-		zcapld.WithInvoker(u.response.headers[edvDIDKeyHeader]),
+		zcapld.WithInvoker(u.edvDID),
 		zcapld.WithAllowedActions("read", "write"),
 		zcapld.WithInvocationTarget(u.vaultID, edvResource),
 		zcapld.WithCapabilityChain(u.edvCapability.Parent, u.edvCapability.ID))
@@ -253,24 +279,21 @@ func (s *Steps) makeCreateKeyReq(userName, endpoint, keyType string) error {
 }
 
 func processCreateKeyResp(u *user, resp *http.Response) error {
-	respData, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return fmt.Errorf("reading response body failed: %w", err)
+	var r createKeyResp
+
+	if err := u.processResponse(&r, resp); err != nil {
+		return fmt.Errorf("process response: %w", err)
 	}
 
-	var data struct {
-		Location string `json:"location"`
+	parts := strings.Split(r.KeyURL, "/")
+
+	u.keyID = parts[len(parts)-1]
+
+	u.data = map[string]string{
+		"key_url": r.KeyURL,
 	}
 
-	if err := json.Unmarshal(respData, &data); err != nil {
-		return fmt.Errorf("keystore resp err : %w", err)
-	}
-
-	if data.Location == "" {
-		return errors.New("location in resp body is nil")
-	}
-
-	return u.processResponse(nil, resp)
+	return nil
 }
 
 func buildCreateKeyReq(u *user, endpoint, keyType string) (*http.Request, error) {
@@ -391,13 +414,8 @@ func (s *Steps) makeExportPubKeyReq(userName, endpoint string) error {
 		return respErr
 	}
 
-	publicKey, err := base64.URLEncoding.DecodeString(exportKeyResponse.PublicKey)
-	if err != nil {
-		return err
-	}
-
 	u.data = map[string]string{
-		"publicKey": string(publicKey),
+		"public_key": string(exportKeyResponse.PublicKey),
 	}
 
 	return nil
@@ -444,14 +462,9 @@ func (s *Steps) makeCreateAndExportKeyReq(user, endpoint, keyType string) error 
 		return respErr
 	}
 
-	publicKey, err := base64.URLEncoding.DecodeString(createKeyResponse.PublicKey)
-	if err != nil {
-		return err
-	}
-
 	u.data = map[string]string{
-		"location":  createKeyResponse.Location,
-		"publicKey": string(publicKey),
+		"key_url":    createKeyResponse.KeyURL,
+		"public_key": string(createKeyResponse.PublicKey),
 	}
 
 	return nil
@@ -471,12 +484,12 @@ func (s *Steps) makeImportKeyReq(userName, endpoint, keyID string) error {
 	}
 
 	r := &importKeyReq{
-		KeyBytes: base64.URLEncoding.EncodeToString(der),
-		KeyType:  "ED25519",
-		KeyID:    keyID,
+		Key:     der,
+		KeyType: "ED25519",
+		KeyID:   keyID,
 	}
 
-	request, err := u.preparePostRequest(r, endpoint)
+	request, err := u.preparePutRequest(r, endpoint)
 	if err != nil {
 		return err
 	}
@@ -510,7 +523,7 @@ func (s *Steps) makeImportKeyReq(userName, endpoint, keyID string) error {
 	}
 
 	u.data = map[string]string{
-		"location": importKeyResponse.Location,
+		"key_url": importKeyResponse.KeyURL,
 	}
 
 	return nil
@@ -520,7 +533,7 @@ func (s *Steps) makeSignMessageReq(userName, endpoint, message string) error { /
 	u := s.users[userName]
 
 	r := &signReq{
-		Message: base64.URLEncoding.EncodeToString([]byte(message)),
+		Message: []byte(message),
 	}
 
 	request, err := u.preparePostRequest(r, endpoint)
@@ -556,13 +569,8 @@ func (s *Steps) makeSignMessageReq(userName, endpoint, message string) error { /
 		return respErr
 	}
 
-	signature, err := base64.URLEncoding.DecodeString(signResponse.Signature)
-	if err != nil {
-		return err
-	}
-
 	u.data = map[string]string{
-		"signature": string(signature),
+		"signature": string(signResponse.Signature),
 	}
 
 	return nil
@@ -572,8 +580,8 @@ func (s *Steps) makeVerifySignatureReq(userName, endpoint, tag, message string) 
 	u := s.users[userName]
 
 	r := &verifyReq{
-		Signature: base64.URLEncoding.EncodeToString([]byte(u.data[tag])),
-		Message:   base64.URLEncoding.EncodeToString([]byte(message)),
+		Signature: []byte(u.data[tag]),
+		Message:   []byte(message),
 	}
 
 	return s.makeVerifyReq(u, actionVerify, r, endpoint)
@@ -583,8 +591,7 @@ func (s *Steps) makeEncryptMessageReq(userName, endpoint, message string) error 
 	u := s.users[userName]
 
 	r := &encryptReq{
-		Message:        base64.URLEncoding.EncodeToString([]byte(message)),
-		AdditionalData: base64.URLEncoding.EncodeToString([]byte("additional data")),
+		Message: []byte(message),
 	}
 
 	request, err := u.preparePostRequest(r, endpoint)
@@ -620,19 +627,9 @@ func (s *Steps) makeEncryptMessageReq(userName, endpoint, message string) error 
 		return respErr
 	}
 
-	cipherText, err := base64.URLEncoding.DecodeString(encryptResponse.CipherText)
-	if err != nil {
-		return err
-	}
-
-	nonce, err := base64.URLEncoding.DecodeString(encryptResponse.Nonce)
-	if err != nil {
-		return err
-	}
-
 	u.data = map[string]string{
-		"cipherText": string(cipherText),
-		"nonce":      string(nonce),
+		"ciphertext": string(encryptResponse.Ciphertext),
+		"nonce":      string(encryptResponse.Nonce),
 	}
 
 	return nil
@@ -642,9 +639,8 @@ func (s *Steps) makeDecryptCipherReq(userName, endpoint, tag string) error {
 	u := s.users[userName]
 
 	r := &decryptReq{
-		CipherText:     base64.URLEncoding.EncodeToString([]byte(u.data[tag])),
-		AdditionalData: base64.URLEncoding.EncodeToString([]byte("additional data")),
-		Nonce:          base64.URLEncoding.EncodeToString([]byte(u.data["nonce"])),
+		Ciphertext: []byte(u.data[tag]),
+		Nonce:      []byte(u.data["nonce"]),
 	}
 
 	request, err := u.preparePostRequest(r, endpoint)
@@ -680,13 +676,8 @@ func (s *Steps) makeDecryptCipherReq(userName, endpoint, tag string) error {
 		return respErr
 	}
 
-	plainText, err := base64.URLEncoding.DecodeString(decryptResponse.PlainText)
-	if err != nil {
-		return err
-	}
-
 	u.data = map[string]string{
-		"plainText": string(plainText),
+		"plaintext": string(decryptResponse.Plaintext),
 	}
 
 	return nil
@@ -696,7 +687,7 @@ func (s *Steps) makeComputeMACReq(userName, endpoint, data string) error { //nol
 	u := s.users[userName]
 
 	r := &computeMACReq{
-		Data: base64.URLEncoding.EncodeToString([]byte(data)),
+		Data: []byte(data),
 	}
 
 	request, err := u.preparePostRequest(r, endpoint)
@@ -732,13 +723,8 @@ func (s *Steps) makeComputeMACReq(userName, endpoint, data string) error { //nol
 		return respErr
 	}
 
-	mac, err := base64.URLEncoding.DecodeString(computeMACResponse.MAC)
-	if err != nil {
-		return err
-	}
-
 	u.data = map[string]string{
-		"mac": string(mac),
+		"mac": string(computeMACResponse.MAC),
 	}
 
 	return nil
@@ -748,8 +734,8 @@ func (s *Steps) makeVerifyMACReq(userName, endpoint, tag, data string) error {
 	u := s.users[userName]
 
 	r := &verifyMACReq{
-		MAC:  base64.URLEncoding.EncodeToString([]byte(u.data[tag])),
-		Data: base64.URLEncoding.EncodeToString([]byte(data)),
+		MAC:  []byte(u.data[tag]),
+		Data: []byte(data),
 	}
 
 	return s.makeVerifyReq(u, actionVerifyMAC, r, endpoint)
@@ -792,15 +778,15 @@ func (s *Steps) makeWrapKeyReq(userName, endpoint, keyID, recipient string) erro
 	recipientPubKey := u.recipientPubKeys[recipient].parsedKey
 
 	r := &wrapReq{
-		CEK: base64.URLEncoding.EncodeToString(s.keys[keyID]),
-		APU: base64.URLEncoding.EncodeToString([]byte("sender")),
-		APV: base64.URLEncoding.EncodeToString([]byte("recipient")),
-		RecipientPubKey: publicKeyReq{
-			KID:   base64.URLEncoding.EncodeToString([]byte(recipientPubKey.KID)),
-			X:     base64.URLEncoding.EncodeToString(recipientPubKey.X),
-			Y:     base64.URLEncoding.EncodeToString(recipientPubKey.Y),
-			Curve: base64.URLEncoding.EncodeToString([]byte(recipientPubKey.Curve)),
-			Type:  base64.URLEncoding.EncodeToString([]byte(recipientPubKey.Type)),
+		CEK: s.keys[keyID],
+		APU: []byte("sender"),
+		APV: []byte("recipient"),
+		RecipientPubKey: &crypto.PublicKey{
+			KID:   recipientPubKey.KID,
+			X:     recipientPubKey.X,
+			Y:     recipientPubKey.Y,
+			Curve: recipientPubKey.Curve,
+			Type:  recipientPubKey.Type,
 		},
 	}
 
@@ -837,13 +823,13 @@ func (s *Steps) makeWrapKeyReq(userName, endpoint, keyID, recipient string) erro
 		return respErr
 	}
 
-	wrappedKey, err := json.Marshal(wrapResponse.WrappedKey)
+	wrappedKey, err := json.Marshal(wrapResponse.RecipientWrappedKey)
 	if err != nil {
 		return err
 	}
 
 	u.data = map[string]string{
-		"wrappedKey": string(wrappedKey),
+		"wrapped_key": string(wrappedKey),
 	}
 
 	return nil
@@ -854,7 +840,7 @@ func (s *Steps) makeUnwrapKeyReq(userName, endpoint, tag, sender string) error {
 
 	wrappedKeyContent := s.users[sender].data[tag]
 
-	var wrappedKey recipientWrappedKey
+	var wrappedKey crypto.RecipientWrappedKey
 
 	err := json.Unmarshal([]byte(wrappedKeyContent), &wrappedKey)
 	if err != nil {
@@ -863,7 +849,6 @@ func (s *Steps) makeUnwrapKeyReq(userName, endpoint, tag, sender string) error {
 
 	r := &unwrapReq{
 		WrappedKey: wrappedKey,
-		SenderKID:  "",
 	}
 
 	request, err := u.preparePostRequest(r, endpoint)
@@ -899,13 +884,8 @@ func (s *Steps) makeUnwrapKeyReq(userName, endpoint, tag, sender string) error {
 		return respErr
 	}
 
-	key, err := base64.URLEncoding.DecodeString(unwrapResponse.Key)
-	if err != nil {
-		return err
-	}
-
 	u.data = map[string]string{
-		"key": string(key),
+		"key": string(unwrapResponse.Key),
 	}
 
 	return nil
@@ -927,10 +907,10 @@ func (s *Steps) getPubKeyOfRecipient(userName, recipientName string) error {
 	// recipient delegates authority on the user to export their public key
 	c, err := delegateCapability(recipient.kmsCapability, recipient.signer, recipient.controller, u.controller)
 	if err != nil {
-		return err
+		return fmt.Errorf("delegate capability: %w", err)
 	}
 
-	err = setCapabilityHeader(request, c, u.controller, u.authKMS, u.authCrypto)
+	err = setCapabilityHeader(request, base64.URLEncoding.EncodeToString(c), u.controller, u.authKMS, u.authCrypto)
 	if err != nil {
 		return err
 	}
@@ -950,19 +930,14 @@ func (s *Steps) getPubKeyOfRecipient(userName, recipientName string) error {
 	var exportKeyResponse exportKeyResp
 
 	if respErr := recipient.processResponse(&exportKeyResponse, response); respErr != nil {
-		return respErr
-	}
-
-	keyBytes, err := base64.URLEncoding.DecodeString(exportKeyResponse.PublicKey)
-	if err != nil {
-		return err
+		return fmt.Errorf("responce error: %w", respErr)
 	}
 
 	keyData := &publicKeyData{
-		rawBytes: keyBytes,
+		rawBytes: exportKeyResponse.PublicKey,
 	}
 
-	if key, ok := parsePublicKey(keyBytes); ok {
+	if key, ok := parsePublicKey(exportKeyResponse.PublicKey); ok {
 		keyData.parsedKey = key
 	}
 
@@ -973,9 +948,9 @@ func (s *Steps) getPubKeyOfRecipient(userName, recipientName string) error {
 	return nil
 }
 
-func parsePublicKey(rawBytes []byte) (*publicKey, bool) {
+func parsePublicKey(rawBytes []byte) (*crypto.PublicKey, bool) {
 	// depending on key type, raw bytes might not represent publicKey structure
-	var k publicKey
+	var k crypto.PublicKey
 	if err := json.Unmarshal(rawBytes, &k); err != nil {
 		return nil, false
 	}
@@ -983,7 +958,7 @@ func parsePublicKey(rawBytes []byte) (*publicKey, bool) {
 	return &k, true
 }
 
-func delegateCapability(c *zcapld.Capability, s signer, verificationMethod, invoker string) (string, error) {
+func delegateCapability(c *zcapld.Capability, s signer, verificationMethod, invoker string) ([]byte, error) {
 	var chain []interface{}
 
 	untyped, ok := c.Proof[0]["capabilityChain"].([]interface{})
@@ -995,7 +970,7 @@ func delegateCapability(c *zcapld.Capability, s signer, verificationMethod, invo
 
 	loader, err := createJSONLDDocumentLoader(mem.NewProvider())
 	if err != nil {
-		return "", fmt.Errorf("create document loader: %w", err)
+		return nil, fmt.Errorf("create document loader: %w", err)
 	}
 
 	delegatedCapability, err := zcapld.NewCapability(
@@ -1012,12 +987,12 @@ func delegateCapability(c *zcapld.Capability, s signer, verificationMethod, invo
 		zcapld.WithCapabilityChain(chain...),
 	)
 	if err != nil {
-		return "", fmt.Errorf("failed to delegate zcap unto user: %w", err)
+		return nil, fmt.Errorf("failed to delegate zcap unto user: %w", err)
 	}
 
-	compressed, err := zcapld2.CompressZCAP(delegatedCapability)
+	compressed, err := zcapsvc.CompressZCAP(delegatedCapability)
 	if err != nil {
-		return "", fmt.Errorf("failed to compress zcap: %w", err)
+		return nil, fmt.Errorf("failed to compress zcap: %w", err)
 	}
 
 	return compressed, nil

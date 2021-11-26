@@ -183,7 +183,7 @@ func (s *Steps) createKeystoreAuthzKMS(u *user) error {
 	}
 
 	request.Header.Set("Authorization", fmt.Sprintf("Bearer %s", u.accessToken))
-	request.Header.Set("Hub-Kms-Secret", base64.StdEncoding.EncodeToString(u.secretShare))
+	request.Header.Set("Secret-Share", base64.StdEncoding.EncodeToString(u.secretShare))
 
 	response, err := s.httpClient.Do(request)
 	if err != nil {
@@ -197,7 +197,18 @@ func (s *Steps) createKeystoreAuthzKMS(u *user) error {
 		}
 	}()
 
-	return u.processResponse(nil, response)
+	var resp createKeyStoreResp
+
+	err = u.processResponse(&resp, response)
+	if err != nil {
+		return fmt.Errorf("process response: %w", err)
+	}
+
+	parts := strings.Split(resp.KeyStoreURL, "/")
+
+	u.keystoreID = parts[len(parts)-1]
+
+	return nil
 }
 
 func (s *Steps) makeCreateKeyReqAuthzKMS(u *user, endpoint, keyType string) error {
@@ -211,7 +222,7 @@ func (s *Steps) makeCreateKeyReqAuthzKMS(u *user, endpoint, keyType string) erro
 	}
 
 	request.Header.Set("Authorization", fmt.Sprintf("Bearer %s", u.accessToken))
-	request.Header.Set("Hub-Kms-Secret", base64.StdEncoding.EncodeToString(u.secretShare))
+	request.Header.Set("Secret-Share", base64.StdEncoding.EncodeToString(u.secretShare))
 
 	response, err := s.httpClient.Do(request)
 	if err != nil {
@@ -225,7 +236,18 @@ func (s *Steps) makeCreateKeyReqAuthzKMS(u *user, endpoint, keyType string) erro
 		}
 	}()
 
-	return u.processResponse(nil, response)
+	var resp createKeyResp
+
+	err = u.processResponse(&resp, response)
+	if err != nil {
+		return fmt.Errorf("process response: %w", err)
+	}
+
+	parts := strings.Split(resp.KeyURL, "/")
+
+	u.keyID = parts[len(parts)-1]
+
+	return nil
 }
 
 func (s *Steps) makeExportPubKeyReqAuthzKMS(u *user, endpoint string) error {
@@ -235,7 +257,7 @@ func (s *Steps) makeExportPubKeyReqAuthzKMS(u *user, endpoint string) error {
 	}
 
 	request.Header.Set("Authorization", fmt.Sprintf("Bearer %s", u.accessToken))
-	request.Header.Set("Hub-Kms-Secret", base64.StdEncoding.EncodeToString(u.secretShare))
+	request.Header.Set("Secret-Share", base64.StdEncoding.EncodeToString(u.secretShare))
 
 	response, err := s.httpClient.Do(request)
 	if err != nil {
@@ -255,19 +277,14 @@ func (s *Steps) makeExportPubKeyReqAuthzKMS(u *user, endpoint string) error {
 		return respErr
 	}
 
-	publicKey, err := base64.URLEncoding.DecodeString(exportKeyResponse.PublicKey)
-	if err != nil {
-		return err
-	}
-
 	u.data = map[string]string{
-		"publicKey": string(publicKey),
+		"publicKey": string(exportKeyResponse.PublicKey),
 	}
 
 	return nil
 }
 
-func (s *Steps) makeSignMessageReqAuthzKMS(u *user, endpoint, message string) error {
+func (s *Steps) makeSignMessageReqAuthzKMS(u *user, endpoint string, message []byte) error {
 	r := signReq{
 		Message: message,
 	}
@@ -278,7 +295,7 @@ func (s *Steps) makeSignMessageReqAuthzKMS(u *user, endpoint, message string) er
 	}
 
 	request.Header.Set("Authorization", fmt.Sprintf("Bearer %s", u.accessToken))
-	request.Header.Set("Hub-Kms-Secret", base64.StdEncoding.EncodeToString(u.secretShare))
+	request.Header.Set("Secret-Share", base64.StdEncoding.EncodeToString(u.secretShare))
 
 	response, err := s.httpClient.Do(request)
 	if err != nil {
@@ -298,13 +315,8 @@ func (s *Steps) makeSignMessageReqAuthzKMS(u *user, endpoint, message string) er
 		return respErr
 	}
 
-	signature, err := base64.URLEncoding.DecodeString(signResponse.Signature)
-	if err != nil {
-		return err
-	}
-
 	u.data = map[string]string{
-		"signature": string(signature),
+		"signature": string(signResponse.Signature),
 	}
 
 	return nil

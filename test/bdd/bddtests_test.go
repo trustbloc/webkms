@@ -21,7 +21,6 @@ import (
 
 	"github.com/trustbloc/kms/test/bdd/pkg/common"
 	"github.com/trustbloc/kms/test/bdd/pkg/context"
-	"github.com/trustbloc/kms/test/bdd/pkg/healthcheck"
 	"github.com/trustbloc/kms/test/bdd/pkg/keystore"
 	"github.com/trustbloc/kms/test/bdd/pkg/kms"
 )
@@ -96,7 +95,7 @@ func initializeTestSuite(ctx *godog.TestSuiteContext) {
 			logger.Fatalf("%s: %s", err.Error(), string(out))
 		}
 
-		testSleep := 60
+		testSleep := 30
 		if os.Getenv("TEST_SLEEP") != "" {
 			s, err := strconv.Atoi(os.Getenv("TEST_SLEEP"))
 			if err != nil {
@@ -140,7 +139,6 @@ func initializeScenario(ctx *godog.ScenarioContext) {
 
 	features := []feature{
 		common.NewSteps(),
-		healthcheck.NewSteps(),
 		keystore.NewSteps(authBDDContext),
 		kms.NewSteps(authBDDContext, bddContext.TLSConfig()),
 	}

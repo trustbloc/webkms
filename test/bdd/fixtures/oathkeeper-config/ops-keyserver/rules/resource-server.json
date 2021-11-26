@@ -5,7 +5,7 @@
       "url": "https://kms.trustbloc.local:8076"
     },
     "match": {
-      "url": "https://localhost:4466/kms/keystores",
+      "url": "https://localhost:4466/v1/keystores",
       "methods": ["POST"]
     },
     "authenticators": [{
@@ -24,8 +24,8 @@
       "url": "https://kms.trustbloc.local:8076"
     },
     "match": {
-      "url": "https://localhost:4466/kms/keystores/<*>",
-      "methods": ["POST", "GET"]
+      "url": "https://localhost:4466/v1/keystores/<*>",
+      "methods": ["POST","PUT","GET"]
     },
     "authenticators": [{
       "handler": "noop"
