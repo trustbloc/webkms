@@ -36,8 +36,11 @@ services:
       - KMS_CACHE_EXPIRATION=10m
       - KMS_ZCAP_ENABLE=true
       - KMS_LOG_LEVEL=debug
-      - KMS_SECRET_LOCK_TYPE=local
-      - KMS_SECRET_LOCK_KEY_PATH=/etc/tls/secret-lock.key
+      - KMS_SECRET_LOCK_TYPE=aws
+      - KMS_SECRET_LOCK_AWS_KEY_URI=aws-kms://arn:aws:kms:ca-central-1:111122223333:key/bc436485-5092-42b8-92a3-0aa8b93536dc
+      - KMS_SECRET_LOCK_AWS_ACCESS_KEY=mock
+      - KMS_SECRET_LOCK_AWS_SECRET_KEY=mock
+      - KMS_SECRET_LOCK_AWS_ENDPOINT=http://aws-kms.trustbloc.local:8020
     ports:
       - 8074:8074
       - 48831:48831
@@ -66,8 +69,11 @@ services:
       - KMS_CACHE_EXPIRATION=10m
       - KMS_ZCAP_ENABLE=true
       - KMS_LOG_LEVEL=debug
-      - KMS_SECRET_LOCK_TYPE=local
-      - KMS_SECRET_LOCK_KEY_PATH=/etc/tls/secret-lock.key
+      - KMS_SECRET_LOCK_TYPE=aws
+      - KMS_SECRET_LOCK_AWS_KEY_URI=aws-kms://arn:aws:kms:ca-central-1:111122223333:key/bc436485-5092-42b8-92a3-0aa8b93536dc
+      - KMS_SECRET_LOCK_AWS_ACCESS_KEY=mock
+      - KMS_SECRET_LOCK_AWS_SECRET_KEY=mock
+      - KMS_SECRET_LOCK_AWS_ENDPOINT=http://aws-kms.trustbloc.local:8020
     ports:
       - 8075:8075
       - 48832:48832
@@ -77,6 +83,22 @@ services:
     depends_on:
       - mongodb.example.com
       - edv.trustbloc.local
+    networks:
+      - bdd_net
+
+  aws-kms.trustbloc.local:
+    container_name: aws-kms.trustbloc.local
+    image: nsmithuk/local-kms:latest
+    environment:
+      - PORT=8020
+      - KMS_SEED_PATH=/init/seed.yaml
+      - KMS_REGION=ca-central-1
+      - KMS_ACCOUNT_ID=111122223333
+    ports:
+      - 8020:8020
+    entrypoint: "local-kms"
+    volumes:
+      - ./aws-config/init:/init/
     networks:
       - bdd_net
 
