@@ -6,6 +6,9 @@ SPDX-License-Identifier: Apache-2.0
 
 package command
 
+//nolint:lll
+//go:generate mockgen -destination gomocks_test.go -self_package mocks -package command_test -source=command.go -mock_names zcapService=MockZCAPService,headerSigner=MockHeaderSigner,keyStoreCreator=MockKeyStoreCreator,cryptoBoxCreator=MockCryptoBoxCreator,shamirSecretLockCreator=MockShamirSecretLockCreator,httpClient=MockHTTPClient,metricsProvider=MockMetricsProvider,cacheProvider=MockCacheProvider
+
 import (
 	"context"
 	"crypto/tls"
@@ -73,7 +76,7 @@ type metricsProvider interface {
 }
 
 type cacheProvider interface {
-	Wrap(storage storage.Provider, ttl time.Duration) storage.Provider
+	Wrap(storageProvider storage.Provider, ttl time.Duration) storage.Provider
 }
 
 // Config is a configuration for Command.
@@ -131,7 +134,7 @@ type Command struct {
 func New(c *Config) (*Command, error) {
 	store, err := c.StorageProvider.OpenStore(keyStores)
 	if err != nil {
-		return nil, fmt.Errorf("open keystore db: %w", err)
+		return nil, fmt.Errorf("open key store db: %w", err)
 	}
 
 	return &Command{
@@ -252,7 +255,7 @@ func (c *Command) ImportKey(w io.Writer, r io.Reader) error {
 			return fmt.Errorf("parse private key: %w", err)
 		}
 	default:
-		return fmt.Errorf("not supported key type %q", req.KeyType)
+		return fmt.Errorf("not supported key type: %s", req.KeyType)
 	}
 
 	var opts []kms.PrivateKeyOpts

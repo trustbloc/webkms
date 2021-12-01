@@ -524,6 +524,6 @@ type cacheProviderWithTTL struct {
 	Provider *cache.Provider
 }
 
-func (p *cacheProviderWithTTL) Wrap(storage storage.Provider, ttl time.Duration) storage.Provider {
-	return p.Provider.Wrap(storage, cache.WithCacheTTL(ttl))
+func (p *cacheProviderWithTTL) Wrap(storageProvider storage.Provider, ttl time.Duration) storage.Provider {
+	return p.Provider.Wrap(storageProvider, cache.WithCacheTTL(ttl))
 }
