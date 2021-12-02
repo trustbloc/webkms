@@ -504,13 +504,13 @@ func (c *Command) WrapKey(w io.Writer, r io.Reader) error {
 
 	if wr.KeyID != "" {
 		ks, resolveErr := c.resolveKeyStore(wr.KeyStoreID, wr.User, wr.SecretShare)
-		if err != nil {
+		if resolveErr != nil {
 			return fmt.Errorf("resolve key store: %w", resolveErr)
 		}
 
 		kh, getErr := ks.Get(wr.KeyID)
-		if err != nil {
-			return fmt.Errorf("get key: %w", getErr)
+		if getErr != nil {
+			return fmt.Errorf("get key %s: %w", wr.KeyID, getErr)
 		}
 
 		opts = append(opts, crypto.WithSender(kh))
