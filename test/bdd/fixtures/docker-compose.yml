@@ -128,6 +128,7 @@ services:
     depends_on:
       - mongodb.example.com
       - edv.trustbloc.local
+      - latency-sim.trustbloc.local
     networks:
       - bdd_net
 
@@ -168,6 +169,22 @@ services:
     volumes:
       - ./oathkeeper-config/ops-keyserver:/oathkeeper
       - ./keys/tls:/etc/tls
+    networks:
+      - bdd_net
+
+  latency-sim.trustbloc.local:
+    container_name: latency-sim.trustbloc.local
+    build: ./latency-sim-config
+    cap_add:
+      - NET_ADMIN
+    ports:
+      - 8082:8082
+      - 8071:8071
+    volumes:
+      - ./keys/tls:/etc/nginx/certs
+      - ./latency-sim-config/nginx.conf:/etc/nginx/nginx.conf
+    depends_on:
+      - edv.trustbloc.local
     networks:
       - bdd_net
 

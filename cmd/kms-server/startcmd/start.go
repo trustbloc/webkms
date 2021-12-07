@@ -49,6 +49,7 @@ import (
 	tlsutil "github.com/trustbloc/edge-core/pkg/utils/tls"
 	"github.com/trustbloc/edge-core/pkg/zcapld"
 
+	"github.com/trustbloc/kms/pkg/controller/cache"
 	"github.com/trustbloc/kms/pkg/controller/command"
 	"github.com/trustbloc/kms/pkg/controller/mw"
 	"github.com/trustbloc/kms/pkg/controller/rest"
@@ -180,6 +181,7 @@ func startServer(srv server, params *serverParameters) error { //nolint:funlen
 		MainKeyType:             kms.AES256GCMType,
 		EDVRecipientKeyType:     kms.NISTP256ECDHKW,
 		EDVMACKeyType:           kms.HMACSHA256Tag256,
+		KeystoreCache:           cache.NewSecureCache(params.cacheExpiration),
 	})
 	if err != nil {
 		return fmt.Errorf("create command: %w", err)

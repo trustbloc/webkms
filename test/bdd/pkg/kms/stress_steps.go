@@ -18,6 +18,8 @@ import (
 const userNameTplt = "User%d"
 
 func (s *Steps) storeSecretInHubAuthForMultipleUsers(usersNumberEnv string) error {
+	createStart := time.Now()
+
 	usersNumber, err := getUsersNumber(usersNumberEnv)
 	if err != nil {
 		return err
@@ -30,10 +32,13 @@ func (s *Steps) storeSecretInHubAuthForMultipleUsers(usersNumberEnv string) erro
 		}
 	}
 
+	fmt.Printf("store secret on Hub Auth for %d wallets took: %s\n", usersNumber, time.Since(createStart).String())
 	return nil
 }
 
 func (s *Steps) createEDVDataVaultForMultipleUsers(usersNumberEnv string) error {
+	createStart := time.Now()
+
 	usersNumber, err := getUsersNumber(usersNumberEnv)
 	if err != nil {
 		return err
@@ -46,6 +51,7 @@ func (s *Steps) createEDVDataVaultForMultipleUsers(usersNumberEnv string) error 
 		}
 	}
 
+	fmt.Printf("Create %d data vaults on EDV took: %s\n", usersNumber, time.Since(createStart).String())
 	return nil
 }
 
@@ -74,7 +80,10 @@ func (s *Steps) createKeystoreForMultipleUsers(usersNumberEnv, keyType, concurre
 		})
 	}
 
-	createPool.Stop()
+	err = createPool.Stop()
+	if err != nil {
+		return err
+	}
 
 	createTimeStr := time.Since(createStart).String()
 
@@ -117,7 +126,10 @@ func (s *Steps) makeSignVerifyMultipleTimeForMultipleUsers(
 		})
 	}
 
-	createPool.Stop()
+	err = createPool.Stop()
+	if err != nil {
+		return err
+	}
 
 	createTimeStr := time.Since(createStart).String()
 
@@ -175,12 +187,12 @@ type signVerifyRequest struct {
 func (r *signVerifyRequest) Invoke() (interface{}, error) {
 	message := "test message"
 	for i := 0; i < r.times; i++ {
-		err := r.steps.makeSignMessageReq(r.userName, r.endpoint, message)
+		err := r.steps.makeSignMessageReq(r.userName, r.endpoint+"/sign", message)
 		if err != nil {
 			return nil, err
 		}
 
-		err = r.steps.makeVerifySignatureReq(r.userName, r.endpoint, "signature", message)
+		err = r.steps.makeVerifySignatureReq(r.userName, r.endpoint+"/verify", "signature", message)
 		if err != nil {
 			return nil, err
 		}

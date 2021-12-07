@@ -24,6 +24,7 @@ import (
 	"github.com/piprate/json-gold/ld"
 	"github.com/trustbloc/edge-core/pkg/zcapld"
 
+	"github.com/trustbloc/kms/pkg/controller/cache"
 	"github.com/trustbloc/kms/pkg/controller/errors"
 	"github.com/trustbloc/kms/pkg/secretlock/key"
 )
@@ -85,6 +86,7 @@ type Config struct {
 	MainKeyType             kms.KeyType
 	EDVRecipientKeyType     kms.KeyType
 	EDVMACKeyType           kms.KeyType
+	KeystoreCache           cache.SecureCache
 }
 
 // Command is a controller for commands.
@@ -108,6 +110,7 @@ type Command struct {
 	mainKeyType         kms.KeyType
 	edvRecipientKeyType kms.KeyType
 	edvMACKeyType       kms.KeyType
+	keystoreCache       cache.SecureCache
 }
 
 // New returns a new instance of Command.
@@ -137,6 +140,7 @@ func New(c *Config) (*Command, error) {
 		mainKeyType:         c.MainKeyType,
 		edvRecipientKeyType: c.EDVRecipientKeyType,
 		edvMACKeyType:       c.EDVMACKeyType,
+		keystoreCache:       c.KeystoreCache,
 	}, nil
 }
 
@@ -631,9 +635,18 @@ func (c *Command) resolveKeyStore(keyStoreID, user string, secretShare []byte) (
 	var secretLock secretlock.Service
 
 	if c.authServerURL != "" {
-		secretLock, err = c.createShamirSecretLock(user, secretShare)
+		cashedLock, err := c.keystoreCache.Get("shamirsl_"+user, secretShare, func() (interface{}, error) {
+			return c.createShamirSecretLock(user, secretShare)
+		})
 		if err != nil {
 			return nil, fmt.Errorf("create shamir secret lock: %w", err)
+		}
+
+		var ok bool
+
+		secretLock, ok = cashedLock.(secretlock.Service)
+		if !ok {
+			return nil, errors.New("fail to cast cashedLock to secretlock.Service type")
 		}
 	} else {
 		secretLock = key.NewLock(&keyLockProvider{

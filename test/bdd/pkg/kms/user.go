@@ -159,7 +159,7 @@ func (u *user) processResponse(parsedResp interface{}, resp *http.Response) erro
 			"errMessage": errResp.Message,
 		}
 
-		return fmt.Errorf("response status: %s", resp.Status)
+		return fmt.Errorf("response status: [%s, %s]", resp.Status, errResp.Message)
 	}
 
 	if parsedResp == nil {

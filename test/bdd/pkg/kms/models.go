@@ -127,7 +127,7 @@ type setSecretRequest struct {
 }
 
 type errorResponse struct {
-	Message string `json:"errMessage,omitempty"`
+	Message string `json:"message,omitempty"`
 }
 
 type easyReq struct {

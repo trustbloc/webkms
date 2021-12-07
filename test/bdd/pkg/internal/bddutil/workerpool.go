@@ -69,7 +69,7 @@ func (p *WorkerPool) Start() {
 }
 
 // Stop stops the workers in the pool and stops listening for responses
-func (p *WorkerPool) Stop() {
+func (p *WorkerPool) Stop() error {
 	close(p.reqChan)
 
 	p.logger.Infof("Waiting %d for workers to finish...", len(p.workers))
@@ -85,6 +85,14 @@ func (p *WorkerPool) Stop() {
 	p.wgResp.Wait()
 
 	p.logger.Infof("... listener finished.")
+
+	for _, resp := range p.responses {
+		if resp.Err != nil {
+			return resp.Err
+		}
+	}
+
+	return nil
 }
 
 // Submit submits a request for processing

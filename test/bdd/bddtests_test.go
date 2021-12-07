@@ -75,13 +75,15 @@ func getCmdArg(argName string) string {
 func runBDDTests(tags, format string) int {
 	return godog.TestSuite{
 		Name:                 "kms test suite",
-		TestSuiteInitializer: initializeTestSuite,
+		TestSuiteInitializer: func(suiteContext *godog.TestSuiteContext) {
+			initializeTestSuite(suiteContext, tags)
+		} ,
 		ScenarioInitializer:  initializeScenario,
 		Options:              buildOptions(tags, format),
 	}.Run()
 }
 
-func initializeTestSuite(ctx *godog.TestSuiteContext) {
+func initializeTestSuite(ctx *godog.TestSuiteContext, tags string) {
 	var (
 		dockerComposeUp   = []string{"docker-compose", "-f", composeFilePath, "up", "--force-recreate", "-d"}
 		dockerComposeDown = []string{"docker-compose", "-f", composeFilePath, "down"}
@@ -93,6 +95,10 @@ func initializeTestSuite(ctx *godog.TestSuiteContext) {
 		cmd := exec.Command(dockerComposeUp[0], dockerComposeUp[1:]...) //nolint:gosec // ignore G204
 		if out, err := cmd.CombinedOutput(); err != nil {
 			logger.Fatalf("%s: %s", err.Error(), string(out))
+		}
+
+		if strings.Contains(tags, "kms_stress") {
+			setStressTestNetworkLatency()
 		}
 
 		testSleep := 30
@@ -117,6 +123,18 @@ func initializeTestSuite(ctx *godog.TestSuiteContext) {
 			logger.Fatalf("%s: %s", err.Error(), string(out))
 		}
 	})
+}
+
+func setStressTestNetworkLatency() {
+	command := strings.Split(
+		"docker exec latency-sim.trustbloc.local tc qdisc add dev eth0 root netem delay 200ms", " ")
+
+	cmd := exec.Command(command[0], command[1:]...) //nolint:gosec // ignore G204
+	if out, err := cmd.CombinedOutput(); err != nil {
+		logger.Fatalf("%s: %s", err.Error(), string(out))
+	}
+
+	logger.Infof("Network delays sets")
 }
 
 type feature interface {
