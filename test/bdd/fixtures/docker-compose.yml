@@ -38,9 +38,9 @@ services:
       - KMS_LOG_LEVEL=debug
       - KMS_SECRET_LOCK_TYPE=aws
       - KMS_SECRET_LOCK_AWS_KEY_URI=aws-kms://arn:aws:kms:ca-central-1:111122223333:key/bc436485-5092-42b8-92a3-0aa8b93536dc
-      - KMS_SECRET_LOCK_AWS_ACCESS_KEY=mock
-      - KMS_SECRET_LOCK_AWS_SECRET_KEY=mock
       - KMS_SECRET_LOCK_AWS_ENDPOINT=http://aws-kms.trustbloc.local:8020
+      - AWS_ACCESS_KEY_ID=mock
+      - AWS_SECRET_ACCESS_KEY=mock
     ports:
       - 8074:8074
       - 48831:48831
@@ -71,9 +71,9 @@ services:
       - KMS_LOG_LEVEL=debug
       - KMS_SECRET_LOCK_TYPE=aws
       - KMS_SECRET_LOCK_AWS_KEY_URI=aws-kms://arn:aws:kms:ca-central-1:111122223333:key/bc436485-5092-42b8-92a3-0aa8b93536dc
-      - KMS_SECRET_LOCK_AWS_ACCESS_KEY=mock
-      - KMS_SECRET_LOCK_AWS_SECRET_KEY=mock
       - KMS_SECRET_LOCK_AWS_ENDPOINT=http://aws-kms.trustbloc.local:8020
+      - AWS_ACCESS_KEY_ID=mock
+      - AWS_SECRET_ACCESS_KEY=mock
     ports:
       - 8075:8075
       - 48832:48832

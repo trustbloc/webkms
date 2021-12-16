@@ -171,12 +171,10 @@ type tlsParameters struct {
 }
 
 type secretLockParameters struct {
-	secretLockType     string
-	localKeyPath       string
-	awsKeyURI          string
-	awsAccessKeyID     string
-	awsSecretAccessKey string
-	awsEndpoint        string
+	secretLockType string
+	localKeyPath   string
+	awsKeyURI      string
+	awsEndpoint    string
 }
 
 func getParameters(cmd *cobra.Command) (*serverParameters, error) { //nolint:funlen
@@ -321,28 +319,16 @@ func getSecretLockParameters(cmd *cobra.Command) (*secretLockParameters, error) 
 		return nil, err
 	}
 
-	awsAccessKeyID, err := getUserSetVar(cmd, secretLockAWSAccessKeyFlagName, secretLockAWSAccessKeyEnvKey, !isAWS)
-	if err != nil {
-		return nil, err
-	}
-
-	awsSecretAccessKey, err := getUserSetVar(cmd, secretLockAWSSecretKeyFlagName, secretLockAWSSecretKeyEnvKey, !isAWS)
-	if err != nil {
-		return nil, err
-	}
-
 	awsEndpoint, err := getUserSetVar(cmd, secretLockAWSEndpointFlagName, secretLockAWSEndpointEnvKey, true)
 	if err != nil {
 		return nil, err
 	}
 
 	return &secretLockParameters{
-		secretLockType:     secretLockType,
-		localKeyPath:       localKeyPath,
-		awsKeyURI:          keyURI,
-		awsAccessKeyID:     awsAccessKeyID,
-		awsSecretAccessKey: awsSecretAccessKey,
-		awsEndpoint:        awsEndpoint,
+		secretLockType: secretLockType,
+		localKeyPath:   localKeyPath,
+		awsKeyURI:      keyURI,
+		awsEndpoint:    awsEndpoint,
 	}, nil
 }
 
