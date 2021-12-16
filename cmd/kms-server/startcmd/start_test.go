@@ -312,20 +312,6 @@ func TestStartCmdWithAWSSecretLockParam(t *testing.T) {
 		err = startCmd.Execute()
 		require.Error(t, err)
 	})
-
-	t.Run("Fail with missing secret-lock-aws-secret-key arg", func(t *testing.T) {
-		startCmd, err := Cmd(&mockServer{})
-		require.NoError(t, err)
-
-		args := requiredArgsWithLockType(storageTypeMemOption, secretLockTypeAWSOption)
-		args = append(args, "--"+secretLockAWSKeyURIFlagName, keyURI,
-			"--"+secretLockAWSAccessKeyFlagName, "key")
-
-		startCmd.SetArgs(args)
-
-		err = startCmd.Execute()
-		require.Error(t, err)
-	})
 }
 
 func TestStartCmdWithHubAuthURLParam(t *testing.T) {

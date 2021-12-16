@@ -15,7 +15,6 @@ import (
 	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/credentials"
 	"github.com/aws/aws-sdk-go/aws/session"
 	awskms "github.com/aws/aws-sdk-go/service/kms"
 	"github.com/cenkalti/backoff"
@@ -348,9 +347,7 @@ func createAwsSecretLock(parameters *secretLockParameters) (secretlock.Service, 
 		parameters.awsKeyURI,
 
 		&awsProvider{
-			awsEndpoint:     parameters.awsEndpoint,
-			accessKeyID:     parameters.awsAccessKeyID,
-			secretAccessKey: parameters.awsSecretAccessKey,
+			awsEndpoint: parameters.awsEndpoint,
 		},
 	)
 	if err != nil {
@@ -422,17 +419,14 @@ func (c *keyStoreCreator) Create(keyURI string, provider kms.Provider) (kms.KeyM
 }
 
 type awsProvider struct {
-	awsEndpoint     string
-	accessKeyID     string
-	secretAccessKey string
+	awsEndpoint string
 }
 
 // NewSession creates a new AWS session with given credentials.
 func (a *awsProvider) NewSession(region string) (*session.Session, error) {
 	return session.NewSession(&aws.Config{
-		Endpoint:    &a.awsEndpoint,
-		Credentials: credentials.NewStaticCredentials(a.accessKeyID, a.secretAccessKey, ""),
-		Region:      aws.String(region),
+		Endpoint: &a.awsEndpoint,
+		Region:   aws.String(region),
 	})
 }
 
