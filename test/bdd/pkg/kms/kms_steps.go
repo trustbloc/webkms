@@ -47,6 +47,7 @@ const (
 	keysEndpoint           = "/v1/keystores/{keystoreID}/keys"
 	exportKeyEndpoint      = "/v1/keystores/{keystoreID}/keys/{keyID}/export"
 	signEndpoint           = "/v1/keystores/{keystoreID}/keys/{keyID}/sign"
+	verifyEndpoint         = "/v1/keystores/{keystoreID}/keys/{keyID}/verify"
 )
 
 // Steps defines steps context for the KMS operations.
@@ -84,7 +85,7 @@ func (s *Steps) RegisterSteps(ctx *godog.ScenarioContext) {
 	ctx.Step(`^"([^"]*)" users has created a data vault on EDV for storing keys$`, s.createEDVDataVaultForMultipleUsers)
 	ctx.Step(`^"([^"]*)" has created an empty keystore on Key Server$`, s.createKeystore)
 	ctx.Step(`^"([^"]*)" has created a keystore with "([^"]*)" key on Key Server$`, s.createKeystoreAndKey)
-	ctx.Step(`^"([^"]*)" users has created a keystore with "([^"]*)" key using "([^"]*)" concurrent requests$`,
+	ctx.Step(`^"([^"]*)" users request to "([^"]*)" to create a keystore on "([^"]*)" with "([^"]*)" key using "([^"]*)" concurrent requests$`,
 		s.createKeystoreForMultipleUsers)
 	// common response checking steps
 	ctx.Step(`^"([^"]*)" gets a response with HTTP status "([^"]*)"$`, s.checkRespStatus)
@@ -106,9 +107,6 @@ func (s *Steps) RegisterSteps(ctx *godog.ScenarioContext) {
 	// sign/verify message steps
 	ctx.Step(`^"([^"]*)" makes an HTTP POST to "([^"]*)" to sign "([^"]*)"$`, s.makeSignMessageReq)
 	ctx.Step(`^"([^"]*)" makes an HTTP POST to "([^"]*)" to verify "([^"]*)" for "([^"]*)"$`, s.makeVerifySignatureReq)
-
-	ctx.Step(`^"([^"]*)" users makes an HTTP POST to "([^"]*)" to sign and verify "([^"]*)" times `+
-		`using "([^"]*)" concurrent requests$`, s.makeSignVerifyMultipleTimeForMultipleUsers)
 
 	// encrypt/decrypt message steps
 	ctx.Step(`^"([^"]*)" makes an HTTP POST to "([^"]*)" to encrypt "([^"]*)"$`, s.makeEncryptMessageReq)
@@ -161,7 +159,12 @@ func (s *Steps) createKeystore(userName string) error {
 		},
 	}
 
-	request, err := u.preparePostRequest(r, s.bddContext.KeyServerURL+createKeystoreEndpoint)
+	return s.createKeystoreReq(u, r, s.bddContext.KeyServerURL+createKeystoreEndpoint)
+}
+
+func (s *Steps) createKeystoreReq(u *user, r *createKeystoreReq, endpoint string) error {
+
+	request, err := u.preparePostRequest(r, endpoint)
 	if err != nil {
 		return err
 	}
