@@ -15,8 +15,12 @@ Feature: KMS stress test
       And "USER_NUMS" users has created a data vault on EDV for storing keys
 
 
-  Scenario: Stress test sign and verify methods
-    Given "USER_NUMS" users has created a keystore with "ED25519" key using "KMS_STRESS_CONCURRENT_REQ" concurrent requests
-    When  "USER_NUMS" users makes an HTTP POST to "https://localhost:4466/v1/keystores/{keystoreID}/keys/{keyID}/sign" to sign and verify "KMS_STRESS_TIMES" times using "KMS_STRESS_CONCURRENT_REQ" concurrent requests
+  @kms_stress_local
+  Scenario: Stress test KMS methods with local storage
+    When  "USER_NUMS" users request to "KMS_STRESS_KMS_URL" to create a keystore on "LocalStorage" with "ED25519" key using "KMS_STRESS_CONCURRENT_REQ" concurrent requests
+
+  @kms_stress_edv
+  Scenario: Stress test KMS methods with EDV storage
+    When  "USER_NUMS" users request to "KMS_STRESS_KMS_URL" to create a keystore on "EDV" with "ED25519" key using "KMS_STRESS_CONCURRENT_REQ" concurrent requests
 
 

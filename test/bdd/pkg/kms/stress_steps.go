@@ -7,7 +7,10 @@ SPDX-License-Identifier: Apache-2.0
 package kms
 
 import (
+	"encoding/json"
+	"errors"
 	"fmt"
+	"math/rand"
 	"os"
 	"strconv"
 	"time"
@@ -49,15 +52,54 @@ func (s *Steps) createEDVDataVaultForMultipleUsers(usersNumberEnv string) error 
 	return nil
 }
 
-func (s *Steps) createKeystoreForMultipleUsers(usersNumberEnv, keyType, concurrencyEnv string) error {
+func (s *Steps) createKeystoreForMultipleUsers(usersNumberEnv, keyServerURLEnv, storeType, keyType, concurrencyEnv string) error {
 	usersNumber, err := getUsersNumber(usersNumberEnv)
 	if err != nil {
 		return err
 	}
 
+	keyServerURL := getKeyServerURL(keyServerURLEnv)
+
 	concurrencyReq, err := getConcurrencyReq(concurrencyEnv, err)
 	if err != nil {
 		return err
+	}
+
+	if storeType != "EDV" && storeType != "LocalStorage" {
+		return errors.New("invalid store type:" + storeType)
+	}
+
+	var edvCapabilities [][]byte
+
+	for i := 0; i < usersNumber; i++ {
+		userName := fmt.Sprintf(userNameTplt, i)
+
+		u := s.users[userName]
+		if err := s.createDID(u); err != nil {
+			return err
+		}
+	}
+
+	if storeType == "EDV" {
+		edvCapabilities = make([][]byte, 0)
+
+		for i := 0; i < usersNumber; i++ {
+			userName := fmt.Sprintf(userNameTplt, i)
+
+			u := s.users[userName]
+
+			edvCapability, err := s.createChainCapability(u)
+			if err != nil {
+				return err
+			}
+
+			capabilityBytes, err := json.Marshal(edvCapability)
+			if err != nil {
+				return err
+			}
+
+			edvCapabilities = append(edvCapabilities, capabilityBytes)
+		}
 	}
 
 	createPool := bddutil.NewWorkerPool(concurrencyReq, s.logger)
@@ -67,63 +109,100 @@ func (s *Steps) createKeystoreForMultipleUsers(usersNumberEnv, keyType, concurre
 	createStart := time.Now()
 
 	for i := 0; i < usersNumber; i++ {
-		createPool.Submit(&createKeyRequest{
-			userName: fmt.Sprintf(userNameTplt, i),
-			keyType:  keyType,
-			steps:    s,
-		})
+		r := &createKeyStoreRequest{
+			userName:     fmt.Sprintf(userNameTplt, i),
+			keyServerURL: keyServerURL,
+			steps:        s,
+		}
+		if edvCapabilities != nil {
+			r.edvCapability = edvCapabilities[i]
+		}
+		createPool.Submit(r)
 	}
 
 	createPool.Stop()
 
 	createTimeStr := time.Since(createStart).String()
 
-	s.logger.Infof("got created %d key stores for %d requests", len(createPool.Responses()), usersNumber)
+	s.logger.Infof("got created key store %d responses for %d requests", len(createPool.Responses()), usersNumber)
 
-	fmt.Printf("   Created key stores %d took: %s\n", usersNumber, createTimeStr)
-
-	return nil
-}
-
-func (s *Steps) makeSignVerifyMultipleTimeForMultipleUsers(
-	usersNumberEnv, endpoint, timesEnv, concurrencyEnv string) error {
-	usersNumber, err := getUsersNumber(usersNumberEnv)
-	if err != nil {
-		return err
+	if len(createPool.Responses()) != usersNumber {
+		return fmt.Errorf("expecting created key store %d responses but got %d", usersNumber, len(createPool.Responses()))
 	}
 
-	concurrencyReq, err := getConcurrencyReq(concurrencyEnv, err)
-	if err != nil {
-		return err
+	for _, resp := range createPool.Responses() {
+		if resp.Err != nil {
+			return resp.Err
+		}
 	}
 
-	times, err := getRepeatTimes(timesEnv)
-	if err != nil {
-		return err
-	}
+	createKeyPool := bddutil.NewWorkerPool(concurrencyReq, s.logger)
 
-	createPool := bddutil.NewWorkerPool(concurrencyReq, s.logger)
+	createKeyPool.Start()
 
-	createPool.Start()
-
-	createStart := time.Now()
+	createKeyStart := time.Now()
 
 	for i := 0; i < usersNumber; i++ {
-		createPool.Submit(&signVerifyRequest{
-			userName: fmt.Sprintf(userNameTplt, i),
-			endpoint: endpoint,
-			times:    times,
-			steps:    s,
+		createKeyPool.Submit(&createKeyRequest{
+			userName:     fmt.Sprintf(userNameTplt, i),
+			keyServerURL: keyServerURL,
+			keyType:      keyType,
+			steps:        s,
 		})
 	}
 
-	createPool.Stop()
+	createKeyPool.Stop()
 
-	createTimeStr := time.Since(createStart).String()
+	s.logger.Infof("got created key %d responses for %d requests", len(createKeyPool.Responses()), usersNumber)
 
-	s.logger.Infof("got successful %d signs and verifications for %d requested", len(createPool.Responses()), usersNumber)
+	if len(createKeyPool.Responses()) != usersNumber {
+		return fmt.Errorf("expecting created key %d responses but got %d", usersNumber, len(createKeyPool.Responses()))
+	}
 
-	fmt.Printf("   %d sign/verify requests took: %s\n", usersNumber*times, createTimeStr)
+	createKeyTimeStr := time.Since(createKeyStart).String()
+
+	for _, resp := range createKeyPool.Responses() {
+		if resp.Err != nil {
+			return resp.Err
+		}
+	}
+
+	signVerifyPool := bddutil.NewWorkerPool(concurrencyReq, s.logger)
+
+	signVerifyPool.Start()
+
+	signVerifyStart := time.Now()
+
+	singVerifyTimes := 10
+
+	for i := 0; i < usersNumber; i++ {
+		signVerifyPool.Submit(&signVerifyRequest{
+			userName:     fmt.Sprintf(userNameTplt, i),
+			keyServerURL: keyServerURL,
+			times:        singVerifyTimes,
+			steps:        s,
+		})
+	}
+
+	signVerifyPool.Stop()
+
+	s.logger.Infof("got sign verify %d responses for %d requests", len(signVerifyPool.Responses()), usersNumber)
+
+	if len(signVerifyPool.Responses()) != usersNumber {
+		return fmt.Errorf("expecting sign verify %d responses but got %d", usersNumber, len(signVerifyPool.Responses()))
+	}
+
+	signVerifyTimeStr := time.Since(signVerifyStart).String()
+
+	for _, resp := range signVerifyPool.Responses() {
+		if resp.Err != nil {
+			return resp.Err
+		}
+	}
+
+	fmt.Printf("   Created key store %d took: %s\n", usersNumber, createTimeStr)
+	fmt.Printf("   Created key %d took: %s\n", usersNumber, createKeyTimeStr)
+	fmt.Printf("   Sign and verify %d took: %s\n", usersNumber*singVerifyTimes, signVerifyTimeStr)
 
 	return nil
 }
@@ -146,6 +225,15 @@ func getUsersNumber(usersNumberEnv string) (int, error) {
 	return strconv.Atoi(usersNumberStr)
 }
 
+func getKeyServerURL(keyServerURLEnv string) string {
+	keyServerURL := os.Getenv(keyServerURLEnv)
+	if keyServerURL == "" {
+		keyServerURL = "https://localhost:4466"
+	}
+
+	return keyServerURL
+}
+
 func getRepeatTimes(repeatTimesEnv string) (int, error) {
 	repeatTimesStr := os.Getenv(repeatTimesEnv)
 	if repeatTimesStr == "" {
@@ -155,35 +243,70 @@ func getRepeatTimes(repeatTimesEnv string) (int, error) {
 	return strconv.Atoi(repeatTimesStr)
 }
 
+type createKeyStoreRequest struct {
+	userName      string
+	edvCapability []byte
+	keyServerURL  string
+	steps         *Steps
+}
+
+func (r *createKeyStoreRequest) Invoke() (interface{}, error) {
+	u := r.steps.users[r.userName]
+
+	createReq := &createKeystoreReq{
+		Controller: u.controller,
+	}
+
+	if r.edvCapability != nil {
+		createReq.EDV = &edvOptions{
+			VaultURL:   "https://edv.trustbloc.local:8081" + edvBasePath + "/" + u.vaultID,
+			Capability: r.edvCapability,
+		}
+	}
+
+	return nil, r.steps.createKeystoreReq(u, createReq, r.keyServerURL+createKeystoreEndpoint)
+}
+
 type createKeyRequest struct {
-	userName string
-	keyType  string
-	steps    *Steps
+	userName     string
+	keyServerURL string
+	keyType      string
+	steps        *Steps
 }
 
 func (r *createKeyRequest) Invoke() (interface{}, error) {
-	return nil, r.steps.createKeystoreAndKey(r.userName, r.keyType)
+	return nil, r.steps.makeCreateKeyReq(r.userName, r.keyServerURL+keysEndpoint, r.keyType)
 }
 
 type signVerifyRequest struct {
-	userName string
-	endpoint string
-	times    int
-	steps    *Steps
+	userName     string
+	keyServerURL string
+	times        int
+	steps        *Steps
 }
 
 func (r *signVerifyRequest) Invoke() (interface{}, error) {
-	message := "test message"
+	message := randomMessage(1024)
 	for i := 0; i < r.times; i++ {
-		err := r.steps.makeSignMessageReq(r.userName, r.endpoint, message)
+		err := r.steps.makeSignMessageReq(r.userName, r.keyServerURL+signEndpoint, message)
 		if err != nil {
 			return nil, err
 		}
 
-		err = r.steps.makeVerifySignatureReq(r.userName, r.endpoint, "signature", message)
+		err = r.steps.makeVerifySignatureReq(r.userName, r.keyServerURL+verifyEndpoint, "signature", message)
 		if err != nil {
 			return nil, err
 		}
 	}
 	return nil, nil
+}
+
+var letterRunes = []rune("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ")
+
+func randomMessage(n int) string {
+	b := make([]rune, n)
+	for i := range b {
+		b[i] = letterRunes[rand.Intn(len(letterRunes))]
+	}
+	return string(b)
 }
