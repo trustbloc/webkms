@@ -33,7 +33,7 @@ services:
       - KMS_DATABASE_TYPE=mongodb
       - KMS_DATABASE_URL=mongodb://mongodb.example.com:27017
       - KMS_DATABASE_PREFIX=opskms_
-      - KMS_CACHE_EXPIRATION=10m
+      - KMS_CACHE_ENABLE=true
       - KMS_ZCAP_ENABLE=true
       - KMS_LOG_LEVEL=debug
       - KMS_SECRET_LOCK_TYPE=aws
@@ -66,7 +66,7 @@ services:
       - KMS_DATABASE_TYPE=mongodb
       - KMS_DATABASE_URL=mongodb://mongodb.example.com:27017
       - KMS_DATABASE_PREFIX=opskms_
-      - KMS_CACHE_EXPIRATION=10m
+      - KMS_CACHE_ENABLE=true
       - KMS_ZCAP_ENABLE=true
       - KMS_LOG_LEVEL=debug
       - KMS_SECRET_LOCK_TYPE=aws
@@ -116,7 +116,7 @@ services:
       - KMS_DATABASE_PREFIX=authzkms_
       - KMS_AUTH_SERVER_URL=https://hub-auth.trustbloc.local:8070
       - KMS_AUTH_SERVER_TOKEN=test_token
-      - KMS_CACHE_EXPIRATION=10m
+      - KMS_CACHE_ENABLE=true
       - KMS_LOG_LEVEL=debug
       - KMS_SECRET_LOCK_TYPE=local
       - KMS_SECRET_LOCK_KEY_PATH=/etc/tls/secret-lock.key

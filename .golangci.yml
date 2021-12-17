@@ -10,6 +10,9 @@ run:
   issues-exit-code: 1
   tests: true
   build-tags: [""]
+  skip-dirs:
+    - dgraph-io/ristretto
+    - dustin/go-humanize
 
 output:
   format: colored-line-number

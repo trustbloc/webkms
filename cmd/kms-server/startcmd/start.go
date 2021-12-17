@@ -18,6 +18,7 @@ import (
 	"github.com/aws/aws-sdk-go/aws/session"
 	awskms "github.com/aws/aws-sdk-go/service/kms"
 	"github.com/cenkalti/backoff"
+	"github.com/dgraph-io/ristretto"
 	"github.com/google/tink/go/core/registry"
 	tinkawskms "github.com/google/tink/go/integration/awskms"
 	"github.com/gorilla/mux"
@@ -52,6 +53,7 @@ import (
 	"github.com/trustbloc/kms/pkg/controller/mw"
 	"github.com/trustbloc/kms/pkg/controller/rest"
 	awssecretlock "github.com/trustbloc/kms/pkg/secretlock/aws"
+	"github.com/trustbloc/kms/pkg/storage/cache"
 	zcapsvc "github.com/trustbloc/kms/pkg/zcapld"
 )
 
@@ -147,7 +149,28 @@ func startServer(srv server, params *serverParameters) error { //nolint:funlen
 		return fmt.Errorf("create vdr resolver: %w", err)
 	}
 
-	documentLoader, err := createJSONLDDocumentLoader(store)
+	var (
+		cacheProvider       *cache.Provider
+		documentLoaderStore storage.Provider
+	)
+
+	if params.enableCache {
+		c, err := ristretto.NewCache(&ristretto.Config{
+			NumCounters: 1e7, // TODO: make these values configurable
+			MaxCost:     1 << 30,
+			BufferItems: 64,
+		})
+		if err != nil {
+			return fmt.Errorf("create ristretto cache: %w", err)
+		}
+
+		cacheProvider = &cache.Provider{Cache: c}
+		documentLoaderStore = cacheProvider.Wrap(store)
+	} else {
+		documentLoaderStore = store
+	}
+
+	documentLoader, err := createJSONLDDocumentLoader(documentLoaderStore)
 	if err != nil {
 		return fmt.Errorf("create document loader: %w", err)
 	}
@@ -159,9 +182,8 @@ func startServer(srv server, params *serverParameters) error { //nolint:funlen
 
 	baseKeyStoreURL := params.baseURL + rest.KeyStorePath
 
-	cmd, err := command.New(&command.Config{
+	config := &command.Config{
 		StorageProvider:         store,
-		CacheProvider:           nil,
 		KMS:                     kmsService,
 		Crypto:                  cryptoService,
 		VDRResolver:             vdrResolver,
@@ -179,7 +201,14 @@ func startServer(srv server, params *serverParameters) error { //nolint:funlen
 		MainKeyType:             kms.AES256GCMType,
 		EDVRecipientKeyType:     kms.NISTP256ECDHKW,
 		EDVMACKeyType:           kms.HMACSHA256Tag256,
-	})
+	}
+
+	if cacheProvider != nil {
+		config.CacheProvider = &cacheProviderWithTTL{Provider: cacheProvider}
+		config.KeyStoreCacheTTL = params.keyStoreCacheTTL
+	}
+
+	cmd, err := command.New(config)
 	if err != nil {
 		return fmt.Errorf("create command: %w", err)
 	}
@@ -476,4 +505,12 @@ func (c *shamirSecretLockCreator) Create(secretShares [][]byte) (secretlock.Serv
 	}
 
 	return lock, nil
+}
+
+type cacheProviderWithTTL struct {
+	Provider *cache.Provider
+}
+
+func (p *cacheProviderWithTTL) Wrap(storage storage.Provider, ttl time.Duration) storage.Provider {
+	return p.Provider.Wrap(storage, cache.WithCacheTTL(ttl))
 }
