@@ -351,7 +351,7 @@ func createAwsSecretLock(parameters *secretLockParameters) (secretlock.Service, 
 		},
 	)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("create aws secret lock failed: %w", err)
 	}
 
 	return primaryKeyLock, nil
@@ -425,8 +425,9 @@ type awsProvider struct {
 // NewSession creates a new AWS session with given credentials.
 func (a *awsProvider) NewSession(region string) (*session.Session, error) {
 	return session.NewSession(&aws.Config{
-		Endpoint: &a.awsEndpoint,
-		Region:   aws.String(region),
+		Endpoint:                      &a.awsEndpoint,
+		Region:                        aws.String(region),
+		CredentialsChainVerboseErrors: aws.Bool(true),
 	})
 }
 

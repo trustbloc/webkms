@@ -391,7 +391,7 @@ func execute(exec command.Exec, rw http.ResponseWriter, req *http.Request) {
 	}
 
 	if err = exec(rw, bytes.NewBuffer(r)); err != nil {
-		sendError(rw, err)
+		sendError(rw, fmt.Errorf("%s %s: %w", req.Method, req.RequestURI, err))
 	}
 }
 
@@ -431,9 +431,11 @@ type ErrorResponse struct {
 }
 
 func sendError(rw http.ResponseWriter, e error) {
+	logger.Errorf("%v", e)
+
 	rw.WriteHeader(errors.StatusCodeFromError(e))
 
 	if err := json.NewEncoder(rw).Encode(ErrorResponse{Message: e.Error()}); err != nil {
-		logger.Errorf("send error response: %v", e)
+		logger.Errorf("send error response: %v", err)
 	}
 }
