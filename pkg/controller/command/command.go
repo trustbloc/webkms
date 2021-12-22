@@ -27,6 +27,7 @@ import (
 
 	"github.com/trustbloc/kms/pkg/controller/errors"
 	"github.com/trustbloc/kms/pkg/secretlock/key"
+	"github.com/trustbloc/kms/pkg/storage/metrics"
 )
 
 type zcapService interface {
@@ -65,6 +66,12 @@ type httpClient interface {
 	Do(req *http.Request) (*http.Response, error)
 }
 
+type metricsProvider interface {
+	CryptoSignTime(value time.Duration)
+	KeyStoreResolveTime(value time.Duration)
+	KeyStoreGetKeyTime(value time.Duration)
+}
+
 type cacheProvider interface {
 	Wrap(storage storage.Provider, ttl time.Duration) storage.Provider
 }
@@ -89,6 +96,7 @@ type Config struct {
 	MainKeyType             kms.KeyType
 	EDVRecipientKeyType     kms.KeyType
 	EDVMACKeyType           kms.KeyType
+	MetricsProvider         metricsProvider
 	CacheProvider           cacheProvider
 	KeyStoreCacheTTL        time.Duration
 }
@@ -116,6 +124,7 @@ type Command struct {
 	edvMACKeyType       kms.KeyType
 	cacheProvider       cacheProvider
 	keyStoreCacheTTL    time.Duration
+	metrics             metricsProvider
 }
 
 // New returns a new instance of Command.
@@ -147,6 +156,7 @@ func New(c *Config) (*Command, error) {
 		edvMACKeyType:       c.EDVMACKeyType,
 		cacheProvider:       c.CacheProvider,
 		keyStoreCacheTTL:    c.KeyStoreCacheTTL,
+		metrics:             c.MetricsProvider,
 	}, nil
 }
 
@@ -270,10 +280,14 @@ func (c *Command) Sign(w io.Writer, r io.Reader) error {
 		return err
 	}
 
+	signStartTime := time.Now()
+
 	signature, err := c.crypto.Sign(req.Message, kh)
 	if err != nil {
 		return fmt.Errorf("sign: %w", err)
 	}
+
+	c.metrics.CryptoSignTime(time.Since(signStartTime))
 
 	return json.NewEncoder(w).Encode(SignResponse{Signature: signature})
 }
@@ -576,10 +590,14 @@ func (c *Command) getKeyHandle(req interface{}, r io.Reader) (interface{}, error
 		return nil, fmt.Errorf("resolve key store: %w", err)
 	}
 
+	getStartTime := time.Now()
+
 	kh, err := ks.Get(wr.KeyID)
 	if err != nil {
 		return nil, fmt.Errorf("get key: %w", err)
 	}
+
+	c.metrics.KeyStoreGetKeyTime(time.Since(getStartTime))
 
 	return kh, nil
 }
@@ -615,6 +633,9 @@ func unwrapRequest(req interface{}, r io.Reader) (*WrappedRequest, error) {
 }
 
 func (c *Command) resolveKeyStore(keyStoreID, user string, secretShare []byte) (kms.KeyManager, error) {
+	startTime := time.Now()
+	defer func() { c.metrics.KeyStoreResolveTime(time.Since(startTime)) }()
+
 	b, err := c.store.Get(keyStoreID)
 	if err != nil {
 		return nil, fmt.Errorf("get key store meta: %w", err)
@@ -634,6 +655,8 @@ func (c *Command) resolveKeyStore(keyStoreID, user string, secretShare []byte) (
 		if err != nil {
 			return nil, fmt.Errorf("resolve edv provider: %w", err)
 		}
+
+		storageProvider = metrics.Wrap(storageProvider, "EDV")
 	} else {
 		storageProvider = c.storageProvider
 	}

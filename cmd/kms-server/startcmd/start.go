@@ -52,8 +52,10 @@ import (
 	"github.com/trustbloc/kms/pkg/controller/command"
 	"github.com/trustbloc/kms/pkg/controller/mw"
 	"github.com/trustbloc/kms/pkg/controller/rest"
+	"github.com/trustbloc/kms/pkg/metrics"
 	awssecretlock "github.com/trustbloc/kms/pkg/secretlock/aws"
 	"github.com/trustbloc/kms/pkg/storage/cache"
+	storagemetrics "github.com/trustbloc/kms/pkg/storage/metrics"
 	zcapsvc "github.com/trustbloc/kms/pkg/zcapld"
 )
 
@@ -201,6 +203,7 @@ func startServer(srv server, params *serverParameters) error { //nolint:funlen
 		MainKeyType:             kms.AES256GCMType,
 		EDVRecipientKeyType:     kms.NISTP256ECDHKW,
 		EDVMACKeyType:           kms.HMACSHA256Tag256,
+		MetricsProvider:         metrics.Get(),
 	}
 
 	if cacheProvider != nil {
@@ -291,11 +294,21 @@ func createStoreProvider(typ, url, prefix string, timeout time.Duration) (storag
 		}
 	case strings.EqualFold(typ, storageTypeCouchDBOption):
 		createProvider = func(url, prefix string) (storage.Provider, error) {
-			return couchdb.NewProvider(url, couchdb.WithDBPrefix(prefix))
+			couchDBProvider, err := couchdb.NewProvider(url, couchdb.WithDBPrefix(prefix))
+			if err != nil {
+				return nil, err
+			}
+
+			return storagemetrics.Wrap(couchDBProvider, "CouchDB"), nil
 		}
 	case strings.EqualFold(typ, storageTypeMongoDBOption):
 		createProvider = func(url, prefix string) (storage.Provider, error) {
-			return mongodb.NewProvider(url, mongodb.WithDBPrefix(prefix))
+			mongoDBProvider, err := mongodb.NewProvider(url, mongodb.WithDBPrefix(prefix))
+			if err != nil {
+				return nil, err
+			}
+
+			return storagemetrics.Wrap(mongoDBProvider, "MongoDB"), nil
 		}
 	default:
 		return nil, fmt.Errorf("not supported database type: %s", typ)
