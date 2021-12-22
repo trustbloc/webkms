@@ -8,7 +8,6 @@ go 1.17
 
 require (
 	github.com/aws/aws-sdk-go v1.36.29
-	github.com/bluele/gcache v0.0.2
 	github.com/golang/mock v1.6.0
 	github.com/google/tink/go v1.6.1
 	github.com/google/uuid v1.3.0
@@ -29,6 +28,7 @@ require (
 require (
 	github.com/VictoriaMetrics/fastcache v1.5.7 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
+	github.com/bluele/gcache v0.0.2 // indirect
 	github.com/btcsuite/btcd v0.22.0-beta // indirect
 	github.com/btcsuite/btcutil v1.0.3-0.20201208143702-a53e38424cce // indirect
 	github.com/cespare/xxhash/v2 v2.1.1 // indirect

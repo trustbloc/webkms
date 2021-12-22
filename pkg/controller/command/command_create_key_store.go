@@ -80,6 +80,10 @@ func (c *Command) CreateKeyStore(w io.Writer, r io.Reader) error { //nolint:funl
 		storageProvider = c.storageProvider // use server storage
 	}
 
+	if c.cacheProvider != nil && c.keyStoreCacheTTL > 0 {
+		storageProvider = c.cacheProvider.Wrap(storageProvider, c.keyStoreCacheTTL)
+	}
+
 	var secretLock secretlock.Service
 
 	if c.authServerURL != "" { // shamir secret sharing lock

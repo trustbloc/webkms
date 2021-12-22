@@ -88,10 +88,15 @@ const (
 	authServerTokenFlagUsage = "A static token used to protect the GET /secrets API in Auth server. " +
 		commonEnvVarUsageText + authServerTokenEnvKey
 
-	cacheExpirationEnvKey    = "KMS_CACHE_EXPIRATION"
-	cacheExpirationFlagName  = "cache-expiration"
-	cacheExpirationFlagUsage = "An optional value for cache expiration. If not set, caching is disabled. Supports " +
-		"valid duration strings (10m, 60s, etc.) " + commonEnvVarUsageText + cacheExpirationEnvKey
+	enableCacheEnvKey    = "KMS_CACHE_ENABLE"
+	enableCacheFlagName  = "enable-cache"
+	enableCacheFlagUsage = "Enables caching support. Possible values: [true] [false]. Defaults to false. " +
+		commonEnvVarUsageText + enableCacheEnvKey
+
+	keyStoreCacheTTLEnvKey    = "KMS_KEY_STORE_CACHE_TTL"
+	keyStoreCacheTTLFlagName  = "key-store-cache-ttl"
+	keyStoreCacheTTLFlagUsage = "An optional value for key store cache TTL (time to live). Defaults to 10m if " +
+		"caching is enabled. If set to 0, key store is never cached. " + commonEnvVarUsageText + keyStoreCacheTTLEnvKey
 
 	enableZCAPsEnvKey    = "KMS_ZCAP_ENABLE"
 	enableZCAPsFlagName  = "enable-zcap"
@@ -156,7 +161,8 @@ type serverParameters struct {
 	didDomain        string
 	authServerURL    string
 	authServerToken  string
-	cacheExpiration  time.Duration
+	keyStoreCacheTTL time.Duration
+	enableCache      bool
 	enableZCAPs      bool
 	enableCORS       bool
 	logLevel         string
@@ -193,7 +199,8 @@ func getParameters(cmd *cobra.Command) (*serverParameters, error) { //nolint:fun
 	didDomain := getUserSetVarOptional(cmd, didDomainFlagName, didDomainEnvKey)
 	authServerURL := getUserSetVarOptional(cmd, authServerURLFlagName, authServerURLEnvKey)
 	authServerToken := getUserSetVarOptional(cmd, authServerTokenFlagName, authServerTokenEnvKey)
-	cacheExpirationStr := getUserSetVarOptional(cmd, cacheExpirationFlagName, cacheExpirationEnvKey)
+	keyStoreCacheTTLStr := getUserSetVarOptional(cmd, keyStoreCacheTTLFlagName, keyStoreCacheTTLEnvKey)
+	enableCacheStr := getUserSetVarOptional(cmd, enableCacheFlagName, enableCacheEnvKey)
 	enableZCAPsStr := getUserSetVarOptional(cmd, enableZCAPsFlagName, enableZCAPsEnvKey)
 	enableCORSStr := getUserSetVarOptional(cmd, enableCORSFlagName, enableCORSEnvKey)
 	logLevel := getUserSetVarOptional(cmd, logLevelFlagName, logLevelEnvKey)
@@ -208,13 +215,18 @@ func getParameters(cmd *cobra.Command) (*serverParameters, error) { //nolint:fun
 		return nil, fmt.Errorf("parse database timeout: %w", err)
 	}
 
-	var cacheExpiration time.Duration
+	var keyStoreCacheTTL time.Duration
 
-	if cacheExpirationStr != "" {
-		cacheExpiration, err = time.ParseDuration(cacheExpirationStr)
+	if keyStoreCacheTTLStr != "" {
+		keyStoreCacheTTL, err = time.ParseDuration(keyStoreCacheTTLStr)
 		if err != nil {
-			return nil, fmt.Errorf("parse cache expiration: %w", err)
+			return nil, fmt.Errorf("parse key store cache ttl: %w", err)
 		}
+	}
+
+	enableCache, err := strconv.ParseBool(enableCacheStr)
+	if err != nil {
+		return nil, fmt.Errorf("parse enableCache: %w", err)
 	}
 
 	enableZCAPs, err := strconv.ParseBool(enableZCAPsStr)
@@ -244,7 +256,8 @@ func getParameters(cmd *cobra.Command) (*serverParameters, error) { //nolint:fun
 		didDomain:        didDomain,
 		authServerURL:    authServerURL,
 		authServerToken:  authServerToken,
-		cacheExpiration:  cacheExpiration,
+		keyStoreCacheTTL: keyStoreCacheTTL,
+		enableCache:      enableCache,
 		enableZCAPs:      enableZCAPs,
 		enableCORS:       enableCORS,
 		logLevel:         logLevel,
@@ -347,7 +360,8 @@ func createFlags(startCmd *cobra.Command) {
 	startCmd.Flags().String(didDomainFlagName, "", didDomainFlagUsage)
 	startCmd.Flags().String(authServerURLFlagName, "", authServerURLFlagUsage)
 	startCmd.Flags().String(authServerTokenFlagName, "", authServerTokenFlagUsage)
-	startCmd.Flags().String(cacheExpirationFlagName, "", cacheExpirationFlagUsage)
+	startCmd.Flags().String(keyStoreCacheTTLFlagName, "10m", keyStoreCacheTTLFlagUsage)
+	startCmd.Flags().String(enableCacheFlagName, "false", enableCacheFlagUsage)
 	startCmd.Flags().String(enableZCAPsFlagName, "false", enableZCAPsFlagUsage)
 	startCmd.Flags().String(enableCORSFlagName, "false", enableCORSFlagUsage)
 	startCmd.Flags().String(logLevelFlagName, "", logLevelFlagUsage)

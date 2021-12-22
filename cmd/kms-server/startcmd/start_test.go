@@ -355,13 +355,13 @@ func TestStartCmdWithEnableCORSParam(t *testing.T) {
 	})
 }
 
-func TestStartCmdWithCacheExpirationParam(t *testing.T) {
-	t.Run("Success with cache-expiration set", func(t *testing.T) {
+func TestStartCmdWithEnableCacheParam(t *testing.T) {
+	t.Run("Success with cache enabled", func(t *testing.T) {
 		startCmd, err := Cmd(&mockServer{})
 		require.NoError(t, err)
 
 		args := requiredArgs(storageTypeMemOption)
-		args = append(args, "--"+cacheExpirationFlagName, "10m")
+		args = append(args, "--"+enableCacheFlagName, "true")
 
 		startCmd.SetArgs(args)
 
@@ -369,12 +369,40 @@ func TestStartCmdWithCacheExpirationParam(t *testing.T) {
 		require.NoError(t, err)
 	})
 
-	t.Run("Fail with invalid cache-expiration duration string", func(t *testing.T) {
+	t.Run("Fail with invalid enable-cache param", func(t *testing.T) {
 		startCmd, err := Cmd(&mockServer{})
 		require.NoError(t, err)
 
 		args := requiredArgs(storageTypeMemOption)
-		args = append(args, "--"+cacheExpirationFlagName, "invalid")
+		args = append(args, "--"+enableCacheFlagName, "invalid")
+
+		startCmd.SetArgs(args)
+
+		err = startCmd.Execute()
+		require.Error(t, err)
+	})
+}
+
+func TestStartCmdWithKeyStoreCacheTTLParam(t *testing.T) {
+	t.Run("Success with key-store-cache-ttl set", func(t *testing.T) {
+		startCmd, err := Cmd(&mockServer{})
+		require.NoError(t, err)
+
+		args := requiredArgs(storageTypeMemOption)
+		args = append(args, "--"+keyStoreCacheTTLFlagName, "10m")
+
+		startCmd.SetArgs(args)
+
+		err = startCmd.Execute()
+		require.NoError(t, err)
+	})
+
+	t.Run("Fail with invalid key-store-cache-ttl duration string", func(t *testing.T) {
+		startCmd, err := Cmd(&mockServer{})
+		require.NoError(t, err)
+
+		args := requiredArgs(storageTypeMemOption)
+		args = append(args, "--"+keyStoreCacheTTLFlagName, "invalid")
 
 		startCmd.SetArgs(args)
 

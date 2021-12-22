@@ -9,6 +9,7 @@ go 1.17
 require (
 	github.com/aws/aws-sdk-go v1.37.0
 	github.com/cenkalti/backoff v2.2.1+incompatible
+	github.com/dgraph-io/ristretto v0.1.0
 	github.com/google/tink/go v1.6.1
 	github.com/gorilla/mux v1.8.0
 	github.com/hashicorp/vault v1.2.1-0.20200911125421-dba37adcb55a
@@ -38,19 +39,21 @@ require (
 	github.com/btcsuite/btcd v0.22.0-beta // indirect
 	github.com/btcsuite/btcutil v1.0.3-0.20201208143702-a53e38424cce // indirect
 	github.com/cenkalti/backoff/v4 v4.1.1 // indirect
-	github.com/cespare/xxhash/v2 v2.1.1 // indirect
+	github.com/cespare/xxhash/v2 v2.1.2 // indirect
 	github.com/containerd/continuity v0.0.0-20200710164510-efbc4488d8fe // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/docker/cli v20.10.7+incompatible // indirect
 	github.com/docker/docker v20.10.7+incompatible // indirect
 	github.com/docker/go-connections v0.4.0 // indirect
 	github.com/docker/go-units v0.4.0 // indirect
+	github.com/dustin/go-humanize v1.0.0 // indirect
 	github.com/evanphx/json-patch v4.1.0+incompatible // indirect
 	github.com/fxamacker/cbor/v2 v2.3.0 // indirect
 	github.com/go-kivik/couchdb/v3 v3.2.8 // indirect
 	github.com/go-kivik/kivik/v3 v3.2.3 // indirect
 	github.com/go-stack/stack v1.8.1 // indirect
 	github.com/gogo/protobuf v1.3.2 // indirect
+	github.com/golang/glog v1.0.0 // indirect
 	github.com/golang/protobuf v1.5.2 // indirect
 	github.com/golang/snappy v0.0.4 // indirect
 	github.com/google/shlex v0.0.0-20191202100458-e7afc7fbc510 // indirect
@@ -106,7 +109,7 @@ require (
 	golang.org/x/crypto v0.0.0-20210921155107-089bfa567519 // indirect
 	golang.org/x/net v0.0.0-20211029224645-99673261e6eb // indirect
 	golang.org/x/sync v0.0.0-20210220032951-036812b2e83c // indirect
-	golang.org/x/sys v0.0.0-20211102061401-a2f17f7b995c // indirect
+	golang.org/x/sys v0.0.0-20211214234402-4825e8c3871d // indirect
 	golang.org/x/text v0.3.7 // indirect
 	golang.org/x/xerrors v0.0.0-20200804184101-5ec99f83aff1 // indirect
 	google.golang.org/protobuf v1.27.1 // indirect

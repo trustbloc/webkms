@@ -15,6 +15,7 @@ import (
 	"io"
 	"net/http"
 	"strings"
+	"time"
 
 	"github.com/google/tink/go/keyset"
 	"github.com/hyperledger/aries-framework-go/pkg/crypto"
@@ -64,10 +65,13 @@ type httpClient interface {
 	Do(req *http.Request) (*http.Response, error)
 }
 
+type cacheProvider interface {
+	Wrap(storage storage.Provider, ttl time.Duration) storage.Provider
+}
+
 // Config is a configuration for Command.
 type Config struct {
 	StorageProvider         storage.Provider
-	CacheProvider           storage.Provider
 	KMS                     kms.KeyManager
 	Crypto                  crypto.Crypto
 	VDRResolver             zcapld.VDRResolver
@@ -85,6 +89,8 @@ type Config struct {
 	MainKeyType             kms.KeyType
 	EDVRecipientKeyType     kms.KeyType
 	EDVMACKeyType           kms.KeyType
+	CacheProvider           cacheProvider
+	KeyStoreCacheTTL        time.Duration
 }
 
 // Command is a controller for commands.
@@ -108,6 +114,8 @@ type Command struct {
 	mainKeyType         kms.KeyType
 	edvRecipientKeyType kms.KeyType
 	edvMACKeyType       kms.KeyType
+	cacheProvider       cacheProvider
+	keyStoreCacheTTL    time.Duration
 }
 
 // New returns a new instance of Command.
@@ -137,6 +145,8 @@ func New(c *Config) (*Command, error) {
 		mainKeyType:         c.MainKeyType,
 		edvRecipientKeyType: c.EDVRecipientKeyType,
 		edvMACKeyType:       c.EDVMACKeyType,
+		cacheProvider:       c.CacheProvider,
+		keyStoreCacheTTL:    c.KeyStoreCacheTTL,
 	}, nil
 }
 
@@ -626,6 +636,10 @@ func (c *Command) resolveKeyStore(keyStoreID, user string, secretShare []byte) (
 		}
 	} else {
 		storageProvider = c.storageProvider
+	}
+
+	if c.cacheProvider != nil && c.keyStoreCacheTTL > 0 {
+		storageProvider = c.cacheProvider.Wrap(storageProvider, c.keyStoreCacheTTL)
 	}
 
 	var secretLock secretlock.Service
