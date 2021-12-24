@@ -43,10 +43,6 @@ type EDVOptions struct {
 
 // Validate validates CreateKeyStore request.
 func (r *CreateKeyStoreRequest) Validate() error {
-	if r == nil {
-		return fmt.Errorf("%w: validate on nil value", errors.ErrValidation)
-	}
-
 	if r.Controller == "" {
 		return fmt.Errorf("%w: controller must be non-empty", errors.ErrValidation)
 	}

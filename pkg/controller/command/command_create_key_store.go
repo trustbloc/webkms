@@ -134,15 +134,10 @@ func (c *Command) CreateKeyStore(w io.Writer, r io.Reader) error { //nolint:funl
 		return fmt.Errorf("save key store metadata: %w", err)
 	}
 
-	err = json.NewEncoder(w).Encode(CreateKeyStoreResponse{
+	return json.NewEncoder(w).Encode(CreateKeyStoreResponse{
 		KeyStoreURL: keyStoreURL,
 		Capability:  rootCapability,
 	})
-	if err != nil {
-		return fmt.Errorf("encode CreateKeyStore response: %w", err)
-	}
-
-	return nil
 }
 
 func (c *Command) prepareEDVProvider(vaultURL string, capability []byte) (storage.Provider, edvParameters, error) {
