@@ -31,6 +31,7 @@ const (
 	DIDPath         = KeyStorePath + "/did"
 	KeyPath         = KeyStorePath + "/{" + KeyStoreVarName + "}/keys"
 	ExportKeyPath   = KeyPath + "/{" + keyVarName + "}/export"
+	RotateKeyPath   = KeyPath + "/{" + keyVarName + "}/rotate"
 	SignPath        = KeyPath + "/{" + keyVarName + "}/sign"
 	VerifyPath      = KeyPath + "/{" + keyVarName + "}/verify"
 	EncryptPath     = KeyPath + "/{" + keyVarName + "}/encrypt"
@@ -65,6 +66,7 @@ type Cmd interface {
 	CreateKeyStore(w io.Writer, r io.Reader) error
 	CreateKey(w io.Writer, r io.Reader) error
 	ExportKey(w io.Writer, r io.Reader) error
+	RotateKey(w io.Writer, r io.Reader) error
 	ImportKey(w io.Writer, r io.Reader) error
 	Sign(w io.Writer, r io.Reader) error
 	Verify(w io.Writer, r io.Reader) error
@@ -101,6 +103,7 @@ func (o *Operation) GetRESTHandlers() []Handler {
 		NewHTTPHandler(KeyPath, http.MethodPost, o.CreateKey, command.ActionCreateKey, true),
 		NewHTTPHandler(KeyPath, http.MethodPut, o.ImportKey, command.ActionImportKey, true),
 		NewHTTPHandler(ExportKeyPath, http.MethodGet, o.ExportKey, command.ActionExportKey, true),
+		NewHTTPHandler(RotateKeyPath, http.MethodPost, o.RotateKey, command.ActionRotateKey, true),
 		NewHTTPHandler(SignPath, http.MethodPost, o.Sign, command.ActionSign, true),
 		NewHTTPHandler(VerifyPath, http.MethodPost, o.Verify, command.ActionVerify, true),
 		NewHTTPHandler(EncryptPath, http.MethodPost, o.Encrypt, command.ActionEncrypt, true),
@@ -174,6 +177,17 @@ func (o *Operation) ImportKey(rw http.ResponseWriter, req *http.Request) {
 //    default: errorResp
 func (o *Operation) ExportKey(rw http.ResponseWriter, req *http.Request) {
 	execute(o.cmd.ExportKey, rw, req)
+}
+
+// RotateKey swagger:route POST /v1/keystores/{key_store_id}/keys/{key_id}/rotate kms rotateKeyReq
+//
+// Rotate the key.
+//
+// Responses:
+//        200: rotateKeyResp
+//    default: errorResp
+func (o *Operation) RotateKey(rw http.ResponseWriter, req *http.Request) {
+	execute(o.cmd.RotateKey, rw, req)
 }
 
 // Sign swagger:route POST /v1/keystores/{key_store_id}/keys/{key_id}/sign crypto signReq

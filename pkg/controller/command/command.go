@@ -274,6 +274,30 @@ func (c *Command) ImportKey(w io.Writer, r io.Reader) error {
 	})
 }
 
+// RotateKey rotate key.
+func (c *Command) RotateKey(w io.Writer, r io.Reader) error {
+	var req RotateKeyRequest
+
+	wr, err := unwrapRequest(&req, r)
+	if err != nil {
+		return fmt.Errorf("unwrap request: %w", err)
+	}
+
+	ks, err := c.resolveKeyStore(wr.KeyStoreID, wr.User, wr.SecretShare)
+	if err != nil {
+		return fmt.Errorf("resolve key store: %w", err)
+	}
+
+	kid, _, err := ks.Rotate(req.KeyType, wr.KeyID)
+	if err != nil {
+		return fmt.Errorf("rotate key: %w", err)
+	}
+
+	return json.NewEncoder(w).Encode(RotateKeyResponse{
+		KeyURL: fmt.Sprintf("%s/%s/keys/%s", c.baseKeyStoreURL, wr.KeyStoreID, kid),
+	})
+}
+
 // Sign signs a message.
 func (c *Command) Sign(w io.Writer, r io.Reader) error {
 	var req SignRequest

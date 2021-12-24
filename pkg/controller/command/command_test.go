@@ -909,6 +909,101 @@ func TestCommand_ImportKey(t *testing.T) {
 	})
 }
 
+func TestCommand_RotateKey(t *testing.T) {
+	t.Run("Success", func(t *testing.T) {
+		cmd := createCmd(t, gomock.NewController(t), withKeyManager(&mockkms.KeyManager{
+			RotateKeyID: "rotate_key_id",
+		}))
+
+		req, err := json.Marshal(RotateKeyRequest{
+			KeyType: kms.ED25519,
+		})
+		require.NoError(t, err)
+
+		wr, err := json.Marshal(WrappedRequest{
+			KeyStoreID: "key_store_id",
+			KeyID:      "key_id",
+			Request:    req,
+		})
+		require.NoError(t, err)
+
+		var buf bytes.Buffer
+
+		err = cmd.RotateKey(&buf, bytes.NewBuffer(wr))
+		require.NoError(t, err)
+
+		var resp RotateKeyResponse
+
+		err = json.Unmarshal(buf.Bytes(), &resp)
+		require.NoError(t, err)
+		require.Contains(t, resp.KeyURL, "rotate_key_id")
+	})
+
+	t.Run("Fail to decode wrapped request", func(t *testing.T) {
+		cmd, err := New(&Config{
+			StorageProvider: mockstorage.NewMockStoreProvider(),
+		})
+		require.NoError(t, err)
+		require.NotNil(t, cmd)
+
+		err = cmd.RotateKey(nil, bytes.NewBuffer(nil))
+		require.EqualError(t, err, "unwrap request: internal error: decode wrapped request")
+	})
+
+	t.Run("Fail to get a key store meta data", func(t *testing.T) {
+		ctrl := gomock.NewController(t)
+
+		metrics := NewMockMetricsProvider(ctrl)
+		metrics.EXPECT().KeyStoreResolveTime(gomock.Any()).Times(1)
+
+		cmd, err := New(&Config{
+			StorageProvider: mockstorage.NewMockStoreProvider(),
+			MetricsProvider: metrics,
+		})
+		require.NoError(t, err)
+		require.NotNil(t, cmd)
+
+		req, err := json.Marshal(RotateKeyRequest{
+			KeyType: kms.ED25519,
+		})
+		require.NoError(t, err)
+
+		wr, err := json.Marshal(WrappedRequest{
+			KeyStoreID: "key_store_id",
+			Request:    req,
+		})
+		require.NoError(t, err)
+
+		var buf bytes.Buffer
+
+		err = cmd.RotateKey(&buf, bytes.NewBuffer(wr))
+		require.EqualError(t, err, "resolve key store: get key store meta: data not found")
+	})
+
+	t.Run("Fail to rotate a key", func(t *testing.T) {
+		cmd := createCmd(t, gomock.NewController(t), withKeyManager(&mockkms.KeyManager{
+			RotateKeyErr: errors.New("rotate key error"),
+		}))
+
+		req, err := json.Marshal(RotateKeyRequest{
+			KeyType: kms.ED25519,
+		})
+		require.NoError(t, err)
+
+		wr, err := json.Marshal(WrappedRequest{
+			KeyStoreID: "key_store_id",
+			KeyID:      "key_id",
+			Request:    req,
+		})
+		require.NoError(t, err)
+
+		var buf bytes.Buffer
+
+		err = cmd.RotateKey(&buf, bytes.NewBuffer(wr))
+		require.EqualError(t, err, "rotate key: rotate key error")
+	})
+}
+
 func TestCommand_Sign(t *testing.T) {
 	t.Run("Success", func(t *testing.T) {
 		cmd := createCmd(t, gomock.NewController(t), withCrypto(&mockcrypto.Crypto{

@@ -166,6 +166,42 @@ type exportKeyResp struct { //nolint:unused,deadcode
 	}
 }
 
+// rotateKeyReq model
+//
+// swagger:parameters rotateKeyReq
+type rotateKeyReq struct { //nolint:unused,deadcode
+	// The key store's ID.
+	//
+	// in: path
+	// required: true
+	KeyStoreID string `json:"key_store_id"`
+
+	// The key's ID.
+	//
+	// in: path
+	// required: true
+	KeyID string `json:"key_id"`
+
+	// in: body
+	Body struct {
+
+		// A type on new key.
+		// required: true
+		KeyType string `json:"key_type"`
+	}
+}
+
+// rotateKeyResp model
+//
+// swagger:response rotateKeyResp
+type rotateKeyResp struct { //nolint:unused,deadcode
+	// in: body
+	Body struct {
+		// URL of rotated key.
+		KeyURL string `json:"key_url"`
+	}
+}
+
 // signReq model
 //
 // swagger:parameters signReq

@@ -104,6 +104,7 @@ func (s *Steps) RegisterSteps(ctx *godog.ScenarioContext) {
 		s.makeCreateAndExportKeyReq)
 	ctx.Step(`^"([^"]*)" makes an HTTP PUT to "([^"]*)" to import a private key with ID "([^"]*)"$`,
 		s.makeImportKeyReq)
+	ctx.Step(`^"([^"]*)" makes an HTTP POST to "([^"]*)" to rotate "([^"]*)" key$`, s.makeRotateKeyReq)
 	// sign/verify message steps
 	ctx.Step(`^"([^"]*)" makes an HTTP POST to "([^"]*)" to sign "([^"]*)"$`, s.makeSignMessageReq)
 	ctx.Step(`^"([^"]*)" makes an HTTP POST to "([^"]*)" to verify "([^"]*)" for "([^"]*)"$`, s.makeVerifySignatureReq)
@@ -528,6 +529,56 @@ func (s *Steps) makeImportKeyReq(userName, endpoint, keyID string) error {
 	u.data = map[string]string{
 		"key_url": importKeyResponse.KeyURL,
 	}
+
+	return nil
+}
+
+func (s *Steps) makeRotateKeyReq(userName, endpoint, keyType  string) error {
+	u := s.users[userName]
+
+	r := &rotateKeyReq{
+		keyType,
+	}
+
+	request, err := u.preparePostRequest(r, endpoint)
+	if err != nil {
+		return err
+	}
+
+	err = u.SetCapabilityInvocation(request, actionRotateKey)
+	if err != nil {
+		return fmt.Errorf("user failed to set capability invocation: %w", err)
+	}
+
+	err = u.Sign(request)
+	if err != nil {
+		return fmt.Errorf("user failed to sign request: %w", err)
+	}
+
+	response, err := s.httpClient.Do(request)
+	if err != nil {
+		return fmt.Errorf("http do: %w", err)
+	}
+
+	defer func() {
+		closeErr := response.Body.Close()
+		if closeErr != nil {
+			s.logger.Errorf("Failed to close response body: %s\n", closeErr.Error())
+		}
+	}()
+
+	var rotateKeyResponse rotateKeyResp
+
+	if respErr := u.processResponse(&rotateKeyResponse, response); respErr != nil {
+		return respErr
+	}
+
+	fmt.Printf("KEY_URL %s", rotateKeyResponse.KeyURL)
+
+	parts := strings.Split(rotateKeyResponse.KeyURL, "/")
+	u.keyID = parts[len(parts)-1]
+
+	u.data["key_url"] = rotateKeyResponse.KeyURL
 
 	return nil
 }

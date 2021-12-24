@@ -63,6 +63,17 @@ Feature: KMS and crypto operations
     Then  "Alice" gets a response with HTTP status "200 OK"
      And  "Alice" gets a response with no "errMessage"
 
+  Scenario: User creates and rotates a key
+    Given "Alice" has created a keystore with "AES256GCM" key on Key Server
+      And "Alice" makes an HTTP POST to "https://localhost:4466/v1/keystores/{keystoreID}/keys/{keyID}/encrypt" to encrypt "test message"
+
+    When  "Alice" makes an HTTP POST to "https://localhost:4466/v1/keystores/{keystoreID}/keys/{keyID}/rotate" to rotate "AES256GCM" key
+    Then  "Alice" gets a response with HTTP status "200 OK"
+
+    When  "Alice" makes an HTTP POST to "https://localhost:4466/v1/keystores/{keystoreID}/keys/{keyID}/decrypt" to decrypt "ciphertext"
+    Then  "Alice" gets a response with HTTP status "200 OK"
+     And  "Alice" gets a response with "plaintext" with value "test message"
+
   Scenario: User encrypts/decrypts a message
     Given "Bob" has created a keystore with "AES256GCM" key on Key Server
 
