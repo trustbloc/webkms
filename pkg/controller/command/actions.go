@@ -13,6 +13,7 @@ const (
 	ActionCreateKey       = "createKey"
 	ActionImportKey       = "importKey"
 	ActionExportKey       = "exportKey"
+	ActionRotateKey       = "rotateKey"
 	ActionSign            = "sign"
 	ActionVerify          = "verify"
 	ActionEncrypt         = "encrypt"
@@ -36,6 +37,7 @@ func allActions() []string {
 		ActionCreateKey,
 		ActionExportKey,
 		ActionImportKey,
+		ActionRotateKey,
 		ActionSign,
 		ActionVerify,
 		ActionComputeMac,

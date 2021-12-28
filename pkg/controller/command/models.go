@@ -79,6 +79,16 @@ type ImportKeyResponse struct {
 	KeyURL string `json:"key_url"`
 }
 
+// RotateKeyRequest is a request to rotate a key.
+type RotateKeyRequest struct {
+	KeyType kms.KeyType `json:"key_type"`
+}
+
+// RotateKeyResponse is a response for RotateKeyRequest request.
+type RotateKeyResponse struct {
+	KeyURL string `json:"key_url"`
+}
+
 // ExportKeyResponse is a response for ExportKey request.
 type ExportKeyResponse struct {
 	PublicKey []byte `json:"public_key"`

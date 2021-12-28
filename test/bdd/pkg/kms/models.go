@@ -54,6 +54,14 @@ type importKeyResp struct {
 	KeyURL string `json:"key_url"`
 }
 
+type rotateKeyReq struct {
+	KeyType   string `json:"key_type"`
+}
+
+type rotateKeyResp struct {
+	KeyURL string `json:"key_url"`
+}
+
 type signReq struct {
 	Message []byte `json:"message"`
 }
