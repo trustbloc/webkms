@@ -57,6 +57,7 @@ require (
 	github.com/hashicorp/go-memdb v1.3.2 // indirect
 	github.com/hashicorp/golang-lru v0.5.4 // indirect
 	github.com/hashicorp/vault v1.2.1-0.20200911125421-dba37adcb55a // indirect
+	github.com/hyperledger/aries-framework-go/test/component v0.0.0-20210820175050-dcc7a225178d // indirect
 	github.com/jinzhu/copier v0.0.0-20190924061706-b57f9002281a // indirect
 	github.com/kilic/bls12-381 v0.1.1-0.20210503002446-7b7597926c69 // indirect
 	github.com/mailru/easyjson v0.7.1 // indirect
