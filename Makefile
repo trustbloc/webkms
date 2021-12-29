@@ -54,7 +54,13 @@ bdd-test: generate-test-keys kms-server-docker mock-login-consent-docker
 
 .PHONY: stress-test
 stress-test: generate-test-keys kms-server-docker mock-login-consent-docker
-	@cd test/bdd && MallocNanoZone=0 TAGS=kms_stress go test -count=1 -v -cover . -p 1 -timeout=10m -race # TODO: remove "MallocNanoZone=0" after resolving https://github.com/golang/go/issues/49138
+	@cd test/bdd && \
+	KMS_STRESS_KMS_URL=https://localhost:4466 \
+	KMS_STRESS_AUTH_KMS_URL=https://localhost:4455 \
+	KMS_STRESS_HUB_AUTH_URL=https://localhost:8070 \
+	KMS_STRESS_EDV_URL=https://edv.trustbloc.local:8081 \
+	MallocNanoZone=0 TAGS=kms_stress \
+	go test -count=1 -v -cover . -p 1 -timeout=10m -race # TODO: remove "MallocNanoZone=0" after resolving https://github.com/golang/go/issues/49138
 
 .PHONY: kms-server
 kms-server:

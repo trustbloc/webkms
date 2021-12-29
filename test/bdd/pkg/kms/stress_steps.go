@@ -52,13 +52,16 @@ func (s *Steps) createEDVDataVaultForMultipleUsers(usersNumberEnv string) error 
 	return nil
 }
 
-func (s *Steps) createKeystoreForMultipleUsers(usersNumberEnv, keyServerURLEnv, storeType, keyType, concurrencyEnv string) error {
+func (s *Steps) stressTestForMultipleUsers(usersNumberEnv, storeType, keyType, singVerifyTimesEnv, concurrencyEnv string) error {
 	usersNumber, err := getUsersNumber(usersNumberEnv)
 	if err != nil {
 		return err
 	}
 
-	keyServerURL := getKeyServerURL(keyServerURLEnv)
+	singVerifyTimes, err  := getRepeatTimes(singVerifyTimesEnv)
+	if err != nil {
+		return err
+	}
 
 	concurrencyReq, err := getConcurrencyReq(concurrencyEnv, err)
 	if err != nil {
@@ -111,7 +114,8 @@ func (s *Steps) createKeystoreForMultipleUsers(usersNumberEnv, keyServerURLEnv, 
 	for i := 0; i < usersNumber; i++ {
 		r := &createKeyStoreRequest{
 			userName:     fmt.Sprintf(userNameTplt, i),
-			keyServerURL: keyServerURL,
+			keyServerURL: s.bddContext.KeyServerURL,
+			edvServerURL: s.bddContext.EDVServerURL,
 			steps:        s,
 		}
 		if edvCapabilities != nil {
@@ -145,7 +149,7 @@ func (s *Steps) createKeystoreForMultipleUsers(usersNumberEnv, keyServerURLEnv, 
 	for i := 0; i < usersNumber; i++ {
 		createKeyPool.Submit(&createKeyRequest{
 			userName:     fmt.Sprintf(userNameTplt, i),
-			keyServerURL: keyServerURL,
+			keyServerURL: s.bddContext.KeyServerURL,
 			keyType:      keyType,
 			steps:        s,
 		})
@@ -173,12 +177,10 @@ func (s *Steps) createKeystoreForMultipleUsers(usersNumberEnv, keyServerURLEnv, 
 
 	signVerifyStart := time.Now()
 
-	singVerifyTimes := 10
-
 	for i := 0; i < usersNumber; i++ {
 		signVerifyPool.Submit(&signVerifyRequest{
 			userName:     fmt.Sprintf(userNameTplt, i),
-			keyServerURL: keyServerURL,
+			keyServerURL: s.bddContext.KeyServerURL,
 			times:        singVerifyTimes,
 			steps:        s,
 		})
@@ -225,15 +227,6 @@ func getUsersNumber(usersNumberEnv string) (int, error) {
 	return strconv.Atoi(usersNumberStr)
 }
 
-func getKeyServerURL(keyServerURLEnv string) string {
-	keyServerURL := os.Getenv(keyServerURLEnv)
-	if keyServerURL == "" {
-		keyServerURL = "https://localhost:4466"
-	}
-
-	return keyServerURL
-}
-
 func getRepeatTimes(repeatTimesEnv string) (int, error) {
 	repeatTimesStr := os.Getenv(repeatTimesEnv)
 	if repeatTimesStr == "" {
@@ -246,6 +239,7 @@ func getRepeatTimes(repeatTimesEnv string) (int, error) {
 type createKeyStoreRequest struct {
 	userName      string
 	edvCapability []byte
+	edvServerURL  string
 	keyServerURL  string
 	steps         *Steps
 }
@@ -259,7 +253,7 @@ func (r *createKeyStoreRequest) Invoke() (interface{}, error) {
 
 	if r.edvCapability != nil {
 		createReq.EDV = &edvOptions{
-			VaultURL:   "https://edv.trustbloc.local:8081" + edvBasePath + "/" + u.vaultID,
+			VaultURL:   r.edvServerURL + edvBasePath + "/" + u.vaultID,
 			Capability: r.edvCapability,
 		}
 	}

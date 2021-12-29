@@ -85,8 +85,8 @@ func (s *Steps) RegisterSteps(ctx *godog.ScenarioContext) {
 	ctx.Step(`^"([^"]*)" users has created a data vault on EDV for storing keys$`, s.createEDVDataVaultForMultipleUsers)
 	ctx.Step(`^"([^"]*)" has created an empty keystore on Key Server$`, s.createKeystore)
 	ctx.Step(`^"([^"]*)" has created a keystore with "([^"]*)" key on Key Server$`, s.createKeystoreAndKey)
-	ctx.Step(`^"([^"]*)" users request to "([^"]*)" to create a keystore on "([^"]*)" with "([^"]*)" key using "([^"]*)" concurrent requests$`,
-		s.createKeystoreForMultipleUsers)
+	ctx.Step(`^"([^"]*)" users request to create a keystore on "([^"]*)" with "([^"]*)" key and sign/verify "([^"]*)" times using "([^"]*)" concurrent requests$`,
+		s.stressTestForMultipleUsers)
 	// common response checking steps
 	ctx.Step(`^"([^"]*)" gets a response with HTTP status "([^"]*)"$`, s.checkRespStatus)
 	ctx.Step(`^"([^"]*)" gets a response with HTTP status "([^"]*)" for each request$`, s.checkMultiRespStatus)
