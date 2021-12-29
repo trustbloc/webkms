@@ -8,7 +8,6 @@ package context
 
 import (
 	"crypto/tls"
-
 	ariesmemstorage "github.com/hyperledger/aries-framework-go/component/storageutil/mem"
 	cryptoapi "github.com/hyperledger/aries-framework-go/pkg/crypto"
 	"github.com/hyperledger/aries-framework-go/pkg/crypto/tinkcrypto"
@@ -46,9 +45,17 @@ func (k kmsProvider) SecretLock() secretlock.Service {
 
 // NewBDDContext creates a new BDD context.
 func NewBDDContext(caCertPath string) (*BDDContext, error) {
-	rootCAs, err := tlsutils.GetCertPool(false, []string{caCertPath})
-	if err != nil {
-		return nil, err
+	var tlsConfig *tls.Config
+
+	if caCertPath != "" {
+		rootCAs, err := tlsutils.GetCertPool(false, []string{caCertPath})
+		if err != nil {
+			return nil, err
+		}
+
+		tlsConfig = &tls.Config{
+			RootCAs: rootCAs, MinVersion: tls.VersionTLS12,
+		}
 	}
 
 	keyManager, err := localkms.New(
@@ -65,9 +72,7 @@ func NewBDDContext(caCertPath string) (*BDDContext, error) {
 	}
 
 	return &BDDContext{
-		tlsConfig: &tls.Config{
-			RootCAs: rootCAs, MinVersion: tls.VersionTLS12,
-		},
+		tlsConfig: tlsConfig,
 		KeyManager: keyManager, Crypto: crypto,
 	}, nil
 }

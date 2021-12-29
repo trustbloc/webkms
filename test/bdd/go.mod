@@ -16,7 +16,7 @@ require (
 	github.com/teserakt-io/golang-ed25519 v0.0.0-20210104091850-3888c087a4c8
 	github.com/trustbloc/edge-core v0.1.7
 	github.com/trustbloc/edv v0.1.8-0.20210915102638-4620444c1aa8
-	github.com/trustbloc/hub-auth/test/bdd v0.0.0-20210915103052-783e28d5632c
+	github.com/trustbloc/hub-auth/test/bdd v0.0.0-20211229153651-ebb75c5321dc
 	github.com/trustbloc/kms v0.0.0-00010101000000-000000000000
 )
 
@@ -30,6 +30,7 @@ require (
 	github.com/cenkalti/backoff v2.2.1+incompatible // indirect
 	github.com/cespare/xxhash/v2 v2.1.1 // indirect
 	github.com/coreos/go-oidc v2.2.1+incompatible // indirect
+	github.com/coreos/go-oidc/v3 v3.1.0 // indirect
 	github.com/cucumber/gherkin-go/v11 v11.0.0 // indirect
 	github.com/cucumber/messages-go/v10 v10.0.3 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
