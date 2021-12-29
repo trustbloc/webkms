@@ -87,34 +87,40 @@ func initializeTestSuite(ctx *godog.TestSuiteContext) {
 		dockerComposeDown = []string{"docker-compose", "-f", composeFilePath, "down"}
 	)
 
+	compose := os.Getenv("DISABLE_COMPOSITION") != "true"
+
 	ctx.BeforeSuite(func() {
-		logger.Infof("Running %s", strings.Join(dockerComposeUp, " "))
+		if compose {
+			logger.Infof("Running %s", strings.Join(dockerComposeUp, " "))
 
-		cmd := exec.Command(dockerComposeUp[0], dockerComposeUp[1:]...) //nolint:gosec // ignore G204
-		if out, err := cmd.CombinedOutput(); err != nil {
-			logger.Fatalf("%s: %s", err.Error(), string(out))
-		}
-
-		testSleep := 30
-		if os.Getenv("TEST_SLEEP") != "" {
-			s, err := strconv.Atoi(os.Getenv("TEST_SLEEP"))
-			if err != nil {
-				logger.Errorf("invalid 'TEST_SLEEP' value: %w", err)
-			} else {
-				testSleep = s
+			cmd := exec.Command(dockerComposeUp[0], dockerComposeUp[1:]...) //nolint:gosec // ignore G204
+			if out, err := cmd.CombinedOutput(); err != nil {
+				logger.Fatalf("%s: %s", err.Error(), string(out))
 			}
-		}
 
-		logger.Infof("*** testSleep=%d\n\n", testSleep)
-		time.Sleep(time.Second * time.Duration(testSleep))
+			testSleep := 30
+			if os.Getenv("TEST_SLEEP") != "" {
+				s, err := strconv.Atoi(os.Getenv("TEST_SLEEP"))
+				if err != nil {
+					logger.Errorf("invalid 'TEST_SLEEP' value: %w", err)
+				} else {
+					testSleep = s
+				}
+			}
+
+			logger.Infof("*** testSleep=%d\n\n", testSleep)
+			time.Sleep(time.Second * time.Duration(testSleep))
+		}
 	})
 
 	ctx.AfterSuite(func() {
-		logger.Infof("Running %s", strings.Join(dockerComposeDown, " "))
+		if compose {
+			logger.Infof("Running %s", strings.Join(dockerComposeDown, " "))
 
-		cmd := exec.Command(dockerComposeDown[0], dockerComposeDown[1:]...) //nolint:gosec // ignore G204
-		if out, err := cmd.CombinedOutput(); err != nil {
-			logger.Fatalf("%s: %s", err.Error(), string(out))
+			cmd := exec.Command(dockerComposeDown[0], dockerComposeDown[1:]...) //nolint:gosec // ignore G204
+			if out, err := cmd.CombinedOutput(); err != nil {
+				logger.Fatalf("%s: %s", err.Error(), string(out))
+			}
 		}
 	})
 }
