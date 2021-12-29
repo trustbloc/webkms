@@ -133,12 +133,17 @@ type feature interface {
 }
 
 func initializeScenario(ctx *godog.ScenarioContext) {
-	bddContext, err := context.NewBDDContext(caCertPath)
+	caCertPathVal := caCertPath
+	if os.Getenv("DISABLE_COMPOSITION") == "true" {
+		caCertPathVal = ""
+	}
+
+	bddContext, err := context.NewBDDContext(caCertPathVal)
 	if err != nil {
 		logger.Fatalf("Failed to create a new BDD context: %s", err.Error())
 	}
 
-	authBDDContext, err := authbddctx.NewBDDContext(caCertPath)
+	authBDDContext, err := authbddctx.NewBDDContext(caCertPathVal)
 	if err != nil {
 		logger.Fatalf("Failed to create a new BDD context for Auth: %s", err.Error())
 	}
