@@ -18,7 +18,34 @@ import (
 	"github.com/trustbloc/kms/test/bdd/pkg/internal/bddutil"
 )
 
-const userNameTplt = "User%d"
+const (
+	userNameTplt = "User%d"
+	controller = "did:example:123456789"
+)
+
+func (s *Steps) createUsers(usersNumberEnv string) error {
+	usersNumber, err := getUsersNumber(usersNumberEnv)
+	if err != nil {
+		return err
+	}
+
+	for i := 0; i < usersNumber; i++ {
+		userName := fmt.Sprintf(userNameTplt, i)
+
+		u := &user{
+			name:       userName,
+			controller: controller,
+			disableZCAP: true,
+		}
+		s.users[userName] = u
+
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
 
 func (s *Steps) storeSecretInHubAuthForMultipleUsers(usersNumberEnv string) error {
 	usersNumber, err := getUsersNumber(usersNumberEnv)
@@ -52,13 +79,13 @@ func (s *Steps) createEDVDataVaultForMultipleUsers(usersNumberEnv string) error 
 	return nil
 }
 
-func (s *Steps) stressTestForMultipleUsers(usersNumberEnv, storeType, keyType, singVerifyTimesEnv, concurrencyEnv string) error {
+func (s *Steps) stressTestForMultipleUsers(usersNumberEnv, storeType, keyType, signVerifyTimesEnv, concurrencyEnv string) error {
 	usersNumber, err := getUsersNumber(usersNumberEnv)
 	if err != nil {
 		return err
 	}
 
-	singVerifyTimes, err  := getRepeatTimes(singVerifyTimesEnv)
+	signVerifyTimes, err := getRepeatTimes(signVerifyTimesEnv)
 	if err != nil {
 		return err
 	}
@@ -181,7 +208,7 @@ func (s *Steps) stressTestForMultipleUsers(usersNumberEnv, storeType, keyType, s
 		signVerifyPool.Submit(&signVerifyRequest{
 			userName:     fmt.Sprintf(userNameTplt, i),
 			keyServerURL: s.bddContext.KeyServerURL,
-			times:        singVerifyTimes,
+			times:        signVerifyTimes,
 			steps:        s,
 		})
 	}
@@ -204,7 +231,7 @@ func (s *Steps) stressTestForMultipleUsers(usersNumberEnv, storeType, keyType, s
 
 	fmt.Printf("   Created key store %d took: %s\n", usersNumber, createTimeStr)
 	fmt.Printf("   Created key %d took: %s\n", usersNumber, createKeyTimeStr)
-	fmt.Printf("   Sign and verify %d took: %s\n", usersNumber*singVerifyTimes, signVerifyTimeStr)
+	fmt.Printf("   Sign and verify %d took: %s\n", usersNumber*signVerifyTimes, signVerifyTimeStr)
 
 	return nil
 }
