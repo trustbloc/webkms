@@ -131,6 +131,38 @@ services:
     networks:
       - bdd_net
 
+  orb-kms.trustbloc.local:
+    container_name: orb-kms.trustbloc.local
+    image: ${KMS_SERVER_IMAGE}:latest
+    environment:
+      - KMS_HOST=0.0.0.0:8078
+      - KMS_METRICS_HOST=0.0.0.0:48833
+      - KMS_BASE_URL=https://kms.trustbloc.local:8078
+      - KMS_TLS_CACERTS=/etc/tls/ec-cacert.pem
+      - KMS_TLS_SERVE_CERT=/etc/tls/ec-pubCert.pem
+      - KMS_TLS_SERVE_KEY=/etc/tls/ec-key.pem
+      - KMS_DATABASE_TYPE=mongodb
+      - KMS_DATABASE_URL=mongodb://mongodb.example.com:27017
+      - KMS_DATABASE_PREFIX=orbkms_
+      - KMS_CACHE_ENABLE=true
+      - KMS_LOG_LEVEL=debug
+      - KMS_SECRET_LOCK_TYPE=aws
+      - KMS_SECRET_LOCK_AWS_KEY_URI=aws-kms://arn:aws:kms:ca-central-1:111122223333:key/bc436485-5092-42b8-92a3-0aa8b93536dc
+      - KMS_SECRET_LOCK_AWS_ENDPOINT=http://aws-kms.trustbloc.local:8020
+      - AWS_ACCESS_KEY_ID=mock
+      - AWS_SECRET_ACCESS_KEY=mock
+    ports:
+      - 8078:8078
+      - 48833:48833
+    volumes:
+      - ./keys/tls:/etc/tls
+    command: start
+    depends_on:
+      - mongodb.example.com
+      - edv.trustbloc.local
+    networks:
+      - bdd_net
+
   oathkeeper-auth-keyserver.trustbloc.local:
     container_name: oathkeeper-auth-keyserver.trustbloc.local
     image: oryd/oathkeeper:v0.38.4-alpine

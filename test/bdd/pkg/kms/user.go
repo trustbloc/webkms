@@ -48,6 +48,7 @@ type user struct {
 	authCrypto    crypto.Crypto
 	edvCapability *zcapld.Capability
 	kmsCapability *zcapld.Capability
+	disableZCAP   bool
 	accessToken   string
 }
 
@@ -63,6 +64,10 @@ type response struct {
 }
 
 func (u *user) SetCapabilityInvocation(r *http.Request, action string) error {
+	if u.disableZCAP {
+		return nil
+	}
+
 	compressed, err := zcapld2.CompressZCAP(u.kmsCapability)
 	if err != nil {
 		return fmt.Errorf("failed to compress zcap: %w", err)
@@ -78,6 +83,10 @@ func (u *user) SetCapabilityInvocation(r *http.Request, action string) error {
 }
 
 func (u *user) Sign(r *http.Request) error {
+	if u.disableZCAP {
+		return nil
+	}
+
 	hs := httpsignatures.NewHTTPSignatures(&zcapld.AriesDIDKeySecrets{})
 	hs.SetSignatureHashAlgorithm(&zcapld.AriesDIDKeySignatureHashAlgorithm{
 		Crypto: u.authCrypto,

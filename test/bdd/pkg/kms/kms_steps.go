@@ -79,6 +79,7 @@ func (s *Steps) SetContext(ctx *bddcontext.BDDContext) {
 // RegisterSteps defines scenario steps.
 func (s *Steps) RegisterSteps(ctx *godog.ScenarioContext) {
 	// common creation steps
+	ctx.Step(`^Create "([^"]*)" users$`, s.createUsers)
 	ctx.Step(`^"([^"]*)" wallet has stored secret on Hub Auth$`, s.storeSecretInHubAuth)
 	ctx.Step(`^"([^"]*)" users wallets has stored secret on Hub Auth$`, s.storeSecretInHubAuthForMultipleUsers)
 	ctx.Step(`^"([^"]*)" has created a data vault on EDV for storing keys$`, s.createEDVDataVault)
