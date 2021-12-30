@@ -364,7 +364,7 @@ func createFlags(startCmd *cobra.Command) {
 	startCmd.Flags().String(enableCacheFlagName, "false", enableCacheFlagUsage)
 	startCmd.Flags().String(enableZCAPsFlagName, "false", enableZCAPsFlagUsage)
 	startCmd.Flags().String(enableCORSFlagName, "false", enableCORSFlagUsage)
-	startCmd.Flags().String(logLevelFlagName, "", logLevelFlagUsage)
+	startCmd.Flags().String(logLevelFlagName, "info", logLevelFlagUsage)
 	startCmd.Flags().String(secretLockTypeFlagName, "", secretLockTypeFlagUsage)
 	startCmd.Flags().String(secretLockKeyPathFlagName, "", secretLockKeyPathFlagUsage)
 	startCmd.Flags().String(secretLockAWSKeyURIFlagName, "", secretLockAWSKeyURIFlagUsage)

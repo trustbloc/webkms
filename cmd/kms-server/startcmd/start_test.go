@@ -32,6 +32,8 @@ const (
 	logLevelDebug    = "debug"
 )
 
+var secretLockKeyFile string
+
 type mockServer struct{}
 
 func (s *mockServer) ListenAndServe(host, certFile, keyFile string, router http.Handler) error {
@@ -235,14 +237,11 @@ func TestStartCmdWithTLSCertParams(t *testing.T) {
 
 func TestStartCmdWithSecretLockKeyPathParam(t *testing.T) {
 	t.Run("Success with valid key file", func(t *testing.T) {
-		file, closeFunc := createKeyFile(t, false)
-		defer closeFunc()
-
 		startCmd, err := Cmd(&mockServer{})
 		require.NoError(t, err)
 
 		args := requiredArgs(storageTypeMemOption)
-		args = append(args, "--"+secretLockKeyPathFlagName, file)
+		args = append(args, "--"+secretLockKeyPathFlagName, secretLockKeyFile)
 
 		startCmd.SetArgs(args)
 
@@ -251,14 +250,19 @@ func TestStartCmdWithSecretLockKeyPathParam(t *testing.T) {
 	})
 
 	t.Run("Fail with invalid key file content", func(t *testing.T) {
-		file, closeFunc := createKeyFile(t, true)
-		defer closeFunc()
+		f, err := ioutil.TempFile("", "empty-secret-lock.key")
+		require.NoError(t, err)
+
+		defer func() {
+			require.NoError(t, f.Close())
+			require.NoError(t, os.Remove(f.Name()))
+		}()
 
 		startCmd, err := Cmd(&mockServer{})
 		require.NoError(t, err)
 
 		args := requiredArgs(storageTypeMemOption)
-		args = append(args, "--"+secretLockKeyPathFlagName, file)
+		args = append(args, "--"+secretLockKeyPathFlagName, f.Name())
 
 		startCmd.SetArgs(args)
 
@@ -454,6 +458,11 @@ func requiredArgsWithLockType(databaseType, lockType string) []string {
 		"--" + secretLockTypeFlagName, lockType,
 	}
 
+	if lockType == secretLockTypeLocalOption {
+		args = append(args,
+			"--"+secretLockKeyPathFlagName, secretLockKeyFile)
+	}
+
 	if databaseType == storageTypeMongoDBOption {
 		args = append(args,
 			"--"+databaseURLFlagName, "mongodb://localhost:27017")
@@ -489,6 +498,9 @@ func setEnvVars(t *testing.T) {
 
 	err = os.Setenv(secretLockTypeEnvKey, secretLockTypeLocalOption)
 	require.NoError(t, err)
+
+	err = os.Setenv(secretLockKeyPathEnvKey, secretLockKeyFile)
+	require.NoError(t, err)
 }
 
 func unsetEnvVars(t *testing.T) {
@@ -501,6 +513,9 @@ func unsetEnvVars(t *testing.T) {
 	require.NoError(t, err)
 
 	err = os.Unsetenv(secretLockTypeEnvKey)
+	require.NoError(t, err)
+
+	err = os.Unsetenv(secretLockKeyPathEnvKey)
 	require.NoError(t, err)
 }
 
@@ -519,31 +534,45 @@ func checkFlagPropertiesCorrect(t *testing.T, cmd *cobra.Command, flagName, flag
 	require.Nil(t, flagAnnotations)
 }
 
-func createKeyFile(t *testing.T, empty bool) (string, func()) {
-	t.Helper()
+func TestMain(m *testing.M) {
+	file, closeFunc := createSecretLockKeyFile()
+	secretLockKeyFile = file
 
+	code := m.Run()
+
+	closeFunc()
+	os.Exit(code)
+}
+
+func createSecretLockKeyFile() (string, func()) {
 	f, err := ioutil.TempFile("", "secret-lock.key")
-	require.NoError(t, err)
-
-	closeFunc := func() {
-		require.NoError(t, f.Close())
-		require.NoError(t, os.Remove(f.Name()))
+	if err != nil {
+		panic(err)
 	}
 
-	if empty {
-		return f.Name(), closeFunc
+	closeFunc := func() {
+		if closeErr := f.Close(); closeErr != nil {
+			panic(closeErr)
+		}
+
+		if removeErr := os.Remove(f.Name()); removeErr != nil {
+			panic(removeErr)
+		}
 	}
 
 	key := make([]byte, sha256.Size)
 	_, err = rand.Read(key)
-	require.NoError(t, err)
+	if err != nil {
+		panic(err)
+	}
 
 	encodedKey := make([]byte, base64.URLEncoding.EncodedLen(len(key)))
 	base64.URLEncoding.Encode(encodedKey, key)
 
-	n, err := f.Write(encodedKey)
-	require.NoError(t, err)
-	require.Equal(t, len(encodedKey), n)
+	_, err = f.Write(encodedKey)
+	if err != nil {
+		panic(err)
+	}
 
 	return f.Name(), closeFunc
 }
