@@ -35,7 +35,6 @@ import (
 	"github.com/hyperledger/aries-framework-go/pkg/secretlock"
 	"github.com/hyperledger/aries-framework-go/pkg/secretlock/local"
 	"github.com/hyperledger/aries-framework-go/pkg/secretlock/local/masterlock/hkdf"
-	"github.com/hyperledger/aries-framework-go/pkg/secretlock/noop"
 	ldstore "github.com/hyperledger/aries-framework-go/pkg/store/ld"
 	"github.com/hyperledger/aries-framework-go/pkg/vdr"
 	vdrkey "github.com/hyperledger/aries-framework-go/pkg/vdr/key"
@@ -401,7 +400,7 @@ func createAwsSecretLock(parameters *secretLockParameters) (secretlock.Service, 
 
 func createLocalSecretLock(keyPath string) (secretlock.Service, error) {
 	if keyPath == "" {
-		return &noop.NoLock{}, nil
+		return nil, fmt.Errorf("no key defined for local secret lock")
 	}
 
 	primaryKeyReader, err := local.MasterKeyFromPath(keyPath)
