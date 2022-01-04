@@ -10,7 +10,8 @@
 
 TrustBloc KMS is a server implementation of [KMS](https://github.com/hyperledger/aries-framework-go/blob/main/pkg/kms/api.go)
 and [Crypto](https://github.com/hyperledger/aries-framework-go/blob/main/pkg/crypto/api.go) APIs from [Aries Framework Go](https://github.com/hyperledger/aries-framework-go).
-The KMS server adds a layer of security and storage options for the cryptographic keys. KMS/Crypto operations are exposed over REST API.
+The KMS server adds a layer of security and storage options for the cryptographic keys. KMS/Crypto operations are exposed
+over [REST API](#rest-api).
 
 ## Running kms-server
 
@@ -34,7 +35,7 @@ incoming connections.
 **Example with MongoDB and local secret lock:**
 
 ```sh
-$ ./build/bin/kms-server start --host localhost:8076 --database-type mongodb --database-url mongodb://mongodb.example.com:27017 --secret-lock-type=local
+$ ./build/bin/kms-server start --host localhost:8076 --database-type mongodb --database-url mongodb://mongodb.example.com:27017 --secret-lock-type=local --secret-lock-key-path=<path_to_key>
 ```
 
 ### Flags
@@ -169,16 +170,6 @@ User's Key Store can also use EDV for storing working keys. EDV parameters can b
   }
 }
 ```
-
-## Use cases
-
-### Scenario: Authentication KMS server
-
-_TBD..._
-
-### Scenario: Operational KMS server
-
-_TBD..._
 
 ## Contributing
 
