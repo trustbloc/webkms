@@ -44,7 +44,7 @@ type LoginConfig struct {
 	OIDCProviderName                string
 }
 
-// defines the payload expected by the mock login consent server's /authn endpoint
+// defines the payload expected by the login consent server's /authn endpoint
 type userAuthenticationConfig struct {
 	Sub  string `json:"sub"`
 	Fail bool   `json:"fail,omitempty"`
@@ -116,7 +116,7 @@ func (a *AuthLogin) registerWallet() error {
 
 	a.wallet, err = NewMockWallet(a.cfg.HubAuthHydraAdminURL, a.cfg.HubAuthOIDCProviderURL, a.browser)
 	if err != nil {
-		return fmt.Errorf("failed to register mock auth: %w", err)
+		return fmt.Errorf("failed to register auth: %w", err)
 	}
 
 	return nil
@@ -125,13 +125,13 @@ func (a *AuthLogin) registerWallet() error {
 func (a *AuthLogin) redirectUserToAuthenticate() error {
 	result, err := a.wallet.RequestUserAuthentication()
 	if err != nil {
-		return fmt.Errorf("mock auth failed to redirect user for authentication: %w", err)
+		return fmt.Errorf("auth failed to redirect user for authentication: %w", err)
 	}
 
 	if result.Request.URL.String() != a.cfg.HubAuthOIDCProviderSelectionURL {
 		return fmt.Errorf(
 			"the user ended up at the wrong login URL; expected %s got %s",
-			a.cfg.LoginURL, result.Request.URL.String(),
+			a.cfg.HubAuthOIDCProviderSelectionURL, result.Request.URL.String(),
 		)
 	}
 
@@ -193,7 +193,7 @@ func (a *AuthLogin) authenticateUserAtThirdPartyProvider() error {
 
 	response, err = a.browser.Post(a.cfg.AuthorizationURL, "application/json", bytes.NewReader(authz))
 	if err != nil {
-		return fmt.Errorf("user failed to send authorization data: %w", err)
+		return fmt.Errorf("user failed to send authorization data: %w, %s", err, a.cfg.AuthorizationURL)
 	}
 
 	if response.StatusCode != http.StatusOK {

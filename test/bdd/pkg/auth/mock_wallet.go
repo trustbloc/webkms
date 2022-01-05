@@ -253,7 +253,7 @@ func NewMockWallet(clientRegistrationURL, oidcProviderURL string, httpClient *ht
 		oidcProviderURL,
 	)
 	if err != nil {
-		return nil, fmt.Errorf("failed to init oidc provider: %w", err)
+		return nil, fmt.Errorf("failed to init oidc provider: %w, %s", err, oidcProviderURL)
 	}
 
 	wallet := &MockWallet{
@@ -291,7 +291,7 @@ func NewMockWallet(clientRegistrationURL, oidcProviderURL string, httpClient *ht
 
 	_, err = hydraClient.CreateOAuth2Client(request)
 	if err != nil {
-		return nil, fmt.Errorf("failed to register mock auth as an oidc client of hub auth: %w", err)
+		return nil, fmt.Errorf("failed to register auth as an oidc client of hub auth: %w", err)
 	}
 
 	return wallet, nil
