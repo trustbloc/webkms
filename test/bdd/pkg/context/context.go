@@ -17,6 +17,7 @@ import (
 	"github.com/hyperledger/aries-framework-go/pkg/secretlock/noop"
 	ariesstorage "github.com/hyperledger/aries-framework-go/spi/storage"
 	tlsutils "github.com/trustbloc/edge-core/pkg/utils/tls"
+	"github.com/trustbloc/kms/test/bdd/pkg/auth"
 )
 
 // BDDContext is a global context shared between different test suites in bdd tests.
@@ -25,6 +26,7 @@ type BDDContext struct {
 	AuthZKeyServerURL string
 	EDVServerURL      string
 	HubAuthURL        string
+	LoginConfig       *auth.LoginConfig
 	tlsConfig         *tls.Config
 	KeyManager        kms.KeyManager
 	Crypto            cryptoapi.Crypto
@@ -72,7 +74,7 @@ func NewBDDContext(caCertPath string) (*BDDContext, error) {
 	}
 
 	return &BDDContext{
-		tlsConfig: tlsConfig,
+		tlsConfig:  tlsConfig,
 		KeyManager: keyManager, Crypto: crypto,
 	}, nil
 }

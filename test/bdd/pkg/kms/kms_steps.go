@@ -34,8 +34,6 @@ import (
 	"github.com/igor-pavlenko/httpsignatures-go"
 	"github.com/trustbloc/edge-core/pkg/log"
 	"github.com/trustbloc/edge-core/pkg/zcapld"
-	authbddctx "github.com/trustbloc/hub-auth/test/bdd/pkg/context"
-
 	zcapsvc "github.com/trustbloc/kms/pkg/zcapld"
 	bddcontext "github.com/trustbloc/kms/test/bdd/pkg/context"
 	"github.com/trustbloc/kms/test/bdd/pkg/internal/cryptoutil"
@@ -52,22 +50,20 @@ const (
 
 // Steps defines steps context for the KMS operations.
 type Steps struct {
-	bddContext     *bddcontext.BDDContext
-	authBDDContext *authbddctx.BDDContext
-	httpClient     *http.Client
-	logger         log.Logger
-	users          map[string]*user
-	keys           map[string][]byte
+	bddContext *bddcontext.BDDContext
+	httpClient *http.Client
+	logger     log.Logger
+	users      map[string]*user
+	keys       map[string][]byte
 }
 
 // NewSteps creates steps context for the KMS operations.
-func NewSteps(authBDDContext *authbddctx.BDDContext, tlsConfig *tls.Config) *Steps {
+func NewSteps(tlsConfig *tls.Config) *Steps {
 	return &Steps{
-		authBDDContext: authBDDContext,
-		httpClient:     &http.Client{Transport: &http.Transport{TLSClientConfig: tlsConfig}},
-		logger:         log.New("kms/tests/kms"),
-		users:          map[string]*user{},
-		keys:           map[string][]byte{"testCEK": cryptoutil.GenerateKey()},
+		httpClient: &http.Client{Transport: &http.Transport{TLSClientConfig: tlsConfig}},
+		logger:     log.New("kms/tests/kms"),
+		users:      map[string]*user{},
+		keys:       map[string][]byte{"testCEK": cryptoutil.GenerateKey()},
 	}
 }
 
@@ -534,7 +530,7 @@ func (s *Steps) makeImportKeyReq(userName, endpoint, keyID string) error {
 	return nil
 }
 
-func (s *Steps) makeRotateKeyReq(userName, endpoint, keyType  string) error {
+func (s *Steps) makeRotateKeyReq(userName, endpoint, keyType string) error {
 	u := s.users[userName]
 
 	r := &rotateKeyReq{

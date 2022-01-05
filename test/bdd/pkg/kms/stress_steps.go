@@ -10,6 +10,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/trustbloc/kms/test/bdd/pkg/auth"
 	"math/rand"
 	"os"
 	"strconv"
@@ -20,7 +21,7 @@ import (
 
 const (
 	userNameTplt = "User%d"
-	controller = "did:example:123456789"
+	controller   = "did:example:123456789"
 )
 
 func (s *Steps) createUsers(usersNumberEnv string) error {
@@ -33,8 +34,8 @@ func (s *Steps) createUsers(usersNumberEnv string) error {
 		userName := fmt.Sprintf(userNameTplt, i)
 
 		u := &user{
-			name:       userName,
-			controller: controller,
+			name:        userName,
+			controller:  controller,
 			disableZCAP: true,
 		}
 		s.users[userName] = u
@@ -52,6 +53,8 @@ func (s *Steps) storeSecretInHubAuthForMultipleUsers(usersNumberEnv string) erro
 	if err != nil {
 		return err
 	}
+
+	s.bddContext.LoginConfig = readLoginConfigFromEnv()
 
 	for i := 0; i < usersNumber; i++ {
 		err = s.storeSecretInHubAuth(fmt.Sprintf(userNameTplt, i))
@@ -90,7 +93,7 @@ func (s *Steps) stressTestForMultipleUsers(usersNumberEnv, storeType, keyType, s
 		return err
 	}
 
-	concurrencyReq, err := getConcurrencyReq(concurrencyEnv, err)
+	concurrencyReq, err := getConcurrencyReq(concurrencyEnv)
 	if err != nil {
 		return err
 	}
@@ -236,7 +239,7 @@ func (s *Steps) stressTestForMultipleUsers(usersNumberEnv, storeType, keyType, s
 	return nil
 }
 
-func getConcurrencyReq(concurrencyEnv string, err error) (int, error) {
+func getConcurrencyReq(concurrencyEnv string) (int, error) {
 	concurrencyReqStr := os.Getenv(concurrencyEnv)
 	if concurrencyReqStr == "" {
 		concurrencyReqStr = "10"
@@ -320,6 +323,20 @@ func (r *signVerifyRequest) Invoke() (interface{}, error) {
 		}
 	}
 	return nil, nil
+}
+
+func readLoginConfigFromEnv() *auth.LoginConfig {
+	return &auth.LoginConfig{
+		HubAuthHydraAdminURL:            os.Getenv("KMS_STRESS_HYDRA_ADMIN_URL"),
+		HubAuthOIDCProviderURL:          os.Getenv("KMS_STRESS_OIDC_PROVIDER_URL"),
+		HubAuthOIDCProviderSelectionURL: os.Getenv("KMS_STRESS_OIDC_PROVIDER_SELECTION_URL"),
+		HubAuthSelectOIDCProviderURL:    os.Getenv("KMS_STRESS_SELECT_OIDC_PROVIDER_URL"),
+		LoginURL:                        os.Getenv("KMS_STRESS_LOGIN_URL"),
+		AuthenticationURL:               os.Getenv("KMS_STRESS_AUTHENTICATION_URL"),
+		ConsentURL:                      os.Getenv("KMS_STRESS_CONSENT_URL"),
+		AuthorizationURL:                os.Getenv("KMS_STRESS_AUTHORIZATION_URL"),
+		OIDCProviderName:                os.Getenv("KMS_STRESS_OIDC_PROVIDER_NAME"),
+	}
 }
 
 var letterRunes = []rune("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ")

@@ -59,7 +59,16 @@ stress-test: generate-test-keys kms-server-docker mock-login-consent-docker
 	KMS_STRESS_AUTH_KMS_URL=https://localhost:4455 \
 	KMS_STRESS_HUB_AUTH_URL=https://localhost:8070 \
 	KMS_STRESS_EDV_URL=https://edv.trustbloc.local:8081 \
-	MallocNanoZone=0 TAGS=kms_stress_local \
+	KMS_STRESS_HYDRA_ADMIN_URL=https://localhost:4445 \
+	KMS_STRESS_OIDC_PROVIDER_URL=https://localhost:4444/ \
+	KMS_STRESS_OIDC_PROVIDER_SELECTION_URL=https://localhost:8070/ui \
+	KMS_STRESS_SELECT_OIDC_PROVIDER_URL=https://localhost:8070/oauth2/login \
+	KMS_STRESS_LOGIN_URL=https://localhost:8099/mock/login \
+	KMS_STRESS_AUTHENTICATION_URL=https://localhost:8099/mock/authn \
+	KMS_STRESS_CONSENT_URL=https://localhost:8099/mock/consent \
+	KMS_STRESS_AUTHORIZATION_URL=https://localhost:8099/mock/authz \
+	KMS_STRESS_OIDC_PROVIDER_NAME=mockbank \
+	MallocNanoZone=0 TAGS=kms_stress_edv \
 	go test -count=1 -v -cover . -p 1 -timeout=10m -race # TODO: remove "MallocNanoZone=0" after resolving https://github.com/golang/go/issues/49138
 
 .PHONY: kms-server

@@ -14,6 +14,7 @@ import (
 	"github.com/cucumber/godog"
 	"github.com/trustbloc/edge-core/pkg/log"
 
+	"github.com/trustbloc/kms/test/bdd/pkg/auth"
 	"github.com/trustbloc/kms/test/bdd/pkg/context"
 	"github.com/trustbloc/kms/test/bdd/pkg/internal/bddutil"
 )
@@ -92,6 +93,7 @@ func (s *Steps) checkHubAuthIsRun(host string, port int) error {
 	}
 
 	s.bddContext.HubAuthURL = url
+	s.bddContext.LoginConfig = auth.CreateDefaultConfig(url)
 
 	return nil
 }

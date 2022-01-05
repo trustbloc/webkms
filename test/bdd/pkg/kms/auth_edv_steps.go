@@ -9,6 +9,7 @@ package kms
 import (
 	"encoding/base64"
 	"fmt"
+	"github.com/trustbloc/kms/test/bdd/pkg/auth"
 	"net/http"
 	"strings"
 
@@ -18,7 +19,6 @@ import (
 	"github.com/trustbloc/edge-core/pkg/zcapld"
 	"github.com/trustbloc/edv/pkg/client"
 	"github.com/trustbloc/edv/pkg/restapi/models"
-	authlogin "github.com/trustbloc/hub-auth/test/bdd/pkg/login"
 
 	"github.com/trustbloc/kms/test/bdd/pkg/internal/cryptoutil"
 )
@@ -41,15 +41,15 @@ func (s *Steps) storeSecretInHubAuth(userName string) error {
 
 	u.secretShare = secretA
 
-	login := authlogin.NewSteps(s.authBDDContext)
+	login := auth.NewAuthLogin(s.bddContext.LoginConfig, s.bddContext.TLSConfig())
 
-	wallet, err := login.NewWalletLogin()
+	loggedWallet, accessToken, err := login.WalletLogin()
 	if err != nil {
 		return err
 	}
 
-	u.subject = wallet.UserData.Sub
-	u.accessToken = s.authBDDContext.AccessToken()
+	u.subject = loggedWallet.UserData.Sub
+	u.accessToken = accessToken
 
 	r := setSecretRequest{
 		Secret: secretB,
@@ -60,7 +60,7 @@ func (s *Steps) storeSecretInHubAuth(userName string) error {
 		return err
 	}
 
-	token := base64.StdEncoding.EncodeToString([]byte(s.authBDDContext.AccessToken()))
+	token := base64.StdEncoding.EncodeToString([]byte(accessToken))
 
 	request.Header.Set("authorization", fmt.Sprintf("Bearer %s", token))
 
