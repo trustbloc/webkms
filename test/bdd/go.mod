@@ -16,7 +16,6 @@ require (
 	github.com/teserakt-io/golang-ed25519 v0.0.0-20210104091850-3888c087a4c8
 	github.com/trustbloc/edge-core v0.1.7
 	github.com/trustbloc/edv v0.1.8-0.20210915102638-4620444c1aa8
-	github.com/trustbloc/hub-auth/test/bdd v0.0.0-20211229153651-ebb75c5321dc
 	github.com/trustbloc/kms v0.0.0-00010101000000-000000000000
 )
 

@@ -19,9 +19,7 @@ import (
 	"github.com/cucumber/godog"
 	"github.com/trustbloc/edge-core/pkg/log"
 	"github.com/trustbloc/edge-core/pkg/zcapld"
-	authbddctx "github.com/trustbloc/hub-auth/test/bdd/pkg/context"
-	authlogin "github.com/trustbloc/hub-auth/test/bdd/pkg/login"
-
+	"github.com/trustbloc/kms/test/bdd/pkg/auth"
 	"github.com/trustbloc/kms/test/bdd/pkg/context"
 	"github.com/trustbloc/kms/test/bdd/pkg/internal/bddutil"
 )
@@ -38,18 +36,16 @@ const (
 
 // Steps defines steps context for keystore operations.
 type Steps struct {
-	bddContext     *context.BDDContext
-	status         string
-	response       []byte
-	logger         log.Logger
-	authBDDContext *authbddctx.BDDContext
+	bddContext *context.BDDContext
+	status     string
+	response   []byte
+	logger     log.Logger
 }
 
 // NewSteps creates a new Steps.
-func NewSteps(authBDDContext *authbddctx.BDDContext) *Steps {
+func NewSteps() *Steps {
 	return &Steps{
-		authBDDContext: authBDDContext,
-		logger:         log.New("kms-rest/tests/keystore"),
+		logger: log.New("kms-rest/tests/keystore"),
 	}
 }
 
@@ -66,10 +62,11 @@ func (s *Steps) RegisterSteps(ctx *godog.ScenarioContext) {
 }
 
 func (s *Steps) sendCreateKeystoreRequest(endpoint string) error {
-	login := authlogin.NewSteps(s.authBDDContext)
+	login := auth.NewAuthLogin(s.bddContext.LoginConfig, s.bddContext.TLSConfig())
 
-	if _, err := login.NewWalletLogin(); err != nil {
-		return fmt.Errorf("failed to login wallet: %w", err)
+	_, accessToken, err := login.WalletLogin()
+	if err != nil {
+		return fmt.Errorf("failed to login auth: %w", err)
 	}
 
 	body := bytes.NewBuffer([]byte(createKeystoreReq))
@@ -77,7 +74,7 @@ func (s *Steps) sendCreateKeystoreRequest(endpoint string) error {
 	resp, err := bddutil.HTTPDo(
 		http.MethodPost,
 		endpoint,
-		headers(s.authBDDContext.AccessToken()),
+		headers(accessToken),
 		body, s.bddContext.TLSConfig(),
 	)
 	if err != nil {

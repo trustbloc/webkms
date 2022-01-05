@@ -17,8 +17,6 @@ import (
 
 	"github.com/cucumber/godog"
 	"github.com/hyperledger/aries-framework-go/pkg/common/log"
-	authbddctx "github.com/trustbloc/hub-auth/test/bdd/pkg/context"
-
 	"github.com/trustbloc/kms/test/bdd/pkg/common"
 	"github.com/trustbloc/kms/test/bdd/pkg/context"
 	"github.com/trustbloc/kms/test/bdd/pkg/keystore"
@@ -143,15 +141,10 @@ func initializeScenario(ctx *godog.ScenarioContext) {
 		logger.Fatalf("Failed to create a new BDD context: %s", err.Error())
 	}
 
-	authBDDContext, err := authbddctx.NewBDDContext(caCertPathVal)
-	if err != nil {
-		logger.Fatalf("Failed to create a new BDD context for Auth: %s", err.Error())
-	}
-
 	features := []feature{
 		common.NewSteps(),
-		keystore.NewSteps(authBDDContext),
-		kms.NewSteps(authBDDContext, bddContext.TLSConfig()),
+		keystore.NewSteps(),
+		kms.NewSteps(bddContext.TLSConfig()),
 	}
 
 	for _, f := range features {
