@@ -12,7 +12,7 @@ Feature: KMS stress test
   @kms_stress_local
   Scenario: Stress test KMS methods with local storage
     When  Create "USER_NUMS" users
-     And  "USER_NUMS" users request to create a keystore on "LocalStorage" with "ED25519" key and sign/verify "KMS_STRESS_SIGN_VERIFY_TIMES" times using "KMS_STRESS_CONCURRENT_REQ" concurrent requests
+     And  "USER_NUMS" users request to create a keystore on "LocalStorage" with "ED25519" key and sign/verify using "KMS_STRESS_CONCURRENT_REQ" concurrent requests
 
   @kms_stress_edv
   Scenario: Stress test KMS methods with EDV storage
@@ -21,6 +21,6 @@ Feature: KMS stress test
      And EDV is running on "KMS_STRESS_EDV_URL" env
      And "USER_NUMS" users wallets has stored secret on Hub Auth
      And "USER_NUMS" users has created a data vault on EDV for storing keys
-     And "USER_NUMS" users request to create a keystore on "EDV" with "ED25519" key and sign/verify "KMS_STRESS_SIGN_VERIFY_TIMES" times using "KMS_STRESS_CONCURRENT_REQ" concurrent requests
+     And "USER_NUMS" users request to create a keystore on "EDV" with "ED25519" key and sign/verify using "KMS_STRESS_CONCURRENT_REQ" concurrent requests
 
 

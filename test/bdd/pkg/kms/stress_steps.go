@@ -10,12 +10,13 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/trustbloc/kms/test/bdd/pkg/auth"
 	"math/rand"
 	"os"
 	"strconv"
 	"time"
 
+	"github.com/greenpau/go-calculator"
+	"github.com/trustbloc/kms/test/bdd/pkg/auth"
 	"github.com/trustbloc/kms/test/bdd/pkg/internal/bddutil"
 )
 
@@ -82,13 +83,8 @@ func (s *Steps) createEDVDataVaultForMultipleUsers(usersNumberEnv string) error 
 	return nil
 }
 
-func (s *Steps) stressTestForMultipleUsers(usersNumberEnv, storeType, keyType, signVerifyTimesEnv, concurrencyEnv string) error {
-	usersNumber, err := getUsersNumber(usersNumberEnv)
-	if err != nil {
-		return err
-	}
-
-	signVerifyTimes, err := getRepeatTimes(signVerifyTimesEnv)
+func (s *Steps) stressTestForMultipleUsers(totalRequestsEnv, storeType, keyType, concurrencyEnv string) error {
+	totalRequests, err := getUsersNumber(totalRequestsEnv)
 	if err != nil {
 		return err
 	}
@@ -104,7 +100,7 @@ func (s *Steps) stressTestForMultipleUsers(usersNumberEnv, storeType, keyType, s
 
 	var edvCapabilities [][]byte
 
-	for i := 0; i < usersNumber; i++ {
+	for i := 0; i < totalRequests; i++ {
 		userName := fmt.Sprintf(userNameTplt, i)
 
 		u := s.users[userName]
@@ -116,7 +112,7 @@ func (s *Steps) stressTestForMultipleUsers(usersNumberEnv, storeType, keyType, s
 	if storeType == "EDV" {
 		edvCapabilities = make([][]byte, 0)
 
-		for i := 0; i < usersNumber; i++ {
+		for i := 0; i < totalRequests; i++ {
 			userName := fmt.Sprintf(userNameTplt, i)
 
 			u := s.users[userName]
@@ -135,17 +131,18 @@ func (s *Steps) stressTestForMultipleUsers(usersNumberEnv, storeType, keyType, s
 		}
 	}
 
+	fmt.Printf("totalRequests: %d, concurrencyReq: %d", totalRequests, concurrencyReq)
+
 	createPool := bddutil.NewWorkerPool(concurrencyReq, s.logger)
 
 	createPool.Start()
 
-	createStart := time.Now()
-
-	for i := 0; i < usersNumber; i++ {
-		r := &createKeyStoreRequest{
+	for i := 0; i < totalRequests; i++ {
+		r := &stressRequest{
 			userName:     fmt.Sprintf(userNameTplt, i),
 			keyServerURL: s.bddContext.KeyServerURL,
 			edvServerURL: s.bddContext.EDVServerURL,
+			keyType:      keyType,
 			steps:        s,
 		}
 		if edvCapabilities != nil {
@@ -156,85 +153,65 @@ func (s *Steps) stressTestForMultipleUsers(usersNumberEnv, storeType, keyType, s
 
 	createPool.Stop()
 
-	createTimeStr := time.Since(createStart).String()
+	s.logger.Infof("got created key store %d responses for %d requests", len(createPool.Responses()), totalRequests)
 
-	s.logger.Infof("got created key store %d responses for %d requests", len(createPool.Responses()), usersNumber)
-
-	if len(createPool.Responses()) != usersNumber {
-		return fmt.Errorf("expecting created key store %d responses but got %d", usersNumber, len(createPool.Responses()))
+	if len(createPool.Responses()) != totalRequests {
+		return fmt.Errorf("expecting created key store %d responses but got %d", totalRequests, len(createPool.Responses()))
 	}
+
+	var createKeyStoreHTTPTime []int64
+	var createKeyHTTPTime []int64
+	var signHTTPTime []int64
+	var verifyHTTPTime []int64
 
 	for _, resp := range createPool.Responses() {
 		if resp.Err != nil {
 			return resp.Err
 		}
+
+		perfInfo := resp.Resp.(stressRequestPerfInfo)
+
+		createKeyStoreHTTPTime = append(createKeyStoreHTTPTime, perfInfo.createKeyStoreHTTPTime)
+		createKeyHTTPTime = append(createKeyHTTPTime, perfInfo.createKeyHTTPTime)
+		signHTTPTime = append(signHTTPTime, perfInfo.signHTTPTime)
+		verifyHTTPTime = append(verifyHTTPTime, perfInfo.verifyHTTPTime)
 	}
 
-	createKeyPool := bddutil.NewWorkerPool(concurrencyReq, s.logger)
+	calc := calculator.NewInt64(createKeyStoreHTTPTime)
+	fmt.Printf("create key store avg time: %s\n", (time.Duration(calc.Mean().Register.Mean) *
+		time.Millisecond).String())
+	fmt.Printf("create key store max time: %s\n", (time.Duration(calc.Max().Register.MaxValue) *
+		time.Millisecond).String())
+	fmt.Printf("create key store min time: %s\n", (time.Duration(calc.Min().Register.MinValue) *
+		time.Millisecond).String())
+	fmt.Println("------")
 
-	createKeyPool.Start()
+	calc = calculator.NewInt64(createKeyHTTPTime)
+	fmt.Printf("create key avg time: %s\n", (time.Duration(calc.Mean().Register.Mean) *
+		time.Millisecond).String())
+	fmt.Printf("create key max time: %s\n", (time.Duration(calc.Max().Register.MaxValue) *
+		time.Millisecond).String())
+	fmt.Printf("create key min time: %s\n", (time.Duration(calc.Min().Register.MinValue) *
+		time.Millisecond).String())
+	fmt.Println("------")
 
-	createKeyStart := time.Now()
+	calc = calculator.NewInt64(signHTTPTime)
+	fmt.Printf("sign avg time: %s\n", (time.Duration(calc.Mean().Register.Mean) *
+		time.Millisecond).String())
+	fmt.Printf("sign max time: %s\n", (time.Duration(calc.Max().Register.MaxValue) *
+		time.Millisecond).String())
+	fmt.Printf("sign min time: %s\n", (time.Duration(calc.Min().Register.MinValue) *
+		time.Millisecond).String())
+	fmt.Println("------")
 
-	for i := 0; i < usersNumber; i++ {
-		createKeyPool.Submit(&createKeyRequest{
-			userName:     fmt.Sprintf(userNameTplt, i),
-			keyServerURL: s.bddContext.KeyServerURL,
-			keyType:      keyType,
-			steps:        s,
-		})
-	}
-
-	createKeyPool.Stop()
-
-	s.logger.Infof("got created key %d responses for %d requests", len(createKeyPool.Responses()), usersNumber)
-
-	if len(createKeyPool.Responses()) != usersNumber {
-		return fmt.Errorf("expecting created key %d responses but got %d", usersNumber, len(createKeyPool.Responses()))
-	}
-
-	createKeyTimeStr := time.Since(createKeyStart).String()
-
-	for _, resp := range createKeyPool.Responses() {
-		if resp.Err != nil {
-			return resp.Err
-		}
-	}
-
-	signVerifyPool := bddutil.NewWorkerPool(concurrencyReq, s.logger)
-
-	signVerifyPool.Start()
-
-	signVerifyStart := time.Now()
-
-	for i := 0; i < usersNumber; i++ {
-		signVerifyPool.Submit(&signVerifyRequest{
-			userName:     fmt.Sprintf(userNameTplt, i),
-			keyServerURL: s.bddContext.KeyServerURL,
-			times:        signVerifyTimes,
-			steps:        s,
-		})
-	}
-
-	signVerifyPool.Stop()
-
-	s.logger.Infof("got sign verify %d responses for %d requests", len(signVerifyPool.Responses()), usersNumber)
-
-	if len(signVerifyPool.Responses()) != usersNumber {
-		return fmt.Errorf("expecting sign verify %d responses but got %d", usersNumber, len(signVerifyPool.Responses()))
-	}
-
-	signVerifyTimeStr := time.Since(signVerifyStart).String()
-
-	for _, resp := range signVerifyPool.Responses() {
-		if resp.Err != nil {
-			return resp.Err
-		}
-	}
-
-	fmt.Printf("   Created key store %d took: %s\n", usersNumber, createTimeStr)
-	fmt.Printf("   Created key %d took: %s\n", usersNumber, createKeyTimeStr)
-	fmt.Printf("   Sign and verify %d took: %s\n", usersNumber*signVerifyTimes, signVerifyTimeStr)
+	calc = calculator.NewInt64(verifyHTTPTime)
+	fmt.Printf("verify avg time: %s\n", (time.Duration(calc.Mean().Register.Mean) *
+		time.Millisecond).String())
+	fmt.Printf("verify max time: %s\n", (time.Duration(calc.Max().Register.MaxValue) *
+		time.Millisecond).String())
+	fmt.Printf("verify min time: %s\n", (time.Duration(calc.Min().Register.MinValue) *
+		time.Millisecond).String())
+	fmt.Println("------")
 
 	return nil
 }
@@ -257,24 +234,23 @@ func getUsersNumber(usersNumberEnv string) (int, error) {
 	return strconv.Atoi(usersNumberStr)
 }
 
-func getRepeatTimes(repeatTimesEnv string) (int, error) {
-	repeatTimesStr := os.Getenv(repeatTimesEnv)
-	if repeatTimesStr == "" {
-		repeatTimesStr = "5"
-	}
-
-	return strconv.Atoi(repeatTimesStr)
-}
-
-type createKeyStoreRequest struct {
+type stressRequest struct {
 	userName      string
 	edvCapability []byte
 	edvServerURL  string
 	keyServerURL  string
+	keyType       string
 	steps         *Steps
 }
 
-func (r *createKeyStoreRequest) Invoke() (interface{}, error) {
+type stressRequestPerfInfo struct {
+	createKeyStoreHTTPTime int64
+	createKeyHTTPTime      int64
+	signHTTPTime           int64
+	verifyHTTPTime         int64
+}
+
+func (r *stressRequest) Invoke() (interface{}, error) {
 	u := r.steps.users[r.userName]
 
 	createReq := &createKeystoreReq{
@@ -288,41 +264,46 @@ func (r *createKeyStoreRequest) Invoke() (interface{}, error) {
 		}
 	}
 
-	return nil, r.steps.createKeystoreReq(u, createReq, r.keyServerURL+createKeystoreEndpoint)
-}
+	perfInfo := stressRequestPerfInfo{}
 
-type createKeyRequest struct {
-	userName     string
-	keyServerURL string
-	keyType      string
-	steps        *Steps
-}
-
-func (r *createKeyRequest) Invoke() (interface{}, error) {
-	return nil, r.steps.makeCreateKeyReq(r.userName, r.keyServerURL+keysEndpoint, r.keyType)
-}
-
-type signVerifyRequest struct {
-	userName     string
-	keyServerURL string
-	times        int
-	steps        *Steps
-}
-
-func (r *signVerifyRequest) Invoke() (interface{}, error) {
-	message := randomMessage(1024)
-	for i := 0; i < r.times; i++ {
-		err := r.steps.makeSignMessageReq(r.userName, r.keyServerURL+signEndpoint, message)
-		if err != nil {
-			return nil, err
-		}
-
-		err = r.steps.makeVerifySignatureReq(r.userName, r.keyServerURL+verifyEndpoint, "signature", message)
-		if err != nil {
-			return nil, err
-		}
+	startTime := time.Now()
+	err := r.steps.createKeystoreReq(u, createReq, r.keyServerURL+createKeystoreEndpoint)
+	if err != nil {
+		return nil, err
 	}
-	return nil, nil
+
+	perfInfo.createKeyStoreHTTPTime = time.Since(startTime).Milliseconds()
+
+	startTime = time.Now()
+
+	err = r.steps.makeCreateKeyReq(r.userName, r.keyServerURL+keysEndpoint, r.keyType)
+	if err != nil {
+		return nil, err
+	}
+
+	perfInfo.createKeyHTTPTime = time.Since(startTime).Milliseconds()
+
+	message := randomMessage(1024)
+
+	startTime = time.Now()
+
+	err = r.steps.makeSignMessageReq(r.userName, r.keyServerURL+signEndpoint, message)
+	if err != nil {
+		return nil, err
+	}
+
+	perfInfo.signHTTPTime = time.Since(startTime).Milliseconds()
+
+	startTime = time.Now()
+
+	err = r.steps.makeVerifySignatureReq(r.userName, r.keyServerURL+verifyEndpoint, "signature", message)
+	if err != nil {
+		return nil, err
+	}
+
+	perfInfo.verifyHTTPTime = time.Since(startTime).Milliseconds()
+
+	return perfInfo, nil
 }
 
 func readLoginConfigFromEnv() *auth.LoginConfig {
