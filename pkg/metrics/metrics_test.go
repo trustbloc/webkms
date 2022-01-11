@@ -31,5 +31,9 @@ func TestMetrics(t *testing.T) {
 		require.NotPanics(t, func() { m.DBBatchTime("CouchDB", time.Second) })
 		require.NotPanics(t, func() { m.KeyStoreGetKeyTime(time.Second) })
 		require.NotPanics(t, func() { m.KeyStoreResolveTime(time.Second) })
+		require.NotPanics(t, func() { m.AWSSecretLockEncryptTime(time.Second) })
+		require.NotPanics(t, func() { m.AWSSecretLockDecryptTime(time.Second) })
+		require.NotPanics(t, func() { m.KeySecretLockEncryptTime(time.Second) })
+		require.NotPanics(t, func() { m.KeySecretLockDecryptTime(time.Second) })
 	})
 }

@@ -32,9 +32,13 @@ const (
 	dbBatchTimeMetric   = "batch_seconds"
 
 	// Key store.
-	keyStore                  = "key_store"
-	keyStoreResolveTimeMetric = "resolve_seconds"
-	keyStoreGetKeyTimeMetric  = "get_key_seconds"
+	keyStore                       = "key_store"
+	keyStoreResolveTimeMetric      = "resolve_seconds"
+	keyStoreGetKeyTimeMetric       = "get_key_seconds"
+	awsSecretLockDecryptTimeMetric = "aws_secret_lock_decrypt_seconds"
+	keySecretLockDecryptTimeMetric = "key_secret_lock_decrypt_seconds"
+	awsSecretLockEncryptTimeMetric = "aws_secret_lock_encrypt_seconds"
+	keySecretLockEncryptTimeMetric = "key_secret_lock_encrypt_seconds"
 )
 
 var logger = log.New("metrics")
@@ -58,6 +62,12 @@ type Metrics struct {
 
 	keyStoreResolveTime prometheus.Histogram
 	keyStoreGetKeyTime  prometheus.Histogram
+
+	awsSecretLockDecryptTime prometheus.Histogram
+	keySecretLockDecryptTime prometheus.Histogram
+
+	awsSecretLockEncryptTime prometheus.Histogram
+	keySecretLockEncryptTime prometheus.Histogram
 }
 
 // Get returns an KMS metrics provider.
@@ -70,23 +80,28 @@ func Get() *Metrics {
 }
 
 func newMetrics() *Metrics {
-	dbTypes := []string{"CouchDB", "MongoDB", "EDV"}
+	dbTypes := []string{"CouchDB", "MongoDB", "EDV", "Cache"}
 
 	m := &Metrics{
-		cryptoSignTime:      newCryptoSignTime(),
-		dbPutTimes:          newDBPutTime(dbTypes),
-		dbGetTimes:          newDBGetTime(dbTypes),
-		dbGetTagsTimes:      newDBGetTagsTime(dbTypes),
-		dbGetBulkTimes:      newDBGetBulkTime(dbTypes),
-		dbQueryTimes:        newDBQueryTime(dbTypes),
-		dbDeleteTimes:       newDBDeleteTime(dbTypes),
-		dbBatchTimes:        newDBBatchTime(dbTypes),
-		keyStoreResolveTime: newKeyStoreResolveTime(),
-		keyStoreGetKeyTime:  newKeyStoreGetKeyTime(),
+		cryptoSignTime:           newCryptoSignTime(),
+		dbPutTimes:               newDBPutTime(dbTypes),
+		dbGetTimes:               newDBGetTime(dbTypes),
+		dbGetTagsTimes:           newDBGetTagsTime(dbTypes),
+		dbGetBulkTimes:           newDBGetBulkTime(dbTypes),
+		dbQueryTimes:             newDBQueryTime(dbTypes),
+		dbDeleteTimes:            newDBDeleteTime(dbTypes),
+		dbBatchTimes:             newDBBatchTime(dbTypes),
+		keyStoreResolveTime:      newKeyStoreResolveTime(),
+		keyStoreGetKeyTime:       newKeyStoreGetKeyTime(),
+		awsSecretLockDecryptTime: newAWSSecretLockDecryptTime(),
+		keySecretLockDecryptTime: newKeySecretLockDecryptTime(),
+		awsSecretLockEncryptTime: newAWSSecretLockEncryptTime(),
+		keySecretLockEncryptTime: newKeySecretLockEncryptTime(),
 	}
 
 	prometheus.MustRegister(
-		m.cryptoSignTime, m.keyStoreResolveTime, m.keyStoreGetKeyTime,
+		m.cryptoSignTime, m.keyStoreResolveTime, m.keyStoreGetKeyTime, m.awsSecretLockDecryptTime, m.keySecretLockDecryptTime,
+		m.awsSecretLockEncryptTime, m.keySecretLockEncryptTime,
 	)
 
 	for _, c := range m.dbPutTimes {
@@ -188,6 +203,34 @@ func (m *Metrics) KeyStoreGetKeyTime(value time.Duration) {
 	m.keyStoreGetKeyTime.Observe(value.Seconds())
 
 	logger.Debugf("KeyStoreGetKey time: %s", value)
+}
+
+// AWSSecretLockDecryptTime records the time it takes to decrypt key from a key store.
+func (m *Metrics) AWSSecretLockDecryptTime(value time.Duration) {
+	m.awsSecretLockDecryptTime.Observe(value.Seconds())
+
+	logger.Debugf("AWSSecretLockDecrypt time: %s", value)
+}
+
+// KeySecretLockDecryptTime records the time it takes to decrypt key from a key store.
+func (m *Metrics) KeySecretLockDecryptTime(value time.Duration) {
+	m.keySecretLockDecryptTime.Observe(value.Seconds())
+
+	logger.Debugf("KeySecretLockDecrypt time: %s", value)
+}
+
+// AWSSecretLockEncryptTime records the time it takes to encrypt key from a key store.
+func (m *Metrics) AWSSecretLockEncryptTime(value time.Duration) {
+	m.awsSecretLockEncryptTime.Observe(value.Seconds())
+
+	logger.Debugf("AWSSecretLockEncrypt time: %s", value)
+}
+
+// KeySecretLockEncryptTime records the time it takes to encrypt key from a key store.
+func (m *Metrics) KeySecretLockEncryptTime(value time.Duration) {
+	m.keySecretLockEncryptTime.Observe(value.Seconds())
+
+	logger.Debugf("KeySecretLockEncrypt time: %s", value)
 }
 
 func newHistogram(subsystem, name, help string, labels prometheus.Labels) prometheus.Histogram {
@@ -318,6 +361,38 @@ func newKeyStoreGetKeyTime() prometheus.Histogram {
 	return newHistogram(
 		keyStore, keyStoreGetKeyTimeMetric,
 		"The time (in seconds) that it takes to get key from keystore.",
+		nil,
+	)
+}
+
+func newAWSSecretLockDecryptTime() prometheus.Histogram {
+	return newHistogram(
+		keyStore, awsSecretLockDecryptTimeMetric,
+		"The time (in seconds) that it takes to decrypt key from keystore.",
+		nil,
+	)
+}
+
+func newKeySecretLockDecryptTime() prometheus.Histogram {
+	return newHistogram(
+		keyStore, keySecretLockDecryptTimeMetric,
+		"The time (in seconds) that it takes to decrypt key from keystore.",
+		nil,
+	)
+}
+
+func newAWSSecretLockEncryptTime() prometheus.Histogram {
+	return newHistogram(
+		keyStore, awsSecretLockEncryptTimeMetric,
+		"The time (in seconds) that it takes to encrypt key from keystore.",
+		nil,
+	)
+}
+
+func newKeySecretLockEncryptTime() prometheus.Histogram {
+	return newHistogram(
+		keyStore, keySecretLockEncryptTimeMetric,
+		"The time (in seconds) that it takes to encrypt key from keystore.",
 		nil,
 	)
 }

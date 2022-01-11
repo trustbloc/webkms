@@ -193,6 +193,7 @@ func startServer(srv server, params *serverParameters) error { //nolint:funlen
 		ShamirSecretLockCreator: &shamirSecretLockCreator{},
 		CryptBoxCreator:         &cryptoBoxCreator{},
 		ZCAPService:             zcapService,
+		EnableZCAPs:             params.enableZCAPs,
 		HeaderSigner:            zcapService,
 		HTTPClient:              httpClient,
 		TLSConfig:               tlsConfig,
