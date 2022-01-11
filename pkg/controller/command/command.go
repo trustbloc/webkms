@@ -82,6 +82,7 @@ type cacheProvider interface {
 // Config is a configuration for Command.
 type Config struct {
 	StorageProvider         storage.Provider
+	KeyStorageProvider      storage.Provider // storage provider for users' key stores
 	KMS                     kms.KeyManager
 	Crypto                  crypto.Crypto
 	VDRResolver             zcapld.VDRResolver
@@ -108,7 +109,7 @@ type Config struct {
 // Command is a controller for commands.
 type Command struct {
 	store               storage.Store
-	storageProvider     storage.Provider
+	keyStorageProvider  storage.Provider
 	kms                 kms.KeyManager // server's key manager
 	crypto              crypto.Crypto
 	zcap                zcapService
@@ -141,7 +142,7 @@ func New(c *Config) (*Command, error) {
 
 	return &Command{
 		store:               store,
-		storageProvider:     c.StorageProvider,
+		keyStorageProvider:  c.KeyStorageProvider,
 		kms:                 c.KMS,
 		crypto:              c.Crypto,
 		zcap:                c.ZCAPService,
@@ -688,7 +689,7 @@ func (c *Command) resolveKeyStore(keyStoreID, user string, secretShare []byte) (
 
 		storageProvider = metrics.Wrap(storageProvider, "EDV")
 	} else {
-		storageProvider = c.storageProvider
+		storageProvider = c.keyStorageProvider
 	}
 
 	if c.cacheProvider != nil && c.keyStoreCacheTTL > 0 {

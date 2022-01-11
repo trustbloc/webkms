@@ -135,7 +135,29 @@ func startServer(srv server, params *serverParameters) error { //nolint:funlen
 		return fmt.Errorf("create store provider: %w", err)
 	}
 
-	kmsService, err := createKMS(store, params.secretLockParams)
+	var (
+		storageProvider storage.Provider
+		cacheProvider   *cache.Provider
+	)
+
+	if params.enableCache {
+		c, err := ristretto.NewCache(&ristretto.Config{
+			NumCounters: 1e7, // TODO: make these values configurable
+			MaxCost:     1 << 30,
+			BufferItems: 64,
+		})
+		if err != nil {
+			return fmt.Errorf("create ristretto cache: %w", err)
+		}
+
+		cacheProvider = &cache.Provider{Cache: c}
+
+		storageProvider = cacheProvider.Wrap(store)
+	} else {
+		storageProvider = store
+	}
+
+	kmsService, err := createKMS(storageProvider, params.secretLockParams)
 	if err != nil {
 		return fmt.Errorf("create kms: %w", err)
 	}
@@ -150,33 +172,12 @@ func startServer(srv server, params *serverParameters) error { //nolint:funlen
 		return fmt.Errorf("create vdr resolver: %w", err)
 	}
 
-	var (
-		cacheProvider       *cache.Provider
-		documentLoaderStore storage.Provider
-	)
-
-	if params.enableCache {
-		c, err := ristretto.NewCache(&ristretto.Config{
-			NumCounters: 1e7, // TODO: make these values configurable
-			MaxCost:     1 << 30,
-			BufferItems: 64,
-		})
-		if err != nil {
-			return fmt.Errorf("create ristretto cache: %w", err)
-		}
-
-		cacheProvider = &cache.Provider{Cache: c}
-		documentLoaderStore = cacheProvider.Wrap(store)
-	} else {
-		documentLoaderStore = store
-	}
-
-	documentLoader, err := createJSONLDDocumentLoader(documentLoaderStore)
+	documentLoader, err := createJSONLDDocumentLoader(storageProvider)
 	if err != nil {
 		return fmt.Errorf("create document loader: %w", err)
 	}
 
-	zcapService, err := zcapsvc.New(kmsService, cryptoService, store, documentLoader)
+	zcapService, err := zcapsvc.New(kmsService, cryptoService, storageProvider, documentLoader)
 	if err != nil {
 		return fmt.Errorf("create zcap service: %w", err)
 	}
@@ -184,7 +185,8 @@ func startServer(srv server, params *serverParameters) error { //nolint:funlen
 	baseKeyStoreURL := params.baseURL + rest.KeyStorePath
 
 	config := &command.Config{
-		StorageProvider:         store,
+		StorageProvider:         storageProvider,
+		KeyStorageProvider:      store,
 		KMS:                     kmsService,
 		Crypto:                  cryptoService,
 		VDRResolver:             vdrResolver,
@@ -203,12 +205,12 @@ func startServer(srv server, params *serverParameters) error { //nolint:funlen
 		MainKeyType:             kms.AES256GCMType,
 		EDVRecipientKeyType:     kms.NISTP256ECDHKW,
 		EDVMACKeyType:           kms.HMACSHA256Tag256,
+		KeyStoreCacheTTL:        params.keyStoreCacheTTL,
 		MetricsProvider:         metrics.Get(),
 	}
 
 	if cacheProvider != nil {
 		config.CacheProvider = &cacheProviderWithTTL{Provider: cacheProvider}
-		config.KeyStoreCacheTTL = params.keyStoreCacheTTL
 	}
 
 	cmd, err := command.New(config)
