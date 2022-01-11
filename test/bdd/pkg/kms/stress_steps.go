@@ -100,16 +100,16 @@ func (s *Steps) stressTestForMultipleUsers(totalRequestsEnv, storeType, keyType,
 
 	var edvCapabilities [][]byte
 
-	for i := 0; i < totalRequests; i++ {
-		userName := fmt.Sprintf(userNameTplt, i)
-
-		u := s.users[userName]
-		if err := s.createDID(u); err != nil {
-			return err
-		}
-	}
-
 	if storeType == "EDV" {
+		for i := 0; i < totalRequests; i++ {
+			userName := fmt.Sprintf(userNameTplt, i)
+
+			u := s.users[userName]
+			if err := s.createDID(u); err != nil {
+				return err
+			}
+		}
+
 		edvCapabilities = make([][]byte, 0)
 
 		for i := 0; i < totalRequests; i++ {

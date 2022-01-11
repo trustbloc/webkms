@@ -125,9 +125,13 @@ func (c *Command) CreateKeyStore(w io.Writer, r io.Reader) error { //nolint:funl
 
 	keyStoreURL := c.baseKeyStoreURL + "/" + meta.ID
 
-	rootCapability, err := c.newCompressedZCAP(context.Background(), keyStoreURL, req.Controller)
-	if err != nil {
-		return fmt.Errorf("new compressed zcap: %w", err)
+	var rootCapability []byte
+
+	if c.enableZCAPs {
+		rootCapability, err = c.newCompressedZCAP(context.Background(), keyStoreURL, req.Controller)
+		if err != nil {
+			return fmt.Errorf("new compressed zcap: %w", err)
+		}
 	}
 
 	if err = c.save(meta); err != nil {

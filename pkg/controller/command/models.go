@@ -53,7 +53,7 @@ func (r *CreateKeyStoreRequest) Validate() error {
 // CreateKeyStoreResponse is a response for CreateKeyStore request.
 type CreateKeyStoreResponse struct {
 	KeyStoreURL string `json:"key_store_url"`
-	Capability  []byte `json:"capability"`
+	Capability  []byte `json:"capability,omitempty"`
 }
 
 // CreateKeyRequest is a request to create a key.

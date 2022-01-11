@@ -90,6 +90,7 @@ type Config struct {
 	ShamirSecretLockCreator shamirSecretLockCreator
 	CryptBoxCreator         cryptoBoxCreator
 	ZCAPService             zcapService
+	EnableZCAPs             bool
 	HeaderSigner            headerSigner
 	HTTPClient              httpClient
 	TLSConfig               *tls.Config
@@ -111,6 +112,7 @@ type Command struct {
 	kms                 kms.KeyManager // server's key manager
 	crypto              crypto.Crypto
 	zcap                zcapService
+	enableZCAPs         bool
 	vdr                 zcapld.VDRResolver
 	documentLoader      ld.DocumentLoader
 	keyStoreCreator     keyStoreCreator // user's key manager creator
@@ -143,6 +145,7 @@ func New(c *Config) (*Command, error) {
 		kms:                 c.KMS,
 		crypto:              c.Crypto,
 		zcap:                c.ZCAPService,
+		enableZCAPs:         c.EnableZCAPs,
 		vdr:                 c.VDRResolver,
 		documentLoader:      c.DocumentLoader,
 		keyStoreCreator:     c.KeyStoreCreator,

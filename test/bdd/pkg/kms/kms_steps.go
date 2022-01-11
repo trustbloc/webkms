@@ -191,13 +191,15 @@ func (s *Steps) createKeystoreReq(u *user, r *createKeystoreReq, endpoint string
 
 	u.keystoreID = parts[len(parts)-1]
 
-	kmsCapability, err := parseRootCapability(resp.Capability)
-	if err != nil {
-		return fmt.Errorf("parse root capability: %w", err)
-	}
+	if resp.Capability != nil {
+		kmsCapability, err := parseRootCapability(resp.Capability)
+		if err != nil {
+			return fmt.Errorf("parse root capability: %w", err)
+		}
 
-	if kmsCapability != nil {
-		u.kmsCapability = kmsCapability
+		if kmsCapability != nil {
+			u.kmsCapability = kmsCapability
+		}
 	}
 
 	return nil

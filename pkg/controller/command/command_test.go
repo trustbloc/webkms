@@ -66,6 +66,7 @@ func TestCommand_CreateDID(t *testing.T) {
 		cmd, err := New(&Config{
 			StorageProvider: mockstorage.NewMockStoreProvider(),
 			ZCAPService:     zcap,
+			EnableZCAPs:     true,
 		})
 		require.NoError(t, err)
 		require.NotNil(t, cmd)
@@ -91,6 +92,7 @@ func TestCommand_CreateDID(t *testing.T) {
 		cmd, err := New(&Config{
 			StorageProvider: mockstorage.NewMockStoreProvider(),
 			ZCAPService:     zcap,
+			EnableZCAPs:     true,
 		})
 		require.NoError(t, err)
 		require.NotNil(t, cmd)
@@ -130,6 +132,7 @@ func TestCommand_CreateKeyStore(t *testing.T) {
 			Crypto:           cr,
 			KeyStoreCreator:  creator,
 			ZCAPService:      zcap,
+			EnableZCAPs:      true,
 			CacheProvider:    cache,
 			KeyStoreCacheTTL: 10 * time.Second,
 		})
@@ -196,6 +199,7 @@ func TestCommand_CreateKeyStore(t *testing.T) {
 			KeyStoreCreator:         creator,
 			ShamirSecretLockCreator: shamirLockCreator,
 			ZCAPService:             zcap,
+			EnableZCAPs:             true,
 			AuthServerURL:           "https://auth-server",
 			HTTPClient:              client,
 		})
@@ -478,6 +482,7 @@ func TestCommand_CreateKeyStore(t *testing.T) {
 			Crypto:          cr,
 			KeyStoreCreator: creator,
 			ZCAPService:     zcap,
+			EnableZCAPs:     true,
 		})
 		require.NoError(t, err)
 		require.NotNil(t, cmd)
@@ -521,6 +526,7 @@ func TestCommand_CreateKeyStore(t *testing.T) {
 			Crypto:          cr,
 			KeyStoreCreator: creator,
 			ZCAPService:     zcap,
+			EnableZCAPs:     true,
 		})
 		require.NoError(t, err)
 		require.NotNil(t, cmd)

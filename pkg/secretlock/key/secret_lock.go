@@ -12,10 +12,13 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
+	"time"
 
 	"github.com/hyperledger/aries-framework-go/pkg/crypto"
 	"github.com/hyperledger/aries-framework-go/pkg/kms"
 	"github.com/hyperledger/aries-framework-go/pkg/secretlock"
+
+	"github.com/trustbloc/kms/pkg/metrics"
 )
 
 const nonceLenBytes = 4
@@ -46,6 +49,8 @@ func (l *Lock) Encrypt(keyURI string, req *secretlock.EncryptRequest) (*secretlo
 		return nil, fmt.Errorf("get key handle: %w", err)
 	}
 
+	getStartTime := time.Now()
+
 	cipher, nonce, err := l.crypto.Encrypt([]byte(req.Plaintext), []byte(req.AdditionalAuthenticatedData), kh)
 	if err != nil {
 		return nil, fmt.Errorf("encrypt request: %w", err)
@@ -55,6 +60,8 @@ func (l *Lock) Encrypt(keyURI string, req *secretlock.EncryptRequest) (*secretlo
 	if err != nil {
 		return nil, fmt.Errorf("encrypt request: %w", err)
 	}
+
+	metrics.Get().KeySecretLockEncryptTime(time.Since(getStartTime))
 
 	return &secretlock.EncryptResponse{
 		Ciphertext: base64.URLEncoding.EncodeToString(cipherWithNonce),
@@ -67,6 +74,8 @@ func (l *Lock) Decrypt(keyURI string, req *secretlock.DecryptRequest) (*secretlo
 	if err != nil {
 		return nil, fmt.Errorf("get key handle: %w", err)
 	}
+
+	getStartTime := time.Now()
 
 	cipher, err := base64.URLEncoding.DecodeString(req.Ciphertext)
 	if err != nil {
@@ -94,6 +103,8 @@ func (l *Lock) Decrypt(keyURI string, req *secretlock.DecryptRequest) (*secretlo
 	if err != nil {
 		return nil, fmt.Errorf("decrypt request: %w", err)
 	}
+
+	metrics.Get().KeySecretLockDecryptTime(time.Since(getStartTime))
 
 	return &secretlock.DecryptResponse{
 		Plaintext: string(plain),

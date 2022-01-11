@@ -11,10 +11,13 @@ import (
 	"errors"
 	"fmt"
 	"regexp"
+	"time"
 
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/google/tink/go/core/registry"
 	"github.com/hyperledger/aries-framework-go/pkg/secretlock"
+
+	"github.com/trustbloc/kms/pkg/metrics"
 )
 
 type awsProvider interface {
@@ -51,6 +54,8 @@ func New(keyURI string, provider awsProvider) (secretlock.Service, error) {
 }
 
 func (a *awsSecretLock) Encrypt(_ string, req *secretlock.EncryptRequest) (*secretlock.EncryptResponse, error) {
+	getStartTime := time.Now()
+
 	aead, err := a.kmsClient.GetAEAD(a.keyURI)
 	if err != nil {
 		return nil, fmt.Errorf("encrypt: %w", err)
@@ -61,12 +66,16 @@ func (a *awsSecretLock) Encrypt(_ string, req *secretlock.EncryptRequest) (*secr
 		return nil, fmt.Errorf("encrypt: %w", err)
 	}
 
+	metrics.Get().AWSSecretLockEncryptTime(time.Since(getStartTime))
+
 	return &secretlock.EncryptResponse{
 		Ciphertext: base64.URLEncoding.EncodeToString(ct),
 	}, nil
 }
 
 func (a *awsSecretLock) Decrypt(_ string, req *secretlock.DecryptRequest) (*secretlock.DecryptResponse, error) {
+	getStartTime := time.Now()
+
 	decoded, err := base64.URLEncoding.DecodeString(req.Ciphertext)
 	if err != nil {
 		return nil, fmt.Errorf("decode ciphertext: %w", err)
@@ -81,6 +90,8 @@ func (a *awsSecretLock) Decrypt(_ string, req *secretlock.DecryptRequest) (*secr
 	if err != nil {
 		return nil, fmt.Errorf("decrypt ciphertext: %w", err)
 	}
+
+	metrics.Get().AWSSecretLockDecryptTime(time.Since(getStartTime))
 
 	return &secretlock.DecryptResponse{Plaintext: string(pt)}, nil
 }
