@@ -77,7 +77,7 @@ func (c *Command) CreateKeyStore(w io.Writer, r io.Reader) error { //nolint:funl
 			return fmt.Errorf("prepare edv provider: %w", err)
 		}
 	} else {
-		storageProvider = c.storageProvider // use server storage
+		storageProvider = c.keyStorageProvider
 	}
 
 	if c.cacheProvider != nil && c.keyStoreCacheTTL > 0 {
