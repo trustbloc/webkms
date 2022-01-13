@@ -16,7 +16,7 @@ import (
 	"net/http/cookiejar"
 	"strings"
 
-	"github.com/google/uuid"
+	"github.com/rs/xid"
 )
 
 const (
@@ -158,7 +158,7 @@ func (a *AuthLogin) selectThirdPartyOIDCProvider() error {
 
 func (a *AuthLogin) authenticateUserAtThirdPartyProvider() error {
 	a.expectedUserData = &UserClaims{
-		Sub:        uuid.New().String(),
+		Sub:        xid.New().String(),
 		Name:       "John Smith",
 		GivenName:  "John",
 		FamilyName: "Smith",

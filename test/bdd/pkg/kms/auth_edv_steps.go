@@ -9,17 +9,17 @@ package kms
 import (
 	"encoding/base64"
 	"fmt"
-	"github.com/trustbloc/kms/test/bdd/pkg/auth"
 	"net/http"
 	"strings"
 
 	"github.com/hyperledger/aries-framework-go/pkg/vdr/fingerprint"
+	"github.com/lafriks/go-shamir"
 	"github.com/rs/xid"
-	"github.com/trustbloc/edge-core/pkg/sss/base"
 	"github.com/trustbloc/edge-core/pkg/zcapld"
 	"github.com/trustbloc/edv/pkg/client"
 	"github.com/trustbloc/edv/pkg/restapi/models"
 
+	"github.com/trustbloc/kms/test/bdd/pkg/auth"
 	"github.com/trustbloc/kms/test/bdd/pkg/internal/cryptoutil"
 )
 
@@ -82,9 +82,7 @@ func (s *Steps) storeSecretInHubAuth(userName string) error {
 func createSecretShares() ([]byte, []byte, error) {
 	const splitParts = 2
 
-	splitter := base.Splitter{}
-
-	secrets, err := splitter.Split(cryptoutil.GenerateKey(), splitParts, splitParts)
+	secrets, err := shamir.Split(cryptoutil.GenerateKey(), splitParts, splitParts)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -107,7 +105,7 @@ func (s *Steps) createEDVDataVault(userName string) error {
 		return err
 	}
 
-	c := client.New(s.bddContext.EDVServerURL+edvBasePath, client.WithTLSConfig(s.bddContext.TLSConfig()))
+	c := client.New(s.bddContext.EDVServerURL+edvBasePath, client.WithHTTPClient(s.httpClient))
 
 	vaultURL, resp, err := c.CreateDataVault(config)
 	if err != nil {

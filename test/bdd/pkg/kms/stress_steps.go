@@ -16,6 +16,7 @@ import (
 	"time"
 
 	"github.com/greenpau/go-calculator"
+
 	"github.com/trustbloc/kms/test/bdd/pkg/auth"
 	"github.com/trustbloc/kms/test/bdd/pkg/internal/bddutil"
 )
