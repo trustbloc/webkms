@@ -17,12 +17,11 @@ import (
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
 	awskms "github.com/aws/aws-sdk-go/service/kms"
-	"github.com/cenkalti/backoff"
+	"github.com/cenkalti/backoff/v4"
 	"github.com/dgraph-io/ristretto"
 	"github.com/google/tink/go/core/registry"
 	tinkawskms "github.com/google/tink/go/integration/awskms"
 	"github.com/gorilla/mux"
-	"github.com/hashicorp/vault/shamir"
 	"github.com/hyperledger/aries-framework-go-ext/component/storage/couchdb"
 	"github.com/hyperledger/aries-framework-go-ext/component/storage/mongodb"
 	"github.com/hyperledger/aries-framework-go-ext/component/vdr/orb"
@@ -40,6 +39,7 @@ import (
 	vdrkey "github.com/hyperledger/aries-framework-go/pkg/vdr/key"
 	logspi "github.com/hyperledger/aries-framework-go/spi/log"
 	"github.com/hyperledger/aries-framework-go/spi/storage"
+	"github.com/lafriks/go-shamir"
 	jsonld "github.com/piprate/json-gold/ld"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
@@ -509,7 +509,7 @@ func (c *cryptoBoxCreator) Create(km kms.KeyManager) (command.CryptoBox, error) 
 type shamirSecretLockCreator struct{}
 
 func (c *shamirSecretLockCreator) Create(secretShares [][]byte) (secretlock.Service, error) {
-	combined, err := shamir.Combine(secretShares)
+	combined, err := shamir.Combine(secretShares...)
 	if err != nil {
 		return nil, fmt.Errorf("shamir combine: %w", err)
 	}

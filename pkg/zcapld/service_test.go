@@ -13,13 +13,13 @@ import (
 	"net/http"
 	"testing"
 
-	"github.com/google/uuid"
 	"github.com/hyperledger/aries-framework-go/pkg/doc/ld"
 	mockcrypto "github.com/hyperledger/aries-framework-go/pkg/mock/crypto"
 	mockkms "github.com/hyperledger/aries-framework-go/pkg/mock/kms"
 	mockldstore "github.com/hyperledger/aries-framework-go/pkg/mock/ld"
 	mockstorage "github.com/hyperledger/aries-framework-go/pkg/mock/storage"
 	ldstore "github.com/hyperledger/aries-framework-go/pkg/store/ld"
+	"github.com/rs/xid"
 	"github.com/stretchr/testify/require"
 	zcapld2 "github.com/trustbloc/edge-core/pkg/zcapld"
 	"golang.org/x/net/context"
@@ -108,9 +108,9 @@ func TestService_SignHeader(t *testing.T) {
 
 func TestService_NewCapability(t *testing.T) {
 	t.Run("returns new zcap", func(t *testing.T) {
-		invoker := uuid.New().String()
-		target := uuid.New().String()
-		allowedAction := []string{uuid.New().String(), uuid.New().String()}
+		invoker := xid.New().String()
+		target := xid.New().String()
+		allowedAction := []string{xid.New().String(), xid.New().String()}
 		svc, err := zcapld.New(
 			&mockkms.KeyManager{},
 			&mockcrypto.Crypto{},

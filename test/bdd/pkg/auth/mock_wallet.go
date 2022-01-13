@@ -20,10 +20,10 @@ import (
 	"strings"
 
 	"github.com/coreos/go-oidc/v3/oidc"
-	"github.com/google/uuid"
 	"github.com/ory/hydra-client-go/client"
 	"github.com/ory/hydra-client-go/client/admin"
 	"github.com/ory/hydra-client-go/models"
+	"github.com/rs/xid"
 	"golang.org/x/oauth2"
 
 	"github.com/trustbloc/hub-auth/pkg/restapi/operation"
@@ -142,7 +142,7 @@ func (m *MockWallet) UpdateBootstrapData(endpoint string, update *operation.Upda
 }
 
 func (m *MockWallet) CreateAndPushSecretToHubAuth(endpoint string) error {
-	m.Secret = uuid.New().String()
+	m.Secret = xid.New().String()
 
 	payload, err := json.Marshal(&operation.SetSecretRequest{
 		Secret: []byte(m.Secret),
@@ -259,8 +259,8 @@ func NewMockWallet(clientRegistrationURL, oidcProviderURL string, httpClient *ht
 	wallet := &MockWallet{
 		oidcProvider: oidcProvider,
 		httpClient:   httpClient,
-		clientID:     uuid.New().String(),
-		clientSecret: uuid.New().String(),
+		clientID:     xid.New().String(),
+		clientSecret: xid.New().String(),
 		scope:        []string{oidc.ScopeOpenID},
 	}
 	wallet.server = httptest.NewServer(wallet)
