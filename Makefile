@@ -110,7 +110,7 @@ open-api-spec:
 	@GOBIN=$(GOBIN_PATH) go install github.com/go-swagger/go-swagger/cmd/swagger@$(SWAGGER_VERSION)
 	@echo "Generating Open API spec"
 	@mkdir $(SWAGGER_DIR)
-	@$(GOBIN_PATH)/swagger generate spec -w ./cmd/kms-server -o $(SWAGGER_OUTPUT)
+	@$(GOBIN_PATH)/swagger generate spec -w ./cmd/kms-server -x github.com/trustbloc/orb -o $(SWAGGER_OUTPUT)
 	@echo "Validating generated spec"
 	@$(GOBIN_PATH)/swagger validate $(SWAGGER_OUTPUT)
 
