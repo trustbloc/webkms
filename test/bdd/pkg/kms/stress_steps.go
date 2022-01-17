@@ -84,6 +84,7 @@ func (s *Steps) createEDVDataVaultForMultipleUsers(usersNumberEnv string) error 
 	return nil
 }
 
+//nolint:funlen,gocyclo
 func (s *Steps) stressTestForMultipleUsers(totalRequestsEnv, storeType, keyType, concurrencyEnv string) error {
 	totalRequests, err := getUsersNumber(totalRequestsEnv)
 	if err != nil {
@@ -149,6 +150,7 @@ func (s *Steps) stressTestForMultipleUsers(totalRequestsEnv, storeType, keyType,
 		if edvCapabilities != nil {
 			r.edvCapability = edvCapabilities[i]
 		}
+
 		createPool.Submit(r)
 	}
 
@@ -160,17 +162,22 @@ func (s *Steps) stressTestForMultipleUsers(totalRequestsEnv, storeType, keyType,
 		return fmt.Errorf("expecting created key store %d responses but got %d", totalRequests, len(createPool.Responses()))
 	}
 
-	var createKeyStoreHTTPTime []int64
-	var createKeyHTTPTime []int64
-	var signHTTPTime []int64
-	var verifyHTTPTime []int64
+	var (
+		createKeyStoreHTTPTime []int64
+		createKeyHTTPTime      []int64
+		signHTTPTime           []int64
+		verifyHTTPTime         []int64
+	)
 
 	for _, resp := range createPool.Responses() {
 		if resp.Err != nil {
 			return resp.Err
 		}
 
-		perfInfo := resp.Resp.(stressRequestPerfInfo)
+		perfInfo, ok := resp.Resp.(stressRequestPerfInfo)
+		if !ok {
+			return fmt.Errorf("invalid stressRequestPerfInfo response")
+		}
 
 		createKeyStoreHTTPTime = append(createKeyStoreHTTPTime, perfInfo.createKeyStoreHTTPTime)
 		createKeyHTTPTime = append(createKeyHTTPTime, perfInfo.createKeyHTTPTime)
@@ -268,6 +275,7 @@ func (r *stressRequest) Invoke() (interface{}, error) {
 	perfInfo := stressRequestPerfInfo{}
 
 	startTime := time.Now()
+
 	err := r.steps.createKeystoreReq(u, createReq, r.keyServerURL+createKeystoreEndpoint)
 	if err != nil {
 		return nil, err
@@ -284,7 +292,7 @@ func (r *stressRequest) Invoke() (interface{}, error) {
 
 	perfInfo.createKeyHTTPTime = time.Since(startTime).Milliseconds()
 
-	message := randomMessage(1024)
+	message := randomMessage(1024) //nolint:gomnd
 
 	startTime = time.Now()
 
@@ -321,12 +329,13 @@ func readLoginConfigFromEnv() *auth.LoginConfig {
 	}
 }
 
-var letterRunes = []rune("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ")
+var letterRunes = []rune("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ") //nolint:gochecknoglobals
 
 func randomMessage(n int) string {
 	b := make([]rune, n)
 	for i := range b {
-		b[i] = letterRunes[rand.Intn(len(letterRunes))]
+		b[i] = letterRunes[rand.Intn(len(letterRunes))] //nolint:gosec
 	}
+
 	return string(b)
 }

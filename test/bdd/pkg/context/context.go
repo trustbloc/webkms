@@ -8,6 +8,7 @@ package context
 
 import (
 	"crypto/tls"
+
 	ariesmemstorage "github.com/hyperledger/aries-framework-go/component/storageutil/mem"
 	cryptoapi "github.com/hyperledger/aries-framework-go/pkg/crypto"
 	"github.com/hyperledger/aries-framework-go/pkg/crypto/tinkcrypto"
@@ -17,6 +18,7 @@ import (
 	"github.com/hyperledger/aries-framework-go/pkg/secretlock/noop"
 	ariesstorage "github.com/hyperledger/aries-framework-go/spi/storage"
 	tlsutils "github.com/trustbloc/edge-core/pkg/utils/tls"
+
 	"github.com/trustbloc/kms/test/bdd/pkg/auth"
 )
 

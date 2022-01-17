@@ -24,11 +24,11 @@ import (
 	"github.com/ory/hydra-client-go/client/admin"
 	"github.com/ory/hydra-client-go/models"
 	"github.com/rs/xid"
-	"golang.org/x/oauth2"
-
 	"github.com/trustbloc/hub-auth/pkg/restapi/operation"
+	"golang.org/x/oauth2"
 )
 
+// MockWallet is a mock wallet.
 type MockWallet struct {
 	oidcProvider     *oidc.Provider
 	httpClient       *http.Client
@@ -37,9 +37,6 @@ type MockWallet struct {
 	scope            []string
 	server           *httptest.Server
 	oauth2Config     oauth2.Config
-	receivedCallback bool
-	userData         *UserClaims
-	callbackErr      error
 	accessToken      string
 	ReceivedCallback bool
 	UserData         *UserClaims
@@ -47,6 +44,7 @@ type MockWallet struct {
 	Secret           string
 }
 
+// RequestUserAuthentication requests the user authentication from the OIDC provider.
 func (m *MockWallet) RequestUserAuthentication() (*http.Response, error) {
 	m.oauth2Config = oauth2.Config{
 		ClientID:     m.clientID,
@@ -58,7 +56,7 @@ func (m *MockWallet) RequestUserAuthentication() (*http.Response, error) {
 
 	redirectURL := m.oauth2Config.AuthCodeURL("dont_care_about_state")
 
-	response, err := m.httpClient.Get(redirectURL)
+	response, err := m.httpClient.Get(redirectURL) //nolint:noctx
 	if err != nil {
 		return nil, fmt.Errorf("failed to send authentication request %s: %w", redirectURL, err)
 	}
@@ -66,8 +64,9 @@ func (m *MockWallet) RequestUserAuthentication() (*http.Response, error) {
 	return response, nil
 }
 
+// FetchBootstrapData fetches bootstrap data from the Auth server.
 func (m *MockWallet) FetchBootstrapData(endpoint string) (*operation.BootstrapData, error) {
-	request, err := http.NewRequest(http.MethodGet, endpoint, nil)
+	request, err := http.NewRequestWithContext(context.Background(), http.MethodGet, endpoint, nil)
 	if err != nil {
 		return nil, fmt.Errorf("failed to construct http request: %w", err)
 	}
@@ -102,13 +101,15 @@ func (m *MockWallet) FetchBootstrapData(endpoint string) (*operation.BootstrapDa
 	return data, json.NewDecoder(response.Body).Decode(data)
 }
 
+// UpdateBootstrapData updates bootstrap data on the Auth server.
 func (m *MockWallet) UpdateBootstrapData(endpoint string, update *operation.UpdateBootstrapDataRequest) error {
 	payload, err := json.Marshal(update)
 	if err != nil {
 		return fmt.Errorf("failed to marshal payload: %w", err)
 	}
 
-	request, err := http.NewRequest(http.MethodPost, endpoint, bytes.NewReader(payload))
+	request, err := http.NewRequestWithContext(context.Background(), http.MethodPost, endpoint,
+		bytes.NewReader(payload))
 	if err != nil {
 		return fmt.Errorf("failed to create http request: %w", err)
 	}
@@ -141,6 +142,7 @@ func (m *MockWallet) UpdateBootstrapData(endpoint string, update *operation.Upda
 	return nil
 }
 
+// CreateAndPushSecretToHubAuth creates and stores Shamir secret share on the Auth server.
 func (m *MockWallet) CreateAndPushSecretToHubAuth(endpoint string) error {
 	m.Secret = xid.New().String()
 
@@ -151,7 +153,8 @@ func (m *MockWallet) CreateAndPushSecretToHubAuth(endpoint string) error {
 		return fmt.Errorf("failed to marshal request: %w", err)
 	}
 
-	request, err := http.NewRequest(http.MethodPost, endpoint, bytes.NewReader(payload))
+	request, err := http.NewRequestWithContext(context.Background(), http.MethodPost, endpoint,
+		bytes.NewReader(payload))
 	if err != nil {
 		return fmt.Errorf("failed to create http request: %w", err)
 	}
@@ -184,6 +187,7 @@ func (m *MockWallet) CreateAndPushSecretToHubAuth(endpoint string) error {
 	return nil
 }
 
+// ServeHTTP serves HTTP requests for the wallet.
 func (m *MockWallet) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	m.ReceivedCallback = true
 
@@ -247,6 +251,7 @@ func (m *MockWallet) addAccessToken(r *http.Request) {
 	)
 }
 
+// NewMockWallet returns a new instance of the mock wallet.
 func NewMockWallet(clientRegistrationURL, oidcProviderURL string, httpClient *http.Client) (*MockWallet, error) {
 	oidcProvider, err := oidc.NewProvider(
 		oidc.ClientContext(context.Background(), httpClient),
@@ -289,7 +294,7 @@ func NewMockWallet(clientRegistrationURL, oidcProviderURL string, httpClient *ht
 		},
 	).Admin
 
-	_, err = hydraClient.CreateOAuth2Client(request)
+	_, err = hydraClient.CreateOAuth2Client(request) //nolint:errcheck
 	if err != nil {
 		return nil, fmt.Errorf("failed to register auth as an oidc client of hub auth: %w", err)
 	}

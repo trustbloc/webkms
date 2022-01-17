@@ -42,6 +42,7 @@ lint: mocks
 	@GOBIN=$(GOBIN_PATH) go install github.com/golangci/golangci-lint/cmd/golangci-lint@$(LINT_VERSION)
 	@$(GOBIN_PATH)/golangci-lint run
 	@cd cmd/kms-server && $(GOBIN_PATH)/golangci-lint run -c ../../.golangci.yml
+	@cd test/bdd && $(GOBIN_PATH)/golangci-lint run -c ../../.golangci.yml
 
 .PHONY: unit-test
 unit-test: mocks

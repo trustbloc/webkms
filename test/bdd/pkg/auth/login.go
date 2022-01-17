@@ -44,7 +44,7 @@ type LoginConfig struct {
 	OIDCProviderName                string
 }
 
-// defines the payload expected by the login consent server's /authn endpoint
+// defines the payload expected by the login consent server's /authn endpoint.
 type userAuthenticationConfig struct {
 	Sub  string `json:"sub"`
 	Fail bool   `json:"fail,omitempty"`
@@ -65,7 +65,7 @@ type UserClaims struct {
 }
 
 // AuthLogin used for wallet login.
-type AuthLogin struct {
+type AuthLogin struct { //nolint:golint
 	browser          *http.Client
 	tlsConfig        *tls.Config
 	cfg              *LoginConfig
@@ -127,6 +127,7 @@ func (a *AuthLogin) redirectUserToAuthenticate() error {
 	if err != nil {
 		return fmt.Errorf("auth failed to redirect user for authentication: %w", err)
 	}
+	defer result.Body.Close() //nolint:errcheck
 
 	if result.Request.URL.String() != a.cfg.HubAuthOIDCProviderSelectionURL {
 		return fmt.Errorf(
@@ -141,10 +142,12 @@ func (a *AuthLogin) redirectUserToAuthenticate() error {
 func (a *AuthLogin) selectThirdPartyOIDCProvider() error {
 	request := fmt.Sprintf("%s?provider=%s", a.cfg.HubAuthSelectOIDCProviderURL, a.cfg.OIDCProviderName)
 
-	result, err := a.browser.Get(request)
+	result, err := a.browser.Get(request) //nolint:noctx
 	if err != nil {
 		return fmt.Errorf("user failed to select OIDC provider using request %s: %w", request, err)
 	}
+
+	defer result.Body.Close() //nolint:errcheck
 
 	if !strings.HasPrefix(result.Request.URL.String(), a.cfg.LoginURL) {
 		return fmt.Errorf(
@@ -172,10 +175,12 @@ func (a *AuthLogin) authenticateUserAtThirdPartyProvider() error {
 		return fmt.Errorf("failed to marshal user authn config: %w", err)
 	}
 
-	response, err := a.browser.Post(a.cfg.AuthenticationURL, "application/json", bytes.NewReader(authn))
+	response, err := a.browser.Post(a.cfg.AuthenticationURL, "application/json", bytes.NewReader(authn)) //nolint:noctx
 	if err != nil {
 		return fmt.Errorf("user failed to send authentication data: %w", err)
 	}
+
+	defer response.Body.Close() //nolint:errcheck
 
 	if !strings.HasPrefix(response.Request.URL.String(), a.cfg.ConsentURL) {
 		return fmt.Errorf(
@@ -191,10 +196,12 @@ func (a *AuthLogin) authenticateUserAtThirdPartyProvider() error {
 		return fmt.Errorf("failed to marshal user authz config: %w", err)
 	}
 
-	response, err = a.browser.Post(a.cfg.AuthorizationURL, "application/json", bytes.NewReader(authz))
+	response, err = a.browser.Post(a.cfg.AuthorizationURL, "application/json", bytes.NewReader(authz)) //nolint:noctx
 	if err != nil {
 		return fmt.Errorf("user failed to send authorization data: %w, %s", err, a.cfg.AuthorizationURL)
 	}
+
+	defer response.Body.Close() //nolint:errcheck
 
 	if response.StatusCode != http.StatusOK {
 		msg, err := ioutil.ReadAll(response.Body)
@@ -248,6 +255,7 @@ func (a *AuthLogin) initBrowser() error {
 	return nil
 }
 
+// CreateDefaultConfig creates default login.
 func CreateDefaultConfig(hubAuthURL string) *LoginConfig {
 	return &LoginConfig{
 		HubAuthHydraAdminURL:            hubAuthHydraAdminURL,

@@ -15,27 +15,25 @@ import (
 )
 
 const (
-	edvResource     = "urn:edv:vault"
-	edvDIDKeyHeader = "Edvdidkey"
+	edvResource = "urn:edv:vault"
 )
 
 const (
-	actionCreateKey       = "createKey"
-	actionExportKey       = "exportKey"
-	actionImportKey       = "importKey"
-	actionRotateKey       = "rotateKey"
-	actionSign            = "sign"
-	actionVerify          = "verify"
-	actionWrap            = "wrap"
-	actionUnwrap          = "unwrap"
-	actionComputeMac      = "computeMAC"
-	actionVerifyMAC       = "verifyMAC"
-	actionEncrypt         = "encrypt"
-	actionDecrypt         = "decrypt"
-	actionStoreCapability = "updateEDVCapability"
-	actionEasy            = "easy"
-	actionEasyOpen        = "easyOpen"
-	actionSealOpen        = "sealOpen"
+	actionCreateKey  = "createKey"
+	actionExportKey  = "exportKey"
+	actionImportKey  = "importKey"
+	actionRotateKey  = "rotateKey"
+	actionSign       = "sign"
+	actionVerify     = "verify"
+	actionWrap       = "wrap"
+	actionUnwrap     = "unwrap"
+	actionComputeMac = "computeMAC"
+	actionVerifyMAC  = "verifyMAC"
+	actionEncrypt    = "encrypt"
+	actionDecrypt    = "decrypt"
+	actionEasy       = "easy"
+	actionEasyOpen   = "easyOpen"
+	actionSealOpen   = "sealOpen"
 )
 
 type signer interface {

@@ -55,7 +55,7 @@ type importKeyResp struct {
 }
 
 type rotateKeyReq struct {
-	KeyType   string `json:"key_type"`
+	KeyType string `json:"key_type"`
 }
 
 type rotateKeyResp struct {

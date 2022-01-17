@@ -19,6 +19,7 @@ import (
 	"github.com/cucumber/godog"
 	"github.com/trustbloc/edge-core/pkg/log"
 	"github.com/trustbloc/edge-core/pkg/zcapld"
+
 	"github.com/trustbloc/kms/test/bdd/pkg/auth"
 	"github.com/trustbloc/kms/test/bdd/pkg/context"
 	"github.com/trustbloc/kms/test/bdd/pkg/internal/bddutil"
@@ -111,7 +112,7 @@ func (s *Steps) checkResponse(status string) error {
 	}
 
 	if err := json.Unmarshal(s.response, &resp); err != nil {
-		return fmt.Errorf("%s", err)
+		return fmt.Errorf("%w", err)
 	}
 
 	_, err := url.ParseRequestURI(resp.KeyStoreURL)
