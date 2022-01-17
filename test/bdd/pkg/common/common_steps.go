@@ -104,7 +104,7 @@ func (s *Steps) checkKeyServerIsRunEnv(serverURLEnv string) error {
 		return err
 	}
 
-	err = s.healthCheckUrl(url)
+	err = s.healthCheckURL(url)
 	if err != nil {
 		return err
 	}
@@ -120,7 +120,7 @@ func (s *Steps) checkAuthzKeyServerIsRunEnv(serverURLEnv string) error {
 		return err
 	}
 
-	err = s.healthCheckUrl(url)
+	err = s.healthCheckURL(url)
 	if err != nil {
 		return err
 	}
@@ -136,7 +136,7 @@ func (s *Steps) checkEDVServerIsRunEnv(serverURLEnv string) error {
 		return err
 	}
 
-	err = s.healthCheckUrl(url)
+	err = s.healthCheckURL(url)
 	if err != nil {
 		return err
 	}
@@ -152,7 +152,7 @@ func (s *Steps) checkHubAuthIsRunEnv(serverURLEnv string) error {
 		return err
 	}
 
-	err = s.healthCheckUrl(url)
+	err = s.healthCheckURL(url)
 	if err != nil {
 		return err
 	}
@@ -164,15 +164,15 @@ func (s *Steps) checkHubAuthIsRunEnv(serverURLEnv string) error {
 
 func (s *Steps) healthCheck(host string, port int) (string, error) {
 	url := fmt.Sprintf(serverEndpoint, host, port)
-	err := s.healthCheckUrl(url)
-	if err != nil {
+
+	if err := s.healthCheckURL(url); err != nil {
 		return "", err
 	}
 
 	return url, nil
 }
 
-func (s *Steps) healthCheckUrl(url string) error {
+func (s *Steps) healthCheckURL(url string) error {
 	resp, err := bddutil.HTTPDo(http.MethodGet, url+"/healthcheck", headers(), nil, s.bddContext.TLSConfig())
 	if err != nil {
 		return err

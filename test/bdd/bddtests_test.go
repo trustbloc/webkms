@@ -17,6 +17,7 @@ import (
 
 	"github.com/cucumber/godog"
 	"github.com/hyperledger/aries-framework-go/pkg/common/log"
+
 	"github.com/trustbloc/kms/test/bdd/pkg/common"
 	"github.com/trustbloc/kms/test/bdd/pkg/context"
 	"github.com/trustbloc/kms/test/bdd/pkg/keystore"
@@ -30,7 +31,6 @@ const (
 	composeFilePath = composeDir + "docker-compose.yml"
 )
 
-//nolint:gochecknoglobals // ignore
 var logger = log.New("kms/bdd")
 
 func TestMain(m *testing.M) {
@@ -44,7 +44,7 @@ func TestMain(m *testing.M) {
 	flag.Parse()
 
 	format := "progress"
-	if getCmdArg("test.v") == "true" {
+	if getCmdArg("test.v") == "true" { //nolint:goconst
 		format = "pretty"
 	}
 
@@ -88,7 +88,7 @@ func initializeTestSuite(ctx *godog.TestSuiteContext) {
 	compose := os.Getenv("DISABLE_COMPOSITION") != "true"
 
 	ctx.BeforeSuite(func() {
-		if compose {
+		if compose { //nolint:nestif
 			logger.Infof("Running %s", strings.Join(dockerComposeUp, " "))
 
 			cmd := exec.Command(dockerComposeUp[0], dockerComposeUp[1:]...) //nolint:gosec // ignore G204

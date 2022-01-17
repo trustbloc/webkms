@@ -34,6 +34,7 @@ import (
 	"github.com/igor-pavlenko/httpsignatures-go"
 	"github.com/trustbloc/edge-core/pkg/log"
 	"github.com/trustbloc/edge-core/pkg/zcapld"
+
 	zcapsvc "github.com/trustbloc/kms/pkg/zcapld"
 	bddcontext "github.com/trustbloc/kms/test/bdd/pkg/context"
 	"github.com/trustbloc/kms/test/bdd/pkg/internal/cryptoutil"
@@ -82,7 +83,7 @@ func (s *Steps) RegisterSteps(ctx *godog.ScenarioContext) {
 	ctx.Step(`^"([^"]*)" users has created a data vault on EDV for storing keys$`, s.createEDVDataVaultForMultipleUsers)
 	ctx.Step(`^"([^"]*)" has created an empty keystore on Key Server$`, s.createKeystore)
 	ctx.Step(`^"([^"]*)" has created a keystore with "([^"]*)" key on Key Server$`, s.createKeystoreAndKey)
-	ctx.Step(`^"([^"]*)" users request to create a keystore on "([^"]*)" with "([^"]*)" key and sign/verify using "([^"]*)" concurrent requests$`,
+	ctx.Step(`^"([^"]*)" users request to create a keystore on "([^"]*)" with "([^"]*)" key and sign/verify using "([^"]*)" concurrent requests$`, //nolint:lll
 		s.stressTestForMultipleUsers)
 	// common response checking steps
 	ctx.Step(`^"([^"]*)" gets a response with HTTP status "([^"]*)"$`, s.checkRespStatus)
@@ -161,7 +162,6 @@ func (s *Steps) createKeystore(userName string) error {
 }
 
 func (s *Steps) createKeystoreReq(u *user, r *createKeystoreReq, endpoint string) error {
-
 	request, err := u.preparePostRequest(r, endpoint)
 	if err != nil {
 		return err
@@ -983,7 +983,7 @@ func (s *Steps) getPubKeyOfRecipient(userName, recipientName string) error {
 	var exportKeyResponse exportKeyResp
 
 	if respErr := recipient.processResponse(&exportKeyResponse, response); respErr != nil {
-		return fmt.Errorf("responce error: %w", respErr)
+		return fmt.Errorf("response error: %w", respErr)
 	}
 
 	keyData := &publicKeyData{

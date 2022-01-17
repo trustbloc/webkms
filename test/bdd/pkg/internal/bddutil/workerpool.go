@@ -7,23 +7,24 @@ SPDX-License-Identifier: Apache-2.0
 package bddutil
 
 import (
-	"github.com/trustbloc/edge-core/pkg/log"
 	"sync"
+
+	"github.com/trustbloc/edge-core/pkg/log"
 )
 
-// Request is a request that's submitted to the worker pool for processing
+// Request is a request that's submitted to the worker pool for processing.
 type Request interface {
 	Invoke() (interface{}, error)
 }
 
-// Response is the response for an individual request
+// Response is the response for an individual request.
 type Response struct {
 	Request
 	Resp interface{}
 	Err  error
 }
 
-// WorkerPool manages a pool of workers that processes requests concurrently and, at the end, gathers the responses
+// WorkerPool manages a pool of workers that processes requests concurrently and, at the end, gathers the responses.
 type WorkerPool struct {
 	workers   []*worker
 	reqChan   chan Request
@@ -34,7 +35,7 @@ type WorkerPool struct {
 	logger    log.Logger
 }
 
-// NewWorkerPool returns a new worker pool with the given number of workers
+// NewWorkerPool returns a new worker pool with the given number of workers.
 func NewWorkerPool(num int, logger log.Logger) *WorkerPool {
 	reqChan := make(chan Request)
 	respChan := make(chan *Response)
@@ -55,7 +56,7 @@ func NewWorkerPool(num int, logger log.Logger) *WorkerPool {
 	}
 }
 
-// Start starts all of the workers and listens for responses
+// Start starts all the workers and listens for responses.
 func (p *WorkerPool) Start() {
 	p.wgResp.Add(1)
 
@@ -68,7 +69,7 @@ func (p *WorkerPool) Start() {
 	}
 }
 
-// Stop stops the workers in the pool and stops listening for responses
+// Stop stops the workers in the pool and stops listening for responses.
 func (p *WorkerPool) Stop() {
 	close(p.reqChan)
 
@@ -87,12 +88,12 @@ func (p *WorkerPool) Stop() {
 	p.logger.Infof("... listener finished.")
 }
 
-// Submit submits a request for processing
+// Submit submits a request for processing.
 func (p *WorkerPool) Submit(req Request) {
 	p.reqChan <- req
 }
 
-// Responses contains the responses after the pool is stopped
+// Responses contains the responses after the pool is stopped.
 func (p *WorkerPool) Responses() []*Response {
 	return p.responses
 }
