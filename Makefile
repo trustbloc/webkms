@@ -54,22 +54,19 @@ bdd-test: generate-test-keys kms-server-docker mock-login-consent-docker
 	@cd test/bdd && MallocNanoZone=0 go test -count=1 -v -cover . -p 1 -timeout=10m -race # TODO: remove "MallocNanoZone=0" after resolving https://github.com/golang/go/issues/49138
 
 .PHONY: stress-test
-stress-test: generate-test-keys kms-server-docker mock-login-consent-docker
+stress-test:
 	@cd test/bdd && \
-	KMS_STRESS_KMS_URL=https://localhost:8078 \
-	KMS_STRESS_AUTH_KMS_URL=https://localhost:4455 \
-	KMS_STRESS_HUB_AUTH_URL=https://localhost:8070 \
-	KMS_STRESS_EDV_URL=https://edv.trustbloc.local:8081 \
-	KMS_STRESS_HYDRA_ADMIN_URL=https://localhost:4445 \
-	KMS_STRESS_OIDC_PROVIDER_URL=https://localhost:4444/ \
-	KMS_STRESS_OIDC_PROVIDER_SELECTION_URL=https://localhost:8070/ui \
-	KMS_STRESS_SELECT_OIDC_PROVIDER_URL=https://localhost:8070/oauth2/login \
-	KMS_STRESS_LOGIN_URL=https://localhost:8099/mock/login \
-	KMS_STRESS_AUTHENTICATION_URL=https://localhost:8099/mock/authn \
-	KMS_STRESS_CONSENT_URL=https://localhost:8099/mock/consent \
-	KMS_STRESS_AUTHORIZATION_URL=https://localhost:8099/mock/authz \
-	KMS_STRESS_OIDC_PROVIDER_NAME=mockbank \
-	MallocNanoZone=0 TAGS=kms_stress_edv \
+	KMS_STRESS_KMS_URL=https://orb-kms.dev.trustbloc.dev \
+	KMS_STRESS_AUTH_KMS_URL=https://authz-oathkeeper-proxy.dev.trustbloc.dev \
+	KMS_STRESS_HUB_AUTH_URL=https://hub-auth.dev.trustbloc.dev \
+	SUBJECT=john.smith59547190@example.com \
+	ACCESS_TOKEN=hr0syjRNZOTBINEJRCKn8ZH9a4TOkpvgvTTFgMrcw7E.wRzpJ7YqBk-om5f--7zrfI7Ls0-VRNsXGVpjOUa8gYc \
+	SECRET_SHARE=VIqwUXZDJnhUiVxlth7ulYspxFpXC2r62aUDJbg5UCVP \
+	USER_NUMS=1000 \
+	DISABLE_COMPOSITION=true \
+	DISABLE_CUSTOM_CA=true \
+	KMS_STRESS_CONCURRENT_REQ=50 \
+	MallocNanoZone=0 TAGS=kms_stress_authz \
 	go test -count=1 -v -cover . -p 1 -timeout=10m -race # TODO: remove "MallocNanoZone=0" after resolving https://github.com/golang/go/issues/49138
 
 .PHONY: kms-server

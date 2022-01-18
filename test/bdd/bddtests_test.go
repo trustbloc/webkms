@@ -132,7 +132,7 @@ type feature interface {
 
 func initializeScenario(ctx *godog.ScenarioContext) {
 	caCertPathVal := caCertPath
-	if os.Getenv("DISABLE_COMPOSITION") == "true" {
+	if os.Getenv("DISABLE_CUSTOM_CA") == "true" {
 		caCertPathVal = ""
 	}
 

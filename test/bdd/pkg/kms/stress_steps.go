@@ -7,6 +7,7 @@ SPDX-License-Identifier: Apache-2.0
 package kms
 
 import (
+	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -46,6 +47,34 @@ func (s *Steps) createUsers(usersNumberEnv string) error {
 			return err
 		}
 	}
+
+	return nil
+}
+
+func (s *Steps) stressTestLogin(userName, subjectEnv, accessTokenEnv, secretShareEnv string) error {
+	s.bddContext.LoginConfig = readLoginConfigFromEnv()
+
+	subject := os.Getenv(subjectEnv)
+	if subject == "" {
+		return s.storeSecretInHubAuth(userName)
+	}
+
+	u := &user{
+		name: userName,
+	}
+	s.users[userName] = u
+
+	u.subject = subject
+	u.accessToken = os.Getenv(accessTokenEnv)
+
+	fmt.Printf("user %s, %s, %s", u.subject, os.Getenv(secretShareEnv), u.accessToken)
+
+	secretShare, err := base64.URLEncoding.DecodeString(os.Getenv(secretShareEnv))
+	if err != nil {
+		return err
+	}
+
+	u.secretShare = secretShare
 
 	return nil
 }
@@ -224,6 +253,93 @@ func (s *Steps) stressTestForMultipleUsers(totalRequestsEnv, storeType, keyType,
 	return nil
 }
 
+//nolint:funlen
+func (s *Steps) authStressTestForMultipleUsers(totalRequestsEnv, userName, concurrencyEnv string) error {
+	totalRequests, err := getUsersNumber(totalRequestsEnv)
+	if err != nil {
+		return err
+	}
+
+	concurrencyReq, err := getConcurrencyReq(concurrencyEnv)
+	if err != nil {
+		return err
+	}
+
+	fmt.Printf("totalRequests: %d, concurrencyReq: %d", totalRequests, concurrencyReq)
+
+	createPool := bddutil.NewWorkerPool(concurrencyReq, s.logger)
+
+	createPool.Start()
+
+	for i := 0; i < totalRequests; i++ {
+		r := &authStressRequest{
+			userName: userName,
+			steps:    s,
+		}
+		createPool.Submit(r)
+	}
+
+	createPool.Stop()
+
+	s.logger.Infof("got created key store %d responses for %d requests", len(createPool.Responses()), totalRequests)
+
+	if len(createPool.Responses()) != totalRequests {
+		return fmt.Errorf("expecting created key store %d responses but got %d", totalRequests, len(createPool.Responses()))
+	}
+
+	var (
+		createKeyStoreHTTPTime []int64
+		createKeyHTTPTime      []int64
+		signHTTPTime           []int64
+	)
+
+	for _, resp := range createPool.Responses() {
+		if resp.Err != nil {
+			return resp.Err
+		}
+
+		perfInfo, ok := resp.Resp.(stressRequestPerfInfo)
+		if !ok {
+			if !ok {
+				return fmt.Errorf("invalid stressRequestPerfInfo response")
+			}
+		}
+
+		createKeyStoreHTTPTime = append(createKeyStoreHTTPTime, perfInfo.createKeyStoreHTTPTime)
+		createKeyHTTPTime = append(createKeyHTTPTime, perfInfo.createKeyHTTPTime)
+		signHTTPTime = append(signHTTPTime, perfInfo.signHTTPTime)
+	}
+
+	calc := calculator.NewInt64(createKeyStoreHTTPTime)
+	fmt.Printf("create key store avg time: %s\n", (time.Duration(calc.Mean().Register.Mean) *
+		time.Millisecond).String())
+	fmt.Printf("create key store max time: %s\n", (time.Duration(calc.Max().Register.MaxValue) *
+		time.Millisecond).String())
+	fmt.Printf("create key store min time: %s\n", (time.Duration(calc.Min().Register.MinValue) *
+		time.Millisecond).String())
+	fmt.Println("------")
+
+	calc = calculator.NewInt64(createKeyHTTPTime)
+	fmt.Printf("create key avg time: %s\n", (time.Duration(calc.Mean().Register.Mean) *
+		time.Millisecond).String())
+	fmt.Printf("create key max time: %s\n", (time.Duration(calc.Max().Register.MaxValue) *
+		time.Millisecond).String())
+	fmt.Printf("create key min time: %s\n", (time.Duration(calc.Min().Register.MinValue) *
+		time.Millisecond).String())
+	fmt.Println("------")
+
+	calc = calculator.NewInt64(signHTTPTime)
+	fmt.Printf("sign avg time: %s\n", (time.Duration(calc.Mean().Register.Mean) *
+		time.Millisecond).String())
+	fmt.Printf("sign max time: %s\n", (time.Duration(calc.Max().Register.MaxValue) *
+		time.Millisecond).String())
+	fmt.Printf("sign min time: %s\n", (time.Duration(calc.Min().Register.MinValue) *
+		time.Millisecond).String())
+	fmt.Println("------")
+
+	return nil
+}
+
 func getConcurrencyReq(concurrencyEnv string) (int, error) {
 	concurrencyReqStr := os.Getenv(concurrencyEnv)
 	if concurrencyReqStr == "" {
@@ -311,6 +427,55 @@ func (r *stressRequest) Invoke() (interface{}, error) {
 	}
 
 	perfInfo.verifyHTTPTime = time.Since(startTime).Milliseconds()
+
+	return perfInfo, nil
+}
+
+type authStressRequest struct {
+	userName string
+	steps    *Steps
+}
+
+func (r *authStressRequest) Invoke() (interface{}, error) {
+	u := r.steps.users[r.userName]
+
+	authzUser := &user{
+		name:        r.userName,
+		subject:     u.subject,
+		secretShare: u.secretShare,
+		accessToken: u.accessToken,
+	}
+
+	perfInfo := stressRequestPerfInfo{}
+
+	startTime := time.Now()
+
+	err := r.steps.createKeystoreAuthzKMS(authzUser)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create auth keystore: %w", err)
+	}
+
+	perfInfo.createKeyStoreHTTPTime = time.Since(startTime).Milliseconds()
+
+	startTime = time.Now()
+
+	err = r.steps.makeCreateKeyReqAuthzKMS(authzUser, r.steps.bddContext.AuthZKeyServerURL+keysEndpoint, "ED25519")
+	if err != nil {
+		return nil, fmt.Errorf("failed to create auth keystore key: %w", err)
+	}
+
+	perfInfo.createKeyHTTPTime = time.Since(startTime).Milliseconds()
+
+	message := randomMessage(1024) //nolint:gomnd
+
+	startTime = time.Now()
+
+	err = r.steps.makeSignMessageReqAuthzKMS(authzUser, r.steps.bddContext.AuthZKeyServerURL+signEndpoint, []byte(message))
+	if err != nil {
+		return nil, err
+	}
+
+	perfInfo.signHTTPTime = time.Since(startTime).Milliseconds()
 
 	return perfInfo, nil
 }
