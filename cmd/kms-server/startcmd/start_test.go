@@ -415,6 +415,50 @@ func TestStartCmdWithKeyStoreCacheTTLParam(t *testing.T) {
 	})
 }
 
+func TestStartCmdWithKMSCacheTTLParam(t *testing.T) {
+	t.Run("Success with kms-cache-ttl set", func(t *testing.T) {
+		startCmd, err := Cmd(&mockServer{})
+		require.NoError(t, err)
+
+		args := requiredArgs(storageTypeMemOption)
+		args = append(args, "--"+kmsCacheTTLFlagName, "10m")
+
+		startCmd.SetArgs(args)
+
+		err = startCmd.Execute()
+		require.NoError(t, err)
+	})
+
+	t.Run("Fail with invalid kms-cache-ttl duration string", func(t *testing.T) {
+		startCmd, err := Cmd(&mockServer{})
+		require.NoError(t, err)
+
+		args := requiredArgs(storageTypeMemOption)
+		args = append(args, "--"+kmsCacheTTLFlagName, "invalid")
+
+		startCmd.SetArgs(args)
+
+		err = startCmd.Execute()
+		require.Error(t, err)
+	})
+
+	t.Run("Fail with zero kms-cache-ttl duration string", func(t *testing.T) {
+		startCmd, err := Cmd(&mockServer{})
+		require.NoError(t, err)
+
+		args := requiredArgs(storageTypeMemOption)
+		args = append(args, "--"+kmsCacheTTLFlagName, "0s")
+		args = append(args, "--"+enableCacheFlagName, "true")
+
+
+		startCmd.SetArgs(args)
+
+		err = startCmd.Execute()
+		require.Error(t, err)
+	})
+}
+
+
 func TestStartKMSService(t *testing.T) {
 	const invalidStorageOption = "invalid"
 
