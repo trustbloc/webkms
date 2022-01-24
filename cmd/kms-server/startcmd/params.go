@@ -98,6 +98,11 @@ const (
 	keyStoreCacheTTLFlagUsage = "An optional value for key store cache TTL (time to live). Defaults to 10m if " +
 		"caching is enabled. If set to 0, key store is never cached. " + commonEnvVarUsageText + keyStoreCacheTTLEnvKey
 
+	kmsCacheTTLEnvKey    = "KMS_KMS_CACHE_TTL"
+	kmsCacheTTLFlagName  = "kms-cache-ttl"
+	kmsCacheTTLFlagUsage = "An optional value cache TTL (time to live) for keys in server kms. Defaults to 1m if " +
+		"caching is enabled. If set to 0, keys are never cached. " + commonEnvVarUsageText + kmsCacheTTLEnvKey
+
 	enableZCAPsEnvKey    = "KMS_ZCAP_ENABLE"
 	enableZCAPsFlagName  = "enable-zcap"
 	enableZCAPsFlagUsage = "Enables ZCAPs authorization. Possible values: [true] [false]. Defaults to false. " +
@@ -162,6 +167,7 @@ type serverParameters struct {
 	authServerURL    string
 	authServerToken  string
 	keyStoreCacheTTL time.Duration
+	kmsCacheTTL      time.Duration
 	enableCache      bool
 	enableZCAPs      bool
 	enableCORS       bool
@@ -200,6 +206,7 @@ func getParameters(cmd *cobra.Command) (*serverParameters, error) { //nolint:fun
 	authServerURL := getUserSetVarOptional(cmd, authServerURLFlagName, authServerURLEnvKey)
 	authServerToken := getUserSetVarOptional(cmd, authServerTokenFlagName, authServerTokenEnvKey)
 	keyStoreCacheTTLStr := getUserSetVarOptional(cmd, keyStoreCacheTTLFlagName, keyStoreCacheTTLEnvKey)
+	kmsCacheTTLStr := getUserSetVarOptional(cmd, kmsCacheTTLFlagName, kmsCacheTTLEnvKey)
 	enableCacheStr := getUserSetVarOptional(cmd, enableCacheFlagName, enableCacheEnvKey)
 	enableZCAPsStr := getUserSetVarOptional(cmd, enableZCAPsFlagName, enableZCAPsEnvKey)
 	enableCORSStr := getUserSetVarOptional(cmd, enableCORSFlagName, enableCORSEnvKey)
@@ -221,6 +228,14 @@ func getParameters(cmd *cobra.Command) (*serverParameters, error) { //nolint:fun
 		keyStoreCacheTTL, err = time.ParseDuration(keyStoreCacheTTLStr)
 		if err != nil {
 			return nil, fmt.Errorf("parse key store cache ttl: %w", err)
+		}
+	}
+
+	var kmsCacheTTL time.Duration
+	if kmsCacheTTLStr != "" {
+		kmsCacheTTL, err = time.ParseDuration(kmsCacheTTLStr)
+		if err != nil {
+			return nil, fmt.Errorf("parse kms cache ttl: %w", err)
 		}
 	}
 
@@ -257,6 +272,7 @@ func getParameters(cmd *cobra.Command) (*serverParameters, error) { //nolint:fun
 		authServerURL:    authServerURL,
 		authServerToken:  authServerToken,
 		keyStoreCacheTTL: keyStoreCacheTTL,
+		kmsCacheTTL:      kmsCacheTTL,
 		enableCache:      enableCache,
 		enableZCAPs:      enableZCAPs,
 		enableCORS:       enableCORS,
@@ -361,6 +377,7 @@ func createFlags(startCmd *cobra.Command) {
 	startCmd.Flags().String(authServerURLFlagName, "", authServerURLFlagUsage)
 	startCmd.Flags().String(authServerTokenFlagName, "", authServerTokenFlagUsage)
 	startCmd.Flags().String(keyStoreCacheTTLFlagName, "10m", keyStoreCacheTTLFlagUsage)
+	startCmd.Flags().String(kmsCacheTTLFlagName, "1m", kmsCacheTTLFlagUsage)
 	startCmd.Flags().String(enableCacheFlagName, "false", enableCacheFlagUsage)
 	startCmd.Flags().String(enableZCAPsFlagName, "false", enableZCAPsFlagUsage)
 	startCmd.Flags().String(enableCORSFlagName, "false", enableCORSFlagUsage)

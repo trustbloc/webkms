@@ -51,6 +51,7 @@ import (
 	"github.com/trustbloc/kms/pkg/controller/command"
 	"github.com/trustbloc/kms/pkg/controller/mw"
 	"github.com/trustbloc/kms/pkg/controller/rest"
+	kmscache "github.com/trustbloc/kms/pkg/kms/cache"
 	"github.com/trustbloc/kms/pkg/metrics"
 	awssecretlock "github.com/trustbloc/kms/pkg/secretlock/aws"
 	"github.com/trustbloc/kms/pkg/storage/cache"
@@ -136,8 +137,9 @@ func startServer(srv server, params *serverParameters) error { //nolint:funlen
 	}
 
 	var (
-		storageProvider storage.Provider
-		cacheProvider   *cache.Provider
+		storageProvider  storage.Provider
+		cacheProvider    *cache.Provider
+		kmsCacheProvider *kmscache.Provider
 	)
 
 	if params.enableCache {
@@ -151,8 +153,9 @@ func startServer(srv server, params *serverParameters) error { //nolint:funlen
 		}
 
 		cacheProvider = &cache.Provider{Cache: c}
-
 		storageProvider = cacheProvider.Wrap(store)
+		kmsCacheProvider = &kmscache.Provider{Cache: c}
+
 	} else {
 		storageProvider = store
 	}
@@ -160,6 +163,13 @@ func startServer(srv server, params *serverParameters) error { //nolint:funlen
 	kmsService, err := createKMS(storageProvider, params.secretLockParams)
 	if err != nil {
 		return fmt.Errorf("create kms: %w", err)
+	}
+
+	if kmsCacheProvider != nil && params.kmsCacheTTL >= 0 {
+		kmsService, err = kmsCacheProvider.WrapKMS(kmsService, params.kmsCacheTTL)
+		if err != nil {
+			return fmt.Errorf("wrap kms: %w", err)
+		}
 	}
 
 	cryptoService, err := tinkcrypto.New()
