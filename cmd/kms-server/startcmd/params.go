@@ -90,7 +90,7 @@ const (
 
 	enableCacheEnvKey    = "KMS_CACHE_ENABLE"
 	enableCacheFlagName  = "enable-cache"
-	enableCacheFlagUsage = "Enables caching support. Possible values: [true] [false]. Defaults to false. " +
+	enableCacheFlagUsage = "Enables caching support. Possible values: [true] [false]. Defaults to true. " +
 		commonEnvVarUsageText + enableCacheEnvKey
 
 	keyStoreCacheTTLEnvKey    = "KMS_KEY_STORE_CACHE_TTL"
@@ -377,8 +377,8 @@ func createFlags(startCmd *cobra.Command) {
 	startCmd.Flags().String(authServerURLFlagName, "", authServerURLFlagUsage)
 	startCmd.Flags().String(authServerTokenFlagName, "", authServerTokenFlagUsage)
 	startCmd.Flags().String(keyStoreCacheTTLFlagName, "10m", keyStoreCacheTTLFlagUsage)
-	startCmd.Flags().String(kmsCacheTTLFlagName, "1m", kmsCacheTTLFlagUsage)
-	startCmd.Flags().String(enableCacheFlagName, "false", enableCacheFlagUsage)
+	startCmd.Flags().String(kmsCacheTTLFlagName, "10m", kmsCacheTTLFlagUsage)
+	startCmd.Flags().String(enableCacheFlagName, "true", enableCacheFlagUsage)
 	startCmd.Flags().String(enableZCAPsFlagName, "false", enableZCAPsFlagUsage)
 	startCmd.Flags().String(enableCORSFlagName, "false", enableCORSFlagUsage)
 	startCmd.Flags().String(logLevelFlagName, "info", logLevelFlagUsage)
