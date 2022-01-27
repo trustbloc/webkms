@@ -51,6 +51,33 @@ func (s *Steps) createUsers(usersNumberEnv string) error {
 	return nil
 }
 
+func (s *Steps) createUsersFromPrototype(usersNumberEnv, protoUser string) error {
+	usersNumber, err := getUsersNumber(usersNumberEnv)
+	if err != nil {
+		return err
+	}
+
+	proto := s.users[protoUser]
+
+	for i := 0; i < usersNumber; i++ {
+		userName := fmt.Sprintf(userNameTplt, i)
+
+		u := &user{
+			name:        proto.name,
+			subject:     proto.subject,
+			accessToken: proto.accessToken,
+			secretShare: proto.secretShare,
+		}
+		s.users[userName] = u
+
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
 func (s *Steps) stressTestLogin(userName, subjectEnv, accessTokenEnv, secretShareEnv string) error {
 	s.bddContext.LoginConfig = readLoginConfigFromEnv()
 
@@ -69,30 +96,12 @@ func (s *Steps) stressTestLogin(userName, subjectEnv, accessTokenEnv, secretShar
 
 	fmt.Printf("user %s, %s, %s", u.subject, os.Getenv(secretShareEnv), u.accessToken)
 
-	secretShare, err := base64.URLEncoding.DecodeString(os.Getenv(secretShareEnv))
+	secretShare, err := base64.StdEncoding.DecodeString(os.Getenv(secretShareEnv))
 	if err != nil {
 		return err
 	}
 
 	u.secretShare = secretShare
-
-	return nil
-}
-
-func (s *Steps) storeSecretInHubAuthForMultipleUsers(usersNumberEnv string) error {
-	usersNumber, err := getUsersNumber(usersNumberEnv)
-	if err != nil {
-		return err
-	}
-
-	s.bddContext.LoginConfig = readLoginConfigFromEnv()
-
-	for i := 0; i < usersNumber; i++ {
-		err = s.storeSecretInHubAuth(fmt.Sprintf(userNameTplt, i))
-		if err != nil {
-			return err
-		}
-	}
 
 	return nil
 }
@@ -114,7 +123,8 @@ func (s *Steps) createEDVDataVaultForMultipleUsers(usersNumberEnv string) error 
 }
 
 //nolint:funlen,gocyclo
-func (s *Steps) stressTestForMultipleUsers(totalRequestsEnv, storeType, keyType, concurrencyEnv string) error {
+func (s *Steps) stressTestForMultipleUsers(
+	totalRequestsEnv, storeType, keyType string, signTimes int, concurrencyEnv string) error {
 	totalRequests, err := getUsersNumber(totalRequestsEnv)
 	if err != nil {
 		return err
@@ -137,7 +147,7 @@ func (s *Steps) stressTestForMultipleUsers(totalRequestsEnv, storeType, keyType,
 
 			u := s.users[userName]
 			if err := s.createDID(u); err != nil {
-				return err
+				return fmt.Errorf("create did %w", err)
 			}
 		}
 
@@ -150,7 +160,7 @@ func (s *Steps) stressTestForMultipleUsers(totalRequestsEnv, storeType, keyType,
 
 			edvCapability, err := s.createChainCapability(u)
 			if err != nil {
-				return err
+				return fmt.Errorf("create chain capability %w", err)
 			}
 
 			capabilityBytes, err := json.Marshal(edvCapability)
@@ -175,6 +185,7 @@ func (s *Steps) stressTestForMultipleUsers(totalRequestsEnv, storeType, keyType,
 			edvServerURL: s.bddContext.EDVServerURL,
 			keyType:      keyType,
 			steps:        s,
+			signRequests: signTimes,
 		}
 		if edvCapabilities != nil {
 			r.edvCapability = edvCapabilities[i]
@@ -365,6 +376,7 @@ type stressRequest struct {
 	keyServerURL  string
 	keyType       string
 	steps         *Steps
+	signRequests  int
 }
 
 type stressRequestPerfInfo struct {
@@ -394,7 +406,7 @@ func (r *stressRequest) Invoke() (interface{}, error) {
 
 	err := r.steps.createKeystoreReq(u, createReq, r.keyServerURL+createKeystoreEndpoint)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("create keystore %w", err)
 	}
 
 	perfInfo.createKeyStoreHTTPTime = time.Since(startTime).Milliseconds()
@@ -403,7 +415,7 @@ func (r *stressRequest) Invoke() (interface{}, error) {
 
 	err = r.steps.makeCreateKeyReq(r.userName, r.keyServerURL+keysEndpoint, r.keyType)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("create key %w", err)
 	}
 
 	perfInfo.createKeyHTTPTime = time.Since(startTime).Milliseconds()
@@ -412,12 +424,14 @@ func (r *stressRequest) Invoke() (interface{}, error) {
 
 	startTime = time.Now()
 
-	err = r.steps.makeSignMessageReq(r.userName, r.keyServerURL+signEndpoint, message)
-	if err != nil {
-		return nil, err
+	for i := 0; i < r.signRequests; i++ {
+		err = r.steps.makeSignMessageReq(r.userName, r.keyServerURL+signEndpoint, message)
+		if err != nil {
+			return nil, fmt.Errorf("sign %w", err)
+		}
 	}
 
-	perfInfo.signHTTPTime = time.Since(startTime).Milliseconds()
+	perfInfo.signHTTPTime = time.Since(startTime).Milliseconds() / int64(r.signRequests)
 
 	startTime = time.Now()
 
