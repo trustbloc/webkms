@@ -56,17 +56,18 @@ bdd-test: generate-test-keys kms-server-docker mock-login-consent-docker
 .PHONY: stress-test
 stress-test:
 	@cd test/bdd && \
-	KMS_STRESS_KMS_URL=https://orb-kms.dev.trustbloc.dev \
+	KMS_STRESS_KMS_URL=https://ops-oathkeeper-proxy.dev.trustbloc.dev \
 	KMS_STRESS_AUTH_KMS_URL=https://authz-oathkeeper-proxy.dev.trustbloc.dev \
 	KMS_STRESS_HUB_AUTH_URL=https://hub-auth.dev.trustbloc.dev \
-	SUBJECT=john.smith59547190@example.com \
-	ACCESS_TOKEN=hr0syjRNZOTBINEJRCKn8ZH9a4TOkpvgvTTFgMrcw7E.wRzpJ7YqBk-om5f--7zrfI7Ls0-VRNsXGVpjOUa8gYc \
-	SECRET_SHARE=VIqwUXZDJnhUiVxlth7ulYspxFpXC2r62aUDJbg5UCVP \
-	USER_NUMS=1000 \
+	KMS_STRESS_EDV_URL=https://edv.dev.trustbloc.dev \
+	SUBJECT=john.smith25413521@example.com \
+	ACCESS_TOKEN=Hds8W71lGyEL0vvxrdpAhfeslq_p8UU7NXQX_SbPSI8.IiB8TF49TGmfaq7qPsMXv23T8Tx1DAUn5IIlFiToXIE \
+	SECRET_SHARE=XWJDeLnyKBf7KJdn0BhpoqTyh7FUqfarvCCd+3qFzLcq \
+	USER_NUMS=1 \
 	DISABLE_COMPOSITION=true \
 	DISABLE_CUSTOM_CA=true \
-	KMS_STRESS_CONCURRENT_REQ=50 \
-	MallocNanoZone=0 TAGS=kms_stress_authz \
+	KMS_STRESS_CONCURRENT_REQ=1 \
+	MallocNanoZone=0 TAGS=kms_stress_ops \
 	go test -count=1 -v -cover . -p 1 -timeout=10m -race # TODO: remove "MallocNanoZone=0" after resolving https://github.com/golang/go/issues/49138
 
 .PHONY: kms-server

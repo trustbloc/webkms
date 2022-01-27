@@ -77,14 +77,14 @@ func (s *Steps) SetContext(ctx *bddcontext.BDDContext) {
 func (s *Steps) RegisterSteps(ctx *godog.ScenarioContext) {
 	// common creation steps
 	ctx.Step(`^Create "([^"]*)" users$`, s.createUsers)
+	ctx.Step(`^Create "([^"]*)" users from prototype "([^"]*)"$`, s.createUsersFromPrototype)
 	ctx.Step(`^"([^"]*)" login with "([^"]*)" and gets "([^"]*)" and "([^"]*)" env$`, s.stressTestLogin)
 	ctx.Step(`^"([^"]*)" wallet has stored secret on Hub Auth$`, s.storeSecretInHubAuth)
-	ctx.Step(`^"([^"]*)" users wallets has stored secret on Hub Auth$`, s.storeSecretInHubAuthForMultipleUsers)
 	ctx.Step(`^"([^"]*)" has created a data vault on EDV for storing keys$`, s.createEDVDataVault)
 	ctx.Step(`^"([^"]*)" users has created a data vault on EDV for storing keys$`, s.createEDVDataVaultForMultipleUsers)
 	ctx.Step(`^"([^"]*)" has created an empty keystore on Key Server$`, s.createKeystore)
 	ctx.Step(`^"([^"]*)" has created a keystore with "([^"]*)" key on Key Server$`, s.createKeystoreAndKey)
-	ctx.Step(`^"([^"]*)" users request to create a keystore on "([^"]*)" with "([^"]*)" key and sign/verify using "([^"]*)" concurrent requests$`, //nolint:lll
+	ctx.Step(`^"([^"]*)" users request to create a keystore on "([^"]*)" with "([^"]*)" key and sign ([^"]*) times using "([^"]*)" concurrent requests$`, //nolint:lll
 		s.stressTestForMultipleUsers)
 
 	ctx.Step(`^"([^"]*)" requests to authz kms to create a keystore and a key for user "([^"]*)" and sign using "([^"]*)" concurrent requests$`, //nolint:lll
