@@ -7,7 +7,7 @@ SPDX-License-Identifier: Apache-2.0
 package command
 
 //nolint:lll
-//go:generate mockgen -destination gomocks_test.go -self_package mocks -package command_test -source=command.go -mock_names zcapService=MockZCAPService,headerSigner=MockHeaderSigner,keyStoreCreator=MockKeyStoreCreator,cryptoBoxCreator=MockCryptoBoxCreator,shamirSecretLockCreator=MockShamirSecretLockCreator,httpClient=MockHTTPClient,metricsProvider=MockMetricsProvider,cacheProvider=MockCacheProvider
+//go:generate mockgen -destination gomocks_test.go -self_package mocks -package command_test -source=command.go -mock_names zcapService=MockZCAPService,headerSigner=MockHeaderSigner,keyStoreCreator=MockKeyStoreCreator,cryptoBoxCreator=MockCryptoBoxCreator,shamirSecretLockCreator=MockShamirSecretLockCreator,metricsProvider=MockMetricsProvider,cacheProvider=MockCacheProvider,shamirProvider=MockShamirProvider
 
 import (
 	"context"
@@ -61,12 +61,12 @@ type cryptoBoxCreator interface {
 	Create(km kms.KeyManager) (CryptoBox, error)
 }
 
-type shamirSecretLockCreator interface {
-	Create(secretShares [][]byte) (secretlock.Service, error)
+type shamirProvider interface {
+	FetchSecretShare(subject string) ([]byte, error)
 }
 
-type httpClient interface {
-	Do(req *http.Request) (*http.Response, error)
+type shamirSecretLockCreator interface {
+	Create(secretShares [][]byte) (secretlock.Service, error)
 }
 
 type metricsProvider interface {
@@ -93,11 +93,9 @@ type Config struct {
 	ZCAPService             zcapService
 	EnableZCAPs             bool
 	HeaderSigner            headerSigner
-	HTTPClient              httpClient
 	TLSConfig               *tls.Config
 	BaseKeyStoreURL         string
-	AuthServerURL           string
-	AuthServerToken         string
+	ShamirProvider          shamirProvider
 	MainKeyType             kms.KeyType
 	EDVRecipientKeyType     kms.KeyType
 	EDVMACKeyType           kms.KeyType
@@ -120,11 +118,9 @@ type Command struct {
 	cryptoBox           cryptoBoxCreator
 	shamirLock          shamirSecretLockCreator
 	headerSigner        headerSigner
-	httpClient          httpClient
 	tlsConfig           *tls.Config
 	baseKeyStoreURL     string
-	authServerURL       string
-	authServerToken     string
+	shamirProvider      shamirProvider
 	mainKeyType         kms.KeyType
 	edvRecipientKeyType kms.KeyType
 	edvMACKeyType       kms.KeyType
@@ -153,11 +149,9 @@ func New(c *Config) (*Command, error) {
 		shamirLock:          c.ShamirSecretLockCreator,
 		cryptoBox:           c.CryptBoxCreator,
 		headerSigner:        c.HeaderSigner,
-		httpClient:          c.HTTPClient,
 		tlsConfig:           c.TLSConfig,
 		baseKeyStoreURL:     c.BaseKeyStoreURL,
-		authServerURL:       c.AuthServerURL,
-		authServerToken:     c.AuthServerToken,
+		shamirProvider:      c.ShamirProvider,
 		mainKeyType:         c.MainKeyType,
 		edvRecipientKeyType: c.EDVRecipientKeyType,
 		edvMACKeyType:       c.EDVMACKeyType,
@@ -698,7 +692,7 @@ func (c *Command) resolveKeyStore(keyStoreID, user string, secretShare []byte) (
 
 	var secretLock secretlock.Service
 
-	if c.authServerURL != "" {
+	if c.shamirProvider != nil {
 		secretLock, err = c.createShamirSecretLock(user, secretShare)
 		if err != nil {
 			return nil, fmt.Errorf("create shamir secret lock: %w", err)

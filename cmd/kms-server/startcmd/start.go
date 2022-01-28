@@ -54,6 +54,8 @@ import (
 	kmscache "github.com/trustbloc/kms/pkg/kms/cache"
 	"github.com/trustbloc/kms/pkg/metrics"
 	awssecretlock "github.com/trustbloc/kms/pkg/secretlock/aws"
+	shamirprovider "github.com/trustbloc/kms/pkg/shamir"
+	shamircache "github.com/trustbloc/kms/pkg/shamir/cache"
 	"github.com/trustbloc/kms/pkg/storage/cache"
 	storagemetrics "github.com/trustbloc/kms/pkg/storage/metrics"
 	zcapsvc "github.com/trustbloc/kms/pkg/zcapld"
@@ -137,9 +139,10 @@ func startServer(srv server, params *serverParameters) error { //nolint:funlen
 	}
 
 	var (
-		storageProvider  storage.Provider
-		cacheProvider    *cache.Provider
-		kmsCacheProvider *kmscache.Provider
+		storageProvider     storage.Provider
+		cacheProvider       *cache.Provider
+		kmsCacheProvider    *kmscache.Provider
+		shamirCacheProvider *shamircache.Provider
 	)
 
 	if params.enableCache {
@@ -155,6 +158,7 @@ func startServer(srv server, params *serverParameters) error { //nolint:funlen
 		cacheProvider = &cache.Provider{Cache: c}
 		storageProvider = cacheProvider.Wrap(store)
 		kmsCacheProvider = &kmscache.Provider{Cache: c}
+		shamirCacheProvider = &shamircache.Provider{Cache: c}
 
 	} else {
 		storageProvider = store
@@ -194,6 +198,20 @@ func startServer(srv server, params *serverParameters) error { //nolint:funlen
 
 	baseKeyStoreURL := params.baseURL + rest.KeyStorePath
 
+	var shamirProvider shamirprovider.Provider
+
+	if params.authServerURL != "" {
+		shamirProvider = shamirprovider.CreateProvider(&shamirprovider.ProviderConfig{
+			HTTPClient:      httpClient,
+			AuthServerURL:   params.authServerURL,
+			AuthServerToken: params.authServerToken,
+		})
+	}
+
+	if shamirCacheProvider != nil && shamirProvider != nil && params.shamirSecretCacheTTL >= 0 {
+		shamirProvider = shamirCacheProvider.Wrap(shamirProvider, params.shamirSecretCacheTTL)
+	}
+
 	config := &command.Config{
 		StorageProvider:         storageProvider,
 		KeyStorageProvider:      store,
@@ -207,11 +225,9 @@ func startServer(srv server, params *serverParameters) error { //nolint:funlen
 		ZCAPService:             zcapService,
 		EnableZCAPs:             params.enableZCAPs,
 		HeaderSigner:            zcapService,
-		HTTPClient:              httpClient,
 		TLSConfig:               tlsConfig,
 		BaseKeyStoreURL:         baseKeyStoreURL,
-		AuthServerURL:           params.authServerURL,
-		AuthServerToken:         params.authServerToken,
+		ShamirProvider:          shamirProvider,
 		MainKeyType:             kms.AES256GCMType,
 		EDVRecipientKeyType:     kms.NISTP256ECDHKW,
 		EDVMACKeyType:           kms.HMACSHA256Tag256,
