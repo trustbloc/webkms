@@ -155,24 +155,25 @@ const (
 )
 
 type serverParameters struct {
-	host             string
-	metricsHost      string
-	baseURL          string
-	tlsParams        *tlsParameters
-	databaseType     string
-	databaseURL      string
-	databasePrefix   string
-	databaseTimeout  time.Duration
-	didDomain        string
-	authServerURL    string
-	authServerToken  string
-	keyStoreCacheTTL time.Duration
-	kmsCacheTTL      time.Duration
-	enableCache      bool
-	enableZCAPs      bool
-	enableCORS       bool
-	logLevel         string
-	secretLockParams *secretLockParameters
+	host                 string
+	metricsHost          string
+	baseURL              string
+	tlsParams            *tlsParameters
+	databaseType         string
+	databaseURL          string
+	databasePrefix       string
+	databaseTimeout      time.Duration
+	didDomain            string
+	authServerURL        string
+	authServerToken      string
+	keyStoreCacheTTL     time.Duration
+	kmsCacheTTL          time.Duration
+	shamirSecretCacheTTL time.Duration
+	enableCache          bool
+	enableZCAPs          bool
+	enableCORS           bool
+	logLevel             string
+	secretLockParams     *secretLockParameters
 }
 
 type tlsParameters struct {

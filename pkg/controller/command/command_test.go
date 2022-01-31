@@ -14,12 +14,9 @@ import (
 	"crypto/elliptic"
 	"crypto/rand"
 	"crypto/x509"
-	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io/ioutil"
-	"net/http"
 	"testing"
 	"time"
 
@@ -160,6 +157,7 @@ func TestCommand_CreateKeyStore(t *testing.T) {
 
 	t.Run("Success with Shamir secret lock", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
+		defer ctrl.Finish()
 
 		cr, err := tinkcrypto.New()
 		require.NoError(t, err)
@@ -172,20 +170,8 @@ func TestCommand_CreateKeyStore(t *testing.T) {
 		shamirLockCreator := NewMockShamirSecretLockCreator(ctrl)
 		shamirLockCreator.EXPECT().Create(gomock.Any()).Return(nil, nil).Times(1)
 
-		b, err := json.Marshal(struct {
-			Secret string `json:"secret"`
-		}{
-			Secret: base64.StdEncoding.EncodeToString([]byte("secret share")),
-		})
-		require.NoError(t, err)
-
-		resp := &http.Response{
-			StatusCode: http.StatusOK,
-			Body:       ioutil.NopCloser(bytes.NewBuffer(b)),
-		}
-
-		client := NewMockHTTPClient(ctrl)
-		client.EXPECT().Do(gomock.Any()).Return(resp, nil).Times(1)
+		shamirProvider := NewMockShamirProvider(ctrl)
+		shamirProvider.EXPECT().FetchSecretShare(gomock.Any()).Return([]byte("secret share"), nil).Times(1)
 
 		zcap := NewMockZCAPService(ctrl)
 		zcap.EXPECT().NewCapability(context.Background(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).
@@ -200,8 +186,7 @@ func TestCommand_CreateKeyStore(t *testing.T) {
 			ShamirSecretLockCreator: shamirLockCreator,
 			ZCAPService:             zcap,
 			EnableZCAPs:             true,
-			AuthServerURL:           "https://auth-server",
-			HTTPClient:              client,
+			ShamirProvider:          shamirProvider,
 		})
 		require.NoError(t, err)
 		require.NotNil(t, cmd)
@@ -301,27 +286,14 @@ func TestCommand_CreateKeyStore(t *testing.T) {
 
 		km := &mockkms.KeyManager{}
 
-		b, err := json.Marshal(struct {
-			Message string `json:"message"`
-		}{
-			Message: "bad request",
-		})
-		require.NoError(t, err)
-
-		resp := &http.Response{
-			StatusCode: http.StatusBadRequest,
-			Body:       ioutil.NopCloser(bytes.NewBuffer(b)),
-		}
-
-		client := NewMockHTTPClient(ctrl)
-		client.EXPECT().Do(gomock.Any()).Return(resp, nil).Times(1)
+		shamirProvider := NewMockShamirProvider(ctrl)
+		shamirProvider.EXPECT().FetchSecretShare(gomock.Any()).Return(nil, errors.New("bad request")).Times(1)
 
 		cmd, err := New(&Config{
 			StorageProvider: mockstorage.NewMockStoreProvider(),
 			KMS:             km,
 			Crypto:          cr,
-			AuthServerURL:   "https://auth-server",
-			HTTPClient:      client,
+			ShamirProvider:  shamirProvider,
 		})
 		require.NoError(t, err)
 		require.NotNil(t, cmd)
@@ -345,10 +317,16 @@ func TestCommand_CreateKeyStore(t *testing.T) {
 	})
 
 	t.Run("Fail to create Shamir secret share with empty user", func(t *testing.T) {
+		ctrl := gomock.NewController(t)
+		defer ctrl.Finish()
+
+		shamirProvider := NewMockShamirProvider(ctrl)
+		shamirProvider.EXPECT().FetchSecretShare(gomock.Any()).Times(0)
+
 		cmd, err := New(&Config{
 			StorageProvider: mockstorage.NewMockStoreProvider(),
 			KMS:             &mockkms.KeyManager{},
-			AuthServerURL:   "https://auth-server",
+			ShamirProvider:  shamirProvider,
 		})
 		require.NoError(t, err)
 		require.NotNil(t, cmd)
@@ -371,10 +349,16 @@ func TestCommand_CreateKeyStore(t *testing.T) {
 	})
 
 	t.Run("Fail to create Shamir secret share with empty secret share", func(t *testing.T) {
+		ctrl := gomock.NewController(t)
+		defer ctrl.Finish()
+
+		shamirProvider := NewMockShamirProvider(ctrl)
+		shamirProvider.EXPECT().FetchSecretShare(gomock.Any()).Times(0)
+
 		cmd, err := New(&Config{
 			StorageProvider: mockstorage.NewMockStoreProvider(),
 			KMS:             &mockkms.KeyManager{},
-			AuthServerURL:   "https://auth-server",
+			ShamirProvider:  shamirProvider,
 		})
 		require.NoError(t, err)
 		require.NotNil(t, cmd)
@@ -599,24 +583,12 @@ func TestCommand_CreateKey(t *testing.T) {
 		shamirLockCreator := NewMockShamirSecretLockCreator(ctrl)
 		shamirLockCreator.EXPECT().Create(gomock.Any()).Return(nil, nil).Times(1)
 
-		b, err := json.Marshal(struct {
-			Secret string `json:"secret"`
-		}{
-			Secret: base64.StdEncoding.EncodeToString([]byte("secret share")),
-		})
-		require.NoError(t, err)
-
-		authResp := &http.Response{
-			StatusCode: http.StatusOK,
-			Body:       ioutil.NopCloser(bytes.NewBuffer(b)),
-		}
-
-		client := NewMockHTTPClient(ctrl)
-		client.EXPECT().Do(gomock.Any()).Return(authResp, nil).Times(1)
+		shamirProvider := NewMockShamirProvider(ctrl)
+		shamirProvider.EXPECT().FetchSecretShare(gomock.Any()).Return([]byte("secret share"), nil).Times(1)
 
 		cmd := createCmd(t, ctrl,
 			withStorageProvider(p), withKeyManager(km), withShamirSecretLockCreator(shamirLockCreator),
-			withAuthServerURL("https://auth-server"), withHTTPClient(client))
+			withShamirProvider(shamirProvider))
 
 		req, err := json.Marshal(CreateKeyRequest{
 			KeyType: kms.ED25519,
@@ -2016,19 +1988,13 @@ func withShamirSecretLockCreator(creator shamirSecretLockCreator) configOption {
 	}
 }
 
-func withAuthServerURL(url string) configOption {
-	return func(c *Config) {
-		c.AuthServerURL = url
-	}
+type shamirProvider interface {
+	FetchSecretShare(subject string) ([]byte, error)
 }
 
-type httpClient interface {
-	Do(req *http.Request) (*http.Response, error)
-}
-
-func withHTTPClient(client httpClient) configOption {
+func withShamirProvider(provider shamirProvider) configOption {
 	return func(c *Config) {
-		c.HTTPClient = client
+		c.ShamirProvider = provider
 	}
 }
 

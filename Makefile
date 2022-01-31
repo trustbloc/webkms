@@ -60,9 +60,9 @@ stress-test:
 	KMS_STRESS_AUTH_KMS_URL=https://authz-oathkeeper-proxy.dev.trustbloc.dev \
 	KMS_STRESS_HUB_AUTH_URL=https://hub-auth.dev.trustbloc.dev \
 	KMS_STRESS_EDV_URL=https://edv.dev.trustbloc.dev \
-	SUBJECT=john.smith25413521@example.com \
-	ACCESS_TOKEN=Hds8W71lGyEL0vvxrdpAhfeslq_p8UU7NXQX_SbPSI8.IiB8TF49TGmfaq7qPsMXv23T8Tx1DAUn5IIlFiToXIE \
-	SECRET_SHARE=XWJDeLnyKBf7KJdn0BhpoqTyh7FUqfarvCCd+3qFzLcq \
+	SUBJECT=john.smith23140954@example.com \
+	ACCESS_TOKEN=m_QNKTLWFgyFEGPf6dHHs3h3f0TOoJ2ZSlD912u_LKw.6xWwAF61vGM5EHxGuQG9nuwAwd_hNKqMMEe4W2V-V1Q \
+	SECRET_SHARE=dD78WKu9/51CRFVhmzlH7nUYbaZvC5Eb30WNC3rfPjLz \
 	USER_NUMS=1 \
 	DISABLE_COMPOSITION=true \
 	DISABLE_CUSTOM_CA=true \

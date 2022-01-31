@@ -8,12 +8,10 @@ package command
 
 import (
 	"context"
-	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
-	"net/url"
 	"strings"
 	"time"
 
@@ -86,7 +84,7 @@ func (c *Command) CreateKeyStore(w io.Writer, r io.Reader) error { //nolint:funl
 
 	var secretLock secretlock.Service
 
-	if c.authServerURL != "" { // shamir secret sharing lock
+	if c.shamirProvider != nil { // shamir secret sharing lock
 		secretLock, err = c.createShamirSecretLock(wr.User, wr.SecretShare)
 		if err != nil {
 			return fmt.Errorf("create shamir secret lock: %w", err)
@@ -261,7 +259,7 @@ func (c *Command) createShamirSecretLock(user string, secretShare []byte) (secre
 		return nil, fmt.Errorf("%w: empty secret share", errors.ErrValidation)
 	}
 
-	share, err := c.fetchSecretShare(user) // secret share from Auth server
+	share, err := c.shamirProvider.FetchSecretShare(user) // secret share from Auth server
 	if err != nil {
 		return nil, fmt.Errorf("fetch secret share: %w", err)
 	}
@@ -272,62 +270,6 @@ func (c *Command) createShamirSecretLock(user string, secretShare []byte) (secre
 	}
 
 	return secretLock, nil
-}
-
-func (c *Command) fetchSecretShare(sub string) ([]byte, error) {
-	uri := fmt.Sprintf("%s/secret?sub=%s", c.authServerURL, url.QueryEscape(sub))
-
-	req, err := http.NewRequestWithContext(context.Background(), http.MethodGet, uri, nil)
-	if err != nil {
-		return nil, fmt.Errorf("new request: %w", err)
-	}
-
-	req.Header.Set("authorization",
-		fmt.Sprintf("Bearer %s", base64.StdEncoding.EncodeToString([]byte(c.authServerToken))),
-	)
-
-	resp, err := c.httpClient.Do(req)
-	if err != nil {
-		return nil, fmt.Errorf("http do: %w", err)
-	}
-
-	defer resp.Body.Close() // nolint: errcheck
-
-	if resp.StatusCode != http.StatusOK {
-		return nil, getError(resp.Body)
-	}
-
-	var body struct {
-		Secret string `json:"secret"`
-	}
-
-	if err = json.NewDecoder(resp.Body).Decode(&body); err != nil {
-		return nil, fmt.Errorf("decode response body: %w", err)
-	}
-
-	secret, err := base64.StdEncoding.DecodeString(body.Secret)
-	if err != nil {
-		return nil, fmt.Errorf("decode secret: %w", err)
-	}
-
-	return secret, nil
-}
-
-func getError(reader io.Reader) error {
-	body, er := io.ReadAll(reader)
-	if er != nil {
-		return fmt.Errorf("read body: %w", er)
-	}
-
-	var errMsg struct {
-		Message string `json:"message"`
-	}
-
-	if err := json.Unmarshal(body, &errMsg); err != nil {
-		return errors.New(string(body))
-	}
-
-	return errors.New(errMsg.Message)
 }
 
 func (c *Command) save(meta *keyStoreMeta) error {
