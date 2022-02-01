@@ -39,6 +39,10 @@ const (
 	keySecretLockDecryptTimeMetric = "key_secret_lock_decrypt_seconds"
 	awsSecretLockEncryptTimeMetric = "aws_secret_lock_encrypt_seconds"
 	keySecretLockEncryptTimeMetric = "key_secret_lock_encrypt_seconds"
+
+	// Middleware.
+	middleware                 = "middleware"
+	middlewareZCAPLDTimeMetric = "zcapld_seconds"
 )
 
 var logger = log.New("metrics")
@@ -68,6 +72,8 @@ type Metrics struct {
 
 	awsSecretLockEncryptTime prometheus.Histogram
 	keySecretLockEncryptTime prometheus.Histogram
+
+	zcapldTime prometheus.Histogram
 }
 
 // Get returns an KMS metrics provider.
@@ -97,11 +103,12 @@ func newMetrics() *Metrics {
 		keySecretLockDecryptTime: newKeySecretLockDecryptTime(),
 		awsSecretLockEncryptTime: newAWSSecretLockEncryptTime(),
 		keySecretLockEncryptTime: newKeySecretLockEncryptTime(),
+		zcapldTime:               newZCAPMiddlewareTime(),
 	}
 
 	prometheus.MustRegister(
 		m.cryptoSignTime, m.keyStoreResolveTime, m.keyStoreGetKeyTime, m.awsSecretLockDecryptTime, m.keySecretLockDecryptTime,
-		m.awsSecretLockEncryptTime, m.keySecretLockEncryptTime,
+		m.awsSecretLockEncryptTime, m.keySecretLockEncryptTime, m.zcapldTime,
 	)
 
 	for _, c := range m.dbPutTimes {
@@ -231,6 +238,13 @@ func (m *Metrics) KeySecretLockEncryptTime(value time.Duration) {
 	m.keySecretLockEncryptTime.Observe(value.Seconds())
 
 	logger.Debugf("KeySecretLockEncrypt time: %s", value)
+}
+
+// ZCAPLDTime records the time it takes to run zcapld middleware.
+func (m *Metrics) ZCAPLDTime(value time.Duration) {
+	m.zcapldTime.Observe(value.Seconds())
+
+	logger.Debugf("ZCAPLD time: %s", value)
 }
 
 func newHistogram(subsystem, name, help string, labels prometheus.Labels) prometheus.Histogram {
@@ -393,6 +407,14 @@ func newKeySecretLockEncryptTime() prometheus.Histogram {
 	return newHistogram(
 		keyStore, keySecretLockEncryptTimeMetric,
 		"The time (in seconds) that it takes to encrypt key from keystore.",
+		nil,
+	)
+}
+
+func newZCAPMiddlewareTime() prometheus.Histogram {
+	return newHistogram(
+		middleware, middlewareZCAPLDTimeMetric,
+		"The time (in seconds) that it takes to run .",
 		nil,
 	)
 }

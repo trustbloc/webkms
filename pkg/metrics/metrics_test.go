@@ -35,5 +35,6 @@ func TestMetrics(t *testing.T) {
 		require.NotPanics(t, func() { m.AWSSecretLockDecryptTime(time.Second) })
 		require.NotPanics(t, func() { m.KeySecretLockEncryptTime(time.Second) })
 		require.NotPanics(t, func() { m.KeySecretLockDecryptTime(time.Second) })
+		require.NotPanics(t, func() { m.ZCAPLDTime(time.Second) })
 	})
 }
