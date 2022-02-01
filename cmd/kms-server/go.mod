@@ -12,7 +12,7 @@ require (
 	github.com/dgraph-io/ristretto v0.1.0
 	github.com/google/tink/go v1.6.1
 	github.com/gorilla/mux v1.8.0
-	github.com/hyperledger/aries-framework-go v0.1.8-0.20220113090443-b751c0ae7b22
+	github.com/hyperledger/aries-framework-go v0.1.8-0.20220126164804-6041c17d6e59
 	github.com/hyperledger/aries-framework-go-ext/component/storage/couchdb v0.0.0-20211014145537-7da54ab5fdb9
 	github.com/hyperledger/aries-framework-go-ext/component/storage/mongodb v0.0.0-20211219215001-23cd75276fdc
 	github.com/hyperledger/aries-framework-go-ext/component/vdr/orb v0.1.4-0.20211229160742-30796de12ba6

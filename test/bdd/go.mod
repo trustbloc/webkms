@@ -10,7 +10,7 @@ require (
 	github.com/coreos/go-oidc/v3 v3.1.0
 	github.com/cucumber/godog v0.10.0
 	github.com/greenpau/go-calculator v1.0.1
-	github.com/hyperledger/aries-framework-go v0.1.8-0.20220113090443-b751c0ae7b22
+	github.com/hyperledger/aries-framework-go v0.1.8-0.20220126164804-6041c17d6e59
 	github.com/hyperledger/aries-framework-go/component/storageutil v0.0.0-20211101152315-ac0a0a19b02d
 	github.com/hyperledger/aries-framework-go/spi v0.0.0-20220106195936-a9d6794663ed
 	github.com/igor-pavlenko/httpsignatures-go v0.0.23
@@ -20,7 +20,6 @@ require (
 	github.com/teserakt-io/golang-ed25519 v0.0.0-20210104091850-3888c087a4c8
 	github.com/trustbloc/edge-core v0.1.8-0.20220113141450-e19ffd091d98
 	github.com/trustbloc/edv v0.1.8-0.20211209083748-969281e6dcb7
-	github.com/trustbloc/hub-auth v0.0.0
 	github.com/trustbloc/kms v0.0.0-00010101000000-000000000000
 	golang.org/x/oauth2 v0.0.0-20211104180415-d3ed0bb246c8
 )
@@ -32,9 +31,7 @@ require (
 	github.com/asaskevich/govalidator v0.0.0-20200428143746-21a406dcc535 // indirect
 	github.com/btcsuite/btcd v0.22.0-beta // indirect
 	github.com/btcsuite/btcutil v1.0.3-0.20201208143702-a53e38424cce // indirect
-	github.com/cenkalti/backoff v2.2.1+incompatible // indirect
 	github.com/cespare/xxhash/v2 v2.1.2 // indirect
-	github.com/coreos/go-oidc v2.2.1+incompatible // indirect
 	github.com/cucumber/gherkin-go/v11 v11.0.0 // indirect
 	github.com/cucumber/messages-go/v10 v10.0.3 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
@@ -55,8 +52,6 @@ require (
 	github.com/golang/snappy v0.0.4 // indirect
 	github.com/google/tink/go v1.6.1 // indirect
 	github.com/google/uuid v1.3.0 // indirect
-	github.com/gorilla/securecookie v1.1.1 // indirect
-	github.com/gorilla/sessions v1.2.1 // indirect
 	github.com/hashicorp/go-immutable-radix v1.3.1 // indirect
 	github.com/hashicorp/go-memdb v1.3.2 // indirect
 	github.com/hashicorp/golang-lru v0.5.4 // indirect
@@ -93,7 +88,4 @@ require (
 	gopkg.in/yaml.v3 v3.0.0-20210107192922-496545a6307b // indirect
 )
 
-replace (
-	github.com/trustbloc/hub-auth => github.com/trustbloc/hub-auth v0.1.7
-	github.com/trustbloc/kms => ../..
-)
+replace github.com/trustbloc/kms => ../..
