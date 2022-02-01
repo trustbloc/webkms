@@ -415,6 +415,34 @@ func TestStartCmdWithKeyStoreCacheTTLParam(t *testing.T) {
 	})
 }
 
+func TestStartCmdWithShamirCacheTTLParam(t *testing.T) {
+	t.Run("Success with shamir-secret-cache-ttl set", func(t *testing.T) {
+		startCmd, err := Cmd(&mockServer{})
+		require.NoError(t, err)
+
+		args := requiredArgs(storageTypeMemOption)
+		args = append(args, "--"+shamirSecretCacheTTLFlagName, "10m")
+
+		startCmd.SetArgs(args)
+
+		err = startCmd.Execute()
+		require.NoError(t, err)
+	})
+
+	t.Run("Fail with invalid shamir-secret-cache-ttl duration string", func(t *testing.T) {
+		startCmd, err := Cmd(&mockServer{})
+		require.NoError(t, err)
+
+		args := requiredArgs(storageTypeMemOption)
+		args = append(args, "--"+shamirSecretCacheTTLFlagName, "invalid")
+
+		startCmd.SetArgs(args)
+
+		err = startCmd.Execute()
+		require.Error(t, err)
+	})
+}
+
 func TestStartCmdWithKMSCacheTTLParam(t *testing.T) {
 	t.Run("Success with kms-cache-ttl set", func(t *testing.T) {
 		startCmd, err := Cmd(&mockServer{})
