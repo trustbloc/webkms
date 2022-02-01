@@ -577,8 +577,6 @@ func (s *Steps) makeRotateKeyReq(userName, endpoint, keyType string) error {
 		return respErr
 	}
 
-	fmt.Printf("KEY_URL %s", rotateKeyResponse.KeyURL)
-
 	parts := strings.Split(rotateKeyResponse.KeyURL, "/")
 	u.keyID = parts[len(parts)-1]
 

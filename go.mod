@@ -11,7 +11,7 @@ require (
 	github.com/golang/mock v1.6.0
 	github.com/google/tink/go v1.6.1
 	github.com/gorilla/mux v1.8.0
-	github.com/hyperledger/aries-framework-go v0.1.8-0.20220113090443-b751c0ae7b22
+	github.com/hyperledger/aries-framework-go v0.1.8-0.20220126164804-6041c17d6e59
 	github.com/hyperledger/aries-framework-go/component/storage/edv v0.0.0-20220106195936-a9d6794663ed
 	github.com/hyperledger/aries-framework-go/component/storageutil v0.0.0-20210910143505-343c246c837c
 	github.com/hyperledger/aries-framework-go/spi v0.0.0-20220106195936-a9d6794663ed

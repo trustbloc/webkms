@@ -7,13 +7,9 @@ SPDX-License-Identifier: Apache-2.0
 package auth
 
 import (
-	"bytes"
 	"context"
-	"encoding/base64"
-	"encoding/json"
 	"errors"
 	"fmt"
-	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -24,7 +20,6 @@ import (
 	"github.com/ory/hydra-client-go/client/admin"
 	"github.com/ory/hydra-client-go/models"
 	"github.com/rs/xid"
-	"github.com/trustbloc/hub-auth/pkg/restapi/operation"
 	"golang.org/x/oauth2"
 )
 
@@ -62,129 +57,6 @@ func (m *MockWallet) RequestUserAuthentication() (*http.Response, error) {
 	}
 
 	return response, nil
-}
-
-// FetchBootstrapData fetches bootstrap data from the Auth server.
-func (m *MockWallet) FetchBootstrapData(endpoint string) (*operation.BootstrapData, error) {
-	request, err := http.NewRequestWithContext(context.Background(), http.MethodGet, endpoint, nil)
-	if err != nil {
-		return nil, fmt.Errorf("failed to construct http request: %w", err)
-	}
-
-	m.addAccessToken(request)
-
-	response, err := m.httpClient.Do(request)
-	if err != nil {
-		return nil, fmt.Errorf("failed to invoke bootstrap data endpoint: %w", err)
-	}
-
-	defer func() {
-		closeErr := response.Body.Close()
-		if closeErr != nil {
-			fmt.Printf("WARNING - failed to close http response body: %s\n", closeErr.Error())
-		}
-	}()
-
-	if response.StatusCode != http.StatusOK {
-		msg, err := ioutil.ReadAll(response.Body)
-		if err != nil {
-			fmt.Printf("WARNING - failed to read response body: %s\n", err.Error())
-		}
-
-		return nil, fmt.Errorf(
-			"unexpected response: code=%d msg=%s", response.StatusCode, msg,
-		)
-	}
-
-	data := &operation.BootstrapData{}
-
-	return data, json.NewDecoder(response.Body).Decode(data)
-}
-
-// UpdateBootstrapData updates bootstrap data on the Auth server.
-func (m *MockWallet) UpdateBootstrapData(endpoint string, update *operation.UpdateBootstrapDataRequest) error {
-	payload, err := json.Marshal(update)
-	if err != nil {
-		return fmt.Errorf("failed to marshal payload: %w", err)
-	}
-
-	request, err := http.NewRequestWithContext(context.Background(), http.MethodPost, endpoint,
-		bytes.NewReader(payload))
-	if err != nil {
-		return fmt.Errorf("failed to create http request: %w", err)
-	}
-
-	m.addAccessToken(request)
-
-	response, err := m.httpClient.Do(request)
-	if err != nil {
-		return fmt.Errorf("failed to invoke bootstrap data endpoint: %w", err)
-	}
-
-	defer func() {
-		closeErr := response.Body.Close()
-		if closeErr != nil {
-			fmt.Printf("WARNING - failed to close http response body: %s\n", closeErr.Error())
-		}
-	}()
-
-	if response.StatusCode != http.StatusOK {
-		msg, err := ioutil.ReadAll(response.Body)
-		if err != nil {
-			fmt.Printf("WARNING - failed to read response body: %s\n", err.Error())
-		}
-
-		return fmt.Errorf(
-			"unexpected response: code=%d msg=%s", response.StatusCode, msg,
-		)
-	}
-
-	return nil
-}
-
-// CreateAndPushSecretToHubAuth creates and stores Shamir secret share on the Auth server.
-func (m *MockWallet) CreateAndPushSecretToHubAuth(endpoint string) error {
-	m.Secret = xid.New().String()
-
-	payload, err := json.Marshal(&operation.SetSecretRequest{
-		Secret: []byte(m.Secret),
-	})
-	if err != nil {
-		return fmt.Errorf("failed to marshal request: %w", err)
-	}
-
-	request, err := http.NewRequestWithContext(context.Background(), http.MethodPost, endpoint,
-		bytes.NewReader(payload))
-	if err != nil {
-		return fmt.Errorf("failed to create http request: %w", err)
-	}
-
-	m.addAccessToken(request)
-
-	response, err := m.httpClient.Do(request)
-	if err != nil {
-		return fmt.Errorf("failed to push secret to hub-auth: %w", err)
-	}
-
-	defer func() {
-		closeErr := response.Body.Close()
-		if closeErr != nil {
-			fmt.Printf("WARNING - failed to close response body: %s\n", closeErr.Error())
-		}
-	}()
-
-	if response.StatusCode != http.StatusOK {
-		msg, err := ioutil.ReadAll(response.Body)
-		if err != nil {
-			fmt.Printf("WARNING - failed to read response body: %s\n", err.Error())
-		}
-
-		return fmt.Errorf(
-			"unexpected response: code=%d msg=%s", response.StatusCode, msg,
-		)
-	}
-
-	return nil
 }
 
 // ServeHTTP serves HTTP requests for the wallet.
@@ -242,13 +114,6 @@ func (m *MockWallet) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	// store access token
 	m.accessToken = token.AccessToken
-}
-
-func (m *MockWallet) addAccessToken(r *http.Request) {
-	r.Header.Set(
-		"authorization",
-		fmt.Sprintf("Bearer %s", base64.StdEncoding.EncodeToString([]byte(m.accessToken))),
-	)
 }
 
 // NewMockWallet returns a new instance of the mock wallet.
