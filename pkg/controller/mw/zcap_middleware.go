@@ -6,6 +6,8 @@ SPDX-License-Identifier: Apache-2.0
 
 package mw
 
+//go:generate mockgen -destination gomocks_test.go -package mw . DocumentLoader,CapabilityResolver,VDRResolver
+
 import (
 	"context"
 	"net/http"
@@ -13,8 +15,10 @@ import (
 
 	"github.com/gorilla/mux"
 	"github.com/hyperledger/aries-framework-go/pkg/crypto"
+	"github.com/hyperledger/aries-framework-go/pkg/doc/did"
 	"github.com/hyperledger/aries-framework-go/pkg/doc/signature/suite"
 	"github.com/hyperledger/aries-framework-go/pkg/doc/signature/suite/ed25519signature2018"
+	"github.com/hyperledger/aries-framework-go/pkg/framework/aries/api/vdr"
 	"github.com/hyperledger/aries-framework-go/pkg/kms"
 	"github.com/piprate/json-gold/ld"
 	"github.com/trustbloc/edge-core/pkg/log"
@@ -22,6 +26,15 @@ import (
 
 	"github.com/trustbloc/kms/pkg/metrics"
 )
+
+// DocumentLoader is an alias for ld.DocumentLoader.
+type DocumentLoader = ld.DocumentLoader
+
+// CapabilityResolver is an alias for zcapld.CapabilityResolver.
+type CapabilityResolver = zcapld.CapabilityResolver
+
+// VDRResolver is an alias for zcapld.VDRResolver.
+type VDRResolver = zcapld.VDRResolver
 
 // ZCAPConfig is a configuration for zcapld middleware.
 type ZCAPConfig struct {
@@ -70,13 +83,13 @@ func ZCAPLDMiddleware(c *ZCAPConfig, handlerAction string) mux.MiddlewareFunc {
 	return func(h http.Handler) http.Handler {
 		return &mwHandler{
 			next:                 h,
-			zcaps:                c.AuthService,
+			zcaps:                &capabilityResolverMetrics{wrapped: c.AuthService},
 			keys:                 c.AuthService.KMS(),
 			crpto:                c.AuthService.Crypto(),
-			jsonLDLoader:         c.JSONLDLoader,
+			jsonLDLoader:         &documentLoaderMetrics{wrapped: c.JSONLDLoader},
 			logger:               c.Logger,
 			routeFunc:            (&muxNamer{}).GetName,
-			vdrResolver:          c.VDRResolver,
+			vdrResolver:          &vdrResolverMetrics{wrapped: c.VDRResolver},
 			baseResourceURL:      c.BaseResourceURL,
 			resourceIDQueryParam: c.ResourceIDQueryParam,
 			handlerAction:        handlerAction,
@@ -134,4 +147,46 @@ func (h *mwHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 func (h *mwHandler) logError(err error) {
 	h.logger.Errorf("unauthorized capability invocation: %s", err.Error())
+}
+
+type capabilityResolverMetrics struct {
+	wrapped zcapld.CapabilityResolver
+}
+
+func (c *capabilityResolverMetrics) Resolve(uri string) (*zcapld.Capability, error) {
+	getStartTime := time.Now()
+
+	cm, err := c.wrapped.Resolve(uri)
+
+	metrics.Get().ZCAPLDCapabilityResolveTime(time.Since(getStartTime))
+
+	return cm, err
+}
+
+type documentLoaderMetrics struct {
+	wrapped ld.DocumentLoader
+}
+
+func (w *documentLoaderMetrics) LoadDocument(u string) (*ld.RemoteDocument, error) {
+	getStartTime := time.Now()
+
+	d, err := w.wrapped.LoadDocument(u)
+
+	metrics.Get().ZCAPLDLoadDocumentTime(time.Since(getStartTime))
+
+	return d, err
+}
+
+type vdrResolverMetrics struct {
+	wrapped zcapld.VDRResolver
+}
+
+func (w *vdrResolverMetrics) Resolve(didStr string, opts ...vdr.DIDMethodOption) (*did.DocResolution, error) {
+	getStartTime := time.Now()
+
+	d, err := w.wrapped.Resolve(didStr, opts...)
+
+	metrics.Get().ZCAPLDVDRResolveTime(time.Since(getStartTime))
+
+	return d, err
 }

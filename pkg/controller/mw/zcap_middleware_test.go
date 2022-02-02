@@ -12,6 +12,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
+	"github.com/golang/mock/gomock"
 	"github.com/hyperledger/aries-framework-go/pkg/crypto"
 	arieskms "github.com/hyperledger/aries-framework-go/pkg/kms"
 	"github.com/stretchr/testify/require"
@@ -71,6 +72,47 @@ func TestMiddleware(t *testing.T) {
 
 			require.Len(t, handler.requestsCaptured, 0) // we're not sending zcaps
 		})
+	})
+}
+
+func TestZCAPMetrics(t *testing.T) {
+	t.Run("CapabilityResolver", func(t *testing.T) {
+		ctrl := gomock.NewController(t)
+		defer ctrl.Finish()
+
+		resolver := NewMockCapabilityResolver(ctrl)
+		resolver.EXPECT().Resolve("test uri").Times(1)
+
+		metrics := capabilityResolverMetrics{wrapped: resolver}
+
+		_, err := metrics.Resolve("test uri")
+		require.NoError(t, err)
+	})
+
+	t.Run("DocumentLoader", func(t *testing.T) {
+		ctrl := gomock.NewController(t)
+		defer ctrl.Finish()
+
+		resolver := NewMockDocumentLoader(ctrl)
+		resolver.EXPECT().LoadDocument("test uri").Times(1)
+
+		metrics := documentLoaderMetrics{wrapped: resolver}
+		_, err := metrics.LoadDocument("test uri")
+
+		require.NoError(t, err)
+	})
+
+	t.Run("CapabilityResolver", func(t *testing.T) {
+		ctrl := gomock.NewController(t)
+		defer ctrl.Finish()
+
+		resolver := NewMockVDRResolver(ctrl)
+		resolver.EXPECT().Resolve("test uri").Times(1)
+
+		metrics := vdrResolverMetrics{wrapped: resolver}
+		_, err := metrics.Resolve("test uri")
+
+		require.NoError(t, err)
 	})
 }
 

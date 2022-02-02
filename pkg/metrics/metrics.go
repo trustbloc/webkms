@@ -41,8 +41,11 @@ const (
 	keySecretLockEncryptTimeMetric = "key_secret_lock_encrypt_seconds"
 
 	// Middleware.
-	middleware                 = "middleware"
-	middlewareZCAPLDTimeMetric = "zcapld_seconds"
+	zcap                            = "zcap"
+	zcapMiddlewareTimeMetric        = "middleware_seconds"
+	zcapCapabilityResolveTimeMetric = "capability_resolve_seconds"
+	zcapLoadDocumentTimeMetric      = "load_document_seconds"
+	zcapVDRResolveTimeMetric        = "vdr_resolve_seconds"
 )
 
 var logger = log.New("metrics")
@@ -73,7 +76,10 @@ type Metrics struct {
 	awsSecretLockEncryptTime prometheus.Histogram
 	keySecretLockEncryptTime prometheus.Histogram
 
-	zcapldTime prometheus.Histogram
+	zcapldTime                  prometheus.Histogram
+	zcapldCapabilityResolveTime prometheus.Histogram
+	zcapldLoadDocumentTime      prometheus.Histogram
+	zcapldVDRResolve            prometheus.Histogram
 }
 
 // Get returns an KMS metrics provider.
@@ -89,26 +95,30 @@ func newMetrics() *Metrics {
 	dbTypes := []string{"CouchDB", "MongoDB", "EDV", "Cache"}
 
 	m := &Metrics{
-		cryptoSignTime:           newCryptoSignTime(),
-		dbPutTimes:               newDBPutTime(dbTypes),
-		dbGetTimes:               newDBGetTime(dbTypes),
-		dbGetTagsTimes:           newDBGetTagsTime(dbTypes),
-		dbGetBulkTimes:           newDBGetBulkTime(dbTypes),
-		dbQueryTimes:             newDBQueryTime(dbTypes),
-		dbDeleteTimes:            newDBDeleteTime(dbTypes),
-		dbBatchTimes:             newDBBatchTime(dbTypes),
-		keyStoreResolveTime:      newKeyStoreResolveTime(),
-		keyStoreGetKeyTime:       newKeyStoreGetKeyTime(),
-		awsSecretLockDecryptTime: newAWSSecretLockDecryptTime(),
-		keySecretLockDecryptTime: newKeySecretLockDecryptTime(),
-		awsSecretLockEncryptTime: newAWSSecretLockEncryptTime(),
-		keySecretLockEncryptTime: newKeySecretLockEncryptTime(),
-		zcapldTime:               newZCAPMiddlewareTime(),
+		cryptoSignTime:              newCryptoSignTime(),
+		dbPutTimes:                  newDBPutTime(dbTypes),
+		dbGetTimes:                  newDBGetTime(dbTypes),
+		dbGetTagsTimes:              newDBGetTagsTime(dbTypes),
+		dbGetBulkTimes:              newDBGetBulkTime(dbTypes),
+		dbQueryTimes:                newDBQueryTime(dbTypes),
+		dbDeleteTimes:               newDBDeleteTime(dbTypes),
+		dbBatchTimes:                newDBBatchTime(dbTypes),
+		keyStoreResolveTime:         newKeyStoreResolveTime(),
+		keyStoreGetKeyTime:          newKeyStoreGetKeyTime(),
+		awsSecretLockDecryptTime:    newAWSSecretLockDecryptTime(),
+		keySecretLockDecryptTime:    newKeySecretLockDecryptTime(),
+		awsSecretLockEncryptTime:    newAWSSecretLockEncryptTime(),
+		keySecretLockEncryptTime:    newKeySecretLockEncryptTime(),
+		zcapldTime:                  newZCAPMiddlewareTime(),
+		zcapldCapabilityResolveTime: newZCAPCapabilityResolveTime(),
+		zcapldLoadDocumentTime:      newZCAPLoadDocumentTime(),
+		zcapldVDRResolve:            newZCAPVDRResolveTime(),
 	}
 
 	prometheus.MustRegister(
 		m.cryptoSignTime, m.keyStoreResolveTime, m.keyStoreGetKeyTime, m.awsSecretLockDecryptTime, m.keySecretLockDecryptTime,
-		m.awsSecretLockEncryptTime, m.keySecretLockEncryptTime, m.zcapldTime,
+		m.awsSecretLockEncryptTime, m.keySecretLockEncryptTime, m.zcapldTime, m.zcapldCapabilityResolveTime,
+		m.zcapldLoadDocumentTime, m.zcapldVDRResolve,
 	)
 
 	for _, c := range m.dbPutTimes {
@@ -245,6 +255,27 @@ func (m *Metrics) ZCAPLDTime(value time.Duration) {
 	m.zcapldTime.Observe(value.Seconds())
 
 	logger.Debugf("ZCAPLD time: %s", value)
+}
+
+// ZCAPLDCapabilityResolveTime records the time it takes to resolve zcapld capability.
+func (m *Metrics) ZCAPLDCapabilityResolveTime(value time.Duration) {
+	m.zcapldCapabilityResolveTime.Observe(value.Seconds())
+
+	logger.Debugf("ZCAPLD capability resolve: %s", value)
+}
+
+// ZCAPLDLoadDocumentTime records the time it takes to load zcapld document.
+func (m *Metrics) ZCAPLDLoadDocumentTime(value time.Duration) {
+	m.zcapldLoadDocumentTime.Observe(value.Seconds())
+
+	logger.Debugf("ZCAPLD load document time: %s", value)
+}
+
+// ZCAPLDVDRResolveTime records the time it takes to resolve zcapld vdr.
+func (m *Metrics) ZCAPLDVDRResolveTime(value time.Duration) {
+	m.zcapldVDRResolve.Observe(value.Seconds())
+
+	logger.Debugf("ZCAPLD VDR resolve time: %s", value)
 }
 
 func newHistogram(subsystem, name, help string, labels prometheus.Labels) prometheus.Histogram {
@@ -413,8 +444,32 @@ func newKeySecretLockEncryptTime() prometheus.Histogram {
 
 func newZCAPMiddlewareTime() prometheus.Histogram {
 	return newHistogram(
-		middleware, middlewareZCAPLDTimeMetric,
-		"The time (in seconds) that it takes to run .",
+		zcap, zcapMiddlewareTimeMetric,
+		"The time (in seconds) that it takes to run zcap middleware.",
+		nil,
+	)
+}
+
+func newZCAPCapabilityResolveTime() prometheus.Histogram {
+	return newHistogram(
+		zcap, zcapCapabilityResolveTimeMetric,
+		"The time (in seconds) that it takes to resolve capability.",
+		nil,
+	)
+}
+
+func newZCAPLoadDocumentTime() prometheus.Histogram {
+	return newHistogram(
+		zcap, zcapLoadDocumentTimeMetric,
+		"The time (in seconds) that it takes to load zcap document.",
+		nil,
+	)
+}
+
+func newZCAPVDRResolveTime() prometheus.Histogram {
+	return newHistogram(
+		zcap, zcapVDRResolveTimeMetric,
+		"The time (in seconds) that it takes to resolve vdr.",
 		nil,
 	)
 }
