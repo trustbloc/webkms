@@ -9,6 +9,7 @@ package mw
 import (
 	"context"
 	"net/http"
+	"time"
 
 	"github.com/gorilla/mux"
 	"github.com/hyperledger/aries-framework-go/pkg/crypto"
@@ -18,6 +19,8 @@ import (
 	"github.com/piprate/json-gold/ld"
 	"github.com/trustbloc/edge-core/pkg/log"
 	"github.com/trustbloc/edge-core/pkg/zcapld"
+
+	"github.com/trustbloc/kms/pkg/metrics"
 )
 
 // ZCAPConfig is a configuration for zcapld middleware.
@@ -91,6 +94,8 @@ func (h *mwHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	getStartTime := time.Now()
+
 	resource := h.baseResourceURL + "/" + mux.Vars(r)[h.resourceIDQueryParam]
 
 	expectations := &zcapld.InvocationExpectations{
@@ -118,7 +123,10 @@ func (h *mwHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			Crypto:      h.crpto,
 		},
 		expectations,
-		h.next.ServeHTTP,
+		func(w http.ResponseWriter, r *http.Request) {
+			metrics.Get().ZCAPLDTime(time.Since(getStartTime))
+			h.next.ServeHTTP(w, r)
+		},
 	).ServeHTTP(w, r)
 
 	h.logger.Debugf("finished handling request: %s", r.URL.String())
