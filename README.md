@@ -63,7 +63,9 @@ $ ./build/bin/kms-server start --host localhost:8076 --database-type mongodb --d
 | --tls-systemcertpool         | KMS_TLS_SYSTEMCERTPOOL         | Use system certificate pool. Possible values: [true] [false]. Defaults to false.                           |
 | --did-domain                 | KMS_DID_DOMAIN                 | The URL to the did consortium's domain.                                                                    |
 | --key-store-cache-ttl        | KMS_KEY_STORE_CACHE_TTL        | An optional value for key store cache TTL (time to live). Defaults to 10m if caching is enabled.           |
-| --enable-cache               | KMS_CACHE_ENABLE               | Enables caching support. Possible values: [true] [false]. Defaults to false.                               |
+| --enable-cache               | KMS_CACHE_ENABLE               | Enables caching support. Possible values: [true] [false]. Defaults to true.
+| --shamir-secret-cache-ttl    | KMS_SHAMIR_SECRET_CACHE_TTL    | An optional value for Shamir secrets cache TTL. Defaults to 10m if caching is enabled. If set to 0, keys are never cached. | 
+| --kms-cache-ttl              | KMS_KMS_CACHE_TTL              | An optional value for cache TTL for keys stored in server kms. Defaults to 10m if caching is enabled. If set to 0, keys are never cached. |
 | --enable-cors                | KMS_CORS_ENABLE                | Enables CORS. Possible values: [true] [false]. Defaults to false.                                          |
 | --enable-zcap                | KMS_ZCAP_ENABLE                | Enables ZCAPs authorization. Possible values: [true] [false]. Defaults to false.                           |
 | --log-level                  | KMS_LOG_LEVEL                  | Logging level. Supported options: critical, error, warning, info, debug. Defaults to info.                 |
