@@ -274,6 +274,7 @@ func startServer(srv server, params *serverParameters) error { //nolint:funlen
 			cors.Options{
 				AllowedMethods: []string{http.MethodGet, http.MethodPost, http.MethodPut, http.MethodOptions},
 				AllowedHeaders: []string{"*"},
+				MaxAge:         60,
 			},
 		).Handler(router)
 	}
