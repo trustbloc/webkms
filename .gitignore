@@ -10,3 +10,4 @@ gomocks_test.go
 coverage.out
 test/bdd/fixtures/keys
 openAPI.yml
+.build/*

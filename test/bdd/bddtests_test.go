@@ -18,6 +18,7 @@ import (
 	"github.com/cucumber/godog"
 	"github.com/hyperledger/aries-framework-go/pkg/common/log"
 
+	"github.com/trustbloc/kms/test/bdd/pkg/cli"
 	"github.com/trustbloc/kms/test/bdd/pkg/common"
 	"github.com/trustbloc/kms/test/bdd/pkg/context"
 	"github.com/trustbloc/kms/test/bdd/pkg/keystore"
@@ -145,6 +146,7 @@ func initializeScenario(ctx *godog.ScenarioContext) {
 		common.NewSteps(),
 		keystore.NewSteps(),
 		kms.NewSteps(bddContext.TLSConfig()),
+		cli.NewCLISteps(),
 	}
 
 	for _, f := range features {

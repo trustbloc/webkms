@@ -60,3 +60,13 @@ jobs:
           tags: |
             ${{ env.KMS_IMAGE_PREFIX }}:${{ env.IMAGE_TAG }}
             ${{ env.KMS_IMAGE_PREFIX }}:latest
+
+      - name: Build binaries
+        run: make build-kms-cli-binaries
+
+      - name: Upload binaries and their SHA to Github Release
+        uses: alexellis/upload-assets@0.3.0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          asset_paths: '["./.build/dist/bin/kms-cli*"]'
