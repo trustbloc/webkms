@@ -40,8 +40,6 @@ mocks:
 .PHONY: lint
 lint: mocks
 	@GOBIN=$(GOBIN_PATH) go install github.com/golangci/golangci-lint/cmd/golangci-lint@$(LINT_VERSION)
-	@$(GOBIN_PATH)/golangci-lint run
-	@cd cmd/kms-server && $(GOBIN_PATH)/golangci-lint run -c ../../.golangci.yml
 	@cd test/bdd && $(GOBIN_PATH)/golangci-lint run -c ../../.golangci.yml
 
 .PHONY: unit-test
@@ -49,8 +47,22 @@ unit-test: mocks
 	@go test ./... -count=1 -race -coverprofile=coverage.out -covermode=atomic -timeout=10m
 	@cd cmd/kms-server && MallocNanoZone=0 go test ./... -count=1 -race -coverprofile=coverage.out -covermode=atomic -timeout=10m
 
+.PHONY: build-kms-cli-binaries
+build-kms-cli-binaries:
+	@mkdir -p .build/dist/bin
+	@docker run -i --rm \
+		-v $(abspath .):/opt/workspace/kms \
+		--entrypoint "/opt/workspace/kms/scripts/build-cli.sh" \
+		ghcr.io/gythialy/golang-cross:latest
+
+.PHONY: extract-kms-cli-binaries
+extract-kms-cli-binaries:
+	@echo "Extract kms cli binaries"
+	@mkdir -p .build/extract;cd .build/dist/bin;tar -zxf kms-cli-linux-amd64.tar.gz;mv kms-cli-linux-amd64 ../../extract/
+	@mkdir -p .build/extract;cd .build/dist/bin;tar -zxf kms-cli-darwin-amd64.tar.gz;mv kms-cli-darwin-amd64 ../../extract/
+
 .PHONY: bdd-test
-bdd-test: generate-test-keys kms-server-docker mock-login-consent-docker
+bdd-test: generate-test-keys kms-server-docker mock-login-consent-docker build-kms-cli-binaries extract-kms-cli-binaries
 	@cd test/bdd && MallocNanoZone=0 go test -count=1 -v -cover . -p 1 -timeout=10m -race # TODO: remove "MallocNanoZone=0" after resolving https://github.com/golang/go/issues/49138
 
 .PHONY: stress-test
