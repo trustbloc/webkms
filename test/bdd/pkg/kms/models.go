@@ -41,7 +41,8 @@ type createKeyResp struct {
 }
 
 type exportKeyResp struct {
-	PublicKey []byte `json:"public_key"`
+	PublicKey []byte      `json:"public_key"`
+	KeyType   kms.KeyType `json:"key_type"`
 }
 
 type importKeyReq struct {

@@ -422,8 +422,13 @@ func (s *Steps) makeExportPubKeyReq(userName, endpoint string) error {
 		return respErr
 	}
 
+	if exportKeyResponse.KeyType == "" {
+		return fmt.Errorf("export public key returned an empty key type")
+	}
+
 	u.data = map[string]string{
 		"public_key": string(exportKeyResponse.PublicKey),
+		"key_type":   string(exportKeyResponse.KeyType),
 	}
 
 	return nil

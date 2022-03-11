@@ -190,7 +190,7 @@ func (c *Command) CreateKey(w io.Writer, r io.Reader) error {
 		return fmt.Errorf("create key: %w", err)
 	}
 
-	pub, err := ks.ExportPubKeyBytes(kid)
+	pub, _, err := ks.ExportPubKeyBytes(kid)
 	if err != nil {
 		if !strings.Contains(err.Error(), "failed to get public keyset handle") {
 			return fmt.Errorf("export public key bytes: %w", err)
@@ -215,12 +215,12 @@ func (c *Command) ExportKey(w io.Writer, r io.Reader) error {
 		return fmt.Errorf("resolve key store: %w", err)
 	}
 
-	b, err := ks.ExportPubKeyBytes(wr.KeyID)
+	b, kt, err := ks.ExportPubKeyBytes(wr.KeyID)
 	if err != nil {
 		return fmt.Errorf("export public key bytes: %w", err)
 	}
 
-	return json.NewEncoder(w).Encode(ExportKeyResponse{PublicKey: b})
+	return json.NewEncoder(w).Encode(ExportKeyResponse{PublicKey: b, KeyType: string(kt)})
 }
 
 // ImportKey imports a key.
@@ -717,7 +717,7 @@ func (c *Command) resolveKeyStore(keyStoreID, user string, secretShare []byte) (
 }
 
 func (c *Command) resolveEDVProvider(vaultURL, recKeyID, macKeyID string, capability []byte) (storage.Provider, error) {
-	recPubBytes, err := c.kms.ExportPubKeyBytes(recKeyID)
+	recPubBytes, _, err := c.kms.ExportPubKeyBytes(recKeyID)
 	if err != nil {
 		return nil, fmt.Errorf("get edv recipient key: %w", err)
 	}
