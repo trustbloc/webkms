@@ -162,14 +162,14 @@ func TestWrappedKMS_ExportPubKeyBytes(t *testing.T) {
 
 		kms := NewMockKeyManager(ctrl)
 
-		kms.EXPECT().ExportPubKeyBytes(gomock.Any()).Return([]byte("fake_byte"), nil).Times(1)
+		kms.EXPECT().ExportPubKeyBytes(gomock.Any()).Return([]byte("fake_byte"), arieskms.ED25519Type, nil).Times(1)
 
 		wk, err := cacheProvider.WrapKMS(kms, 10*time.Second)
 
 		require.NoError(t, err)
 		require.NotNil(t, wk)
 
-		bytes, err := wk.ExportPubKeyBytes("test_id")
+		bytes, _, err := wk.ExportPubKeyBytes("test_id")
 
 		require.NoError(t, err)
 		require.Equal(t, cachedValue, bytes)
@@ -195,7 +195,7 @@ func TestWrappedKMS_ExportPubKeyBytes(t *testing.T) {
 		require.NoError(t, err)
 		require.NotNil(t, wk)
 
-		bytes, err := wk.ExportPubKeyBytes("test_id")
+		bytes, _, err := wk.ExportPubKeyBytes("test_id")
 
 		require.NoError(t, err)
 		require.Equal(t, []byte("fake_byte"), bytes)

@@ -724,6 +724,7 @@ func TestCommand_ExportKey(t *testing.T) {
 	t.Run("Success", func(t *testing.T) {
 		cmd := createCmd(t, gomock.NewController(t), withKeyManager(&mockkms.KeyManager{
 			ExportPubKeyBytesValue: []byte("public key bytes"),
+			ExportPubKeyTypeValue:  "key_type",
 		}))
 
 		wr, err := json.Marshal(WrappedRequest{
@@ -742,6 +743,7 @@ func TestCommand_ExportKey(t *testing.T) {
 		err = json.Unmarshal(buf.Bytes(), &resp)
 		require.NoError(t, err)
 		require.Equal(t, []byte("public key bytes"), resp.PublicKey)
+		require.Equal(t, "key_type", resp.KeyType)
 	})
 
 	t.Run("Fail to export public key bytes", func(t *testing.T) {

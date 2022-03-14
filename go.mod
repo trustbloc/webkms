@@ -11,10 +11,10 @@ require (
 	github.com/golang/mock v1.6.0
 	github.com/google/tink/go v1.6.1
 	github.com/gorilla/mux v1.8.0
-	github.com/hyperledger/aries-framework-go v0.1.8-0.20220126164804-6041c17d6e59
-	github.com/hyperledger/aries-framework-go/component/storage/edv v0.0.0-20220106195936-a9d6794663ed
-	github.com/hyperledger/aries-framework-go/component/storageutil v0.0.0-20210910143505-343c246c837c
-	github.com/hyperledger/aries-framework-go/spi v0.0.0-20220106195936-a9d6794663ed
+	github.com/hyperledger/aries-framework-go v0.1.8-0.20220310104637-62fd90482e21
+	github.com/hyperledger/aries-framework-go/component/storage/edv v0.0.0-20220310104637-62fd90482e21
+	github.com/hyperledger/aries-framework-go/component/storageutil v0.0.0-20220310104637-62fd90482e21
+	github.com/hyperledger/aries-framework-go/spi v0.0.0-20220310104637-62fd90482e21
 	github.com/igor-pavlenko/httpsignatures-go v0.0.23
 	github.com/piprate/json-gold v0.4.1
 	github.com/prometheus/client_golang v1.11.0
@@ -37,7 +37,6 @@ require (
 	github.com/golang/snappy v0.0.4 // indirect
 	github.com/google/go-cmp v0.5.6 // indirect
 	github.com/google/uuid v1.3.0 // indirect
-	github.com/hyperledger/aries-framework-go/test/component v0.0.0-20211204013109-366f6ef74861 // indirect
 	github.com/jinzhu/copier v0.0.0-20190924061706-b57f9002281a // indirect
 	github.com/jmespath/go-jmespath v0.4.0 // indirect
 	github.com/kilic/bls12-381 v0.1.1-0.20210503002446-7b7597926c69 // indirect

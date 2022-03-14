@@ -89,20 +89,20 @@ func (w *wrappedKMS) Rotate(kt arieskms.KeyType, keyID string) (string, interfac
 	return w.kms.Rotate(kt, keyID)
 }
 
-func (w *wrappedKMS) ExportPubKeyBytes(keyID string) ([]byte, error) {
+func (w *wrappedKMS) ExportPubKeyBytes(keyID string) ([]byte, arieskms.KeyType, error) {
 	v, ok := w.cache.Get(pubBytesCacheItemID(keyID))
 	if ok {
-		return v.([]byte), nil
+		return v.([]byte), "", nil
 	}
 
-	pubKeyBytes, err := w.kms.ExportPubKeyBytes(keyID)
+	pubKeyBytes, kt, err := w.kms.ExportPubKeyBytes(keyID)
 	if err != nil {
-		return nil, err
+		return nil, "", err
 	}
 
 	w.addPubBytesToCache(keyID, pubKeyBytes)
 
-	return pubKeyBytes, nil
+	return pubKeyBytes, kt, nil
 }
 
 func (w *wrappedKMS) CreateAndExportPubKeyBytes(kt arieskms.KeyType) (string, []byte, error) {

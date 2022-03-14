@@ -92,6 +92,7 @@ type RotateKeyResponse struct {
 // ExportKeyResponse is a response for ExportKey request.
 type ExportKeyResponse struct {
 	PublicKey []byte `json:"public_key"`
+	KeyType   string `json:"key_type"`
 }
 
 // SignRequest is a request to sign a message.

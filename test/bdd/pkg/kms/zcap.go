@@ -76,7 +76,7 @@ func (r *remoteKMS) Rotate(kt kms.KeyType, keyID string) (string, interface{}, e
 	panic("implement me")
 }
 
-func (r *remoteKMS) ExportPubKeyBytes(keyID string) ([]byte, error) {
+func (r *remoteKMS) ExportPubKeyBytes(keyID string) ([]byte, kms.KeyType, error) {
 	panic("implement me")
 }
 

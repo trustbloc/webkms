@@ -40,7 +40,7 @@ mocks:
 .PHONY: lint
 lint: mocks
 	@GOBIN=$(GOBIN_PATH) go install github.com/golangci/golangci-lint/cmd/golangci-lint@$(LINT_VERSION)
-	@cd test/bdd && $(GOBIN_PATH)/golangci-lint run -c ../../.golangci.yml
+	$(GOBIN_PATH)/golangci-lint run -c .golangci.yml
 
 .PHONY: unit-test
 unit-test: mocks
