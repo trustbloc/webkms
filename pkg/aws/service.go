@@ -119,7 +119,7 @@ func (s *Service) ImportPrivateKey(privKey interface{}, kt arieskms.KeyType,
 func getKeyID(keyURI string) (string, error) {
 	// keyURI must have the following format: 'aws-kms://arn:<partition>:kms:<region>:[:path]'.
 	// See http://docs.aws.amazon.com/general/latest/gr/aws-arns-and-namespaces.html.
-	re1 := regexp.MustCompile(`aws-kms://arn:(aws[a-zA-Z0-9-_]*):kms:([a-z0-9-]+):([a-z0-9-]+):key/([a-z0-9-]+)`)
+	re1 := regexp.MustCompile(`aws-kms://arn:(aws[a-zA-Z0-9-_]*):kms:([a-z0-9-]+):([a-z0-9-]+):key/(.+)`)
 
 	r := re1.FindStringSubmatch(keyURI)
 
