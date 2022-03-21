@@ -39,7 +39,7 @@ func TestSign(t *testing.T) {
 		}}
 
 		signature, err := svc.Sign([]byte("msg"),
-			"aws-kms://arn:aws:kms:ca-central-1:111122223333:key/800d5768-3fd7-4edd-a4b8-4c81c3e4c147")
+			"aws-kms://arn:aws:kms:ca-central-1:111122223333:key/alias/800d5768-3fd7-4edd-a4b8-4c81c3e4c147")
 		require.NoError(t, err)
 		require.Contains(t, string(signature), "data")
 	})
