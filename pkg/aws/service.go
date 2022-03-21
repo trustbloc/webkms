@@ -9,6 +9,7 @@ package aws
 import (
 	"fmt"
 	"regexp"
+	"strings"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
@@ -120,6 +121,10 @@ func getKeyID(keyURI string) (string, error) {
 	// keyURI must have the following format: 'aws-kms://arn:<partition>:kms:<region>:[:path]'.
 	// See http://docs.aws.amazon.com/general/latest/gr/aws-arns-and-namespaces.html.
 	re1 := regexp.MustCompile(`aws-kms://arn:(aws[a-zA-Z0-9-_]*):kms:([a-z0-9-]+):([a-z0-9-]+):key/(.+)`)
+
+	if strings.Contains(keyURI, "alias") {
+		re1 = regexp.MustCompile(`aws-kms://arn:(aws[a-zA-Z0-9-_]*):kms:([a-z0-9-]+):([a-z0-9-]+):(.+)`)
+	}
 
 	r := re1.FindStringSubmatch(keyURI)
 
