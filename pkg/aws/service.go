@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"regexp"
 	"strings"
+	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
@@ -23,9 +24,19 @@ type awsClient interface {
 	Verify(input *kms.VerifyInput) (*kms.VerifyOutput, error)
 }
 
+type metricsProvider interface {
+	SignCount()
+	SignTime(value time.Duration)
+	ExportPublicKeyCount()
+	ExportPublicKeyTime(value time.Duration)
+	VerifyCount()
+	VerifyTime(value time.Duration)
+}
+
 // Service aws kms.
 type Service struct {
-	client awsClient
+	client  awsClient
+	metrics metricsProvider
 }
 
 // nolint: gochecknoglobals
@@ -36,12 +47,20 @@ var kmsKeyTypes = map[string]arieskms.KeyType{
 }
 
 // New return aws service.
-func New(awsSession *session.Session) *Service {
-	return &Service{client: kms.New(awsSession)}
+func New(awsSession *session.Session, metrics metricsProvider) *Service {
+	return &Service{client: kms.New(awsSession), metrics: metrics}
 }
 
 // Sign data.
 func (s *Service) Sign(msg []byte, kh interface{}) ([]byte, error) {
+	startTime := time.Now()
+
+	defer func() {
+		s.metrics.SignTime(time.Since(startTime))
+	}()
+
+	s.metrics.SignCount()
+
 	keyID, err := getKeyID(kh.(string))
 	if err != nil {
 		return nil, err
@@ -69,6 +88,14 @@ func (s *Service) Get(keyID string) (interface{}, error) {
 
 // ExportPubKeyBytes export public key.
 func (s *Service) ExportPubKeyBytes(keyURI string) ([]byte, arieskms.KeyType, error) {
+	startTime := time.Now()
+
+	defer func() {
+		s.metrics.ExportPublicKeyTime(time.Since(startTime))
+	}()
+
+	s.metrics.ExportPublicKeyCount()
+
 	keyID, err := getKeyID(keyURI)
 	if err != nil {
 		return nil, "", err
@@ -88,6 +115,14 @@ func (s *Service) ExportPubKeyBytes(keyURI string) ([]byte, arieskms.KeyType, er
 
 // Verify signature.
 func (s *Service) Verify(signature, msg []byte, kh interface{}) error {
+	startTime := time.Now()
+
+	defer func() {
+		s.metrics.VerifyTime(time.Since(startTime))
+	}()
+
+	s.metrics.VerifyCount()
+
 	keyID, err := getKeyID(kh.(string))
 	if err != nil {
 		return err
