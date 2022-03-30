@@ -8,11 +8,11 @@ go 1.17
 
 require (
 	github.com/gorilla/mux v1.8.0
-	github.com/hyperledger/aries-framework-go v0.1.8-0.20220126164804-6041c17d6e59
-	github.com/hyperledger/aries-framework-go/component/storageutil v0.0.0-20211101152315-ac0a0a19b02d
-	github.com/hyperledger/aries-framework-go/spi v0.0.0-20211101152315-ac0a0a19b02d
+	github.com/hyperledger/aries-framework-go v0.1.8
+	github.com/hyperledger/aries-framework-go/component/storageutil v0.0.0-20220330140627-07042d78580c
+	github.com/hyperledger/aries-framework-go/spi v0.0.0-20220330140627-07042d78580c
 	github.com/ory/hydra-client-go v1.10.6
-	github.com/trustbloc/edge-core v0.1.8-0.20220113141450-e19ffd091d98
+	github.com/trustbloc/edge-core v0.1.8
 )
 
 require (
