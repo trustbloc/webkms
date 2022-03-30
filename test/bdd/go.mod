@@ -10,16 +10,16 @@ require (
 	github.com/coreos/go-oidc/v3 v3.1.0
 	github.com/cucumber/godog v0.10.0
 	github.com/greenpau/go-calculator v1.0.1
-	github.com/hyperledger/aries-framework-go v0.1.8-0.20220324201531-18c87667df19
-	github.com/hyperledger/aries-framework-go/component/storageutil v0.0.0-20220324201531-18c87667df19
-	github.com/hyperledger/aries-framework-go/spi v0.0.0-20220324201531-18c87667df19
+	github.com/hyperledger/aries-framework-go v0.1.8
+	github.com/hyperledger/aries-framework-go/component/storageutil v0.0.0-20220330140627-07042d78580c
+	github.com/hyperledger/aries-framework-go/spi v0.0.0-20220330140627-07042d78580c
 	github.com/igor-pavlenko/httpsignatures-go v0.0.23
 	github.com/lafriks/go-shamir v1.1.0
 	github.com/ory/hydra-client-go v1.8.5
 	github.com/rs/xid v1.3.0
 	github.com/teserakt-io/golang-ed25519 v0.0.0-20210104091850-3888c087a4c8
-	github.com/trustbloc/edge-core v0.1.8-0.20220324215259-0ab3fd8db3f3
-	github.com/trustbloc/edv v0.1.8-0.20220325202420-22e79405724a
+	github.com/trustbloc/edge-core v0.1.8
+	github.com/trustbloc/edv v0.1.8
 	github.com/trustbloc/kms v0.0.0-00010101000000-000000000000
 	golang.org/x/oauth2 v0.0.0-20211104180415-d3ed0bb246c8
 )

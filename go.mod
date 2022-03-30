@@ -11,16 +11,16 @@ require (
 	github.com/golang/mock v1.6.0
 	github.com/google/tink/go v1.6.1
 	github.com/gorilla/mux v1.8.0
-	github.com/hyperledger/aries-framework-go v0.1.8-0.20220324201531-18c87667df19
-	github.com/hyperledger/aries-framework-go/component/storage/edv v0.0.0-20220324201531-18c87667df19
-	github.com/hyperledger/aries-framework-go/component/storageutil v0.0.0-20220324201531-18c87667df19
-	github.com/hyperledger/aries-framework-go/spi v0.0.0-20220324201531-18c87667df19
+	github.com/hyperledger/aries-framework-go v0.1.8
+	github.com/hyperledger/aries-framework-go/component/storage/edv v0.0.0-20220330133350-1c2d9d65aea4
+	github.com/hyperledger/aries-framework-go/component/storageutil v0.0.0-20220330133350-1c2d9d65aea4
+	github.com/hyperledger/aries-framework-go/spi v0.0.0-20220330133350-1c2d9d65aea4
 	github.com/igor-pavlenko/httpsignatures-go v0.0.23
 	github.com/piprate/json-gold v0.4.1
 	github.com/prometheus/client_golang v1.11.0
 	github.com/rs/xid v1.3.0
 	github.com/stretchr/testify v1.7.0
-	github.com/trustbloc/edge-core v0.1.8-0.20220324215259-0ab3fd8db3f3
+	github.com/trustbloc/edge-core v0.1.8
 	golang.org/x/net v0.0.0-20211216030914-fe4d6282115f
 )
 

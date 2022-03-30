@@ -5,7 +5,7 @@ go 1.17
 require (
 	github.com/spf13/cobra v1.3.0
 	github.com/stretchr/testify v1.7.0
-	github.com/trustbloc/edge-core v0.1.8-0.20220324215259-0ab3fd8db3f3
+	github.com/trustbloc/edge-core v0.1.8
 )
 
 require (
