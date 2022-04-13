@@ -12,26 +12,26 @@ require (
 	github.com/dgraph-io/ristretto v0.1.0
 	github.com/google/tink/go v1.6.1
 	github.com/gorilla/mux v1.8.0
-	github.com/hyperledger/aries-framework-go v0.1.8-0.20220310162624-ca0bc656ea74
+	github.com/hyperledger/aries-framework-go v0.1.9-0.20220412155017-81442062e607
 	github.com/hyperledger/aries-framework-go-ext/component/storage/couchdb v0.0.0-20220310013829-55b4443130f8
 	github.com/hyperledger/aries-framework-go-ext/component/storage/mongodb v0.0.0-20220310013829-55b4443130f8
-	github.com/hyperledger/aries-framework-go-ext/component/vdr/orb v0.1.4-0.20211229160742-30796de12ba6
-	github.com/hyperledger/aries-framework-go/component/storageutil v0.0.0-20220310104637-62fd90482e21
-	github.com/hyperledger/aries-framework-go/spi v0.0.0-20220310104637-62fd90482e21
+	github.com/hyperledger/aries-framework-go-ext/component/vdr/orb v1.0.0-rc.1
+	github.com/hyperledger/aries-framework-go/component/storageutil v0.0.0-20220330140627-07042d78580c
+	github.com/hyperledger/aries-framework-go/spi v0.0.0-20220330140627-07042d78580c
 	github.com/lafriks/go-shamir v1.1.0
-	github.com/ory/dockertest/v3 v3.7.0
+	github.com/ory/dockertest/v3 v3.8.1
 	github.com/piprate/json-gold v0.4.1
 	github.com/prometheus/client_golang v1.11.0
 	github.com/rs/cors v1.8.2
 	github.com/spf13/cobra v1.3.0
 	github.com/stretchr/testify v1.7.0
-	github.com/trustbloc/edge-core v0.1.8-0.20220113141450-e19ffd091d98
-	github.com/trustbloc/kms v0.0.0-00010101000000-000000000000
+	github.com/trustbloc/edge-core v0.1.8
+	github.com/trustbloc/kms v0.1.8
 )
 
 require (
 	github.com/Azure/go-ansiterm v0.0.0-20170929234023-d6e3b3328b78 // indirect
-	github.com/Microsoft/go-winio v0.4.15-0.20190919025122-fc70bd9a86b5 // indirect
+	github.com/Microsoft/go-winio v0.5.1 // indirect
 	github.com/Nvveen/Gotty v0.0.0-20120604004816-cd527374f1e5 // indirect
 	github.com/VictoriaMetrics/fastcache v1.5.7 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
@@ -42,7 +42,7 @@ require (
 	github.com/cespare/xxhash/v2 v2.1.2 // indirect
 	github.com/containerd/continuity v0.0.0-20200710164510-efbc4488d8fe // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
-	github.com/docker/cli v20.10.7+incompatible // indirect
+	github.com/docker/cli v20.10.11+incompatible // indirect
 	github.com/docker/docker v20.10.7+incompatible // indirect
 	github.com/docker/go-connections v0.4.0 // indirect
 	github.com/docker/go-units v0.4.0 // indirect
@@ -60,8 +60,8 @@ require (
 	github.com/google/shlex v0.0.0-20191202100458-e7afc7fbc510 // indirect
 	github.com/google/trillian v1.3.14-0.20210520152752-ceda464a95a3 // indirect
 	github.com/google/uuid v1.3.0 // indirect
-	github.com/hyperledger/aries-framework-go-ext/component/vdr/sidetree v0.0.0-20211217171603-637696af6620 // indirect
-	github.com/hyperledger/aries-framework-go/component/storage/edv v0.0.0-20220310104637-62fd90482e21 // indirect
+	github.com/hyperledger/aries-framework-go-ext/component/vdr/sidetree v1.0.0-rc.1 // indirect
+	github.com/hyperledger/aries-framework-go/component/storage/edv v0.0.0-20220322085443-50e8f9bd208b // indirect
 	github.com/igor-pavlenko/httpsignatures-go v0.0.23 // indirect
 	github.com/imdario/mergo v0.3.12 // indirect
 	github.com/inconshreveable/mousetrap v1.0.0 // indirect
@@ -82,8 +82,8 @@ require (
 	github.com/multiformats/go-multihash v0.0.14 // indirect
 	github.com/multiformats/go-varint v0.0.6 // indirect
 	github.com/opencontainers/go-digest v1.0.0 // indirect
-	github.com/opencontainers/image-spec v1.0.1 // indirect
-	github.com/opencontainers/runc v1.0.0-rc9 // indirect
+	github.com/opencontainers/image-spec v1.0.2 // indirect
+	github.com/opencontainers/runc v1.0.2 // indirect
 	github.com/opentracing/opentracing-go v1.1.0 // indirect
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
@@ -92,14 +92,14 @@ require (
 	github.com/prometheus/common v0.26.0 // indirect
 	github.com/prometheus/procfs v0.6.0 // indirect
 	github.com/rs/xid v1.3.0 // indirect
-	github.com/sirupsen/logrus v1.7.0 // indirect
+	github.com/sirupsen/logrus v1.8.1 // indirect
 	github.com/spaolacci/murmur3 v1.1.0 // indirect
 	github.com/spf13/pflag v1.0.5 // indirect
 	github.com/square/go-jose/v3 v3.0.0-20200630053402-0a67ce9b0693 // indirect
 	github.com/teserakt-io/golang-ed25519 v0.0.0-20210104091850-3888c087a4c8 // indirect
-	github.com/trustbloc/orb v0.1.4-0.20211223174027-e48b5f451f1f // indirect
-	github.com/trustbloc/sidetree-core-go v0.7.1-0.20211215084556-11b9bec0b714 // indirect
-	github.com/trustbloc/vct v0.1.4-0.20220311095043-9804a0520090 // indirect
+	github.com/trustbloc/orb v1.0.0-rc.1 // indirect
+	github.com/trustbloc/sidetree-core-go v1.0.0-rc.1 // indirect
+	github.com/trustbloc/vct v1.0.0-rc.1 // indirect
 	github.com/x448/float16 v0.8.4 // indirect
 	github.com/xdg-go/pbkdf2 v1.0.0 // indirect
 	github.com/xdg-go/scram v1.0.2 // indirect
@@ -110,13 +110,13 @@ require (
 	github.com/youmark/pkcs8 v0.0.0-20201027041543-1326539a0a0a // indirect
 	go.mongodb.org/mongo-driver v1.8.0 // indirect
 	golang.org/x/crypto v0.0.0-20220112180741-5e0467b6c7ce // indirect
-	golang.org/x/net v0.0.0-20211216030914-fe4d6282115f // indirect
+	golang.org/x/net v0.0.0-20220127200216-cd36cc0744dd // indirect
 	golang.org/x/sync v0.0.0-20210220032951-036812b2e83c // indirect
-	golang.org/x/sys v0.0.0-20220111092808-5a964db01320 // indirect
+	golang.org/x/sys v0.0.0-20220209214540-3681064d5158 // indirect
 	golang.org/x/text v0.3.7 // indirect
 	golang.org/x/xerrors v0.0.0-20200804184101-5ec99f83aff1 // indirect
-	google.golang.org/genproto v0.0.0-20211208223120-3a66f561d7aa // indirect
-	google.golang.org/grpc v1.42.0 // indirect
+	google.golang.org/genproto v0.0.0-20220222213610-43724f9ea8cf // indirect
+	google.golang.org/grpc v1.44.0 // indirect
 	google.golang.org/protobuf v1.27.1 // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect
 	gopkg.in/yaml.v3 v3.0.0-20210107192922-496545a6307b // indirect
