@@ -7,5 +7,5 @@
 providers:
   mockbank:
     url: https://oidc.provider.example.com:5555/
-    clientID: hub-auth
-    clientSecret: hub-auth-secret
+    clientID: auth
+    clientSecret: auth-secret
