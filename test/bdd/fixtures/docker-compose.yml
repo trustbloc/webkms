@@ -114,7 +114,7 @@ services:
       - KMS_DATABASE_TYPE=mongodb
       - KMS_DATABASE_URL=mongodb://mongodb.example.com:27017
       - KMS_DATABASE_PREFIX=authzkms_
-      - KMS_AUTH_SERVER_URL=https://hub-auth.trustbloc.local:8070
+      - KMS_AUTH_SERVER_URL=https://auth.trustbloc.local:8070
       - KMS_AUTH_SERVER_TOKEN=test_token
       - KMS_CACHE_ENABLE=true
       - KMS_LOG_LEVEL=debug
@@ -230,8 +230,8 @@ services:
     networks:
       - bdd_net
 
-  hub-auth.trustbloc.local:
-    container_name: hub-auth.trustbloc.local
+  auth.trustbloc.local:
+    container_name: auth.trustbloc.local
     image: ${AUTH_REST_IMAGE}:${AUTH_REST_IMAGE_TAG}
     environment:
       - AUTH_REST_HOST_URL=0.0.0.0:8070
