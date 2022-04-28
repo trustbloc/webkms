@@ -83,6 +83,71 @@ func TestSign(t *testing.T) {
 	})
 }
 
+func TestHealthCheck(t *testing.T) {
+	t.Run("success", func(t *testing.T) {
+		endpoint := localhost
+		awsSession, err := session.NewSession(&aws.Config{
+			Endpoint:                      &endpoint,
+			Region:                        aws.String("ca"),
+			CredentialsChainVerboseErrors: aws.Bool(true),
+		})
+		require.NoError(t, err)
+
+		svc := New(awsSession, &mockMetrics{})
+
+		keyID := "key1"
+
+		svc.client = &mockAWSClient{listKeysFunc: func(input *kms.ListKeysInput) (*kms.ListKeysOutput, error) {
+			return &kms.ListKeysOutput{
+				Keys: []*kms.KeyListEntry{{KeyId: &keyID}},
+			}, nil
+		}}
+
+		err = svc.HealthCheck()
+		require.NoError(t, err)
+	})
+
+	t.Run("failed to list keys", func(t *testing.T) {
+		endpoint := localhost
+		awsSession, err := session.NewSession(&aws.Config{
+			Endpoint:                      &endpoint,
+			Region:                        aws.String("ca"),
+			CredentialsChainVerboseErrors: aws.Bool(true),
+		})
+		require.NoError(t, err)
+
+		svc := New(awsSession, &mockMetrics{})
+
+		svc.client = &mockAWSClient{listKeysFunc: func(input *kms.ListKeysInput) (*kms.ListKeysOutput, error) {
+			return nil, fmt.Errorf("failed to list keys")
+		}}
+
+		err = svc.HealthCheck()
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "failed to list keys")
+	})
+
+	t.Run("empty keys", func(t *testing.T) {
+		endpoint := localhost
+		awsSession, err := session.NewSession(&aws.Config{
+			Endpoint:                      &endpoint,
+			Region:                        aws.String("ca"),
+			CredentialsChainVerboseErrors: aws.Bool(true),
+		})
+		require.NoError(t, err)
+
+		svc := New(awsSession, &mockMetrics{})
+
+		svc.client = &mockAWSClient{listKeysFunc: func(input *kms.ListKeysInput) (*kms.ListKeysOutput, error) {
+			return &kms.ListKeysOutput{}, nil
+		}}
+
+		err = svc.HealthCheck()
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "list of keys are empty")
+	})
+}
+
 func TestGet(t *testing.T) {
 	t.Run("success", func(t *testing.T) {
 		endpoint := localhost
@@ -230,6 +295,7 @@ type mockAWSClient struct {
 	signFunc         func(input *kms.SignInput) (*kms.SignOutput, error)
 	getPublicKeyFunc func(input *kms.GetPublicKeyInput) (*kms.GetPublicKeyOutput, error)
 	verifyFunc       func(input *kms.VerifyInput) (*kms.VerifyOutput, error)
+	listKeysFunc     func(input *kms.ListKeysInput) (*kms.ListKeysOutput, error)
 }
 
 func (m *mockAWSClient) Sign(input *kms.SignInput) (*kms.SignOutput, error) {
@@ -251,6 +317,14 @@ func (m *mockAWSClient) GetPublicKey(input *kms.GetPublicKeyInput) (*kms.GetPubl
 func (m *mockAWSClient) Verify(input *kms.VerifyInput) (*kms.VerifyOutput, error) {
 	if m.verifyFunc != nil {
 		return m.verifyFunc(input)
+	}
+
+	return nil, nil
+}
+
+func (m *mockAWSClient) ListKeys(input *kms.ListKeysInput) (*kms.ListKeysOutput, error) {
+	if m.listKeysFunc != nil {
+		return m.listKeysFunc(input)
 	}
 
 	return nil, nil

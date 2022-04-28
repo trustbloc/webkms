@@ -22,6 +22,7 @@ type awsClient interface {
 	Sign(input *kms.SignInput) (*kms.SignOutput, error)
 	GetPublicKey(input *kms.GetPublicKeyInput) (*kms.GetPublicKeyOutput, error)
 	Verify(input *kms.VerifyInput) (*kms.VerifyOutput, error)
+	ListKeys(input *kms.ListKeysInput) (*kms.ListKeysOutput, error)
 }
 
 type metricsProvider interface {
@@ -84,6 +85,22 @@ func (s *Service) Sign(msg []byte, kh interface{}) ([]byte, error) {
 // Get key handle.
 func (s *Service) Get(keyID string) (interface{}, error) {
 	return keyID, nil
+}
+
+// HealthCheck check kms.
+func (s *Service) HealthCheck() error {
+	var limit int64 = 1
+
+	result, err := s.client.ListKeys(&kms.ListKeysInput{Limit: &limit})
+	if err != nil {
+		return err
+	}
+
+	if len(result.Keys) == 0 {
+		return fmt.Errorf("list of keys are empty")
+	}
+
+	return nil
 }
 
 // ExportPubKeyBytes export public key.
