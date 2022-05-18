@@ -21,6 +21,7 @@ import (
 	"github.com/trustbloc/kms/test/bdd/pkg/cli"
 	"github.com/trustbloc/kms/test/bdd/pkg/common"
 	"github.com/trustbloc/kms/test/bdd/pkg/context"
+	"github.com/trustbloc/kms/test/bdd/pkg/gnap"
 	"github.com/trustbloc/kms/test/bdd/pkg/keystore"
 	"github.com/trustbloc/kms/test/bdd/pkg/kms"
 )
@@ -35,8 +36,8 @@ const (
 var logger = log.New("kms/bdd")
 
 func TestMain(m *testing.M) {
-	// default is to run all tests with tag @all
-	tags := "all"
+	// default is to run all tests with tag @all but excluding those marked with @wip
+	tags := "all && ~@wip"
 
 	if os.Getenv("TAGS") != "" {
 		tags = os.Getenv("TAGS")
@@ -142,10 +143,16 @@ func initializeScenario(ctx *godog.ScenarioContext) {
 		logger.Fatalf("Failed to create a new BDD context: %s", err.Error())
 	}
 
+	gnapSteps, err := gnap.NewSteps(bddContext.TLSConfig())
+	if err != nil {
+		logger.Fatalf("Failed to create gnap steps: %s", err.Error())
+	}
+
 	features := []feature{
 		common.NewSteps(),
 		keystore.NewSteps(),
 		kms.NewSteps(bddContext.TLSConfig()),
+		gnapSteps,
 		cli.NewCLISteps(),
 	}
 

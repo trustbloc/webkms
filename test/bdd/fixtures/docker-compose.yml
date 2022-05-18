@@ -235,6 +235,7 @@ services:
     image: ${AUTH_REST_IMAGE}:${AUTH_REST_IMAGE_TAG}
     environment:
       - AUTH_REST_HOST_URL=0.0.0.0:8070
+      - AUTH_REST_EXTERNAL_URL=https://auth.trustbloc.local:8070
       - AUTH_REST_TLS_CACERTS=/etc/keys/tls/ec-cacert.pem
       - AUTH_REST_TLS_SYSTEMCERTPOOL=true
       - AUTH_REST_TLS_SERVE_CERT=/etc/keys/tls/ec-pubCert.pem
@@ -242,18 +243,19 @@ services:
       - AUTH_REST_DATABASE_TYPE=mongodb
       - AUTH_REST_DATABASE_URL=mongodb://mongodb.example.com:27017
       - AUTH_REST_DATABASE_PREFIX=authrest_
-      - AUTH_REST_OIDC_CALLBACK=https://localhost:8070/oauth2/callback
+      - AUTH_REST_OIDC_CALLBACK=https://auth.trustbloc.local:8070/oauth2/callback
       - AUTH_REST_OIDC_PROVIDERS_CONFIG=/etc/oidc-config/providers.yaml
-      - AUTH_REST_SDS_DOCS_URL=https://TODO.docs.sds.org/
-      - AUTH_REST_SDS_OPSKEYS_URL=https://TODO.keys.sds.org/
-      - AUTH_REST_KEYSERVER_AUTH_URL=https://TODO.auth.keyserver.org/
-      - AUTH_REST_KEYSERVER_OPS_URL=https://TODO.ops.keyserver.org/
+      - AUTH_REST_SDS_DOCS_URL=https://TODO.docs.sds.org
+      - AUTH_REST_SDS_OPSKEYS_URL=https://TODO.keys.sds.org
+      - AUTH_REST_KEYSERVER_AUTH_URL=https://TODO.auth.keyserver.org
+      - AUTH_REST_KEYSERVER_OPS_URL=https://TODO.ops.keyserver.org
       - AUTH_REST_HYDRA_URL=https://hydra.trustbloc.local:4445
       - AUTH_REST_API_TOKEN=test_token
       - AUTH_REST_COOKIE_AUTH_KEY=/etc/keys/session_cookies/auth.key
       - AUTH_REST_COOKIE_ENC_KEY=/etc/keys/session_cookies/enc.key
       - AUTH_REST_LOG_LEVEL=DEBUG
       - AUTH_REST_STATIC_IMAGES=/etc/static/images
+      - GNAP_ACCESS_POLICY=/etc/gnap-config/access_policy.json
     ports:
       - 8070:8070
     entrypoint: ""
@@ -262,9 +264,30 @@ services:
       - ./keys:/etc/keys
       - ./oidc-config:/etc/oidc-config
       - ./static:/etc/static
+      - ./gnap-config:/etc/gnap-config
     depends_on:
       - hydra.trustbloc.local
       - mongodb.example.com
+      - oidc.provider.example.com
+    networks:
+      - bdd_net
+
+  testnet.orb.local:
+    container_name: testnet.orb.local
+    image: ${SIDETREE_MOCK_IMAGE}:${SIDETREE_MOCK_IMAGE_TAG}
+    environment:
+      - SIDETREE_MOCK_TLS_CERTIFICATE=/etc/sidetree/tls/ec-pubCert.pem
+      - SIDETREE_MOCK_TLS_KEY=/etc/sidetree/tls/ec-key.pem
+      - SIDETREE_MOCK_HOST=0.0.0.0
+      - SIDETREE_MOCK_PORT=443
+      - SIDETREE_MOCK_DID_NAMESPACE=did:orb
+      - SIDETREE_MOCK_DID_ALIASES=did:orb:testnet.orb.local
+      - SIDETREE_MOCK_EXTERNAL_ENDPOINT=https://testnet.orb.local
+      - SIDETREE_MOCK_WELLKNOWN_PATH=did-orb
+    ports:
+      - "443:443"
+    volumes:
+      - ./keys/tls:/etc/sidetree/tls
     networks:
       - bdd_net
 
@@ -279,8 +302,8 @@ services:
     environment:
       - DSN=mysql://hydra:hydra-secret-pw@tcp(mysql:3306)/hydra?max_conns=20&max_idle_conns=4
       - URLS_SELF_ISSUER=https://localhost:4444/
-      - URLS_CONSENT=https://localhost:8070/hydra/consent
-      - URLS_LOGIN=https://localhost:8070/hydra/login
+      - URLS_CONSENT=https://auth.trustbloc.local:8070/hydra/consent
+      - URLS_LOGIN=https://auth.trustbloc.local:8070/hydra/login
       - SECRETS_SYSTEM=testSecretsSystem
       - OIDC_SUBJECT_TYPES_SUPPORTED=public
       - OIDC_SUBJECT_TYPE_PAIRWISE_SALT=testSecretsSystem

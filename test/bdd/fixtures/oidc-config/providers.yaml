@@ -9,3 +9,23 @@ providers:
     url: https://oidc.provider.example.com:5555/
     clientID: auth
     clientSecret: auth-secret
+    name: Demo OIDC
+    signUpIconURL:
+      en: https://localhost:8070/static/images/sign-up-icon-en.svg
+      fr: https://localhost:8070/static/images/sign-up-icon-fr.svg
+    signInIconURL:
+      en: https://localhost:8070/static/images/sign-in-icon-en.svg
+      fr: https://localhost:8070/static/images/sign-in-icon-fr.svg
+    order: 1
+  mockbank1:
+    url: https://oidc.provider.example.com:5555/
+    clientID: auth1
+    clientSecret: auth-secret
+    name: Demo GNAP
+    signUpIconURL:
+      en: https://localhost:8070/static/images/sign-up-icon-en.svg
+      fr: https://localhost:8070/static/images/sign-up-icon-fr.svg
+    signInIconURL:
+      en: https://localhost:8070/static/images/sign-in-icon-en.svg
+      fr: https://localhost:8070/static/images/sign-in-icon-fr.svg
+    order: 2

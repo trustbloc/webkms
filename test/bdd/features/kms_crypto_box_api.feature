@@ -10,7 +10,7 @@ Feature: KMS CryptoBox operations
   Background:
     Given Key Server is running on "localhost" port "4466"
       And AuthZ Key Server is running on "localhost" port "4455"
-      And Hub Auth is running on "localhost" port "8070"
+      And Hub Auth is running on "auth.trustbloc.local" port "8070"
       And EDV is running on "localhost" port "8081"
       And "Alice" wallet has stored secret on Hub Auth
       And "Bob" wallet has stored secret on Hub Auth

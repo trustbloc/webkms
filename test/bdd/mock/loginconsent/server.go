@@ -11,6 +11,7 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/gorilla/mux"
 	"github.com/hyperledger/aries-framework-go/spi/storage"
 	"github.com/ory/hydra-client-go/client"
@@ -21,6 +22,8 @@ import (
 const (
 	loginChallengeCookieName   = "bdd_test_cookie_login_challenge"
 	consentChallengeCookieName = "bdd_test_cookie_consent_challenge"
+	skipConsentCookieName      = "skipConsent"
+	skipConsentTrue            = "true"
 )
 
 func newServer(c *config) *server {
@@ -45,6 +48,7 @@ func newServer(c *config) *server {
 
 	mockRouter := s.router.PathPrefix("/mock").Subrouter()
 	mockRouter.HandleFunc("/login", s.loginHandler).Methods(http.MethodGet)
+	mockRouter.HandleFunc("/login", s.postLoginHandler).Methods(http.MethodPost)
 	mockRouter.HandleFunc("/authn", s.userAuthNHandler).Methods(http.MethodPost)
 	mockRouter.HandleFunc("/consent", s.consentHandler).Methods(http.MethodGet)
 	mockRouter.HandleFunc("/authz", s.userAuthZHandler).Methods(http.MethodPost)
@@ -102,7 +106,7 @@ func (s *server) loginHandler(w http.ResponseWriter, r *http.Request) {
 		Value: challenge,
 	})
 
-	_, err := w.Write([]byte("mock login UI"))
+	_, err := w.Write([]byte("<!DOCTYPE html>\n<html>\n<body>\n\n<p>mock login UI</p>\n\n<form action=\"/mock/login\" method=\"post\" id=\"form1\">\n</form>\n\n<button type=\"submit\" form=\"form1\">login</button>\n\n</body>\n</html>\n"))
 	if err != nil {
 		logger.Errorf("failed to write imaginary UI: %s", err.Error())
 
@@ -112,19 +116,41 @@ func (s *server) loginHandler(w http.ResponseWriter, r *http.Request) {
 	logger.Infof("rendered mock login UI in response to request %s", r.URL.String())
 }
 
+func (s *server) postLoginHandler(w http.ResponseWriter, r *http.Request) {
+	logger.Infof("success case %s", r.URL.String())
+
+	http.SetCookie(w, &http.Cookie{
+		Name:  skipConsentCookieName,
+		Value: skipConsentTrue,
+	})
+
+	s.completeLogin(w, r, &AuthConfigRequest{
+		Sub: uuid.New().String(),
+	})
+}
+
 func (s *server) userAuthNHandler(w http.ResponseWriter, r *http.Request) {
-	cookie, err := r.Cookie(loginChallengeCookieName)
+	request := &AuthConfigRequest{}
+
+	err := json.NewDecoder(r.Body).Decode(request)
 	if err != nil {
-		logger.Errorf("failed to fetch cookie %s: %s", loginChallengeCookieName, err.Error())
+		logger.Errorf("failed to decode auth request: %s", err.Error())
 
 		return
 	}
 
-	request := &AuthConfigRequest{}
+	http.SetCookie(w, &http.Cookie{
+		Name:  skipConsentCookieName,
+		Value: "",
+	})
 
-	err = json.NewDecoder(r.Body).Decode(request)
+	s.completeLogin(w, r, request)
+}
+
+func (s *server) completeLogin(w http.ResponseWriter, r *http.Request, request *AuthConfigRequest) {
+	cookie, err := r.Cookie(loginChallengeCookieName)
 	if err != nil {
-		logger.Errorf("failed to decode auth request: %s", err.Error())
+		logger.Errorf("failed to fetch cookie %s: %s", loginChallengeCookieName, err.Error())
 
 		return
 	}
@@ -190,6 +216,19 @@ func (s *server) userAuthNHandler(w http.ResponseWriter, r *http.Request) {
 func (s *server) consentHandler(w http.ResponseWriter, r *http.Request) {
 	logger.Infof("handling request: %s", r.URL.String())
 
+	skipConsent, err := r.Cookie(skipConsentCookieName)
+	if err != nil {
+		logger.Errorf("failed to fetch cookie %s: %s", skipConsentCookieName, err.Error())
+
+		return
+	}
+
+	logger.Infof("consent skip value %s", skipConsent.Value)
+
+	if skipConsent.Value == skipConsentTrue {
+		s.completeConsent(w, r, &ConsentConfigRequest{UserClaims: &UserClaims{}}, r.URL.Query().Get("consent_challenge"))
+	}
+
 	challenge := r.URL.Query().Get("consent_challenge")
 	if challenge == "" {
 		logger.Errorf("missing consent_challenge")
@@ -202,7 +241,7 @@ func (s *server) consentHandler(w http.ResponseWriter, r *http.Request) {
 		Value: challenge,
 	})
 
-	_, err := w.Write([]byte("mock consent UI"))
+	_, err = w.Write([]byte("mock consent UI"))
 	if err != nil {
 		logger.Errorf("failed to write imaginary UI: %s", err.Error())
 
@@ -229,11 +268,15 @@ func (s *server) userAuthZHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	s.completeConsent(w, r, request, cookie.Value)
+}
+
+func (s *server) completeConsent(w http.ResponseWriter, r *http.Request, request *ConsentConfigRequest, consentChallenge string) {
 	params := admin.NewGetConsentRequestParams()
 
 	params.SetContext(r.Context())
 	params.SetHTTPClient(s.httpClient)
-	params.SetConsentChallenge(cookie.Value)
+	params.SetConsentChallenge(consentChallenge)
 
 	consent, err := s.hydra.GetConsentRequest(params)
 	if err != nil {
@@ -262,7 +305,7 @@ func (s *server) userAuthZHandler(w http.ResponseWriter, r *http.Request) {
 		reject := admin.NewRejectConsentRequestParams()
 		reject.SetContext(r.Context())
 		reject.SetHTTPClient(s.httpClient)
-		reject.SetConsentChallenge(cookie.Value)
+		reject.SetConsentChallenge(consentChallenge)
 
 		rejected, err := s.hydra.RejectConsentRequest(reject)
 		if err != nil {
