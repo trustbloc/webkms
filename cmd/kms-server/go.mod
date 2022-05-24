@@ -16,8 +16,8 @@ require (
 	github.com/hyperledger/aries-framework-go-ext/component/storage/couchdb v0.0.0-20220330151152-6bbd64bde42e
 	github.com/hyperledger/aries-framework-go-ext/component/storage/mongodb v0.0.0-20220330151152-6bbd64bde42e
 	github.com/hyperledger/aries-framework-go-ext/component/vdr/orb v1.0.0-rc.1
-	github.com/hyperledger/aries-framework-go/component/storageutil v0.0.0-20220330140627-07042d78580c
-	github.com/hyperledger/aries-framework-go/spi v0.0.0-20220330140627-07042d78580c
+	github.com/hyperledger/aries-framework-go/component/storageutil v0.0.0-20220516154446-0ba34929e05b
+	github.com/hyperledger/aries-framework-go/spi v0.0.0-20220516154446-0ba34929e05b
 	github.com/lafriks/go-shamir v1.1.0
 	github.com/ory/dockertest/v3 v3.8.1
 	github.com/piprate/json-gold v0.4.1

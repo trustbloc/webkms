@@ -1,0 +1,13 @@
+{
+  "access-types": [
+    {
+      "reference": "example-token-type",
+      "permission": "NeedsConsent",
+      "expires-in": 3600,
+      "access": {
+        "type": "https://trustbloc.net/definitions/example/access-token",
+        "subject-keys": ["sub"]
+      }
+    }
+  ]
+}
