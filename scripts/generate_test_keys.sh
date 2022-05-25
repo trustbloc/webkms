@@ -38,4 +38,7 @@ openssl rand -out test/bdd/fixtures/keys/session_cookies/enc.key 32
 #create master key for secret lock
 openssl rand 32 | base64 | sed 's/+/-/g; s/\//_/g' > test/bdd/fixtures/keys/tls/secret-lock.key
 
+#create private key for GNAP signer
+openssl ecparam -name prime256v1 -genkey -noout -out test/bdd/fixtures/keys/gnap-priv-key.pem
+
 echo "done generating kms PKI"

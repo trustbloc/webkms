@@ -7,9 +7,13 @@ SPDX-License-Identifier: Apache-2.0
 package startcmd //nolint:testpackage
 
 import (
+	"crypto/ecdsa"
+	"crypto/elliptic"
 	"crypto/rand"
 	"crypto/sha256"
+	"crypto/x509"
 	"encoding/base64"
+	"encoding/pem"
 	"io/ioutil"
 	"net/http"
 	"os"
@@ -32,7 +36,10 @@ const (
 	logLevelDebug    = "debug"
 )
 
-var secretLockKeyFile string
+var (
+	secretLockKeyFile  string
+	gnapSigningKeyFile string
+)
 
 type mockServer struct{}
 
@@ -478,7 +485,6 @@ func TestStartCmdWithKMSCacheTTLParam(t *testing.T) {
 		args = append(args, "--"+kmsCacheTTLFlagName, "0s")
 		args = append(args, "--"+enableCacheFlagName, "true")
 
-
 		startCmd.SetArgs(args)
 
 		err = startCmd.Execute()
@@ -486,13 +492,11 @@ func TestStartCmdWithKMSCacheTTLParam(t *testing.T) {
 	})
 }
 
-
 func TestStartKMSService(t *testing.T) {
 	const invalidStorageOption = "invalid"
 
 	t.Run("Success with default args", func(t *testing.T) {
 		params := kmsServerParams(t)
-		params.enableZCAPs = true
 
 		err := startServer(&mockServer{}, params)
 		require.NoError(t, err)
@@ -528,6 +532,7 @@ func requiredArgsWithLockType(databaseType, lockType string) []string {
 		"--" + hostFlagName, "localhost:8080",
 		"--" + databaseTypeFlagName, databaseType,
 		"--" + secretLockTypeFlagName, lockType,
+		"--" + gnapSigningKeyPathFlagName, gnapSigningKeyFile,
 	}
 
 	if lockType == secretLockTypeLocalOption {
@@ -573,6 +578,9 @@ func setEnvVars(t *testing.T) {
 
 	err = os.Setenv(secretLockKeyPathEnvKey, secretLockKeyFile)
 	require.NoError(t, err)
+
+	err = os.Setenv(disableAuthEnvKey, "true")
+	require.NoError(t, err)
 }
 
 func unsetEnvVars(t *testing.T) {
@@ -588,6 +596,9 @@ func unsetEnvVars(t *testing.T) {
 	require.NoError(t, err)
 
 	err = os.Unsetenv(secretLockKeyPathEnvKey)
+	require.NoError(t, err)
+
+	err = os.Unsetenv(disableAuthEnvKey)
 	require.NoError(t, err)
 }
 
@@ -607,12 +618,17 @@ func checkFlagPropertiesCorrect(t *testing.T, cmd *cobra.Command, flagName, flag
 }
 
 func TestMain(m *testing.M) {
-	file, closeFunc := createSecretLockKeyFile()
-	secretLockKeyFile = file
+	lockKeyFile, lockKeyFileClose := createSecretLockKeyFile()
+	secretLockKeyFile = lockKeyFile
+
+	gnapKeyFile, gnapKeyFileClose := createGNAPSigningKeyFile()
+	gnapSigningKeyFile = gnapKeyFile
 
 	code := m.Run()
 
-	closeFunc()
+	lockKeyFileClose()
+	gnapKeyFileClose()
+
 	os.Exit(code)
 }
 
@@ -643,6 +659,44 @@ func createSecretLockKeyFile() (string, func()) {
 
 	_, err = f.Write(encodedKey)
 	if err != nil {
+		panic(err)
+	}
+
+	return f.Name(), closeFunc
+}
+
+func createGNAPSigningKeyFile() (string, func()) {
+	f, err := ioutil.TempFile("", "gnap-priv-key.pem")
+	if err != nil {
+		panic(err)
+	}
+
+	closeFunc := func() {
+		if closeErr := f.Close(); closeErr != nil {
+			panic(closeErr)
+		}
+
+		if removeErr := os.Remove(f.Name()); removeErr != nil {
+			panic(removeErr)
+		}
+	}
+
+	key, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	if err != nil {
+		panic(err)
+	}
+
+	der, err := x509.MarshalECPrivateKey(key)
+	if err != nil {
+		panic(err)
+	}
+
+	b := pem.Block{
+		Type:  "EC PRIVATE KEY",
+		Bytes: der,
+	}
+
+	if err = pem.Encode(f, &b); err != nil {
 		panic(err)
 	}
 

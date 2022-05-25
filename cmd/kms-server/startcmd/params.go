@@ -80,8 +80,7 @@ const (
 
 	authServerURLEnvKey    = "KMS_AUTH_SERVER_URL"
 	authServerURLFlagName  = "auth-server-url"
-	authServerURLFlagUsage = "The URL of Auth server to use for fetching secret share for shamir secret lock. " +
-		"If not specified secret lock based on key is used. " + commonEnvVarUsageText + authServerURLEnvKey
+	authServerURLFlagUsage = "The URL of Auth server. " + commonEnvVarUsageText + authServerURLEnvKey
 
 	authServerTokenEnvKey    = "KMS_AUTH_SERVER_TOKEN" //nolint:gosec // not hard-coded credentials
 	authServerTokenFlagName  = "auth-server-token"     //nolint:gosec // not hard-coded credentials
@@ -108,10 +107,10 @@ const (
 	shamirSecretCacheTTLFlagUsage = "An optional value cache TTL (time to live) for keys in server kms. Defaults to 10m if " +
 		"caching is enabled. If set to 0, keys are never cached. " + commonEnvVarUsageText + shamirSecretCacheTTLEnvKey
 
-	enableZCAPsEnvKey    = "KMS_ZCAP_ENABLE"
-	enableZCAPsFlagName  = "enable-zcap"
-	enableZCAPsFlagUsage = "Enables ZCAPs authorization. Possible values: [true] [false]. Defaults to false. " +
-		commonEnvVarUsageText + enableZCAPsEnvKey
+	disableAuthEnvKey    = "KMS_AUTH_DISABLE"
+	disableAuthFlagName  = "disable-auth"
+	disableAuthFlagUsage = "Disables authorization. Possible values: [true] [false]. Defaults to false. " +
+		commonEnvVarUsageText + disableAuthEnvKey
 
 	enableCORSEnvKey    = "KMS_CORS_ENABLE"
 	enableCORSFlagName  = "enable-cors"
@@ -152,6 +151,11 @@ const (
 	secretLockAWSEndpointEnvKey    = "KMS_SECRET_LOCK_AWS_ENDPOINT" //nolint:gosec // not hard-coded credentials
 	secretLockAWSEndpointFlagUsage = "The endpoint of AWS KMS service. Should be set only in test environment. " +
 		commonEnvVarUsageText + secretLockAWSEndpointEnvKey
+
+	gnapSigningKeyPathEnvKey    = "KMS_GNAP_SIGNING_KEY"
+	gnapSigningKeyPathFlagName  = "gnap-signing-key"
+	gnapSigningKeyPathFlagUsage = "The path to the private key to use when signing GNAP introspection requests. " +
+		commonEnvVarUsageText + gnapSigningKeyPathEnvKey
 )
 
 const (
@@ -175,10 +179,11 @@ type serverParameters struct {
 	kmsCacheTTL          time.Duration
 	shamirSecretCacheTTL time.Duration
 	enableCache          bool
-	enableZCAPs          bool
+	disableAuth          bool
 	enableCORS           bool
 	logLevel             string
 	secretLockParams     *secretLockParameters
+	gnapSigningKeyPath   string
 }
 
 type tlsParameters struct {
@@ -215,7 +220,7 @@ func getParameters(cmd *cobra.Command) (*serverParameters, error) { //nolint:fun
 	kmsCacheTTLStr := getUserSetVarOptional(cmd, kmsCacheTTLFlagName, kmsCacheTTLEnvKey)
 	shamirSecretCacheTTLStr := getUserSetVarOptional(cmd, shamirSecretCacheTTLFlagName, shamirSecretCacheTTLEnvKey)
 	enableCacheStr := getUserSetVarOptional(cmd, enableCacheFlagName, enableCacheEnvKey)
-	enableZCAPsStr := getUserSetVarOptional(cmd, enableZCAPsFlagName, enableZCAPsEnvKey)
+	disableAuthStr := getUserSetVarOptional(cmd, disableAuthFlagName, disableAuthEnvKey)
 	enableCORSStr := getUserSetVarOptional(cmd, enableCORSFlagName, enableCORSEnvKey)
 	logLevel := getUserSetVarOptional(cmd, logLevelFlagName, logLevelEnvKey)
 
@@ -254,15 +259,14 @@ func getParameters(cmd *cobra.Command) (*serverParameters, error) { //nolint:fun
 		}
 	}
 
-
 	enableCache, err := strconv.ParseBool(enableCacheStr)
 	if err != nil {
 		return nil, fmt.Errorf("parse enableCache: %w", err)
 	}
 
-	enableZCAPs, err := strconv.ParseBool(enableZCAPsStr)
+	disableAuth, err := strconv.ParseBool(disableAuthStr)
 	if err != nil {
-		return nil, fmt.Errorf("parse enableZCAPs: %w", err)
+		return nil, fmt.Errorf("parse disableAuth: %w", err)
 	}
 
 	enableCORS, err := strconv.ParseBool(enableCORSStr)
@@ -275,26 +279,32 @@ func getParameters(cmd *cobra.Command) (*serverParameters, error) { //nolint:fun
 		return nil, err
 	}
 
+	gnapSigningKeyPath, err := getUserSetVar(cmd, gnapSigningKeyPathFlagName, gnapSigningKeyPathEnvKey, true)
+	if err != nil {
+		return nil, fmt.Errorf("get GNAP signing key path: %w", err)
+	}
+
 	return &serverParameters{
-		host:             host,
-		metricsHost:      metricsHost,
-		baseURL:          baseURL,
-		tlsParams:        tlsParams,
-		databaseType:     databaseType,
-		databaseURL:      databaseURL,
-		databasePrefix:   databasePrefix,
-		databaseTimeout:  databaseTimeout,
-		didDomain:        didDomain,
-		authServerURL:    authServerURL,
-		authServerToken:  authServerToken,
-		keyStoreCacheTTL: keyStoreCacheTTL,
-		kmsCacheTTL:      kmsCacheTTL,
+		host:                 host,
+		metricsHost:          metricsHost,
+		baseURL:              baseURL,
+		tlsParams:            tlsParams,
+		databaseType:         databaseType,
+		databaseURL:          databaseURL,
+		databasePrefix:       databasePrefix,
+		databaseTimeout:      databaseTimeout,
+		didDomain:            didDomain,
+		authServerURL:        authServerURL,
+		authServerToken:      authServerToken,
+		keyStoreCacheTTL:     keyStoreCacheTTL,
+		kmsCacheTTL:          kmsCacheTTL,
 		shamirSecretCacheTTL: shamirSecretCacheTTL,
-		enableCache:      enableCache,
-		enableZCAPs:      enableZCAPs,
-		enableCORS:       enableCORS,
-		logLevel:         logLevel,
-		secretLockParams: secretLockParams,
+		enableCache:          enableCache,
+		disableAuth:          disableAuth,
+		enableCORS:           enableCORS,
+		logLevel:             logLevel,
+		secretLockParams:     secretLockParams,
+		gnapSigningKeyPath:   gnapSigningKeyPath,
 	}, nil
 }
 
@@ -397,7 +407,7 @@ func createFlags(startCmd *cobra.Command) {
 	startCmd.Flags().String(kmsCacheTTLFlagName, "10m", kmsCacheTTLFlagUsage)
 	startCmd.Flags().String(shamirSecretCacheTTLFlagName, "10m", shamirSecretCacheTTLFlagUsage)
 	startCmd.Flags().String(enableCacheFlagName, "true", enableCacheFlagUsage)
-	startCmd.Flags().String(enableZCAPsFlagName, "false", enableZCAPsFlagUsage)
+	startCmd.Flags().String(disableAuthFlagName, "false", disableAuthFlagUsage)
 	startCmd.Flags().String(enableCORSFlagName, "false", enableCORSFlagUsage)
 	startCmd.Flags().String(logLevelFlagName, "info", logLevelFlagUsage)
 	startCmd.Flags().String(secretLockTypeFlagName, "", secretLockTypeFlagUsage)
@@ -406,4 +416,5 @@ func createFlags(startCmd *cobra.Command) {
 	startCmd.Flags().String(secretLockAWSAccessKeyFlagName, "", secretLockAWSAccessKeyFlagUsage)
 	startCmd.Flags().String(secretLockAWSSecretKeyFlagName, "", secretLockAWSSecretKeyFlagUsage)
 	startCmd.Flags().String(secretLockAWSEndpointFlagName, "", secretLockAWSEndpointFlagUsage)
+	startCmd.Flags().String(gnapSigningKeyPathFlagName, "", gnapSigningKeyPathFlagUsage)
 }

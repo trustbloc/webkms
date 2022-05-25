@@ -13,47 +13,66 @@ var _ Handler = (*HTTPHandler)(nil)
 // Handler represents an HTTP handler for controller API endpoint.
 type Handler interface {
 	Path() string
-	Action() string
-	ZCAPProtect() bool
 	Method() string
-	Handle() http.HandlerFunc
+	Handler() http.HandlerFunc
+	Action() string
+	Auth() AuthMethod
 }
 
-// NewHTTPHandler returns an instance of HTTPHandler that shouldn't be zcap protected.
-func NewHTTPHandler(path, method string, handle http.HandlerFunc, action string, zcapProtected bool) *HTTPHandler {
-	return &HTTPHandler{path: path, action: action, zcapProtected: zcapProtected, method: method, handle: handle}
+// NewHTTPHandler returns a configured instance of HTTPHandler.
+func NewHTTPHandler(path, method string, handler http.HandlerFunc, action string, auth AuthMethod) *HTTPHandler {
+	return &HTTPHandler{path: path, method: method, handler: handler, action: action, auth: auth}
+}
+
+// AuthMethod represents an authorization method.
+type AuthMethod int
+
+const (
+	// AuthNone defines that auth is not handled by the service.
+	AuthNone AuthMethod = 1 << iota
+	// AuthOAuth2 defines OAuth2 as a supported auth method for the handler.
+	AuthOAuth2
+	// AuthZCAP defines ZCAP as a supported auth method for the handler.
+	AuthZCAP
+	// AuthGNAP defines GNAP as a supported auth method for the handler.
+	AuthGNAP
+)
+
+// HasFlag checks if the given auth method is set.
+func (a AuthMethod) HasFlag(flag AuthMethod) bool {
+	return a&flag != 0
 }
 
 // HTTPHandler is an HTTP handler for the given path and method.
 type HTTPHandler struct {
-	path          string
-	action        string
-	zcapProtected bool
-	method        string
-	handle        http.HandlerFunc
+	path    string
+	method  string
+	handler http.HandlerFunc
+	action  string
+	auth    AuthMethod
 }
 
-// Path returns HTTP request path.
+// Path returns an HTTP request path.
 func (h *HTTPHandler) Path() string {
 	return h.path
 }
 
-// Action returns action associated with request path.
-func (h *HTTPHandler) Action() string {
-	return h.action
-}
-
-// ZCAPProtect indicates should the path be protected by zcap.
-func (h *HTTPHandler) ZCAPProtect() bool {
-	return h.zcapProtected
-}
-
-// Method returns HTTP request method type.
+// Method returns an HTTP request method.
 func (h *HTTPHandler) Method() string {
 	return h.method
 }
 
-// Handle returns HTTP request handler func.
-func (h *HTTPHandler) Handle() http.HandlerFunc {
-	return h.handle
+// Handler returns an HTTP request handler func.
+func (h *HTTPHandler) Handler() http.HandlerFunc {
+	return h.handler
+}
+
+// Action returns an action associated with the request path.
+func (h *HTTPHandler) Action() string {
+	return h.action
+}
+
+// Auth returns supported authorization method.
+func (h *HTTPHandler) Auth() AuthMethod {
+	return h.auth
 }
