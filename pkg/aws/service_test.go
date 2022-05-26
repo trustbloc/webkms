@@ -31,7 +31,7 @@ func TestSign(t *testing.T) {
 		})
 		require.NoError(t, err)
 
-		svc := New(awsSession, &mockMetrics{})
+		svc := New(awsSession, &mockMetrics{}, "")
 
 		svc.client = &mockAWSClient{signFunc: func(input *kms.SignInput) (*kms.SignOutput, error) {
 			return &kms.SignOutput{
@@ -54,7 +54,7 @@ func TestSign(t *testing.T) {
 		})
 		require.NoError(t, err)
 
-		svc := New(awsSession, &mockMetrics{})
+		svc := New(awsSession, &mockMetrics{}, "")
 
 		svc.client = &mockAWSClient{signFunc: func(input *kms.SignInput) (*kms.SignOutput, error) {
 			return nil, fmt.Errorf("failed to sign")
@@ -75,7 +75,7 @@ func TestSign(t *testing.T) {
 		})
 		require.NoError(t, err)
 
-		svc := New(awsSession, &mockMetrics{})
+		svc := New(awsSession, &mockMetrics{}, "")
 
 		_, err = svc.Sign([]byte("msg"), "key1")
 		require.Error(t, err)
@@ -93,14 +93,10 @@ func TestHealthCheck(t *testing.T) {
 		})
 		require.NoError(t, err)
 
-		svc := New(awsSession, &mockMetrics{})
+		svc := New(awsSession, &mockMetrics{}, "")
 
-		keyID := "key1"
-
-		svc.client = &mockAWSClient{listKeysFunc: func(input *kms.ListKeysInput) (*kms.ListKeysOutput, error) {
-			return &kms.ListKeysOutput{
-				Keys: []*kms.KeyListEntry{{KeyId: &keyID}},
-			}, nil
+		svc.client = &mockAWSClient{describeKeyFunc: func(input *kms.DescribeKeyInput) (*kms.DescribeKeyOutput, error) {
+			return &kms.DescribeKeyOutput{}, nil
 		}}
 
 		err = svc.HealthCheck()
@@ -116,35 +112,15 @@ func TestHealthCheck(t *testing.T) {
 		})
 		require.NoError(t, err)
 
-		svc := New(awsSession, &mockMetrics{})
+		svc := New(awsSession, &mockMetrics{}, "")
 
-		svc.client = &mockAWSClient{listKeysFunc: func(input *kms.ListKeysInput) (*kms.ListKeysOutput, error) {
+		svc.client = &mockAWSClient{describeKeyFunc: func(input *kms.DescribeKeyInput) (*kms.DescribeKeyOutput, error) {
 			return nil, fmt.Errorf("failed to list keys")
 		}}
 
 		err = svc.HealthCheck()
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "failed to list keys")
-	})
-
-	t.Run("empty keys", func(t *testing.T) {
-		endpoint := localhost
-		awsSession, err := session.NewSession(&aws.Config{
-			Endpoint:                      &endpoint,
-			Region:                        aws.String("ca"),
-			CredentialsChainVerboseErrors: aws.Bool(true),
-		})
-		require.NoError(t, err)
-
-		svc := New(awsSession, &mockMetrics{})
-
-		svc.client = &mockAWSClient{listKeysFunc: func(input *kms.ListKeysInput) (*kms.ListKeysOutput, error) {
-			return &kms.ListKeysOutput{}, nil
-		}}
-
-		err = svc.HealthCheck()
-		require.Error(t, err)
-		require.Contains(t, err.Error(), "list of keys are empty")
 	})
 }
 
@@ -158,7 +134,7 @@ func TestGet(t *testing.T) {
 		})
 		require.NoError(t, err)
 
-		svc := New(awsSession, &mockMetrics{})
+		svc := New(awsSession, &mockMetrics{}, "")
 
 		keyID, err := svc.Get("key1")
 		require.NoError(t, err)
@@ -176,7 +152,7 @@ func TestPubKeyBytes(t *testing.T) {
 		})
 		require.NoError(t, err)
 
-		svc := New(awsSession, &mockMetrics{})
+		svc := New(awsSession, &mockMetrics{}, "")
 
 		svc.client = &mockAWSClient{getPublicKeyFunc: func(input *kms.GetPublicKeyInput) (*kms.GetPublicKeyOutput, error) {
 			signingAlgo := "ECDSA_SHA_256"
@@ -203,7 +179,7 @@ func TestPubKeyBytes(t *testing.T) {
 		})
 		require.NoError(t, err)
 
-		svc := New(awsSession, &mockMetrics{})
+		svc := New(awsSession, &mockMetrics{}, "")
 
 		svc.client = &mockAWSClient{getPublicKeyFunc: func(input *kms.GetPublicKeyInput) (*kms.GetPublicKeyOutput, error) {
 			return nil, fmt.Errorf("failed to export public key")
@@ -224,7 +200,7 @@ func TestPubKeyBytes(t *testing.T) {
 		})
 		require.NoError(t, err)
 
-		svc := New(awsSession, &mockMetrics{})
+		svc := New(awsSession, &mockMetrics{}, "")
 
 		_, _, err = svc.ExportPubKeyBytes("key1")
 		require.Error(t, err)
@@ -242,7 +218,7 @@ func TestVerify(t *testing.T) {
 		})
 		require.NoError(t, err)
 
-		svc := New(awsSession, &mockMetrics{})
+		svc := New(awsSession, &mockMetrics{}, "")
 
 		svc.client = &mockAWSClient{verifyFunc: func(input *kms.VerifyInput) (*kms.VerifyOutput, error) {
 			return &kms.VerifyOutput{}, nil
@@ -262,7 +238,7 @@ func TestVerify(t *testing.T) {
 		})
 		require.NoError(t, err)
 
-		svc := New(awsSession, &mockMetrics{})
+		svc := New(awsSession, &mockMetrics{}, "")
 
 		svc.client = &mockAWSClient{verifyFunc: func(input *kms.VerifyInput) (*kms.VerifyOutput, error) {
 			return nil, fmt.Errorf("failed to verify")
@@ -283,7 +259,7 @@ func TestVerify(t *testing.T) {
 		})
 		require.NoError(t, err)
 
-		svc := New(awsSession, &mockMetrics{})
+		svc := New(awsSession, &mockMetrics{}, "")
 
 		err = svc.Verify([]byte("sign"), []byte("msg"), "key1")
 		require.Error(t, err)
@@ -295,7 +271,7 @@ type mockAWSClient struct {
 	signFunc         func(input *kms.SignInput) (*kms.SignOutput, error)
 	getPublicKeyFunc func(input *kms.GetPublicKeyInput) (*kms.GetPublicKeyOutput, error)
 	verifyFunc       func(input *kms.VerifyInput) (*kms.VerifyOutput, error)
-	listKeysFunc     func(input *kms.ListKeysInput) (*kms.ListKeysOutput, error)
+	describeKeyFunc  func(input *kms.DescribeKeyInput) (*kms.DescribeKeyOutput, error)
 }
 
 func (m *mockAWSClient) Sign(input *kms.SignInput) (*kms.SignOutput, error) {
@@ -322,9 +298,9 @@ func (m *mockAWSClient) Verify(input *kms.VerifyInput) (*kms.VerifyOutput, error
 	return nil, nil
 }
 
-func (m *mockAWSClient) ListKeys(input *kms.ListKeysInput) (*kms.ListKeysOutput, error) {
-	if m.listKeysFunc != nil {
-		return m.listKeysFunc(input)
+func (m *mockAWSClient) DescribeKey(input *kms.DescribeKeyInput) (*kms.DescribeKeyOutput, error) {
+	if m.describeKeyFunc != nil {
+		return m.describeKeyFunc(input)
 	}
 
 	return nil, nil
