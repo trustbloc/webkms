@@ -93,7 +93,8 @@ func TestHealthCheck(t *testing.T) {
 		})
 		require.NoError(t, err)
 
-		svc := New(awsSession, &mockMetrics{}, "")
+		svc := New(awsSession, &mockMetrics{},
+			"aws-kms://arn:aws:kms:ca-central-1:111122223333:key/800d5768-3fd7-4edd-a4b8-4c81c3e4c147")
 
 		svc.client = &mockAWSClient{describeKeyFunc: func(input *kms.DescribeKeyInput) (*kms.DescribeKeyOutput, error) {
 			return &kms.DescribeKeyOutput{}, nil
@@ -112,7 +113,8 @@ func TestHealthCheck(t *testing.T) {
 		})
 		require.NoError(t, err)
 
-		svc := New(awsSession, &mockMetrics{}, "")
+		svc := New(awsSession, &mockMetrics{},
+			"aws-kms://arn:aws:kms:ca-central-1:111122223333:key/800d5768-3fd7-4edd-a4b8-4c81c3e4c147")
 
 		svc.client = &mockAWSClient{describeKeyFunc: func(input *kms.DescribeKeyInput) (*kms.DescribeKeyOutput, error) {
 			return nil, fmt.Errorf("failed to list keys")
