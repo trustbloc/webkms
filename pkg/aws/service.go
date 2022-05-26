@@ -22,7 +22,7 @@ type awsClient interface {
 	Sign(input *kms.SignInput) (*kms.SignOutput, error)
 	GetPublicKey(input *kms.GetPublicKeyInput) (*kms.GetPublicKeyOutput, error)
 	Verify(input *kms.VerifyInput) (*kms.VerifyOutput, error)
-	ListKeys(input *kms.ListKeysInput) (*kms.ListKeysOutput, error)
+	DescribeKey(input *kms.DescribeKeyInput) (*kms.DescribeKeyOutput, error)
 }
 
 type metricsProvider interface {
@@ -36,8 +36,9 @@ type metricsProvider interface {
 
 // Service aws kms.
 type Service struct {
-	client  awsClient
-	metrics metricsProvider
+	client           awsClient
+	metrics          metricsProvider
+	healthCheckKeyID string
 }
 
 // nolint: gochecknoglobals
@@ -48,8 +49,8 @@ var kmsKeyTypes = map[string]arieskms.KeyType{
 }
 
 // New return aws service.
-func New(awsSession *session.Session, metrics metricsProvider) *Service {
-	return &Service{client: kms.New(awsSession), metrics: metrics}
+func New(awsSession *session.Session, metrics metricsProvider, healthCheckKeyID string) *Service {
+	return &Service{client: kms.New(awsSession), metrics: metrics, healthCheckKeyID: healthCheckKeyID}
 }
 
 // Sign data.
@@ -89,15 +90,9 @@ func (s *Service) Get(keyID string) (interface{}, error) {
 
 // HealthCheck check kms.
 func (s *Service) HealthCheck() error {
-	var limit int64 = 1
-
-	result, err := s.client.ListKeys(&kms.ListKeysInput{Limit: &limit})
+	_, err := s.client.DescribeKey(&kms.DescribeKeyInput{KeyId: &s.healthCheckKeyID})
 	if err != nil {
 		return err
-	}
-
-	if len(result.Keys) == 0 {
-		return fmt.Errorf("list of keys are empty")
 	}
 
 	return nil
