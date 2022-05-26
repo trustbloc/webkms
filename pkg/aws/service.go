@@ -90,7 +90,12 @@ func (s *Service) Get(keyID string) (interface{}, error) {
 
 // HealthCheck check kms.
 func (s *Service) HealthCheck() error {
-	_, err := s.client.DescribeKey(&kms.DescribeKeyInput{KeyId: &s.healthCheckKeyID})
+	keyID, err := getKeyID(s.healthCheckKeyID)
+	if err != nil {
+		return err
+	}
+
+	_, err = s.client.DescribeKey(&kms.DescribeKeyInput{KeyId: &keyID})
 	if err != nil {
 		return err
 	}
