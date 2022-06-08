@@ -61,6 +61,7 @@ $ ./build/bin/kms-server start --host localhost:8076 --database-type mongodb --d
 | --tls-serve-cert             | KMS_TLS_SERVE_CERT             | The path to the server certificate to use when serving HTTPS.                                                                             |
 | --tls-serve-key              | KMS_TLS_SERVE_KEY              | The path to the private key to use when serving HTTPS.                                                                                    |
 | --tls-systemcertpool         | KMS_TLS_SYSTEMCERTPOOL         | Use system certificate pool. Possible values: [true] [false]. Defaults to false.                                                          |
+| --gnap-signing-key           | KMS_GNAP_SIGNING_KEY           | The path to the private key to use when signing GNAP introspection requests.                                                              |
 | --did-domain                 | KMS_DID_DOMAIN                 | The URL to the did consortium's domain.                                                                                                   |
 | --key-store-cache-ttl        | KMS_KEY_STORE_CACHE_TTL        | An optional value for key store cache TTL (time to live). Defaults to 10m if caching is enabled.                                          |
 | --enable-cache               | KMS_CACHE_ENABLE               | Enables caching support. Possible values: [true] [false]. Defaults to true.                                                               |
