@@ -12,6 +12,7 @@ import (
 	"crypto/ecdsa"
 	"crypto/tls"
 	"crypto/x509"
+	"encoding/base64"
 	"encoding/pem"
 	"fmt"
 	"net/http"
@@ -61,6 +62,8 @@ type Steps struct {
 	vdr                vdrapi.Registry
 	users              map[string]*DIDOwner
 	gnapToken          string
+	keyStoreID         string
+	keyID              string
 	responseStatus     string
 	responseStatusCode int
 	responseBody       []byte
@@ -313,6 +316,11 @@ func (s *Steps) httpDo(ctx context.Context, method, url string, bodyTemplate *go
 		opts = append(opts, httputil.WithBody(buf.Bytes()))
 	}
 
+	url = strings.NewReplacer(
+		"{keystoreID}", s.keyStoreID,
+		"{keyID}", s.keyID,
+	).Replace(url)
+
 	r, err := httputil.DoRequest(ctx, url, opts...)
 	if err != nil {
 		return fmt.Errorf("do request: %w", err)
@@ -340,7 +348,20 @@ func (s *Steps) checkNonEmptyResponseValue(path string) error {
 		return fmt.Errorf("got empty value")
 	}
 
+	switch path {
+	case "key_store_url":
+		s.keyStoreID = getLastSegment(val.Str)
+	case "key_url":
+		s.keyID = getLastSegment(val.Str)
+	}
+
 	return nil
+}
+
+func getLastSegment(url string) string {
+	s := strings.Split(url, "/")
+
+	return s[len(s)-1]
 }
 
 type requestSigner struct {
@@ -388,4 +409,9 @@ func (r *secretRetriever) Get(_ string) (httpsignatures.Secret, error) {
 // GetDID is a helper function used in template to get DID of the user.
 func (s *Steps) GetDID(userName string) string {
 	return s.users[userName].DID
+}
+
+// ToBase64 is a helper function used in template to encode string value into base64.
+func (s *Steps) ToBase64(str string) string {
+	return base64.StdEncoding.EncodeToString([]byte(str))
 }

@@ -54,7 +54,7 @@ $ ./build/bin/kms-server start --host localhost:8076 --database-type mongodb --d
 | --secret-lock-aws-key-uri    | KMS_SECRET_LOCK_AWS_KEY_URI    | The URI of AWS key to be used by server secret lock if the secret lock type is "aws".                                                     |
 | --secret-lock-aws-access-key | KMS_SECRET_LOCK_AWS_ACCESS_KEY | The AWS access key ID to be used by server secret lock if the secret lock type is "aws".                                                  |
 | --secret-lock-aws-secret-key | KMS_SECRET_LOCK_AWS_SECRET_KEY | The AWS secret access key to be used by server secret lock if the secret lock type is "aws".                                              |
-| --auth-server-url            | KMS_AUTH_SERVER_URL            | The URL of Auth server to use for fetching secret share for Shamir secret lock.                                                           |
+| --auth-server-url            | KMS_AUTH_SERVER_URL            | The URL of Auth server.                                                                                                                   |
 | --auth-server-token          | KMS_AUTH_SERVER_TOKEN          | A static token used to protect the GET /secrets API in Auth server.                                                                       |
 | --secret-lock-aws-endpoint   | KMS_SECRET_LOCK_AWS_ENDPOINT   | The endpoint of AWS KMS service. Should be set only in a test environment.                                                                |
 | --tls-cacerts                | KMS_TLS_CACERTS                | Comma-separated list of CA certs path.                                                                                                    |
@@ -67,7 +67,7 @@ $ ./build/bin/kms-server start --host localhost:8076 --database-type mongodb --d
 | --shamir-secret-cache-ttl    | KMS_SHAMIR_SECRET_CACHE_TTL    | An optional value for Shamir secrets cache TTL. Defaults to 10m if caching is enabled. If set to 0, keys are never cached.                | 
 | --kms-cache-ttl              | KMS_KMS_CACHE_TTL              | An optional value for cache TTL for keys stored in server kms. Defaults to 10m if caching is enabled. If set to 0, keys are never cached. |
 | --enable-cors                | KMS_CORS_ENABLE                | Enables CORS. Possible values: [true] [false]. Defaults to false.                                                                         |
-| --enable-zcap                | KMS_ZCAP_ENABLE                | Enables ZCAPs authorization. Possible values: [true] [false]. Defaults to false.                                                          |
+| --disable-auth               | KMS_AUTH_DISABLE               | Disables authorization. Possible values: [true] [false]. Defaults to false.                                                               |
 | --log-level                  | KMS_LOG_LEVEL                  | Logging level. Supported options: critical, error, warning, info, debug. Defaults to info.                                                |
 
 ## Running tests

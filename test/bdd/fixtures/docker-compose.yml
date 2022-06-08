@@ -34,18 +34,19 @@ services:
       - KMS_DATABASE_URL=mongodb://mongodb.example.com:27017
       - KMS_DATABASE_PREFIX=opskms_
       - KMS_CACHE_ENABLE=true
-      - KMS_ZCAP_ENABLE=true
       - KMS_LOG_LEVEL=debug
       - KMS_SECRET_LOCK_TYPE=aws
       - KMS_SECRET_LOCK_AWS_KEY_URI=aws-kms://arn:aws:kms:ca-central-1:111122223333:key/bc436485-5092-42b8-92a3-0aa8b93536dc
       - KMS_SECRET_LOCK_AWS_ENDPOINT=http://aws-kms.trustbloc.local:8020
       - AWS_ACCESS_KEY_ID=mock
       - AWS_SECRET_ACCESS_KEY=mock
+      - KMS_GNAP_SIGNING_KEY=/etc/gnap-priv-key.pem
+      - KMS_AUTH_SERVER_URL=https://auth.trustbloc.local:8070
     ports:
       - 8074:8074
       - 48831:48831
     volumes:
-      - ./keys/tls:/etc/tls
+      - ./keys:/etc
     command: start
     depends_on:
       - mongodb.example.com
@@ -67,18 +68,19 @@ services:
       - KMS_DATABASE_URL=mongodb://mongodb.example.com:27017
       - KMS_DATABASE_PREFIX=opskms_
       - KMS_CACHE_ENABLE=true
-      - KMS_ZCAP_ENABLE=true
       - KMS_LOG_LEVEL=debug
       - KMS_SECRET_LOCK_TYPE=aws
       - KMS_SECRET_LOCK_AWS_KEY_URI=aws-kms://arn:aws:kms:ca-central-1:111122223333:key/bc436485-5092-42b8-92a3-0aa8b93536dc
       - KMS_SECRET_LOCK_AWS_ENDPOINT=http://aws-kms.trustbloc.local:8020
       - AWS_ACCESS_KEY_ID=mock
       - AWS_SECRET_ACCESS_KEY=mock
+      - KMS_GNAP_SIGNING_KEY=/etc/gnap-priv-key.pem
+      - KMS_AUTH_SERVER_URL=https://auth.trustbloc.local:8070
     ports:
       - 8075:8075
       - 48832:48832
     volumes:
-      - ./keys/tls:/etc/tls
+      - ./keys:/etc
     command: start
     depends_on:
       - mongodb.example.com
@@ -116,6 +118,7 @@ services:
       - KMS_DATABASE_PREFIX=authzkms_
       - KMS_AUTH_SERVER_URL=https://auth.trustbloc.local:8070
       - KMS_AUTH_SERVER_TOKEN=test_token
+      - KMS_AUTH_DISABLE=true
       - KMS_CACHE_ENABLE=true
       - KMS_LOG_LEVEL=debug
       - KMS_SECRET_LOCK_TYPE=local
@@ -144,6 +147,7 @@ services:
       - KMS_DATABASE_TYPE=mongodb
       - KMS_DATABASE_URL=mongodb://mongodb.example.com:27017
       - KMS_DATABASE_PREFIX=orbkms_
+      - KMS_AUTH_DISABLE=true
       - KMS_CACHE_ENABLE=true
       - KMS_LOG_LEVEL=debug
       - KMS_SECRET_LOCK_TYPE=aws

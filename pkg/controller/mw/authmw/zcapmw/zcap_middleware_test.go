@@ -4,7 +4,7 @@ Copyright SecureKey Technologies Inc. All Rights Reserved.
 SPDX-License-Identifier: Apache-2.0
 */
 
-package mw // nolint:testpackage // mocking internal implementation details
+package zcapmw //nolint:testpackage // mocking internal implementation details
 
 import (
 	"context"
@@ -25,12 +25,12 @@ import (
 func TestMiddleware(t *testing.T) {
 	t.Run("authz: zcaps", func(t *testing.T) {
 		t.Run("protects endpoints", func(t *testing.T) {
-			handler := &handler{}
+			h := &handler{}
 
 			config := newConfig()
-			mwFactory := ZCAPLDMiddleware(config, "createKey")
+			mwFactory := Middleware{Config: config, Action: "createKey"}
 
-			mw := mwFactory(handler)
+			mw := mwFactory.Middleware()(h)
 			require.IsType(t, &mwHandler{}, mw)
 			(mw).(*mwHandler).routeFunc = func(r *http.Request) namer {
 				return &mockNamer{name: r.URL.Path}
@@ -48,16 +48,16 @@ func TestMiddleware(t *testing.T) {
 
 			require.Equal(t, http.StatusUnauthorized, response.StatusCode) // we're not sending zcaps
 
-			require.Len(t, handler.requestsCaptured, 0) // we're not sending zcaps
+			require.Len(t, h.requestsCaptured, 0) // we're not sending zcaps
 		})
 
 		t.Run("badrequest if endpoint is not valid", func(t *testing.T) {
-			handler := &handler{}
+			h := &handler{}
 
 			config := newConfig()
-			mwFactory := ZCAPLDMiddleware(config, "")
+			mwFactory := Middleware{Config: config, Action: ""}
 
-			mw := mwFactory(handler)
+			mw := mwFactory.Middleware()(h)
 			require.IsType(t, &mwHandler{}, mw)
 			(mw).(*mwHandler).routeFunc = func(r *http.Request) namer {
 				return &mockNamer{name: r.URL.Path}
@@ -70,7 +70,19 @@ func TestMiddleware(t *testing.T) {
 			require.NoError(t, err)
 			require.Equal(t, http.StatusBadRequest, response.StatusCode) // we're not sending zcaps
 
-			require.Len(t, handler.requestsCaptured, 0) // we're not sending zcaps
+			require.Len(t, h.requestsCaptured, 0) // we're not sending zcaps
+		})
+
+		t.Run("should handle request with Capability-Invocation header", func(t *testing.T) {
+			config := newConfig()
+			mwFactory := Middleware{Config: config, Action: "createKey"}
+
+			req, err := http.NewRequestWithContext(context.Background(), "", "", nil)
+			require.NoError(t, err)
+
+			req.Header.Add("Capability-Invocation", "zcap")
+
+			require.True(t, mwFactory.Accept(req))
 		})
 	})
 }

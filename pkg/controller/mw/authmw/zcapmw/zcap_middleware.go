@@ -4,9 +4,9 @@ Copyright SecureKey Technologies Inc. All Rights Reserved.
 SPDX-License-Identifier: Apache-2.0
 */
 
-package mw
+package zcapmw
 
-//go:generate mockgen -destination gomocks_test.go -package mw . DocumentLoader,CapabilityResolver,VDRResolver
+//go:generate mockgen -destination gomocks_test.go -package zcapmw . DocumentLoader,CapabilityResolver,VDRResolver
 
 import (
 	"context"
@@ -36,6 +36,14 @@ type CapabilityResolver = zcapld.CapabilityResolver
 // VDRResolver is an alias for zcapld.VDRResolver.
 type VDRResolver = zcapld.VDRResolver
 
+type authService interface {
+	CreateDIDKey(context.Context) (string, error)
+	NewCapability(ctx context.Context, options ...zcapld.CapabilityOption) (*zcapld.Capability, error)
+	KMS() kms.KeyManager
+	Crypto() crypto.Crypto
+	Resolve(string) (*zcapld.Capability, error)
+}
+
 // ZCAPConfig is a configuration for zcapld middleware.
 type ZCAPConfig struct {
 	AuthService          authService
@@ -46,22 +54,40 @@ type ZCAPConfig struct {
 	ResourceIDQueryParam string
 }
 
-type authService interface {
-	CreateDIDKey(context.Context) (string, error)
-	NewCapability(ctx context.Context, options ...zcapld.CapabilityOption) (*zcapld.Capability, error)
-	KMS() kms.KeyManager
-	Crypto() crypto.Crypto
-	Resolve(string) (*zcapld.Capability, error)
+// Middleware is a zcapld auth middleware.
+type Middleware struct {
+	Config *ZCAPConfig
+	Action string
+}
+
+// Accept checks if middleware can handle auth for the given request.
+func (mw *Middleware) Accept(req *http.Request) bool {
+	_, ok := req.Header["Capability-Invocation"]
+
+	return ok
+}
+
+// Middleware returns middleware func.
+func (mw *Middleware) Middleware() func(http.Handler) http.Handler {
+	return func(next http.Handler) http.Handler {
+		return &mwHandler{
+			next:                 next,
+			zcaps:                &capabilityResolverMetrics{wrapped: mw.Config.AuthService},
+			keys:                 mw.Config.AuthService.KMS(),
+			crpto:                mw.Config.AuthService.Crypto(),
+			jsonLDLoader:         &documentLoaderMetrics{wrapped: mw.Config.JSONLDLoader},
+			logger:               mw.Config.Logger,
+			routeFunc:            (&muxNamer{}).GetName,
+			vdrResolver:          &vdrResolverMetrics{wrapped: mw.Config.VDRResolver},
+			baseResourceURL:      mw.Config.BaseResourceURL,
+			resourceIDQueryParam: mw.Config.ResourceIDQueryParam,
+			handlerAction:        mw.Action,
+		}
+	}
 }
 
 type namer interface {
 	GetName() string
-}
-
-type muxNamer struct{}
-
-func (m *muxNamer) GetName(r *http.Request) namer {
-	return mux.CurrentRoute(r)
 }
 
 type mwHandler struct {
@@ -76,25 +102,6 @@ type mwHandler struct {
 	baseResourceURL      string
 	resourceIDQueryParam string
 	handlerAction        string
-}
-
-// ZCAPLDMiddleware returns the ZCAPLD middleware that authorizes requests.
-func ZCAPLDMiddleware(c *ZCAPConfig, handlerAction string) mux.MiddlewareFunc {
-	return func(h http.Handler) http.Handler {
-		return &mwHandler{
-			next:                 h,
-			zcaps:                &capabilityResolverMetrics{wrapped: c.AuthService},
-			keys:                 c.AuthService.KMS(),
-			crpto:                c.AuthService.Crypto(),
-			jsonLDLoader:         &documentLoaderMetrics{wrapped: c.JSONLDLoader},
-			logger:               c.Logger,
-			routeFunc:            (&muxNamer{}).GetName,
-			vdrResolver:          &vdrResolverMetrics{wrapped: c.VDRResolver},
-			baseResourceURL:      c.BaseResourceURL,
-			resourceIDQueryParam: c.ResourceIDQueryParam,
-			handlerAction:        handlerAction,
-		}
-	}
 }
 
 func (h *mwHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
@@ -147,6 +154,12 @@ func (h *mwHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 func (h *mwHandler) logError(err error) {
 	h.logger.Errorf("unauthorized capability invocation: %s", err.Error())
+}
+
+type muxNamer struct{}
+
+func (m *muxNamer) GetName(r *http.Request) namer {
+	return mux.CurrentRoute(r)
 }
 
 type capabilityResolverMetrics struct {

@@ -9,7 +9,10 @@ package startcmd
 import (
 	"crypto/sha256"
 	"crypto/tls"
+	"crypto/x509"
+	"encoding/pem"
 	"fmt"
+	"io/ioutil"
 	"net/http"
 	"strings"
 	"time"
@@ -28,6 +31,7 @@ import (
 	"github.com/hyperledger/aries-framework-go/component/storageutil/mem"
 	"github.com/hyperledger/aries-framework-go/pkg/common/log"
 	"github.com/hyperledger/aries-framework-go/pkg/crypto/tinkcrypto"
+	"github.com/hyperledger/aries-framework-go/pkg/doc/jose/jwk"
 	"github.com/hyperledger/aries-framework-go/pkg/doc/ld"
 	"github.com/hyperledger/aries-framework-go/pkg/kms"
 	"github.com/hyperledger/aries-framework-go/pkg/kms/localkms"
@@ -45,11 +49,18 @@ import (
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/rs/cors"
 	"github.com/spf13/cobra"
+	"github.com/square/go-jose/v3"
+	"github.com/trustbloc/auth/component/gnap/rs"
+	"github.com/trustbloc/auth/spi/gnap/proof/httpsig"
 	tlsutil "github.com/trustbloc/edge-core/pkg/utils/tls"
 	"github.com/trustbloc/edge-core/pkg/zcapld"
 
 	"github.com/trustbloc/kms/pkg/controller/command"
 	"github.com/trustbloc/kms/pkg/controller/mw"
+	"github.com/trustbloc/kms/pkg/controller/mw/authmw"
+	"github.com/trustbloc/kms/pkg/controller/mw/authmw/gnapmw"
+	"github.com/trustbloc/kms/pkg/controller/mw/authmw/oauthmw"
+	"github.com/trustbloc/kms/pkg/controller/mw/authmw/zcapmw"
 	"github.com/trustbloc/kms/pkg/controller/rest"
 	kmscache "github.com/trustbloc/kms/pkg/kms/cache"
 	"github.com/trustbloc/kms/pkg/metrics"
@@ -200,7 +211,7 @@ func startServer(srv server, params *serverParameters) error { //nolint:funlen
 
 	var shamirProvider shamirprovider.Provider
 
-	if params.authServerURL != "" {
+	if params.authServerURL != "" && params.authServerToken != "" {
 		shamirProvider = shamirprovider.CreateProvider(&shamirprovider.ProviderConfig{
 			HTTPClient:      httpClient,
 			AuthServerURL:   params.authServerURL,
@@ -223,7 +234,7 @@ func startServer(srv server, params *serverParameters) error { //nolint:funlen
 		ShamirSecretLockCreator: &shamirSecretLockCreator{},
 		CryptBoxCreator:         &cryptoBoxCreator{},
 		ZCAPService:             zcapService,
-		EnableZCAPs:             params.enableZCAPs,
+		EnableZCAPs:             !params.disableAuth,
 		HeaderSigner:            zcapService,
 		TLSConfig:               tlsConfig,
 		BaseKeyStoreURL:         baseKeyStoreURL,
@@ -246,7 +257,7 @@ func startServer(srv server, params *serverParameters) error { //nolint:funlen
 
 	router := mux.NewRouter()
 
-	zcapConfig := &mw.ZCAPConfig{
+	zcapConfig := &zcapmw.ZCAPConfig{
 		AuthService:          zcapService,
 		JSONLDLoader:         documentLoader,
 		Logger:               logger,
@@ -255,13 +266,43 @@ func startServer(srv server, params *serverParameters) error { //nolint:funlen
 		ResourceIDQueryParam: rest.KeyStoreVarName,
 	}
 
-	for _, h := range rest.New(cmd).GetRESTHandlers() {
-		var handler http.Handler
-		handler = h.Handle()
+	var (
+		privateJWK, publicJWK *jwk.JWK
+		gnapRSClient          *rs.Client
+	)
 
-		if params.enableZCAPs && h.ZCAPProtect() {
-			zcapMiddleware := mw.ZCAPLDMiddleware(zcapConfig, h.Action())
-			handler = zcapMiddleware(handler)
+	if !params.disableAuth {
+		privateJWK, publicJWK, err = createGNAPSigningJWK(params.gnapSigningKeyPath)
+		if err != nil {
+			return fmt.Errorf("create gnap signing jwk: %w", err)
+		}
+
+		gnapRSClient, err = rs.NewClient(
+			&httpsig.Signer{SigningKey: privateJWK},
+			httpClient,
+			params.authServerURL,
+		)
+	}
+
+	for _, h := range rest.New(cmd).GetRESTHandlers() {
+		var handler http.Handler = h.Handler()
+
+		if !params.disableAuth && !h.Auth().HasFlag(rest.AuthNone) {
+			middlewares := make([]authmw.Middleware, 0)
+
+			if h.Auth().HasFlag(rest.AuthOAuth2) {
+				middlewares = append(middlewares, &oauthmw.Middleware{})
+			}
+
+			if h.Auth().HasFlag(rest.AuthZCAP) {
+				middlewares = append(middlewares, &zcapmw.Middleware{Config: zcapConfig, Action: h.Action()})
+			}
+
+			if h.Auth().HasFlag(rest.AuthGNAP) {
+				middlewares = append(middlewares, &gnapmw.Middleware{Client: gnapRSClient, RSPubKey: publicJWK})
+			}
+
+			handler = authmw.Wrap(middlewares...)(handler)
 		}
 
 		router.Handle(h.Path(), handler).Methods(h.Method())
@@ -481,6 +522,41 @@ func createJSONLDDocumentLoader(store storage.Provider) (jsonld.DocumentLoader, 
 	}
 
 	return documentLoader, nil
+}
+
+func createGNAPSigningJWK(keyFilePath string) (*jwk.JWK, *jwk.JWK, error) {
+	b, err := ioutil.ReadFile(keyFilePath)
+	if err != nil {
+		return nil, nil, fmt.Errorf("read file: %w", err)
+	}
+
+	block, _ := pem.Decode(b)
+	if block == nil || block.Type != "EC PRIVATE KEY" {
+		return nil, nil, fmt.Errorf("invalid pem")
+	}
+
+	key, err := x509.ParseECPrivateKey(block.Bytes)
+	if err != nil {
+		return nil, nil, fmt.Errorf("parse private key: %w", err)
+	}
+
+	// TODO: make key type configurable
+	privateJWK := &jwk.JWK{
+		JSONWebKey: jose.JSONWebKey{
+			Key:       key,
+			Algorithm: "ES256",
+		},
+		Kty: "EC",
+		Crv: "P-256",
+	}
+
+	publicJWK := &jwk.JWK{
+		JSONWebKey: privateJWK.Public(),
+		Kty:        "EC",
+		Crv:        "P-256",
+	}
+
+	return privateJWK, publicJWK, nil
 }
 
 type keyStoreCreator struct{}

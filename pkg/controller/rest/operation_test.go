@@ -619,7 +619,7 @@ func handleRequest(t *testing.T, op *Operation, path, method string, body io.Rea
 
 	router := mux.NewRouter()
 
-	router.HandleFunc(handler.Path(), handler.Handle()).Methods(handler.Method())
+	router.HandleFunc(handler.Path(), handler.Handler()).Methods(handler.Method())
 
 	rr := httptest.NewRecorder()
 

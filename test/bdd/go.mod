@@ -14,7 +14,7 @@ require (
 	github.com/hyperledger/aries-framework-go v0.1.9-0.20220412155017-81442062e607
 	github.com/hyperledger/aries-framework-go-ext/component/vdr/orb v1.0.0-rc.1
 	github.com/hyperledger/aries-framework-go/component/storageutil v0.0.0-20220516154446-0ba34929e05b
-	github.com/hyperledger/aries-framework-go/spi v0.0.0-20220516154446-0ba34929e05b
+	github.com/hyperledger/aries-framework-go/spi v0.0.0-20220531182402-04bfea80427b
 	github.com/igor-pavlenko/httpsignatures-go v0.0.23
 	github.com/lafriks/go-shamir v1.1.0
 	github.com/ory/hydra-client-go v1.10.6
@@ -22,8 +22,8 @@ require (
 	github.com/square/go-jose/v3 v3.0.0-20200630053402-0a67ce9b0693
 	github.com/teserakt-io/golang-ed25519 v0.0.0-20210104091850-3888c087a4c8
 	github.com/tidwall/gjson v1.6.7
-	github.com/trustbloc/auth v0.1.9-0.20220519150427-c3450267252e
-	github.com/trustbloc/auth/spi/gnap v0.0.0-20220519150427-c3450267252e
+	github.com/trustbloc/auth v0.1.9-0.20220603134109-0b87579ddcf1
+	github.com/trustbloc/auth/spi/gnap v0.0.0-20220524155711-5c72fe155c13
 	github.com/trustbloc/edge-core v0.1.8
 	github.com/trustbloc/edv v0.1.8
 	github.com/trustbloc/kms v0.1.8
@@ -101,9 +101,9 @@ require (
 	github.com/xeipuuv/gojsonreference v0.0.0-20180127040603-bd5ef7bd5415 // indirect
 	github.com/xeipuuv/gojsonschema v1.2.0 // indirect
 	go.mongodb.org/mongo-driver v1.8.0 // indirect
-	golang.org/x/crypto v0.0.0-20220518034528-6f7dac969898 // indirect
+	golang.org/x/crypto v0.0.0-20220525230936-793ad666bf5e // indirect
 	golang.org/x/net v0.0.0-20220127200216-cd36cc0744dd // indirect
-	golang.org/x/sys v0.0.0-20220519141025-dcacdad47464 // indirect
+	golang.org/x/sys v0.0.0-20220520151302-bc2c85ada10a // indirect
 	golang.org/x/text v0.3.7 // indirect
 	google.golang.org/appengine v1.6.7 // indirect
 	google.golang.org/genproto v0.0.0-20220222213610-43724f9ea8cf // indirect
