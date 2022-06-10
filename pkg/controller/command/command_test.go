@@ -1599,7 +1599,7 @@ func TestCommand_Easy(t *testing.T) {
 
 		var buf bytes.Buffer
 
-		err = cmd.Easy(&buf, bytes.NewBuffer(wr))
+		err = cmd.WrapKey(&buf, bytes.NewBuffer(wr))
 		require.NoError(t, err)
 
 		var resp EasyResponse
@@ -1637,8 +1637,8 @@ func TestCommand_Easy(t *testing.T) {
 
 		var buf bytes.Buffer
 
-		err = cmd.Easy(&buf, bytes.NewBuffer(wr))
-		require.EqualError(t, err, "easy: easy error")
+		err = cmd.WrapKey(&buf, bytes.NewBuffer(wr))
+		require.EqualError(t, err, "unwrap wrap request: easy: easy error")
 	})
 }
 
@@ -1672,7 +1672,7 @@ func TestCommand_EasyOpen(t *testing.T) {
 
 		var buf bytes.Buffer
 
-		err = cmd.EasyOpen(&buf, bytes.NewBuffer(wr))
+		err = cmd.UnwrapKey(&buf, bytes.NewBuffer(wr))
 		require.NoError(t, err)
 
 		var resp EasyOpenResponse
@@ -1686,6 +1686,7 @@ func TestCommand_EasyOpen(t *testing.T) {
 		ctrl := gomock.NewController(t)
 
 		cryptoBox := NewMockCryptoBox(ctrl)
+		cryptoBox.EXPECT().SealOpen(gomock.Any(), gomock.Any()).Return(nil, errors.New("seal open error")).Times(1)
 		cryptoBox.EXPECT().EasyOpen(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).
 			Return(nil, errors.New("easy open error")).Times(1)
 
@@ -1711,8 +1712,10 @@ func TestCommand_EasyOpen(t *testing.T) {
 
 		var buf bytes.Buffer
 
-		err = cmd.EasyOpen(&buf, bytes.NewBuffer(wr))
-		require.EqualError(t, err, "easy open: easy open error")
+		err = cmd.UnwrapKey(&buf, bytes.NewBuffer(wr))
+		// since both easyopen and sealopen are both part of UnwrapKey, if easyopen fails, sealopen will be executed
+		// and will be logged as last error regardless (we try easyopen first then sealopen in this order)
+		require.EqualError(t, err, "unwrapKey cryptobox request invalid: seal open: seal open error")
 	})
 }
 
@@ -1722,6 +1725,8 @@ func TestCommand_SealOpen(t *testing.T) {
 
 		cryptoBox := NewMockCryptoBox(ctrl)
 		cryptoBox.EXPECT().SealOpen(gomock.Any(), gomock.Any()).Return([]byte("plaintext"), nil).Times(1)
+		cryptoBox.EXPECT().EasyOpen(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return(nil,
+			errors.New("easy open error")).Times(1)
 
 		creator := NewMockCryptoBoxCreator(ctrl)
 		creator.EXPECT().Create(gomock.Any()).Return(cryptoBox, nil).Times(1)
@@ -1743,7 +1748,7 @@ func TestCommand_SealOpen(t *testing.T) {
 
 		var buf bytes.Buffer
 
-		err = cmd.SealOpen(&buf, bytes.NewBuffer(wr))
+		err = cmd.UnwrapKey(&buf, bytes.NewBuffer(wr))
 		require.NoError(t, err)
 
 		var resp SealOpenResponse
@@ -1758,6 +1763,8 @@ func TestCommand_SealOpen(t *testing.T) {
 
 		cryptoBox := NewMockCryptoBox(ctrl)
 		cryptoBox.EXPECT().SealOpen(gomock.Any(), gomock.Any()).Return(nil, errors.New("seal open error")).Times(1)
+		cryptoBox.EXPECT().EasyOpen(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return(nil,
+			errors.New("easy open error")).Times(1)
 
 		creator := NewMockCryptoBoxCreator(ctrl)
 		creator.EXPECT().Create(gomock.Any()).Return(cryptoBox, nil).Times(1)
@@ -1779,8 +1786,8 @@ func TestCommand_SealOpen(t *testing.T) {
 
 		var buf bytes.Buffer
 
-		err = cmd.SealOpen(&buf, bytes.NewBuffer(wr))
-		require.EqualError(t, err, "seal open: seal open error")
+		err = cmd.UnwrapKey(&buf, bytes.NewBuffer(wr))
+		require.EqualError(t, err, "unwrapKey cryptobox request invalid: seal open: seal open error")
 	})
 }
 
@@ -1853,7 +1860,7 @@ func TestCommand_UnwrapKey(t *testing.T) {
 		}))
 
 		req, err := json.Marshal(UnwrapKeyRequest{
-			WrappedKey:   crypto.RecipientWrappedKey{},
+			WrappedKey:   crypto.RecipientWrappedKey{EncryptedCEK: []byte{0}},
 			SenderPubKey: &crypto.PublicKey{},
 			Tag:          []byte("tag"),
 		})
@@ -1884,7 +1891,7 @@ func TestCommand_UnwrapKey(t *testing.T) {
 		}))
 
 		req, err := json.Marshal(UnwrapKeyRequest{
-			WrappedKey:   crypto.RecipientWrappedKey{},
+			WrappedKey:   crypto.RecipientWrappedKey{EncryptedCEK: []byte("0")},
 			SenderPubKey: &crypto.PublicKey{},
 			Tag:          []byte("tag"),
 		})

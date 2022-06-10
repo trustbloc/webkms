@@ -474,15 +474,8 @@ func (c *Command) VerifyProof(_ io.Writer, r io.Reader) error {
 	return nil
 }
 
-// Easy seals a payload.
-func (c *Command) Easy(w io.Writer, r io.Reader) error { //nolint:dupl
-	var req EasyRequest
-
-	wr, err := unwrapRequest(&req, r)
-	if err != nil {
-		return fmt.Errorf("unwrap request: %w", err)
-	}
-
+// easy seals a payload.
+func (c *Command) easy(w io.Writer, wr *WrappedRequest, req *EasyRequest) error {
 	cryptoBox, err := c.getCryptoBox(wr.KeyStoreID, wr.User, wr.SecretShare)
 	if err != nil {
 		return err
@@ -496,20 +489,8 @@ func (c *Command) Easy(w io.Writer, r io.Reader) error { //nolint:dupl
 	return json.NewEncoder(w).Encode(EasyResponse{Ciphertext: ciphertext})
 }
 
-// EasyOpen unseals a ciphertext sealed with Easy.
-func (c *Command) EasyOpen(w io.Writer, r io.Reader) error { //nolint:dupl
-	var req EasyOpenRequest
-
-	wr, err := unwrapRequest(&req, r)
-	if err != nil {
-		return fmt.Errorf("unwrap request: %w", err)
-	}
-
-	cryptoBox, err := c.getCryptoBox(wr.KeyStoreID, wr.User, wr.SecretShare)
-	if err != nil {
-		return err
-	}
-
+// easyOpen unseals a ciphertext sealed with Easy.
+func (c *Command) easyOpen(w io.Writer, req *EasyOpenRequest, cryptoBox CryptoBox) error {
 	plaintext, err := cryptoBox.EasyOpen(req.Ciphertext, req.Nonce, req.TheirPub, req.MyPub)
 	if err != nil {
 		return fmt.Errorf("easy open: %w", err)
@@ -518,20 +499,8 @@ func (c *Command) EasyOpen(w io.Writer, r io.Reader) error { //nolint:dupl
 	return json.NewEncoder(w).Encode(EasyOpenResponse{Plaintext: plaintext})
 }
 
-// SealOpen decrypts a ciphertext encrypted with Seal.
-func (c *Command) SealOpen(w io.Writer, r io.Reader) error {
-	var req SealOpenRequest
-
-	wr, err := unwrapRequest(&req, r)
-	if err != nil {
-		return fmt.Errorf("unwrap request: %w", err)
-	}
-
-	cryptoBox, err := c.getCryptoBox(wr.KeyStoreID, wr.User, wr.SecretShare)
-	if err != nil {
-		return err
-	}
-
+// sealOpen decrypts a ciphertext encrypted with Seal.
+func (c *Command) sealOpen(w io.Writer, req *SealOpenRequest, cryptoBox CryptoBox) error {
 	plaintext, err := cryptoBox.SealOpen(req.Ciphertext, req.MyPub)
 	if err != nil {
 		return fmt.Errorf("seal open: %w", err)
@@ -544,9 +513,27 @@ func (c *Command) SealOpen(w io.Writer, r io.Reader) error {
 func (c *Command) WrapKey(w io.Writer, r io.Reader) error {
 	var req WrapKeyRequest
 
-	wr, err := unwrapRequest(&req, r)
+	wr, err := unwrapRequest(nil, r)
 	if err != nil {
-		return fmt.Errorf("unwrap request: %w", err)
+		return fmt.Errorf("unwrap wrap request: %w", err)
+	}
+
+	if err = json.Unmarshal(wr.Request, &req); err != nil {
+		return fmt.Errorf("unmarshal unwrap wrap request: %w", err)
+	}
+
+	if req.CEK == nil {
+		var reqEasy EasyRequest
+
+		if err = json.Unmarshal(wr.Request, &reqEasy); err != nil {
+			return fmt.Errorf("unmarshal unwrap wrap request: %w", err)
+		}
+
+		if err = c.easy(w, wr, &reqEasy); err != nil {
+			return fmt.Errorf("unwrap wrap request: %w", err)
+		}
+
+		return nil
 	}
 
 	var opts []crypto.WrapKeyOpts
@@ -581,7 +568,43 @@ func (c *Command) WrapKey(w io.Writer, r io.Reader) error {
 func (c *Command) UnwrapKey(w io.Writer, r io.Reader) error {
 	var req UnwrapKeyRequest
 
-	kh, err := c.getKeyHandle(&req, r)
+	wr, err := unwrapRequest(nil, r)
+	if err != nil {
+		return fmt.Errorf("unwrap request: %w", err)
+	}
+
+	if err = json.Unmarshal(wr.Request, &req); err != nil {
+		return fmt.Errorf("unmarshal unwrapKey request: %w", err)
+	}
+
+	//nolint:nestif
+	if req.WrappedKey.EncryptedCEK == nil && req.WrappedKey.Alg == "" {
+		cryptoBox, e := c.getCryptoBox(wr.KeyStoreID, wr.User, wr.SecretShare)
+		if e != nil {
+			return fmt.Errorf("get cryptobox failed: %w", e)
+		}
+
+		var (
+			eor EasyOpenRequest
+			sor SealOpenRequest
+		)
+
+		if err = json.Unmarshal(wr.Request, &eor); err == nil && eor.Ciphertext != nil {
+			if err = c.easyOpen(w, &eor, cryptoBox); err == nil {
+				return nil
+			}
+		}
+
+		if err = json.Unmarshal(wr.Request, &sor); err == nil {
+			if err = c.sealOpen(w, &sor, cryptoBox); err == nil {
+				return nil
+			}
+		}
+
+		return fmt.Errorf("unwrapKey cryptobox request invalid: %w", err)
+	}
+
+	kh, err := c.getKeyHandleFromRequest(wr)
 	if err != nil {
 		return err
 	}
@@ -610,6 +633,24 @@ func (c *Command) getKeyHandle(req interface{}, r io.Reader) (interface{}, error
 		return nil, fmt.Errorf("unwrap request: %w", err)
 	}
 
+	ks, err := c.resolveKeyStore(wr.KeyStoreID, wr.User, wr.SecretShare)
+	if err != nil {
+		return nil, fmt.Errorf("resolve key store: %w", err)
+	}
+
+	getStartTime := time.Now()
+
+	kh, err := ks.Get(wr.KeyID)
+	if err != nil {
+		return nil, fmt.Errorf("get key: %w", err)
+	}
+
+	c.metrics.KeyStoreGetKeyTime(time.Since(getStartTime))
+
+	return kh, nil
+}
+
+func (c *Command) getKeyHandleFromRequest(wr *WrappedRequest) (interface{}, error) {
 	ks, err := c.resolveKeyStore(wr.KeyStoreID, wr.User, wr.SecretShare)
 	if err != nil {
 		return nil, fmt.Errorf("resolve key store: %w", err)

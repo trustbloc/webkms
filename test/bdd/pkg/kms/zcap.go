@@ -31,9 +31,6 @@ const (
 	actionVerifyMAC  = "verifyMAC"
 	actionEncrypt    = "encrypt"
 	actionDecrypt    = "decrypt"
-	actionEasy       = "easy"
-	actionEasyOpen   = "easyOpen"
-	actionSealOpen   = "sealOpen"
 )
 
 type signer interface {

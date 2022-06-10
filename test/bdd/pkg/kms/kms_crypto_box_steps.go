@@ -34,7 +34,7 @@ func (s *Steps) makeEasyPayloadReq(userName, endpoint, payload, recipient string
 		TheirPub: recPubCurve25519,
 	}
 
-	response, closeBody, err := s.makeHTTPReq(u, r, endpoint, actionEasy)
+	response, closeBody, err := s.makeHTTPReq(u, r, endpoint, actionWrap)
 	if err != nil {
 		return err
 	}
@@ -76,7 +76,7 @@ func (s *Steps) makeEasyOpenReq(userName, endpoint, tag, sender string) error {
 		MyPub:      myPub,
 	}
 
-	response, closeBody, err := s.makeHTTPReq(u, r, endpoint, actionEasyOpen)
+	response, closeBody, err := s.makeHTTPReq(u, r, endpoint, actionUnwrap)
 	if err != nil {
 		return err
 	}
@@ -134,7 +134,7 @@ func (s *Steps) makeSealOpenReq(userName, endpoint, tag, sender string) error {
 		MyPub:      myPub,
 	}
 
-	response, closeBody, err := s.makeHTTPReq(u, r, endpoint, actionSealOpen)
+	response, closeBody, err := s.makeHTTPReq(u, r, endpoint, actionUnwrap)
 	if err != nil {
 		return err
 	}

@@ -364,7 +364,7 @@ func TestOperation_VerifyProof(t *testing.T) {
 func TestOperation_Easy(t *testing.T) {
 	cmd := NewMockCmd(gomock.NewController(t))
 
-	cmd.EXPECT().Easy(gomock.Any(), gomock.Any()).Do(func(_ io.Writer, r io.Reader) {
+	cmd.EXPECT().WrapKey(gomock.Any(), gomock.Any()).Do(func(_ io.Writer, r io.Reader) {
 		var req command.EasyRequest
 		require.NoError(t, unwrapRequest(r, &req))
 
@@ -383,13 +383,13 @@ func TestOperation_Easy(t *testing.T) {
 		base64.StdEncoding.EncodeToString([]byte("nonce")),
 		base64.StdEncoding.EncodeToString([]byte("public key material")))
 
-	require.Equal(t, http.StatusOK, handleRequest(t, op, EasyPath, http.MethodPost, bytes.NewBufferString(body)))
+	require.Equal(t, http.StatusOK, handleRequest(t, op, WrapKeyPath, http.MethodPost, bytes.NewBufferString(body)))
 }
 
 func TestOperation_EasyOpen(t *testing.T) {
 	cmd := NewMockCmd(gomock.NewController(t))
 
-	cmd.EXPECT().EasyOpen(gomock.Any(), gomock.Any()).Do(func(_ io.Writer, r io.Reader) {
+	cmd.EXPECT().UnwrapKey(gomock.Any(), gomock.Any()).Do(func(_ io.Writer, r io.Reader) {
 		var req command.EasyOpenRequest
 		require.NoError(t, unwrapRequest(r, &req))
 
@@ -411,13 +411,13 @@ func TestOperation_EasyOpen(t *testing.T) {
 		base64.StdEncoding.EncodeToString([]byte("public key material")),
 		base64.StdEncoding.EncodeToString([]byte("public key material")))
 
-	require.Equal(t, http.StatusOK, handleRequest(t, op, EasyOpenPath, http.MethodPost, bytes.NewBufferString(body)))
+	require.Equal(t, http.StatusOK, handleRequest(t, op, UnwrapKeyPath, http.MethodPost, bytes.NewBufferString(body)))
 }
 
 func TestOperation_SealOpen(t *testing.T) {
 	cmd := NewMockCmd(gomock.NewController(t))
 
-	cmd.EXPECT().SealOpen(gomock.Any(), gomock.Any()).Do(func(_ io.Writer, r io.Reader) {
+	cmd.EXPECT().UnwrapKey(gomock.Any(), gomock.Any()).Do(func(_ io.Writer, r io.Reader) {
 		var req command.SealOpenRequest
 		require.NoError(t, unwrapRequest(r, &req))
 
@@ -433,7 +433,7 @@ func TestOperation_SealOpen(t *testing.T) {
 	}`, base64.StdEncoding.EncodeToString([]byte("ciphertext")),
 		base64.StdEncoding.EncodeToString([]byte("public key material")))
 
-	require.Equal(t, http.StatusOK, handleRequest(t, op, SealOpenPath, http.MethodPost, bytes.NewBufferString(body)))
+	require.Equal(t, http.StatusOK, handleRequest(t, op, UnwrapKeyPath, http.MethodPost, bytes.NewBufferString(body)))
 }
 
 func TestOperation_WrapKey(t *testing.T) {

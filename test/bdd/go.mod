@@ -11,10 +11,10 @@ require (
 	github.com/cucumber/godog v0.10.0
 	github.com/google/uuid v1.3.0
 	github.com/greenpau/go-calculator v1.0.1
-	github.com/hyperledger/aries-framework-go v0.1.9-0.20220412155017-81442062e607
+	github.com/hyperledger/aries-framework-go v0.1.9-0.20220610133818-119077b0ec85
 	github.com/hyperledger/aries-framework-go-ext/component/vdr/orb v1.0.0-rc.1
-	github.com/hyperledger/aries-framework-go/component/storageutil v0.0.0-20220516154446-0ba34929e05b
-	github.com/hyperledger/aries-framework-go/spi v0.0.0-20220607210648-748fd2b202e8
+	github.com/hyperledger/aries-framework-go/component/storageutil v0.0.0-20220610133818-119077b0ec85
+	github.com/hyperledger/aries-framework-go/spi v0.0.0-20220610133818-119077b0ec85
 	github.com/igor-pavlenko/httpsignatures-go v0.0.23
 	github.com/lafriks/go-shamir v1.1.0
 	github.com/ory/hydra-client-go v1.10.6

@@ -12,12 +12,12 @@ require (
 	github.com/dgraph-io/ristretto v0.1.0
 	github.com/google/tink/go v1.6.1
 	github.com/gorilla/mux v1.8.0
-	github.com/hyperledger/aries-framework-go v0.1.9-0.20220412155017-81442062e607
+	github.com/hyperledger/aries-framework-go v0.1.9-0.20220610133818-119077b0ec85
 	github.com/hyperledger/aries-framework-go-ext/component/storage/couchdb v0.0.0-20220330151152-6bbd64bde42e
 	github.com/hyperledger/aries-framework-go-ext/component/storage/mongodb v0.0.0-20220330151152-6bbd64bde42e
 	github.com/hyperledger/aries-framework-go-ext/component/vdr/orb v1.0.0-rc.1
-	github.com/hyperledger/aries-framework-go/component/storageutil v0.0.0-20220516154446-0ba34929e05b
-	github.com/hyperledger/aries-framework-go/spi v0.0.0-20220607210648-748fd2b202e8
+	github.com/hyperledger/aries-framework-go/component/storageutil v0.0.0-20220610133818-119077b0ec85
+	github.com/hyperledger/aries-framework-go/spi v0.0.0-20220610133818-119077b0ec85
 	github.com/lafriks/go-shamir v1.1.0
 	github.com/ory/dockertest/v3 v3.8.1
 	github.com/piprate/json-gold v0.4.1
@@ -78,7 +78,7 @@ require (
 	github.com/google/trillian v1.3.14-0.20210520152752-ceda464a95a3 // indirect
 	github.com/google/uuid v1.3.0 // indirect
 	github.com/hyperledger/aries-framework-go-ext/component/vdr/sidetree v1.0.0-rc.1 // indirect
-	github.com/hyperledger/aries-framework-go/component/storage/edv v0.0.0-20220607210648-748fd2b202e8 // indirect
+	github.com/hyperledger/aries-framework-go/component/storage/edv v0.0.0-20220610133818-119077b0ec85 // indirect
 	github.com/igor-pavlenko/httpsignatures-go v0.0.23 // indirect
 	github.com/imdario/mergo v0.3.12 // indirect
 	github.com/inconshreveable/mousetrap v1.0.0 // indirect

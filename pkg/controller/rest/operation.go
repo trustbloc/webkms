@@ -42,9 +42,6 @@ const (
 	VerifyMultiPath = KeyPath + "/{" + keyVarName + "}/verifymulti"
 	DeriveProofPath = KeyPath + "/{" + keyVarName + "}/deriveproof"
 	VerifyProofPath = KeyPath + "/{" + keyVarName + "}/verifyproof"
-	EasyPath        = KeyPath + "/{" + keyVarName + "}/easy"
-	EasyOpenPath    = KeyStorePath + "/{" + KeyStoreVarName + "}/easyopen"
-	SealOpenPath    = KeyStorePath + "/{" + KeyStoreVarName + "}/sealopen"
 	WrapKeyPath     = KeyStorePath + "/{" + KeyStoreVarName + "}/wrap"
 	WrapKeyAEPath   = KeyPath + "/{" + keyVarName + "}/wrap"
 	UnwrapKeyPath   = KeyPath + "/{" + keyVarName + "}/unwrap"
@@ -78,9 +75,6 @@ type Cmd interface {
 	VerifyMulti(w io.Writer, r io.Reader) error
 	DeriveProof(w io.Writer, r io.Reader) error
 	VerifyProof(w io.Writer, r io.Reader) error
-	Easy(w io.Writer, r io.Reader) error
-	EasyOpen(w io.Writer, r io.Reader) error
-	SealOpen(w io.Writer, r io.Reader) error
 	WrapKey(w io.Writer, r io.Reader) error
 	UnwrapKey(w io.Writer, r io.Reader) error
 }
@@ -114,9 +108,6 @@ func (o *Operation) GetRESTHandlers() []Handler {
 		NewHTTPHandler(VerifyMultiPath, http.MethodPost, o.VerifyMulti, command.ActionVerifyMulti, AuthZCAP|AuthGNAP),
 		NewHTTPHandler(DeriveProofPath, http.MethodPost, o.DeriveProof, command.ActionDeriveProof, AuthZCAP|AuthGNAP),
 		NewHTTPHandler(VerifyProofPath, http.MethodPost, o.VerifyProof, command.ActionVerifyProof, AuthZCAP|AuthGNAP),
-		NewHTTPHandler(EasyPath, http.MethodPost, o.Easy, command.ActionEasy, AuthZCAP|AuthGNAP),
-		NewHTTPHandler(EasyOpenPath, http.MethodPost, o.EasyOpen, command.ActionEasyOpen, AuthZCAP|AuthGNAP),
-		NewHTTPHandler(SealOpenPath, http.MethodPost, o.SealOpen, command.ActionSealOpen, AuthZCAP|AuthGNAP),
 		NewHTTPHandler(WrapKeyPath, http.MethodPost, o.WrapKey, command.ActionWrap, AuthZCAP|AuthGNAP),
 		NewHTTPHandler(WrapKeyAEPath, http.MethodPost, o.WrapKeyAE, command.ActionWrap, AuthZCAP|AuthGNAP),
 		NewHTTPHandler(UnwrapKeyPath, http.MethodPost, o.UnwrapKey, command.ActionUnwrap, AuthZCAP|AuthGNAP),
@@ -307,39 +298,6 @@ func (o *Operation) DeriveProof(rw http.ResponseWriter, req *http.Request) {
 //    default: errorResp
 func (o *Operation) VerifyProof(rw http.ResponseWriter, req *http.Request) {
 	execute(o.cmd.VerifyProof, rw, req)
-}
-
-// Easy swagger:route POST /v1/keystores/{key_store_id}/keys/{key_id}/easy crypto easyReq
-//
-// Seals a message.
-//
-// Responses:
-//        200: easyResp
-//    default: errorResp
-func (o *Operation) Easy(rw http.ResponseWriter, req *http.Request) {
-	execute(o.cmd.Easy, rw, req)
-}
-
-// EasyOpen swagger:route POST /v1/keystores/{key_store_id}/easyopen crypto easyOpenReq
-//
-// Unseals a message sealed with Easy.
-//
-// Responses:
-//        200: easyOpenResp
-//    default: errorResp
-func (o *Operation) EasyOpen(rw http.ResponseWriter, req *http.Request) {
-	execute(o.cmd.EasyOpen, rw, req)
-}
-
-// SealOpen swagger:route POST /v1/keystores/{key_store_id}/sealopen crypto sealOpenReq
-//
-// Decrypts a payload encrypted with Seal.
-//
-// Responses:
-//        200: sealOpenResp
-//    default: errorResp
-func (o *Operation) SealOpen(rw http.ResponseWriter, req *http.Request) {
-	execute(o.cmd.SealOpen, rw, req)
 }
 
 // WrapKey swagger:route POST /v1/keystores/{key_store_id}/wrap crypto wrapKeyReq

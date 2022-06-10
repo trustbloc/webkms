@@ -9,9 +9,9 @@ go 1.17
 require (
 	github.com/google/uuid v1.3.0
 	github.com/gorilla/mux v1.8.0
-	github.com/hyperledger/aries-framework-go v0.1.8
-	github.com/hyperledger/aries-framework-go/component/storageutil v0.0.0-20220330140627-07042d78580c
-	github.com/hyperledger/aries-framework-go/spi v0.0.0-20220330140627-07042d78580c
+	github.com/hyperledger/aries-framework-go v0.1.9-0.20220412155017-81442062e607
+	github.com/hyperledger/aries-framework-go/component/storageutil v0.0.0-20220412155017-81442062e607
+	github.com/hyperledger/aries-framework-go/spi v0.0.0-20220412155017-81442062e607
 	github.com/ory/hydra-client-go v1.10.6
 	github.com/trustbloc/edge-core v0.1.8
 )
