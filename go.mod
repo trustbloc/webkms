@@ -11,10 +11,10 @@ require (
 	github.com/golang/mock v1.6.0
 	github.com/google/tink/go v1.6.1
 	github.com/gorilla/mux v1.8.0
-	github.com/hyperledger/aries-framework-go v0.1.8
-	github.com/hyperledger/aries-framework-go/component/storage/edv v0.0.0-20220607210648-748fd2b202e8
-	github.com/hyperledger/aries-framework-go/component/storageutil v0.0.0-20220330133350-1c2d9d65aea4
-	github.com/hyperledger/aries-framework-go/spi v0.0.0-20220607210648-748fd2b202e8
+	github.com/hyperledger/aries-framework-go v0.1.9-0.20220610133818-119077b0ec85
+	github.com/hyperledger/aries-framework-go/component/storage/edv v0.0.0-20220610133818-119077b0ec85
+	github.com/hyperledger/aries-framework-go/component/storageutil v0.0.0-20220610133818-119077b0ec85
+	github.com/hyperledger/aries-framework-go/spi v0.0.0-20220610133818-119077b0ec85
 	github.com/igor-pavlenko/httpsignatures-go v0.0.23
 	github.com/piprate/json-gold v0.4.1
 	github.com/prometheus/client_golang v1.11.0
@@ -44,6 +44,7 @@ require (
 	github.com/matttproud/golang_protobuf_extensions v1.0.1 // indirect
 	github.com/minio/blake2b-simd v0.0.0-20160723061019-3f5f724cb5b1 // indirect
 	github.com/minio/sha256-simd v0.1.1 // indirect
+	github.com/mitchellh/mapstructure v1.4.3 // indirect
 	github.com/mr-tron/base58 v1.2.0 // indirect
 	github.com/multiformats/go-base32 v0.0.4 // indirect
 	github.com/multiformats/go-base36 v0.1.0 // indirect
