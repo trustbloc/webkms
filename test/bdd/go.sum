@@ -1569,7 +1569,6 @@ github.com/stretchr/testify v1.4.0/go.mod h1:j7eGeouHqKxXV5pUuKE4zz7dFj8WfuZ+81P
 github.com/stretchr/testify v1.5.1/go.mod h1:5W2xD1RspED5o8YsWQXVCued0rvSQ+mT+I5cxcmMvtA=
 github.com/stretchr/testify v1.6.1/go.mod h1:6Fq8oRcR53rry900zMqJjRRixrwX3KX962/h/Wwjteg=
 github.com/stretchr/testify v1.7.0/go.mod h1:6Fq8oRcR53rry900zMqJjRRixrwX3KX962/h/Wwjteg=
-github.com/stretchr/testify v1.7.1/go.mod h1:6Fq8oRcR53rry900zMqJjRRixrwX3KX962/h/Wwjteg=
 github.com/stretchr/testify v1.7.2 h1:4jaiDzPyXQvSd7D0EjG45355tLlV3VOECpq10pLC+8s=
 github.com/stretchr/testify v1.7.2/go.mod h1:R6va5+xMeoiuVRoj+gSkQ7d3FALtqAAGI1FQKckRals=
 github.com/subosito/gotenv v1.2.0/go.mod h1:N0PQaV/YGNqwC0u51sEeR/aUtSLEXKX9iv69rRypqCw=
@@ -1597,11 +1596,11 @@ github.com/tmc/grpc-websocket-proxy v0.0.0-20190109142713-0ad062ec5ee5/go.mod h1
 github.com/tmc/grpc-websocket-proxy v0.0.0-20200427203606-3cfed13b9966/go.mod h1:ncp9v5uamzpCO7NfCPTXjqaC+bZgJeR0sMTm6dMHP7U=
 github.com/tomasen/realip v0.0.0-20180522021738-f0c99a92ddce/go.mod h1:o8v6yHRoik09Xen7gje4m9ERNah1d1PPsVq1VEx9vE4=
 github.com/transparency-dev/merkle v0.0.0-20220208131541-728dc2de1344/go.mod h1:B8FIw5LTq6DaULoHsVFRzYIUDkl8yuSwCdZnOZGKL/A=
-github.com/trustbloc/auth v0.1.9-0.20220603134109-0b87579ddcf1 h1:i69SajbXTDCL3Aaxkq8HZ2mtD+QW3amhaGCBRLjOkHI=
-github.com/trustbloc/auth v0.1.9-0.20220603134109-0b87579ddcf1/go.mod h1:FcKbsDtehwj5bQHhmufjy/8oAvzVNBLAicgFMwLe2AM=
-github.com/trustbloc/auth/spi/gnap v0.0.0-20220518152301-fe6ea3ada1af/go.mod h1:BPAXixzwWfMHm55daYibYOD4Aq6UO0wCIKZMZYAvsTk=
-github.com/trustbloc/auth/spi/gnap v0.0.0-20220524155711-5c72fe155c13 h1:XzE9MktZsZyDvWUUY+vMctgmpvIwacPNdCBlfLWuPaA=
-github.com/trustbloc/auth/spi/gnap v0.0.0-20220524155711-5c72fe155c13/go.mod h1:BPAXixzwWfMHm55daYibYOD4Aq6UO0wCIKZMZYAvsTk=
+github.com/trustbloc/auth v0.0.0-20220627125927-afe6d1a2af21 h1:O5eW0HB9tquAEz81zaKQp4X5dqfylSdbTY4QHs9EGkY=
+github.com/trustbloc/auth v0.0.0-20220627125927-afe6d1a2af21/go.mod h1:4zF2ZoI07bo9PIHGYEIdCW848iamwVc9V4hlErWR28Y=
+github.com/trustbloc/auth/spi/gnap v0.0.0-20220623204824-c6be06c93136/go.mod h1:v5BbFh80GLt8+uaiNLcoOr1IqBGkkZUvazleuimmGdc=
+github.com/trustbloc/auth/spi/gnap v0.0.0-20220627125927-afe6d1a2af21 h1:nnSnD95pVAwGXuy/wxzevJlCbr8TDn+O4R/YZdzsEjg=
+github.com/trustbloc/auth/spi/gnap v0.0.0-20220627125927-afe6d1a2af21/go.mod h1:v5BbFh80GLt8+uaiNLcoOr1IqBGkkZUvazleuimmGdc=
 github.com/trustbloc/edge-core v0.1.7/go.mod h1:nQnH3CcEHTRXsWZe/vgj+J0JxxjwFK9IvY3u0Sr/2XY=
 github.com/trustbloc/edge-core v0.1.8 h1:m4X5XNDwiHJjGf8gHnpo6aLkBYuqDyNRq+npjxLc5cY=
 github.com/trustbloc/edge-core v0.1.8/go.mod h1:gfoyG/xquRXyHkww0ldM2jwOTuKKZpHYn+87f+TBQ8M=

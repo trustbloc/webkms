@@ -22,8 +22,8 @@ require (
 	github.com/square/go-jose/v3 v3.0.0-20200630053402-0a67ce9b0693
 	github.com/teserakt-io/golang-ed25519 v0.0.0-20210104091850-3888c087a4c8
 	github.com/tidwall/gjson v1.6.7
-	github.com/trustbloc/auth v0.1.9-0.20220603134109-0b87579ddcf1
-	github.com/trustbloc/auth/spi/gnap v0.0.0-20220524155711-5c72fe155c13
+	github.com/trustbloc/auth v0.0.0-20220627125927-afe6d1a2af21
+	github.com/trustbloc/auth/spi/gnap v0.0.0-20220627125927-afe6d1a2af21
 	github.com/trustbloc/edge-core v0.1.8
 	github.com/trustbloc/edv v0.1.8
 	github.com/trustbloc/kms v0.1.8

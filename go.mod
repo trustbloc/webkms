@@ -19,8 +19,9 @@ require (
 	github.com/piprate/json-gold v0.4.1
 	github.com/prometheus/client_golang v1.11.0
 	github.com/rs/xid v1.3.0
+	github.com/square/go-jose/v3 v3.0.0-20200630053402-0a67ce9b0693
 	github.com/stretchr/testify v1.7.2
-	github.com/trustbloc/auth/spi/gnap v0.0.0-20220524155711-5c72fe155c13
+	github.com/trustbloc/auth/spi/gnap v0.0.0-20220627125927-afe6d1a2af21
 	github.com/trustbloc/edge-core v0.1.8
 	golang.org/x/net v0.0.0-20211216030914-fe4d6282115f
 )
@@ -58,7 +59,6 @@ require (
 	github.com/prometheus/common v0.26.0 // indirect
 	github.com/prometheus/procfs v0.6.0 // indirect
 	github.com/spaolacci/murmur3 v1.1.0 // indirect
-	github.com/square/go-jose/v3 v3.0.0-20200630053402-0a67ce9b0693 // indirect
 	github.com/teserakt-io/golang-ed25519 v0.0.0-20210104091850-3888c087a4c8 // indirect
 	github.com/xeipuuv/gojsonpointer v0.0.0-20190905194746-02993c407bfb // indirect
 	github.com/xeipuuv/gojsonreference v0.0.0-20180127040603-bd5ef7bd5415 // indirect

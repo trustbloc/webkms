@@ -45,7 +45,12 @@ func DoRequest(ctx context.Context, url string, opts ...Opt) (*Response, error) 
 		fn(op)
 	}
 
-	req, err := http.NewRequestWithContext(ctx, op.method, url, op.body)
+	body, err := io.ReadAll(op.body)
+	if err != nil {
+		return nil, fmt.Errorf("request body: %w", err)
+	}
+
+	req, err := http.NewRequestWithContext(ctx, op.method, url, bytes.NewReader(body))
 	if err != nil {
 		return nil, fmt.Errorf("new request: %w", err)
 	}
@@ -64,6 +69,9 @@ func DoRequest(ctx context.Context, url string, opts ...Opt) (*Response, error) 
 		if err = op.signer.Sign(req); err != nil {
 			return nil, fmt.Errorf("sign http request: %w", err)
 		}
+
+		// recreate request with body again as Sign() above consumes the request Body reader.
+		req.Body = io.NopCloser(bytes.NewReader(body))
 	}
 
 	resp, err := op.httpClient.Do(req)
@@ -82,7 +90,7 @@ func DoRequest(ctx context.Context, url string, opts ...Opt) (*Response, error) 
 		StatusCode: resp.StatusCode,
 	}
 
-	body, err := io.ReadAll(resp.Body)
+	body, err = io.ReadAll(resp.Body)
 	if err != nil {
 		return nil, fmt.Errorf("read response body: %w", err)
 	}

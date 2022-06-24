@@ -119,6 +119,7 @@ services:
       - KMS_AUTH_SERVER_URL=https://auth.trustbloc.local:8070
       - KMS_AUTH_SERVER_TOKEN=test_token
       - KMS_AUTH_DISABLE=true
+      - KMS_GNAP_HTTPSIG_DISABLE=false
       - KMS_CACHE_ENABLE=true
       - KMS_LOG_LEVEL=debug
       - KMS_SECRET_LOCK_TYPE=local
@@ -148,6 +149,7 @@ services:
       - KMS_DATABASE_URL=mongodb://mongodb.example.com:27017
       - KMS_DATABASE_PREFIX=orbkms_
       - KMS_AUTH_DISABLE=true
+      - KMS_GNAP_HTTPSIG_DISABLE=false
       - KMS_CACHE_ENABLE=true
       - KMS_LOG_LEVEL=debug
       - KMS_SECRET_LOCK_TYPE=aws
