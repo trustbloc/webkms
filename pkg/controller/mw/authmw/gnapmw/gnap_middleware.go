@@ -85,7 +85,7 @@ func (h *gnapHandler) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 		ResourceServer: &gnap.RequestClient{
 			Key: h.clientKey,
 		},
-		Proof:       proofType,
+		// Proof:       proofType, // TODO: Enable httpsig verification
 		AccessToken: tokenHeader[1],
 	}
 
