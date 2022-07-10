@@ -27,7 +27,7 @@ func TestWrapMiddleware(t *testing.T) {
 
 		auth := authmw.Wrap()(next)
 
-		req, err := http.NewRequestWithContext(context.Background(), "", "", nil)
+		req, err := http.NewRequestWithContext(context.Background(), "", "", http.NoBody)
 		require.NoError(t, err)
 
 		rr := httptest.NewRecorder()
@@ -51,7 +51,7 @@ func TestWrapMiddleware(t *testing.T) {
 
 		auth := authmw.Wrap(mw)(next)
 
-		req, err := http.NewRequestWithContext(context.Background(), "", "", nil)
+		req, err := http.NewRequestWithContext(context.Background(), "", "", http.NoBody)
 		require.NoError(t, err)
 
 		rr := httptest.NewRecorder()

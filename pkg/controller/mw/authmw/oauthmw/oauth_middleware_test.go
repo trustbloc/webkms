@@ -50,7 +50,7 @@ func TestAccept(t *testing.T) {
 	mw := oauthmw.Middleware{}
 
 	for _, tt := range tests {
-		req, err := http.NewRequestWithContext(context.Background(), "", "", nil)
+		req, err := http.NewRequestWithContext(context.Background(), "", "", http.NoBody)
 		require.NoError(t, err)
 
 		for _, header := range tt.headers {
@@ -70,7 +70,7 @@ func TestMiddleware(t *testing.T) {
 		next := NewMockHTTPHandler(ctrl)
 		next.EXPECT().ServeHTTP(gomock.Any(), gomock.Any()).Times(1)
 
-		req, err := http.NewRequestWithContext(context.Background(), "", "", nil)
+		req, err := http.NewRequestWithContext(context.Background(), "", "", http.NoBody)
 		require.NoError(t, err)
 
 		rr := httptest.NewRecorder()

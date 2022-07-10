@@ -54,7 +54,7 @@ func CreateProvider(c *ProviderConfig) Provider {
 func (p *provider) FetchSecretShare(subject string) ([]byte, error) {
 	uri := fmt.Sprintf("%s/secret?sub=%s", p.authServerURL, url.QueryEscape(subject))
 
-	req, err := http.NewRequestWithContext(context.Background(), http.MethodGet, uri, nil)
+	req, err := http.NewRequestWithContext(context.Background(), http.MethodGet, uri, http.NoBody)
 	if err != nil {
 		return nil, fmt.Errorf("new request: %w", err)
 	}
