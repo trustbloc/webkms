@@ -112,6 +112,11 @@ const (
 	disableAuthFlagUsage = "Disables authorization. Possible values: [true] [false]. Defaults to false. " +
 		commonEnvVarUsageText + disableAuthEnvKey
 
+	disableHTTPSIGEnvKey    = "KMS_GNAP_HTTPSIG_DISABLE"
+	disableHTTPSIGFlagName  = "disable-HTTPSIG"
+	disableHTTPSIGFlagUsage = "Disables GNAP HTTPSIG validation. Possible values: [true] [false]. Defaults to false. " +
+		commonEnvVarUsageText + disableHTTPSIGEnvKey
+
 	enableCORSEnvKey    = "KMS_CORS_ENABLE"
 	enableCORSFlagName  = "enable-cors"
 	enableCORSFlagUsage = "Enables CORS. Possible values: [true] [false]. Defaults to false. " +
@@ -180,6 +185,7 @@ type serverParameters struct {
 	shamirSecretCacheTTL time.Duration
 	enableCache          bool
 	disableAuth          bool
+	disableHTTPSIG       bool
 	enableCORS           bool
 	logLevel             string
 	secretLockParams     *secretLockParameters
@@ -221,6 +227,7 @@ func getParameters(cmd *cobra.Command) (*serverParameters, error) { //nolint:fun
 	shamirSecretCacheTTLStr := getUserSetVarOptional(cmd, shamirSecretCacheTTLFlagName, shamirSecretCacheTTLEnvKey)
 	enableCacheStr := getUserSetVarOptional(cmd, enableCacheFlagName, enableCacheEnvKey)
 	disableAuthStr := getUserSetVarOptional(cmd, disableAuthFlagName, disableAuthEnvKey)
+	disableHTTPSIGStr := getUserSetVarOptional(cmd, disableHTTPSIGFlagName, disableHTTPSIGEnvKey)
 	enableCORSStr := getUserSetVarOptional(cmd, enableCORSFlagName, enableCORSEnvKey)
 	logLevel := getUserSetVarOptional(cmd, logLevelFlagName, logLevelEnvKey)
 
@@ -269,6 +276,11 @@ func getParameters(cmd *cobra.Command) (*serverParameters, error) { //nolint:fun
 		return nil, fmt.Errorf("parse disableAuth: %w", err)
 	}
 
+	disableHTTPSIG, err := strconv.ParseBool(disableHTTPSIGStr)
+	if err != nil {
+		return nil, fmt.Errorf("parse disableHTTPSIG: %w", err)
+	}
+
 	enableCORS, err := strconv.ParseBool(enableCORSStr)
 	if err != nil {
 		return nil, fmt.Errorf("parse enableCORS: %w", err)
@@ -301,6 +313,7 @@ func getParameters(cmd *cobra.Command) (*serverParameters, error) { //nolint:fun
 		shamirSecretCacheTTL: shamirSecretCacheTTL,
 		enableCache:          enableCache,
 		disableAuth:          disableAuth,
+		disableHTTPSIG:       disableHTTPSIG,
 		enableCORS:           enableCORS,
 		logLevel:             logLevel,
 		secretLockParams:     secretLockParams,
@@ -408,6 +421,7 @@ func createFlags(startCmd *cobra.Command) {
 	startCmd.Flags().String(shamirSecretCacheTTLFlagName, "10m", shamirSecretCacheTTLFlagUsage)
 	startCmd.Flags().String(enableCacheFlagName, "true", enableCacheFlagUsage)
 	startCmd.Flags().String(disableAuthFlagName, "false", disableAuthFlagUsage)
+	startCmd.Flags().String(disableHTTPSIGFlagName, "false", disableHTTPSIGFlagUsage)
 	startCmd.Flags().String(enableCORSFlagName, "false", enableCORSFlagUsage)
 	startCmd.Flags().String(logLevelFlagName, "info", logLevelFlagUsage)
 	startCmd.Flags().String(secretLockTypeFlagName, "", secretLockTypeFlagUsage)

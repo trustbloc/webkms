@@ -15,8 +15,10 @@ import (
 	"encoding/base64"
 	"encoding/pem"
 	"fmt"
+	"io"
 	"net/http"
 	"net/http/cookiejar"
+	"net/http/httptest"
 	"net/url"
 	"strings"
 	"text/template"
@@ -289,7 +291,7 @@ func (s *Steps) httpPost(headers, userName, url string, bodyTemplate *godog.DocS
 	signer := &requestSigner{
 		Headers:    strings.Split(headers, ","),
 		KeyID:      user.KeyID,
-		PrivateKey: user.PrivateKey.Key.(*ecdsa.PrivateKey),
+		privKeyJWK: user.PrivateKey,
 	}
 
 	return s.httpDo(context.Background(), http.MethodPost, url, bodyTemplate, httputil.WithSigner(signer))
@@ -367,17 +369,28 @@ func getLastSegment(url string) string {
 type requestSigner struct {
 	Headers    []string
 	KeyID      string
-	PrivateKey *ecdsa.PrivateKey
+	privKeyJWK *jwk.JWK
 }
 
 // Sign signs HTTP headers in HTTP Message Signatures auth method.
 func (s *requestSigner) Sign(req *http.Request) error {
-	hs := httpsignatures.NewHTTPSignatures(&secretRetriever{KeyID: s.KeyID, PrivateKey: s.PrivateKey})
-	hs.SetDefaultSignatureHeaders(s.Headers)
+	// use auth's signer instead of httpsignature directly to ensure all signature headers are equivalents in Verify().
+	signer := &httpsig.Signer{SigningKey: s.privKeyJWK}
 
-	if err := hs.Sign(s.KeyID, req); err != nil {
+	body, err := io.ReadAll(req.Body)
+	if err != nil {
+		return err
+	}
+
+	newReq := httptest.NewRequest(req.Method, req.URL.String(), bytes.NewReader(body))
+	newReq.Header = req.Header
+
+	newReq, err = signer.Sign(newReq, body)
+	if err != nil {
 		return fmt.Errorf("sign request: %w", err)
 	}
+
+	req = newReq
 
 	return nil
 }

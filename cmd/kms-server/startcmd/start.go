@@ -7,9 +7,11 @@ SPDX-License-Identifier: Apache-2.0
 package startcmd
 
 import (
+	"crypto"
 	"crypto/sha256"
 	"crypto/tls"
 	"crypto/x509"
+	"encoding/base64"
 	"encoding/pem"
 	"fmt"
 	"io/ioutil"
@@ -284,6 +286,10 @@ func startServer(srv server, params *serverParameters) error { //nolint:funlen
 		)
 	}
 
+	createGNAPVerifier := func(req *http.Request) gnapmw.GNAPVerifier {
+		return httpsig.NewVerifier(req)
+	}
+
 	for _, h := range rest.New(cmd).GetRESTHandlers() {
 		var handler http.Handler = h.Handler()
 
@@ -299,7 +305,12 @@ func startServer(srv server, params *serverParameters) error { //nolint:funlen
 			}
 
 			if h.Auth().HasFlag(rest.AuthGNAP) {
-				middlewares = append(middlewares, &gnapmw.Middleware{Client: gnapRSClient, RSPubKey: publicJWK})
+				gmw, err := gnapmw.NewMiddleware(gnapRSClient, publicJWK, createGNAPVerifier, params.disableHTTPSIG)
+				if err != nil {
+					return fmt.Errorf("new gnap middleware: %w", err)
+				}
+
+				middlewares = append(middlewares, gmw)
 			}
 
 			handler = authmw.Wrap(middlewares...)(handler)
@@ -549,6 +560,13 @@ func createGNAPSigningJWK(keyFilePath string) (*jwk.JWK, *jwk.JWK, error) {
 		Kty: "EC",
 		Crv: "P-256",
 	}
+
+	keyID, err := privateJWK.Thumbprint(crypto.SHA256)
+	if err != nil {
+		return nil, nil, fmt.Errorf("parse private key's keyID: %w", err)
+	}
+
+	privateJWK.KeyID = base64.RawURLEncoding.EncodeToString(keyID)
 
 	publicJWK := &jwk.JWK{
 		JSONWebKey: privateJWK.Public(),
