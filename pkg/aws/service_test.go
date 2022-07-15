@@ -12,8 +12,10 @@ import (
 	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/aws/request"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/kms"
+	arieskms "github.com/hyperledger/aries-framework-go/pkg/kms"
 	"github.com/stretchr/testify/require"
 )
 
@@ -123,6 +125,47 @@ func TestHealthCheck(t *testing.T) {
 		err = svc.HealthCheck()
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "failed to list keys")
+	})
+}
+
+func TestCreate(t *testing.T) {
+	t.Run("success", func(t *testing.T) {
+		endpoint := localhost
+		awsSession, err := session.NewSession(&aws.Config{
+			Endpoint:                      &endpoint,
+			Region:                        aws.String("ca"),
+			CredentialsChainVerboseErrors: aws.Bool(true),
+		})
+		require.NoError(t, err)
+
+		svc := New(awsSession, &mockMetrics{}, "")
+
+		keyID := "key1"
+
+		svc.client = &mockAWSClient{createKeyFunc: func(input *kms.CreateKeyInput) (req *request.Request,
+			output *kms.CreateKeyOutput) {
+			return nil, &kms.CreateKeyOutput{KeyMetadata: &kms.KeyMetadata{KeyId: &keyID}}
+		}}
+
+		result, _, err := svc.Create(arieskms.ECDSAP256DER)
+		require.NoError(t, err)
+		require.Contains(t, result, keyID)
+	})
+
+	t.Run("key not supported", func(t *testing.T) {
+		endpoint := localhost
+		awsSession, err := session.NewSession(&aws.Config{
+			Endpoint:                      &endpoint,
+			Region:                        aws.String("ca"),
+			CredentialsChainVerboseErrors: aws.Bool(true),
+		})
+		require.NoError(t, err)
+
+		svc := New(awsSession, &mockMetrics{}, "")
+
+		_, _, err = svc.Create(arieskms.ED25519)
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "key not supported ED25519")
 	})
 }
 
@@ -274,6 +317,7 @@ type mockAWSClient struct {
 	getPublicKeyFunc func(input *kms.GetPublicKeyInput) (*kms.GetPublicKeyOutput, error)
 	verifyFunc       func(input *kms.VerifyInput) (*kms.VerifyOutput, error)
 	describeKeyFunc  func(input *kms.DescribeKeyInput) (*kms.DescribeKeyOutput, error)
+	createKeyFunc    func(input *kms.CreateKeyInput) (req *request.Request, output *kms.CreateKeyOutput)
 }
 
 func (m *mockAWSClient) Sign(input *kms.SignInput) (*kms.SignOutput, error) {
@@ -303,6 +347,15 @@ func (m *mockAWSClient) Verify(input *kms.VerifyInput) (*kms.VerifyOutput, error
 func (m *mockAWSClient) DescribeKey(input *kms.DescribeKeyInput) (*kms.DescribeKeyOutput, error) {
 	if m.describeKeyFunc != nil {
 		return m.describeKeyFunc(input)
+	}
+
+	return nil, nil
+}
+
+func (m *mockAWSClient) CreateKeyRequest(input *kms.CreateKeyInput) (req *request.Request,
+	output *kms.CreateKeyOutput) {
+	if m.createKeyFunc != nil {
+		return m.createKeyFunc(input)
 	}
 
 	return nil, nil
