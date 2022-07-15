@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/aws/request"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/kms"
 	arieskms "github.com/hyperledger/aries-framework-go/pkg/kms"
@@ -23,6 +24,7 @@ type awsClient interface {
 	GetPublicKey(input *kms.GetPublicKeyInput) (*kms.GetPublicKeyOutput, error)
 	Verify(input *kms.VerifyInput) (*kms.VerifyOutput, error)
 	DescribeKey(input *kms.DescribeKeyInput) (*kms.DescribeKeyOutput, error)
+	CreateKeyRequest(input *kms.CreateKeyInput) (req *request.Request, output *kms.CreateKeyOutput)
 }
 
 type metricsProvider interface {
@@ -160,7 +162,24 @@ func (s *Service) Verify(signature, msg []byte, kh interface{}) error {
 
 // Create key.
 func (s *Service) Create(kt arieskms.KeyType) (string, interface{}, error) {
-	return "", nil, fmt.Errorf("not implemented")
+	keyUsage := kms.KeyUsageTypeSignVerify
+
+	keySpec := ""
+
+	switch string(kt) {
+	case arieskms.ECDSAP256DER, arieskms.NISTP256ECDHKW:
+		keySpec = kms.KeySpecEccNistP256
+	case arieskms.ECDSAP384DER, arieskms.NISTP384ECDHKW:
+		keySpec = kms.KeySpecEccNistP384
+	case arieskms.ECDSAP521DER, arieskms.NISTP521ECDHKW:
+		keySpec = kms.KeySpecEccNistP521
+	default:
+		return "", nil, fmt.Errorf("key not supported %s", kt)
+	}
+
+	_, result := s.client.CreateKeyRequest(&kms.CreateKeyInput{KeySpec: &keySpec, KeyUsage: &keyUsage})
+
+	return *result.KeyMetadata.KeyId, *result.KeyMetadata.KeyId, nil
 }
 
 // ImportPrivateKey private key.
