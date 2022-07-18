@@ -167,6 +167,58 @@ func TestMiddleware(t *testing.T) {
 		require.Equal(t, http.StatusOK, rr.Code)
 	})
 
+	t.Run("should call next handler if request is authorized "+
+		"(GNAP token is second value in Authorization header)", func(t *testing.T) {
+		ctrl := gomock.NewController(t)
+
+		privKey, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+
+		privJWK := &jwk.JWK{
+			JSONWebKey: jose.JSONWebKey{
+				Key:       privKey,
+				KeyID:     "key1",
+				Algorithm: "ES256",
+			},
+			Kty: "EC",
+			Crv: "P-256",
+		}
+
+		pubJWK := jwk.JWK{
+			JSONWebKey: privJWK.Public(),
+			Kty:        "EC",
+			Crv:        "P-256",
+		}
+
+		require.NoError(t, err)
+		client := NewMockGNAPRSClient(ctrl)
+		client.EXPECT().Introspect(gomock.Any()).Return(&gnap.IntrospectResponse{Active: true, Key: &gnap.ClientKey{
+			JWK: pubJWK,
+		}}, nil)
+
+		mVerifier := NewMockGNAPVerifier(ctrl)
+		mVerifier.EXPECT().Verify(gomock.Any()).Times(1)
+
+		mw, err := gnapmw.NewMiddleware(client, &pubJWK, func(req *http.Request) gnapmw.GNAPVerifier {
+			return mVerifier
+		}, false)
+		require.NoError(t, err)
+
+		next := NewMockHTTPHandler(ctrl)
+		next.EXPECT().ServeHTTP(gomock.Any(), gomock.Any()).Times(1)
+
+		req, err := http.NewRequestWithContext(context.Background(), "", "", nil)
+		require.NoError(t, err)
+
+		req.Header.Add("Authorization", "Some other token")
+		req.Header.Add("Authorization", "GNAP token")
+
+		rr := httptest.NewRecorder()
+
+		mw.Middleware()(next).ServeHTTP(rr, req)
+
+		require.Equal(t, http.StatusOK, rr.Code)
+	})
+
 	t.Run("should return 401 Unauthorized if request is unauthorized due to signature error", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
 

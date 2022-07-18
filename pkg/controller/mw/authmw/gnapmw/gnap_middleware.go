@@ -69,13 +69,12 @@ type HTTPHandler interface {
 
 // Accept checks if the request can be handled by the GNAP middleware.
 func (mw *Middleware) Accept(req *http.Request) bool {
-	if v, ok := req.Header["Authorization"]; ok {
-		for _, h := range v {
-			if strings.Contains(h, gnapToken) {
-				logger.Debugf("Accept: %v is true", v)
+	v := req.Header.Values("Authorization")
+	for _, h := range v {
+		if strings.Contains(h, gnapToken) {
+			logger.Debugf("Accept: %v is true", v)
 
-				return true
-			}
+			return true
 		}
 	}
 
@@ -108,9 +107,20 @@ type gnapHandler struct {
 
 // ServeHTTP authorizes an incoming HTTP request using GNAP.
 func (h *gnapHandler) ServeHTTP(w http.ResponseWriter, req *http.Request) {
-	tokenHeader := strings.Split(strings.Trim(req.Header.Get("Authorization"), " "), " ")
+	var tokenHeader string
 
-	if len(tokenHeader) < 2 || tokenHeader[0] != gnapToken {
+	v := req.Header.Values("Authorization")
+	for _, h := range v {
+		if strings.Contains(h, gnapToken) {
+			tokenHeader = h
+
+			break
+		}
+	}
+
+	tokenHeaderSplit := strings.Split(strings.Trim(tokenHeader, " "), " ")
+
+	if len(tokenHeaderSplit) < 2 || tokenHeaderSplit[0] != gnapToken {
 		http.Error(w, "unauthorized", http.StatusUnauthorized)
 
 		return
@@ -121,7 +131,7 @@ func (h *gnapHandler) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 			Key: h.clientKey,
 		},
 		Proof:       proofType,
-		AccessToken: tokenHeader[1],
+		AccessToken: tokenHeaderSplit[1],
 	}
 
 	resp, err := h.client.Introspect(introspectReq)
