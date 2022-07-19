@@ -62,9 +62,9 @@ type Middleware struct {
 
 // Accept checks if middleware can handle auth for the given request.
 func (mw *Middleware) Accept(req *http.Request) bool {
-	_, ok := req.Header["Capability-Invocation"]
+	headerValues := req.Header.Values("Capability-Invocation")
 
-	return ok
+	return len(headerValues) > 0
 }
 
 // Middleware returns middleware func.
