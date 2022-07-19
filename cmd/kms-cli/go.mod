@@ -1,6 +1,10 @@
+// Copyright SecureKey Technologies Inc. All Rights Reserved.
+//
+// SPDX-License-Identifier: Apache-2.0
+
 module github.com/trustbloc/kms/cmd/kms-cli
 
-go 1.17
+go 1.18
 
 require (
 	github.com/spf13/cobra v1.3.0

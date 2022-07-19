@@ -4,7 +4,7 @@
 
 module github.com/trustbloc/kms/test/bdd
 
-go 1.17
+go 1.18
 
 require (
 	github.com/coreos/go-oidc/v3 v3.1.0

@@ -11,7 +11,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"errors"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"testing"
 
@@ -33,7 +33,7 @@ func TestProvider_FetchSecretShare_Success(t *testing.T) {
 
 	resp := &http.Response{
 		StatusCode: http.StatusOK,
-		Body:       ioutil.NopCloser(bytes.NewBuffer(b)),
+		Body:       io.NopCloser(bytes.NewBuffer(b)),
 	}
 
 	client := NewMockHTTPClient(ctrl)
@@ -64,7 +64,7 @@ func TestProvider_FetchSecretShare_Failed(t *testing.T) {
 
 	resp := &http.Response{
 		StatusCode: http.StatusBadRequest,
-		Body:       ioutil.NopCloser(bytes.NewBuffer(b)),
+		Body:       io.NopCloser(bytes.NewBuffer(b)),
 	}
 
 	client := NewMockHTTPClient(ctrl)

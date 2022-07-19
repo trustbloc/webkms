@@ -3,7 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 GOBIN_PATH      =$(abspath .)/build/bin
-LINT_VERSION    ?=v1.39.0
+LINT_VERSION    ?=v1.44.2
 MOCK_VERSION 	?=v1.6.0
 SWAGGER_VERSION ?=v0.27.0
 SWAGGER_DIR     ="./test/bdd/fixtures/specs"
@@ -13,7 +13,7 @@ DOCKER_OUTPUT_NS      ?=ghcr.io
 KMS_SERVER_IMAGE_NAME ?=trustbloc/kms
 
 ALPINE_VER ?= 3.14
-GO_VER     ?= 1.17
+GO_VER     ?= 1.18
 
 OS := $(shell uname)
 ifeq  ($(OS),$(filter $(OS),Darwin Linux))

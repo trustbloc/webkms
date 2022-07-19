@@ -325,7 +325,7 @@ func (m *mockAWSClient) Sign(input *kms.SignInput) (*kms.SignOutput, error) {
 		return m.signFunc(input)
 	}
 
-	return nil, nil
+	return nil, nil //nolint:nilnil
 }
 
 func (m *mockAWSClient) GetPublicKey(input *kms.GetPublicKeyInput) (*kms.GetPublicKeyOutput, error) {
@@ -333,7 +333,7 @@ func (m *mockAWSClient) GetPublicKey(input *kms.GetPublicKeyInput) (*kms.GetPubl
 		return m.getPublicKeyFunc(input)
 	}
 
-	return nil, nil
+	return nil, nil //nolint:nilnil
 }
 
 func (m *mockAWSClient) Verify(input *kms.VerifyInput) (*kms.VerifyOutput, error) {
@@ -341,7 +341,7 @@ func (m *mockAWSClient) Verify(input *kms.VerifyInput) (*kms.VerifyOutput, error
 		return m.verifyFunc(input)
 	}
 
-	return nil, nil
+	return nil, nil //nolint:nilnil
 }
 
 func (m *mockAWSClient) DescribeKey(input *kms.DescribeKeyInput) (*kms.DescribeKeyOutput, error) {
@@ -349,7 +349,7 @@ func (m *mockAWSClient) DescribeKey(input *kms.DescribeKeyInput) (*kms.DescribeK
 		return m.describeKeyFunc(input)
 	}
 
-	return nil, nil
+	return nil, nil //nolint:nilnil
 }
 
 func (m *mockAWSClient) CreateKeyRequest(input *kms.CreateKeyInput) (req *request.Request,

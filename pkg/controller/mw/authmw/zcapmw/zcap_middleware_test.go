@@ -39,7 +39,7 @@ func TestMiddleware(t *testing.T) {
 			server := httptest.NewServer(mw)
 			defer server.Close()
 
-			req, err := http.NewRequest(http.MethodPost, server.URL+rest.KeyPath, nil) // nolint:noctx // ignore
+			req, err := http.NewRequest(http.MethodPost, server.URL+rest.KeyPath, http.NoBody) // nolint:noctx // ignore
 			require.NoError(t, err)
 
 			response, err := http.DefaultClient.Do(req) // nolint:bodyclose // ignore
@@ -77,7 +77,7 @@ func TestMiddleware(t *testing.T) {
 			config := newConfig()
 			mwFactory := Middleware{Config: config, Action: "createKey"}
 
-			req, err := http.NewRequestWithContext(context.Background(), "", "", nil)
+			req, err := http.NewRequestWithContext(context.Background(), "", "", http.NoBody)
 			require.NoError(t, err)
 
 			req.Header.Add("Capability-Invocation", "zcap")
