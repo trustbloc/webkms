@@ -206,7 +206,7 @@ func TestMiddleware(t *testing.T) {
 		next := NewMockHTTPHandler(ctrl)
 		next.EXPECT().ServeHTTP(gomock.Any(), gomock.Any()).Times(1)
 
-		req, err := http.NewRequestWithContext(context.Background(), "", "", nil)
+		req, err := http.NewRequestWithContext(context.Background(), "", "", http.NoBody)
 		require.NoError(t, err)
 
 		req.Header.Add("Authorization", "Some other token")
