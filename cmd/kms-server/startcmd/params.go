@@ -24,6 +24,11 @@ const (
 	hostFlagUsage = "Host to run the kms-server on. Format: HostName:Port. " +
 		commonEnvVarUsageText + hostEnvKey
 
+	gatewayURLEnvKey    = "KMS_EXTERNAL_GATEWAY_URL"
+	gatewayURLFlagName  = "gateway-url"
+	gatewayURLFlagUsage = "URL of the public-facing gateway that sits in front of this KMS server. Optional. " +
+		commonEnvVarUsageText + gatewayURLEnvKey
+
 	hostMetricsEnvKey    = "KMS_METRICS_HOST"
 	hostMetricsFlagName  = "metrics-host"
 	hostMetricsFlagUsage = "Host to run metrics on. Format: HostName:Port. " +
@@ -172,6 +177,7 @@ type serverParameters struct {
 	host                 string
 	metricsHost          string
 	baseURL              string
+	gatewayURL           string
 	tlsParams            *tlsParameters
 	databaseType         string
 	databaseURL          string
@@ -230,6 +236,7 @@ func getParameters(cmd *cobra.Command) (*serverParameters, error) { //nolint:fun
 	disableHTTPSIGStr := getUserSetVarOptional(cmd, disableHTTPSIGFlagName, disableHTTPSIGEnvKey)
 	enableCORSStr := getUserSetVarOptional(cmd, enableCORSFlagName, enableCORSEnvKey)
 	logLevel := getUserSetVarOptional(cmd, logLevelFlagName, logLevelEnvKey)
+	gatewayURL := getUserSetVarOptional(cmd, gatewayURLFlagName, gatewayURLEnvKey)
 
 	tlsParams, err := getTLS(cmd)
 	if err != nil {
@@ -300,6 +307,7 @@ func getParameters(cmd *cobra.Command) (*serverParameters, error) { //nolint:fun
 		host:                 host,
 		metricsHost:          metricsHost,
 		baseURL:              baseURL,
+		gatewayURL:           gatewayURL,
 		tlsParams:            tlsParams,
 		databaseType:         databaseType,
 		databaseURL:          databaseURL,
@@ -431,4 +439,5 @@ func createFlags(startCmd *cobra.Command) {
 	startCmd.Flags().String(secretLockAWSSecretKeyFlagName, "", secretLockAWSSecretKeyFlagUsage)
 	startCmd.Flags().String(secretLockAWSEndpointFlagName, "", secretLockAWSEndpointFlagUsage)
 	startCmd.Flags().String(gnapSigningKeyPathFlagName, "", gnapSigningKeyPathFlagUsage)
+	startCmd.Flags().String(gatewayURLFlagName, "", gatewayURLFlagUsage)
 }

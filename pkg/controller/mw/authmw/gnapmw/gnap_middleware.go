@@ -13,6 +13,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"net/url"
 	"strings"
 
 	"github.com/hyperledger/aries-framework-go/pkg/doc/jose/jwk"
@@ -36,12 +37,18 @@ type Middleware struct {
 	client         gnapRSClient
 	rsPubKey       *jwk.JWK
 	createVerifier createVerifierFunc
+	externalURL    string
 	disableHTTPSIG bool
 }
 
 // NewMiddleware validates GNAP auth fields are not empty and returns a complete middleware instance.
-func NewMiddleware(client gnapRSClient, rsPubKey *jwk.JWK, createVerifier createVerifierFunc,
-	disableHTTPSIG bool) (*Middleware, error) {
+func NewMiddleware(
+	client gnapRSClient,
+	rsPubKey *jwk.JWK,
+	createVerifier createVerifierFunc,
+	externalURL string,
+	disableHTTPSIG bool,
+) (*Middleware, error) {
 	if client == nil {
 		return nil, errors.New("gnap client is empty")
 	}
@@ -58,6 +65,7 @@ func NewMiddleware(client gnapRSClient, rsPubKey *jwk.JWK, createVerifier create
 		client:         client,
 		rsPubKey:       rsPubKey,
 		createVerifier: createVerifier,
+		externalURL:    externalURL,
 		disableHTTPSIG: disableHTTPSIG,
 	}, nil
 }
@@ -92,6 +100,7 @@ func (mw *Middleware) Middleware() func(http.Handler) http.Handler {
 			},
 			createVerifier: mw.createVerifier,
 			disableHTTPSIG: mw.disableHTTPSIG,
+			externalURL:    mw.externalURL,
 			next:           next,
 		}
 	}
@@ -102,6 +111,7 @@ type gnapHandler struct {
 	clientKey      *gnap.ClientKey
 	next           http.Handler
 	createVerifier createVerifierFunc
+	externalURL    string
 	disableHTTPSIG bool
 }
 
@@ -149,6 +159,16 @@ func (h *gnapHandler) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 
 	// perform HTTPSignature verification if enabled.
 	if !h.disableHTTPSIG {
+
+		originalURL := req.URL
+
+		req.URL, err = url.Parse(h.externalURL + req.URL.String())
+		if err != nil {
+			logger.Warnf("prepending external URL to request URL failed, reverting")
+
+			req.URL = originalURL
+		}
+
 		v := h.createVerifier(req)
 
 		err = v.Verify(resp.Key)
