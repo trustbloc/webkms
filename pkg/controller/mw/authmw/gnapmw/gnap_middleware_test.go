@@ -109,7 +109,7 @@ func TestNewMiddlewareErrors(t *testing.T) {
 		tc := tt
 
 		t.Run(fmt.Sprintf("create middleware error due to %s", tc.name), func(t *testing.T) {
-			mw, err := gnapmw.NewMiddleware(tc.client, tc.rsPubKey, tc.createVerifier, false)
+			mw, err := gnapmw.NewMiddleware(tc.client, tc.rsPubKey, tc.createVerifier, "", false)
 			require.EqualError(t, err, tc.errString)
 			require.Nil(t, mw)
 		})
@@ -149,7 +149,7 @@ func TestMiddleware(t *testing.T) {
 
 		mw, err := gnapmw.NewMiddleware(client, &pubJWK, func(req *http.Request) gnapmw.GNAPVerifier {
 			return mVerifier
-		}, false)
+		}, "", false)
 		require.NoError(t, err)
 
 		next := NewMockHTTPHandler(ctrl)
@@ -200,7 +200,7 @@ func TestMiddleware(t *testing.T) {
 
 		mw, err := gnapmw.NewMiddleware(client, &pubJWK, func(req *http.Request) gnapmw.GNAPVerifier {
 			return mVerifier
-		}, false)
+		}, "", false)
 		require.NoError(t, err)
 
 		next := NewMockHTTPHandler(ctrl)
@@ -251,7 +251,7 @@ func TestMiddleware(t *testing.T) {
 
 		mw, err := gnapmw.NewMiddleware(client, &pubJWK, func(req *http.Request) gnapmw.GNAPVerifier {
 			return mVerifier
-		}, false)
+		}, "", false)
 		require.NoError(t, err)
 
 		next := NewMockHTTPHandler(ctrl)
@@ -280,7 +280,7 @@ func TestMiddleware(t *testing.T) {
 
 		mw, err := gnapmw.NewMiddleware(client, &jwk.JWK{}, func(req *http.Request) gnapmw.GNAPVerifier {
 			return mVerifier
-		}, false)
+		}, "", false)
 		require.NoError(t, err)
 
 		next := NewMockHTTPHandler(ctrl)
@@ -309,7 +309,7 @@ func TestMiddleware(t *testing.T) {
 
 		mw, err := gnapmw.NewMiddleware(client, &jwk.JWK{}, func(req *http.Request) gnapmw.GNAPVerifier {
 			return mVerifier
-		}, false)
+		}, "", false)
 		require.NoError(t, err)
 
 		next := NewMockHTTPHandler(ctrl)
@@ -338,7 +338,7 @@ func TestMiddleware(t *testing.T) {
 
 		mw, err := gnapmw.NewMiddleware(client, &jwk.JWK{}, func(req *http.Request) gnapmw.GNAPVerifier {
 			return mVerifier
-		}, false)
+		}, "", false)
 		require.NoError(t, err)
 
 		next := NewMockHTTPHandler(ctrl)

@@ -90,10 +90,10 @@ type HTTPServer struct{}
 // ListenAndServe starts the server using the standard HTTP(s) implementation.
 func (s *HTTPServer) ListenAndServe(host, certFile, keyFile string, router http.Handler) error {
 	if certFile != "" && keyFile != "" {
-		return http.ListenAndServeTLS(host, certFile, keyFile, router) //nolint: wrapcheck
+		return http.ListenAndServeTLS(host, certFile, keyFile, router) // nolint: wrapcheck
 	}
 
-	return http.ListenAndServe(host, router) //nolint: wrapcheck
+	return http.ListenAndServe(host, router) // nolint: wrapcheck
 }
 
 // Cmd returns the Cobra start command.
@@ -308,7 +308,13 @@ func startServer(srv server, params *serverParameters) error { //nolint:funlen
 			}
 
 			if h.Auth().HasFlag(rest.AuthGNAP) {
-				gmw, err := gnapmw.NewMiddleware(gnapRSClient, publicJWK, createGNAPVerifier, params.disableHTTPSIG)
+				gmw, err := gnapmw.NewMiddleware(
+					gnapRSClient,
+					publicJWK,
+					createGNAPVerifier,
+					params.baseURL,
+					params.disableHTTPSIG,
+				)
 				if err != nil {
 					return fmt.Errorf("new gnap middleware: %w", err)
 				}
