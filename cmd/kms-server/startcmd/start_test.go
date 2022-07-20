@@ -111,6 +111,23 @@ func TestStartCmdWithMissingArg(t *testing.T) {
 			"KMS_SECRET_LOCK_TYPE (environment variable) have been set",
 			err.Error())
 	})
+
+	t.Run("test missing auth-server-url when gnap is enabled", func(t *testing.T) {
+		startCmd, err := Cmd(&mockServer{})
+		require.NoError(t, err)
+
+		args := []string{
+			"--" + databaseTypeFlagName, storageTypeMemOption,
+			"--" + secretLockTypeFlagName, secretLockTypeLocalOption,
+			"--" + secretLockKeyPathFlagName, secretLockKeyFile,
+			"--" + gnapSigningKeyPathFlagName, gnapSigningKeyFile,
+		}
+		startCmd.SetArgs(args)
+
+		err = startCmd.Execute()
+		require.Error(t, err)
+		require.Equal(t, "create gnap rs client: gnap introspect client: missing Resource Server URL", err.Error())
+	})
 }
 
 func TestStartCmdValidArgs(t *testing.T) {
@@ -533,6 +550,7 @@ func requiredArgsWithLockType(databaseType, lockType string) []string {
 		"--" + databaseTypeFlagName, databaseType,
 		"--" + secretLockTypeFlagName, lockType,
 		"--" + gnapSigningKeyPathFlagName, gnapSigningKeyFile,
+		"--" + authServerURLFlagName, "http://example.com",
 	}
 
 	if lockType == secretLockTypeLocalOption {
