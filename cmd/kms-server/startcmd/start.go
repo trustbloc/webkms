@@ -284,6 +284,9 @@ func startServer(srv server, params *serverParameters) error { //nolint:funlen
 			httpClient,
 			params.authServerURL,
 		)
+		if err != nil {
+			return fmt.Errorf("create gnap rs client: %w", err)
+		}
 	}
 
 	createGNAPVerifier := func(req *http.Request) gnapmw.GNAPVerifier {
