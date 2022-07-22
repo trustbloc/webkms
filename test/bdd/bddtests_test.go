@@ -28,7 +28,7 @@ import (
 
 const (
 	featuresPath    = "features"
-	caCertPath      = "fixtures/keys/tls/ec-cacert.pem"
+	caCertPath      = "./fixtures/keys/tls/ec-cacert.pem"
 	composeDir      = "./fixtures/"
 	composeFilePath = composeDir + "docker-compose.yml"
 )

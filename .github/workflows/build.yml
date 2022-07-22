@@ -77,6 +77,7 @@ jobs:
           echo '127.0.0.1 oidc.provider.example.com' | sudo tee -a /etc/hosts
           echo '127.0.0.1 auth.trustbloc.local' | sudo tee -a /etc/hosts
           echo '127.0.0.1 testnet.orb.local' | sudo tee -a /etc/hosts
+          echo '127.0.0.1 kms.trustbloc.local' | sudo tee -a /etc/hosts
           make bdd-test
 
   Publish:

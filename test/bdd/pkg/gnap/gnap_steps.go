@@ -9,24 +9,21 @@ package gnap
 import (
 	"bytes"
 	"context"
-	"crypto/ecdsa"
 	"crypto/tls"
-	"crypto/x509"
 	"encoding/base64"
-	"encoding/pem"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"net/http"
 	"net/http/cookiejar"
-	"net/http/httptest"
 	"net/url"
+	"regexp"
 	"strings"
 	"text/template"
 
 	"github.com/cucumber/godog"
 	"github.com/hyperledger/aries-framework-go/pkg/doc/jose/jwk"
 	vdrapi "github.com/hyperledger/aries-framework-go/pkg/framework/aries/api/vdr"
-	"github.com/igor-pavlenko/httpsignatures-go"
 	"github.com/tidwall/gjson"
 	"github.com/trustbloc/auth/component/gnap/as"
 	"github.com/trustbloc/auth/spi/gnap"
@@ -241,7 +238,17 @@ func (s *Steps) grantGNAPToken(userName string) error {
 		return fmt.Errorf("redirect to auth callback (%s): %w", requestURL, err)
 	}
 
-	clientRedirect := resp.Header.Get("Location")
+	body, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		return fmt.Errorf("failed to read result body: %w", err)
+	}
+
+	rx := regexp.MustCompile("window.opener.location.href = '(.*)';")
+	res := rx.FindStringSubmatch(string(body))
+
+	clientRedirect := res[1]
+	clientRedirect = strings.Replace(clientRedirect, "\\u0026", "\u0026", -1)
+	clientRedirect = strings.Replace(clientRedirect, "\\/", "/", -1)
 
 	crURL, err := url.Parse(clientRedirect)
 	if err != nil {
@@ -382,41 +389,14 @@ func (s *requestSigner) Sign(req *http.Request) error {
 		return err
 	}
 
-	newReq := httptest.NewRequest(req.Method, req.URL.String(), bytes.NewReader(body))
-	newReq.Header = req.Header
+	req.Body = ioutil.NopCloser(bytes.NewReader(body))
 
-	newReq, err = signer.Sign(newReq, body)
+	req, err = signer.Sign(req, body)
 	if err != nil {
 		return fmt.Errorf("sign request: %w", err)
 	}
 
-	req = newReq
-
 	return nil
-}
-
-type secretRetriever struct {
-	KeyID      string
-	PrivateKey *ecdsa.PrivateKey
-}
-
-// Get returns a secret with the key ID and pem-encoded private key.
-func (r *secretRetriever) Get(_ string) (httpsignatures.Secret, error) {
-	b, err := x509.MarshalPKCS8PrivateKey(r.PrivateKey)
-	if err != nil {
-		return httpsignatures.Secret{}, fmt.Errorf("marshal private key: %w", err)
-	}
-
-	privateKeyPEM := pem.EncodeToMemory(&pem.Block{
-		Type:  "PRIVATE KEY",
-		Bytes: b,
-	})
-
-	return httpsignatures.Secret{
-		KeyID:      r.KeyID,
-		Algorithm:  httpSigAlgorithm,
-		PrivateKey: string(privateKeyPEM),
-	}, nil
 }
 
 // GetDID is a helper function used in template to get DID of the user.

@@ -20,8 +20,8 @@ require (
 	github.com/prometheus/client_golang v1.11.0
 	github.com/rs/xid v1.3.0
 	github.com/square/go-jose/v3 v3.0.0-20200630053402-0a67ce9b0693
-	github.com/stretchr/testify v1.7.2
-	github.com/trustbloc/auth/spi/gnap v0.0.0-20220627125927-afe6d1a2af21
+	github.com/stretchr/testify v1.7.5
+	github.com/trustbloc/auth/spi/gnap v0.0.0-20220721161924-5a7b16c4282f
 	github.com/trustbloc/edge-core v0.1.8
 	golang.org/x/net v0.0.0-20211216030914-fe4d6282115f
 )
