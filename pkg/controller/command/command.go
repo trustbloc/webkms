@@ -21,7 +21,9 @@ import (
 	"time"
 
 	"github.com/google/tink/go/keyset"
+	"github.com/hyperledger/aries-framework-go/component/storage/edv"
 	"github.com/hyperledger/aries-framework-go/pkg/crypto"
+	"github.com/hyperledger/aries-framework-go/pkg/doc/jose"
 	"github.com/hyperledger/aries-framework-go/pkg/kms"
 	"github.com/hyperledger/aries-framework-go/pkg/secretlock"
 	"github.com/hyperledger/aries-framework-go/spi/storage"
@@ -713,22 +715,9 @@ func (c *Command) resolveKeyStore(keyStoreID, user string, secretShare []byte) (
 		return nil, fmt.Errorf("unmarshal key store meta: %w", err)
 	}
 
-	var storageProvider storage.Provider
-
-	if meta.EDV.VaultURL != "" {
-		storageProvider, err = c.resolveEDVProvider(meta.EDV.VaultURL, meta.EDV.RecipientKeyID, meta.EDV.MACKeyID,
-			meta.EDV.Capability)
-		if err != nil {
-			return nil, fmt.Errorf("resolve edv provider: %w", err)
-		}
-
-		storageProvider = metrics.Wrap(storageProvider, "EDV")
-	} else {
-		storageProvider = c.keyStorageProvider
-	}
-
-	if c.cacheProvider != nil && c.keyStoreCacheTTL > 0 {
-		storageProvider = c.cacheProvider.Wrap(storageProvider, c.keyStoreCacheTTL)
+	storageProvider, err := c.getStorageProvider(&meta)
+	if err != nil {
+		return nil, err
 	}
 
 	var secretLock secretlock.Service
@@ -751,10 +740,41 @@ func (c *Command) resolveKeyStore(keyStoreID, user string, secretShare []byte) (
 		keyID = "noop"
 	}
 
+	// TODO (#327): Create our own implementation of the KMS storage interface and pass it in here instead of wrapping
+	//  the Aries storage provider.
+	kmsStore, err := kms.NewAriesProviderWrapper(storageProvider)
+	if err != nil {
+		return nil, err
+	}
+
 	return c.keyStoreCreator.Create(localKeyURIPrefix+keyID, &keyStoreProvider{
-		storageProvider: storageProvider,
+		storageProvider: kmsStore,
 		secretLock:      secretLock,
 	})
+}
+
+func (c *Command) getStorageProvider(meta *keyStoreMeta) (storage.Provider, error) {
+	var storageProvider storage.Provider
+
+	if meta.EDV.VaultURL != "" {
+		var err error
+
+		storageProvider, err = c.resolveEDVProvider(meta.EDV.VaultURL, meta.EDV.RecipientKeyID, meta.EDV.MACKeyID,
+			meta.EDV.Capability)
+		if err != nil {
+			return nil, fmt.Errorf("resolve edv provider: %w", err)
+		}
+
+		storageProvider = metrics.Wrap(storageProvider, "EDV")
+	} else {
+		storageProvider = c.keyStorageProvider
+	}
+
+	if c.cacheProvider != nil && c.keyStoreCacheTTL > 0 {
+		storageProvider = c.cacheProvider.Wrap(storageProvider, c.keyStoreCacheTTL)
+	}
+
+	return storageProvider, nil
 }
 
 func (c *Command) resolveEDVProvider(vaultURL, recKeyID, macKeyID string, capability []byte) (storage.Provider, error) {
@@ -781,4 +801,36 @@ func (c *Command) resolveEDVProvider(vaultURL, recKeyID, macKeyID string, capabi
 	}
 
 	return edvProvider, nil
+}
+
+func (c *Command) createEDVStorageProvider(vaultURL string, recipientPubKey *crypto.PublicKey,
+	macKeyHandle interface{}, capability []byte) (storage.Provider, error) {
+	jweEncrypt, err := jose.NewJWEEncrypt(encAlg, encType, "", "", nil, []*crypto.PublicKey{recipientPubKey}, c.crypto)
+	if err != nil {
+		return nil, fmt.Errorf("create jwe encrypt: %w", err)
+	}
+
+	jweDecrypt := jose.NewJWEDecrypt(nil, c.crypto, c.kms)
+
+	encryptedFormatter := edv.NewEncryptedFormatter(
+		jweEncrypt,
+		jweDecrypt,
+		edv.NewMACCrypto(macKeyHandle, c.crypto),
+		edv.WithDeterministicDocumentIDs(),
+	)
+
+	s := strings.Split(vaultURL, "/")
+
+	edvServerURL := strings.Join(s[:len(s)-1], "/")
+	vaultID := s[len(s)-1]
+
+	return edv.NewRESTProvider(
+		edvServerURL,
+		vaultID,
+		encryptedFormatter,
+		edv.WithTLSConfig(c.tlsConfig),
+		edv.WithHeaders(func(req *http.Request) (*http.Header, error) {
+			return c.headerSigner.SignHeader(req, capability)
+		}),
+	), nil
 }

@@ -36,11 +36,16 @@ const (
 type signer interface {
 	// Sign will sign document and return signature.
 	Sign(data []byte) ([]byte, error)
+	Alg() string
 }
 
 type authzKMSSigner struct {
 	s         *Steps
 	authzUser *user
+}
+
+func (a *authzKMSSigner) Alg() string {
+	return ""
 }
 
 func newAuthzKMSSigner(s *Steps, authzUser *user) *authzKMSSigner {
@@ -61,7 +66,7 @@ type remoteKMS struct {
 	keystoreID string
 }
 
-func (r *remoteKMS) Create(kt kms.KeyType) (string, interface{}, error) {
+func (r *remoteKMS) Create(kt kms.KeyType, opts ...kms.KeyOpts) (string, interface{}, error) {
 	panic("implement me")
 }
 
@@ -69,7 +74,7 @@ func (r *remoteKMS) Get(keyID string) (interface{}, error) {
 	return keyID, nil
 }
 
-func (r *remoteKMS) Rotate(kt kms.KeyType, keyID string) (string, interface{}, error) {
+func (r *remoteKMS) Rotate(kt kms.KeyType, keyID string, opts ...kms.KeyOpts) (string, interface{}, error) {
 	panic("implement me")
 }
 
@@ -77,11 +82,11 @@ func (r *remoteKMS) ExportPubKeyBytes(keyID string) ([]byte, kms.KeyType, error)
 	panic("implement me")
 }
 
-func (r *remoteKMS) CreateAndExportPubKeyBytes(kt kms.KeyType) (string, []byte, error) {
+func (r *remoteKMS) CreateAndExportPubKeyBytes(kt kms.KeyType, opts ...kms.KeyOpts) (string, []byte, error) {
 	panic("implement me")
 }
 
-func (r *remoteKMS) PubKeyBytesToHandle(pubKey []byte, kt kms.KeyType) (interface{}, error) {
+func (r *remoteKMS) PubKeyBytesToHandle(pubKey []byte, kt kms.KeyType, opts ...kms.KeyOpts) (interface{}, error) {
 	panic("implement me")
 }
 
@@ -143,11 +148,24 @@ func (r *remoteAuthCrypto) VerifyMulti(messages [][]byte, signature []byte, kh i
 	panic("implement me")
 }
 
+func (r *remoteAuthCrypto) VerifyProof(revealedMessages [][]byte, proof, nonce []byte, kh interface{}) error {
+	panic("implement me")
+}
+
 func (r *remoteAuthCrypto) DeriveProof(messages [][]byte, bbsSignature, nonce []byte, revealedIndexes []int,
 	kh interface{}) ([]byte, error) {
 	panic("implement me")
 }
 
-func (r *remoteAuthCrypto) VerifyProof(revealedMessages [][]byte, proof, nonce []byte, kh interface{}) error {
+func (r *remoteAuthCrypto) Blind(kh interface{}, values ...map[string]interface{}) ([][]byte, error) {
+	panic("implement me")
+}
+
+func (r *remoteAuthCrypto) GetCorrectnessProof(kh interface{}) ([]byte, error) {
+	panic("implement me")
+}
+
+func (r *remoteAuthCrypto) SignWithSecrets(kh interface{}, values map[string]interface{}, secrets []byte,
+	correctnessProof []byte, nonces [][]byte, did string) ([]byte, []byte, error) {
 	panic("implement me")
 }

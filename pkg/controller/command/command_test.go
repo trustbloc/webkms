@@ -24,6 +24,7 @@ import (
 	"github.com/google/tink/go/aead"
 	"github.com/google/tink/go/keyset"
 	"github.com/google/tink/go/signature"
+	"github.com/hyperledger/aries-framework-go/component/storageutil/mem"
 	"github.com/hyperledger/aries-framework-go/pkg/crypto"
 	"github.com/hyperledger/aries-framework-go/pkg/crypto/tinkcrypto"
 	"github.com/hyperledger/aries-framework-go/pkg/crypto/tinkcrypto/primitive/composite/ecdh"
@@ -121,7 +122,7 @@ func TestCommand_CreateKeyStore(t *testing.T) {
 			Times(1)
 
 		cache := NewMockCacheProvider(ctrl)
-		cache.EXPECT().Wrap(gomock.Any(), gomock.Any()).Times(1)
+		cache.EXPECT().Wrap(gomock.Any(), gomock.Any()).Times(1).Return(mem.NewProvider())
 
 		cmd, err := New(&Config{
 			StorageProvider:  mockstorage.NewMockStoreProvider(),
@@ -180,6 +181,7 @@ func TestCommand_CreateKeyStore(t *testing.T) {
 
 		cmd, err := New(&Config{
 			StorageProvider:         mockstorage.NewMockStoreProvider(),
+			KeyStorageProvider:      mem.NewProvider(),
 			KMS:                     km,
 			Crypto:                  cr,
 			KeyStoreCreator:         creator,
@@ -290,10 +292,11 @@ func TestCommand_CreateKeyStore(t *testing.T) {
 		shamirProvider.EXPECT().FetchSecretShare(gomock.Any()).Return(nil, errors.New("bad request")).Times(1)
 
 		cmd, err := New(&Config{
-			StorageProvider: mockstorage.NewMockStoreProvider(),
-			KMS:             km,
-			Crypto:          cr,
-			ShamirProvider:  shamirProvider,
+			StorageProvider:    mockstorage.NewMockStoreProvider(),
+			KeyStorageProvider: mem.NewProvider(),
+			KMS:                km,
+			Crypto:             cr,
+			ShamirProvider:     shamirProvider,
 		})
 		require.NoError(t, err)
 		require.NotNil(t, cmd)
@@ -324,9 +327,10 @@ func TestCommand_CreateKeyStore(t *testing.T) {
 		shamirProvider.EXPECT().FetchSecretShare(gomock.Any()).Times(0)
 
 		cmd, err := New(&Config{
-			StorageProvider: mockstorage.NewMockStoreProvider(),
-			KMS:             &mockkms.KeyManager{},
-			ShamirProvider:  shamirProvider,
+			StorageProvider:    mockstorage.NewMockStoreProvider(),
+			KeyStorageProvider: mem.NewProvider(),
+			KMS:                &mockkms.KeyManager{},
+			ShamirProvider:     shamirProvider,
 		})
 		require.NoError(t, err)
 		require.NotNil(t, cmd)
@@ -356,9 +360,10 @@ func TestCommand_CreateKeyStore(t *testing.T) {
 		shamirProvider.EXPECT().FetchSecretShare(gomock.Any()).Times(0)
 
 		cmd, err := New(&Config{
-			StorageProvider: mockstorage.NewMockStoreProvider(),
-			KMS:             &mockkms.KeyManager{},
-			ShamirProvider:  shamirProvider,
+			StorageProvider:    mockstorage.NewMockStoreProvider(),
+			KeyStorageProvider: mem.NewProvider(),
+			KMS:                &mockkms.KeyManager{},
+			ShamirProvider:     shamirProvider,
 		})
 		require.NoError(t, err)
 		require.NotNil(t, cmd)
@@ -389,9 +394,10 @@ func TestCommand_CreateKeyStore(t *testing.T) {
 		}
 
 		cmd, err := New(&Config{
-			StorageProvider: mockstorage.NewMockStoreProvider(),
-			KMS:             km,
-			Crypto:          cr,
+			StorageProvider:    mockstorage.NewMockStoreProvider(),
+			KeyStorageProvider: mem.NewProvider(),
+			KMS:                km,
+			Crypto:             cr,
 		})
 		require.NoError(t, err)
 		require.NotNil(t, cmd)
@@ -422,10 +428,11 @@ func TestCommand_CreateKeyStore(t *testing.T) {
 		creator.EXPECT().Create(gomock.Any(), gomock.Any()).Return(nil, errors.New("create error")).Times(1)
 
 		cmd, err := New(&Config{
-			StorageProvider: mockstorage.NewMockStoreProvider(),
-			KMS:             &mockkms.KeyManager{},
-			Crypto:          cr,
-			KeyStoreCreator: creator,
+			StorageProvider:    mockstorage.NewMockStoreProvider(),
+			KeyStorageProvider: mem.NewProvider(),
+			KMS:                &mockkms.KeyManager{},
+			Crypto:             cr,
+			KeyStoreCreator:    creator,
 		})
 		require.NoError(t, err)
 		require.NotNil(t, cmd)
@@ -461,12 +468,13 @@ func TestCommand_CreateKeyStore(t *testing.T) {
 			Times(1)
 
 		cmd, err := New(&Config{
-			StorageProvider: mockstorage.NewMockStoreProvider(),
-			KMS:             &mockkms.KeyManager{},
-			Crypto:          cr,
-			KeyStoreCreator: creator,
-			ZCAPService:     zcap,
-			EnableZCAPs:     true,
+			StorageProvider:    mockstorage.NewMockStoreProvider(),
+			KeyStorageProvider: mem.NewProvider(),
+			KMS:                &mockkms.KeyManager{},
+			Crypto:             cr,
+			KeyStoreCreator:    creator,
+			ZCAPService:        zcap,
+			EnableZCAPs:        true,
 		})
 		require.NoError(t, err)
 		require.NotNil(t, cmd)
@@ -505,12 +513,13 @@ func TestCommand_CreateKeyStore(t *testing.T) {
 		store.Store.ErrPut = errors.New("put error")
 
 		cmd, err := New(&Config{
-			StorageProvider: store,
-			KMS:             &mockkms.KeyManager{},
-			Crypto:          cr,
-			KeyStoreCreator: creator,
-			ZCAPService:     zcap,
-			EnableZCAPs:     true,
+			StorageProvider:    store,
+			KeyStorageProvider: mem.NewProvider(),
+			KMS:                &mockkms.KeyManager{},
+			Crypto:             cr,
+			KeyStoreCreator:    creator,
+			ZCAPService:        zcap,
+			EnableZCAPs:        true,
 		})
 		require.NoError(t, err)
 		require.NotNil(t, cmd)
@@ -529,6 +538,56 @@ func TestCommand_CreateKeyStore(t *testing.T) {
 
 		err = cmd.CreateKeyStore(&buf, bytes.NewBuffer(wr))
 		require.EqualError(t, err, "save key store metadata: put: put error")
+	})
+
+	t.Run("Fail to create Aries KMS store wrapper", func(t *testing.T) {
+		ctrl := gomock.NewController(t)
+
+		cr, err := tinkcrypto.New()
+		require.NoError(t, err)
+
+		km := &mockkms.KeyManager{
+			CrAndExportPubKeyValue: createRecipientPubKey(t),
+		}
+
+		creator := NewMockKeyStoreCreator(ctrl)
+
+		zcap := NewMockZCAPService(ctrl)
+
+		mockStoreProvider := &mockstorage.MockStoreProvider{
+			FailNamespace: kms.AriesWrapperStoreName,
+			Store: &mockstorage.MockStore{
+				Store: map[string]mockstorage.DBEntry{},
+			},
+		}
+
+		cmd, err := New(&Config{
+			StorageProvider:    mockStoreProvider,
+			KeyStorageProvider: mockStoreProvider,
+			KMS:                km,
+			Crypto:             cr,
+			KeyStoreCreator:    creator,
+			ZCAPService:        zcap,
+			EnableZCAPs:        true,
+			KeyStoreCacheTTL:   10 * time.Second,
+		})
+		require.NoError(t, err)
+		require.NotNil(t, cmd)
+
+		req, err := json.Marshal(CreateKeyStoreRequest{
+			Controller: "did:example:test",
+		})
+		require.NoError(t, err)
+
+		wr, err := json.Marshal(WrappedRequest{
+			Request: req,
+		})
+		require.NoError(t, err)
+
+		var buf bytes.Buffer
+
+		err = cmd.CreateKeyStore(&buf, bytes.NewBuffer(wr))
+		require.EqualError(t, err, "failed to open store for name space kmsdb")
 	})
 }
 
@@ -717,6 +776,58 @@ func TestCommand_CreateKey(t *testing.T) {
 
 		err = cmd.CreateKey(&buf, bytes.NewBuffer(wr))
 		require.EqualError(t, err, "export public key bytes: export key error")
+	})
+
+	t.Run("Fail to create Aries KMS store wrapper", func(t *testing.T) {
+		keyStoreData, err := json.Marshal(struct {
+			ID         string `json:"id"`
+			Controller string `json:"controller"`
+		}{
+			ID:         "key_store_id",
+			Controller: "controller",
+		})
+		require.NoError(t, err)
+
+		provider := mockstorage.NewMockStoreProvider()
+		provider.Store.Store["key_store_id"] = mockstorage.DBEntry{Value: keyStoreData}
+
+		keyStoreProvider := &mockstorage.MockStoreProvider{
+			FailNamespace: kms.AriesWrapperStoreName,
+			Store: &mockstorage.MockStore{
+				Store: map[string]mockstorage.DBEntry{},
+			},
+		}
+
+		metrics := NewMockMetricsProvider(gomock.NewController(t))
+		metrics.EXPECT().CryptoSignTime(gomock.Any()).AnyTimes()
+		metrics.EXPECT().KeyStoreGetKeyTime(gomock.Any()).AnyTimes()
+		metrics.EXPECT().KeyStoreResolveTime(gomock.Any()).AnyTimes()
+
+		config := &Config{
+			StorageProvider:    provider,
+			KeyStorageProvider: keyStoreProvider,
+			KMS:                &mockkms.KeyManager{},
+			MetricsProvider:    metrics,
+		}
+
+		cmd, err := New(config)
+		require.NoError(t, err)
+
+		req, err := json.Marshal(CreateKeyRequest{
+			KeyType: kms.ED25519,
+		})
+		require.NoError(t, err)
+
+		wr, err := json.Marshal(WrappedRequest{
+			KeyStoreID: "key_store_id",
+			Request:    req,
+		})
+		require.NoError(t, err)
+
+		var buf bytes.Buffer
+
+		err = cmd.CreateKey(&buf, bytes.NewBuffer(wr))
+		require.EqualError(t, err, "resolve key store: failed to open store for name space kmsdb")
 	})
 }
 
@@ -1935,10 +2046,11 @@ func createCmd(t *testing.T, ctrl *gomock.Controller, opts ...configOption) *Com
 	p.Store.Store["key_store_id"] = mockstorage.DBEntry{Value: keyStoreData}
 
 	config := &Config{
-		StorageProvider: p,
-		KMS:             &mockkms.KeyManager{},
-		Crypto:          cr,
-		MetricsProvider: metrics,
+		StorageProvider:    p,
+		KeyStorageProvider: p,
+		KMS:                &mockkms.KeyManager{},
+		Crypto:             cr,
+		MetricsProvider:    metrics,
 	}
 
 	for i := range opts {

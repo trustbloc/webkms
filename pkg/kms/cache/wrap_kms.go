@@ -58,8 +58,8 @@ func (p *Provider) WrapKMS(kms KeyManager, cacheTTL time.Duration) (KeyManager, 
 	}, nil
 }
 
-func (w *wrappedKMS) Create(kt arieskms.KeyType) (string, interface{}, error) {
-	keyID, kh, err := w.kms.Create(kt)
+func (w *wrappedKMS) Create(kt arieskms.KeyType, opts ...arieskms.KeyOpts) (string, interface{}, error) {
+	keyID, kh, err := w.kms.Create(kt, opts...)
 	if err != nil {
 		return "", nil, err
 	}
@@ -85,8 +85,8 @@ func (w *wrappedKMS) Get(keyID string) (interface{}, error) {
 	return kh, nil
 }
 
-func (w *wrappedKMS) Rotate(kt arieskms.KeyType, keyID string) (string, interface{}, error) {
-	return w.kms.Rotate(kt, keyID)
+func (w *wrappedKMS) Rotate(kt arieskms.KeyType, keyID string, opts ...arieskms.KeyOpts) (string, interface{}, error) {
+	return w.kms.Rotate(kt, keyID, opts...)
 }
 
 func (w *wrappedKMS) ExportPubKeyBytes(keyID string) ([]byte, arieskms.KeyType, error) {
@@ -105,8 +105,8 @@ func (w *wrappedKMS) ExportPubKeyBytes(keyID string) ([]byte, arieskms.KeyType, 
 	return pubKeyBytes, kt, nil
 }
 
-func (w *wrappedKMS) CreateAndExportPubKeyBytes(kt arieskms.KeyType) (string, []byte, error) {
-	keyID, pubKeyBytes, err := w.kms.CreateAndExportPubKeyBytes(kt)
+func (w *wrappedKMS) CreateAndExportPubKeyBytes(kt arieskms.KeyType, opts ...arieskms.KeyOpts) (string, []byte, error) {
+	keyID, pubKeyBytes, err := w.kms.CreateAndExportPubKeyBytes(kt, opts...)
 	if err != nil {
 		return "", nil, err
 	}
@@ -116,8 +116,9 @@ func (w *wrappedKMS) CreateAndExportPubKeyBytes(kt arieskms.KeyType) (string, []
 	return keyID, pubKeyBytes, nil
 }
 
-func (w *wrappedKMS) PubKeyBytesToHandle(pubKey []byte, kt arieskms.KeyType) (interface{}, error) {
-	return w.kms.PubKeyBytesToHandle(pubKey, kt)
+func (w *wrappedKMS) PubKeyBytesToHandle(pubKey []byte, kt arieskms.KeyType,
+	opts ...arieskms.KeyOpts) (interface{}, error) {
+	return w.kms.PubKeyBytesToHandle(pubKey, kt, opts...)
 }
 
 func (w *wrappedKMS) ImportPrivateKey(privateKey interface{}, kt arieskms.KeyType,

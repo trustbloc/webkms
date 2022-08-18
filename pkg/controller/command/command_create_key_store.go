@@ -11,11 +11,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"net/http"
-	"strings"
 	"time"
 
-	"github.com/hyperledger/aries-framework-go/component/storage/edv"
 	"github.com/hyperledger/aries-framework-go/pkg/crypto"
 	"github.com/hyperledger/aries-framework-go/pkg/doc/jose"
 	"github.com/hyperledger/aries-framework-go/pkg/kms"
@@ -63,26 +60,14 @@ func (c *Command) CreateKeyStore(w io.Writer, r io.Reader) error { //nolint:funl
 		return fmt.Errorf("validate request: %w", err)
 	}
 
-	var (
-		mainKeyID       string
-		edvParams       edvParameters
-		storageProvider storage.Provider
-	)
-
-	if req.EDV != nil { // use EDV for storing user's operational keys
-		storageProvider, edvParams, err = c.prepareEDVProvider(req.EDV.VaultURL, req.EDV.Capability)
-		if err != nil {
-			return fmt.Errorf("prepare edv provider: %w", err)
-		}
-	} else {
-		storageProvider = c.keyStorageProvider
-	}
-
-	if c.cacheProvider != nil && c.keyStoreCacheTTL > 0 {
-		storageProvider = c.cacheProvider.Wrap(storageProvider, c.keyStoreCacheTTL)
+	kmsStore, edvParams, err := c.createKMSStore(&req)
+	if err != nil {
+		return err
 	}
 
 	var secretLock secretlock.Service
+
+	var mainKeyID string
 
 	if c.shamirProvider != nil { // shamir secret sharing lock
 		secretLock, err = c.createShamirSecretLock(wr.User, wr.SecretShare)
@@ -114,7 +99,7 @@ func (c *Command) CreateKeyStore(w io.Writer, r io.Reader) error { //nolint:funl
 	}
 
 	_, err = c.keyStoreCreator.Create(localKeyURIPrefix+mainKeyID, &keyStoreProvider{
-		storageProvider: storageProvider,
+		storageProvider: kmsStore,
 		secretLock:      secretLock,
 	})
 	if err != nil {
@@ -140,6 +125,36 @@ func (c *Command) CreateKeyStore(w io.Writer, r io.Reader) error { //nolint:funl
 		KeyStoreURL: keyStoreURL,
 		Capability:  rootCapability,
 	})
+}
+
+func (c *Command) createKMSStore(req *CreateKeyStoreRequest) (kms.Store, edvParameters, error) {
+	var (
+		edvParams       edvParameters
+		storageProvider storage.Provider
+		err             error
+	)
+
+	if req.EDV != nil { // use EDV for storing user's operational keys
+		storageProvider, edvParams, err = c.prepareEDVProvider(req.EDV.VaultURL, req.EDV.Capability)
+		if err != nil {
+			return nil, edvParameters{}, fmt.Errorf("prepare edv provider: %w", err)
+		}
+	} else {
+		storageProvider = c.keyStorageProvider
+	}
+
+	if c.cacheProvider != nil && c.keyStoreCacheTTL > 0 {
+		storageProvider = c.cacheProvider.Wrap(storageProvider, c.keyStoreCacheTTL)
+	}
+
+	// TODO (#327): Create our own implementation of the KMS storage interface and pass it in here instead of wrapping
+	//  the Aries storage provider.
+	kmsStore, err := kms.NewAriesProviderWrapper(storageProvider)
+	if err != nil {
+		return nil, edvParameters{}, err
+	}
+
+	return kmsStore, edvParams, nil
 }
 
 func (c *Command) prepareEDVProvider(vaultURL string, capability []byte) (storage.Provider, edvParameters, error) {
@@ -218,38 +233,6 @@ const (
 	encType = "EDVEncryptedDocument"
 )
 
-func (c *Command) createEDVStorageProvider(vaultURL string, recipientPubKey *crypto.PublicKey,
-	macKeyHandle interface{}, capability []byte) (storage.Provider, error) {
-	jweEncrypt, err := jose.NewJWEEncrypt(encAlg, encType, "", "", nil, []*crypto.PublicKey{recipientPubKey}, c.crypto)
-	if err != nil {
-		return nil, fmt.Errorf("create jwe encrypt: %w", err)
-	}
-
-	jweDecrypt := jose.NewJWEDecrypt(nil, c.crypto, c.kms)
-
-	encryptedFormatter := edv.NewEncryptedFormatter(
-		jweEncrypt,
-		jweDecrypt,
-		edv.NewMACCrypto(macKeyHandle, c.crypto),
-		edv.WithDeterministicDocumentIDs(),
-	)
-
-	s := strings.Split(vaultURL, "/")
-
-	edvServerURL := strings.Join(s[:len(s)-1], "/")
-	vaultID := s[len(s)-1]
-
-	return edv.NewRESTProvider(
-		edvServerURL,
-		vaultID,
-		encryptedFormatter,
-		edv.WithTLSConfig(c.tlsConfig),
-		edv.WithHeaders(func(req *http.Request) (*http.Header, error) {
-			return c.headerSigner.SignHeader(req, capability)
-		}),
-	), nil
-}
-
 func (c *Command) createShamirSecretLock(user string, secretShare []byte) (secretlock.Service, error) {
 	if user == "" {
 		return nil, fmt.Errorf("%w: empty user", errors.ErrValidation)
@@ -287,11 +270,11 @@ func (c *Command) save(meta *keyStoreMeta) error {
 }
 
 type keyStoreProvider struct {
-	storageProvider storage.Provider
+	storageProvider kms.Store
 	secretLock      secretlock.Service
 }
 
-func (p *keyStoreProvider) StorageProvider() storage.Provider {
+func (p *keyStoreProvider) StorageProvider() kms.Store {
 	return p.storageProvider
 }
 
