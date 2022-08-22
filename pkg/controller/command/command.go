@@ -187,7 +187,7 @@ func (c *Command) CreateKey(w io.Writer, r io.Reader) error {
 		return fmt.Errorf("resolve key store: %w", err)
 	}
 
-	kid, _, err := ks.Create(req.KeyType)
+	kid, _, err := ks.Create(req.KeyType, kms.WithAttrs(req.Attrs))
 	if err != nil {
 		return fmt.Errorf("create key: %w", err)
 	}
@@ -288,7 +288,7 @@ func (c *Command) RotateKey(w io.Writer, r io.Reader) error {
 		return fmt.Errorf("resolve key store: %w", err)
 	}
 
-	kid, _, err := ks.Rotate(req.KeyType, wr.KeyID)
+	kid, _, err := ks.Rotate(req.KeyType, wr.KeyID, kms.WithAttrs(req.Attrs))
 	if err != nil {
 		return fmt.Errorf("rotate key: %w", err)
 	}
@@ -627,6 +627,65 @@ func (c *Command) UnwrapKey(w io.Writer, r io.Reader) error {
 	}
 
 	return json.NewEncoder(w).Encode(UnwrapKeyResponse{Key: k})
+}
+
+// Blind blinds values with CL MasterSecret key.
+func (c *Command) Blind(w io.Writer, r io.Reader) error {
+	var req BlindRequest
+
+	kh, err := c.getKeyHandle(&req, r)
+	if err != nil {
+		return err
+	}
+
+	blinded, err := c.crypto.Blind(kh, req.Values...)
+	if err != nil {
+		return fmt.Errorf("blind: %w", err)
+	}
+
+	return json.NewEncoder(w).Encode(BlindResponse{Blinded: blinded})
+}
+
+// GetCorrectnessProof return correctness proof for a CL CredDef key.
+func (c *Command) GetCorrectnessProof(w io.Writer, r io.Reader) error {
+	kh, err := c.getKeyHandle(nil, r)
+	if err != nil {
+		return err
+	}
+
+	correctnessProof, err := c.crypto.GetCorrectnessProof(kh)
+	if err != nil {
+		return fmt.Errorf("get correctness proof: %w", err)
+	}
+
+	return json.NewEncoder(w).Encode(CorrectnessProofResponse{CorrectnessProof: correctnessProof})
+}
+
+// SignWithSecrets will generate a signature and a correctness proof
+// for provided secrets and other values using a CL CredDef key.
+func (c *Command) SignWithSecrets(w io.Writer, r io.Reader) error {
+	var req SignWithSecretsRequest
+
+	kh, err := c.getKeyHandle(&req, r)
+	if err != nil {
+		return err
+	}
+
+	signature, correctnessProof, err := c.crypto.SignWithSecrets(kh,
+		req.Values,
+		req.Secrets,
+		req.CorrectnessProof,
+		req.Nonces,
+		req.DID,
+	)
+	if err != nil {
+		return fmt.Errorf("sign with secrets: %w", err)
+	}
+
+	return json.NewEncoder(w).Encode(SignWithSecretsResponse{
+		Signature:        signature,
+		CorrectnessProof: correctnessProof,
+	})
 }
 
 func (c *Command) getKeyHandle(req interface{}, r io.Reader) (interface{}, error) {

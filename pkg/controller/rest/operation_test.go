@@ -589,6 +589,69 @@ func TestOperation_UnwrapKey(t *testing.T) {
 	require.Equal(t, http.StatusOK, handleRequest(t, op, UnwrapKeyPath, http.MethodPost, bytes.NewBufferString(body)))
 }
 
+func TestOperation_Blind(t *testing.T) {
+	cmd := NewMockCmd(gomock.NewController(t))
+
+	cmd.EXPECT().Blind(gomock.Any(), gomock.Any()).Do(func(_ io.Writer, r io.Reader) {
+		var req command.BlindRequest
+		require.NoError(t, unwrapRequest(r, &req))
+
+		vals1 := map[string]interface{}{"attr1": 1.0}
+		vals2 := map[string]interface{}{"attr2": "test"}
+
+		require.Equal(t, []map[string]interface{}{vals1, vals2}, req.Values)
+	}).Return(nil).Times(1)
+
+	op := New(cmd)
+
+	body := fmt.Sprintf(`{
+		"values": [%s, %s]
+	}`,
+		"{\"attr1\":1}",
+		"{\"attr2\":\"test\"}",
+	)
+
+	require.Equal(t, http.StatusOK, handleRequest(t, op, BlindPath, http.MethodPost, bytes.NewBufferString(body)))
+}
+
+func TestOperation_SignWithSecrets(t *testing.T) {
+	cmd := NewMockCmd(gomock.NewController(t))
+
+	cmd.EXPECT().SignWithSecrets(gomock.Any(), gomock.Any()).Do(func(_ io.Writer, r io.Reader) {
+		var req command.SignWithSecretsRequest
+		require.NoError(t, unwrapRequest(r, &req))
+
+		values := map[string]interface{}{"attr1": "test"}
+		nonces := [][]byte{[]byte("nonce1"), []byte("nonce2")}
+
+		require.Equal(t, values, req.Values)
+		require.Equal(t, []byte("secrets"), req.Secrets)
+		require.Equal(t, []byte("proof"), req.CorrectnessProof)
+		require.Equal(t, nonces, req.Nonces)
+		require.Equal(t, "did:example:id", req.DID)
+	}).Return(nil).Times(1)
+
+	op := New(cmd)
+
+	body := fmt.Sprintf(`{
+		"values": {"attr1":"test"},
+		"secrets": "%s",
+		"correctness_proof": "%s",
+		"nonces": ["%s", "%s"],
+		"did": "did:example:id"
+	}`, base64.StdEncoding.EncodeToString([]byte("secrets")),
+		base64.StdEncoding.EncodeToString([]byte("proof")),
+		base64.StdEncoding.EncodeToString([]byte("nonce1")),
+		base64.StdEncoding.EncodeToString([]byte("nonce2")),
+	)
+
+	require.Equal(t, http.StatusOK, handleRequest(t, op,
+		SignWithSecretsPath,
+		http.MethodPost,
+		bytes.NewBufferString(body),
+	))
+}
+
 func TestOperation_HealthCheck(t *testing.T) {
 	op := New(nil)
 

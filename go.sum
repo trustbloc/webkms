@@ -196,8 +196,8 @@ github.com/hashicorp/vault/sdk v0.1.13/go.mod h1:B+hVj7TpuQY1Y/GPbCpffmgd+tSEwvh
 github.com/hashicorp/yamux v0.0.0-20180604194846-3520598351bb/go.mod h1:+NfK9FKeTrX5uv1uIXGdwYDTeHna2qgaIlx54MXqjAM=
 github.com/hashicorp/yamux v0.0.0-20181012175058-2f1d1f20f75d/go.mod h1:+NfK9FKeTrX5uv1uIXGdwYDTeHna2qgaIlx54MXqjAM=
 github.com/hpcloud/tail v1.0.0/go.mod h1:ab1qPbhIpdTxEkNHXyeSf5vhxWSCs/tWer42PpOxQnU=
-github.com/hyperledger/aries-framework-go v0.1.9-0.20220818134654-5e75e60870c9 h1:mJzmmZeaJRodCFbEnftVMZPZXovGsBq8H90JfuifDQk=
-github.com/hyperledger/aries-framework-go v0.1.9-0.20220818134654-5e75e60870c9/go.mod h1:28aD9QTgVjeAl86vHNFwkOYwQwZiTrrODMpjE2PYz3M=
+github.com/hyperledger/aries-framework-go v0.1.9-0.20220822173318-77fbef728d02 h1:phipjA38PzjN7/h6t+8Vv8XPlW5t+327GD0p9v8wx4Y=
+github.com/hyperledger/aries-framework-go v0.1.9-0.20220822173318-77fbef728d02/go.mod h1:28aD9QTgVjeAl86vHNFwkOYwQwZiTrrODMpjE2PYz3M=
 github.com/hyperledger/aries-framework-go/component/storage/edv v0.0.0-20220610133818-119077b0ec85 h1:YWww6rlXZprOnBP3LD8RAzbkszmplnLvabtlBZtzLTA=
 github.com/hyperledger/aries-framework-go/component/storage/edv v0.0.0-20220610133818-119077b0ec85/go.mod h1:JrwivOOQmuXbV1mFWgBGWnfCorOFdfGkpBsYK8dYrfM=
 github.com/hyperledger/aries-framework-go/component/storageutil v0.0.0-20220610133818-119077b0ec85 h1:P82lZe6zDjaP2j87nDYQBSBYrB6Nq6nc9MtyNMC3K4A=

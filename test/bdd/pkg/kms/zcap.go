@@ -44,10 +44,6 @@ type authzKMSSigner struct {
 	authzUser *user
 }
 
-func (a *authzKMSSigner) Alg() string {
-	return ""
-}
-
 func newAuthzKMSSigner(s *Steps, authzUser *user) *authzKMSSigner {
 	return &authzKMSSigner{s: s, authzUser: authzUser}
 }
@@ -60,6 +56,10 @@ func (a *authzKMSSigner) Sign(data []byte) ([]byte, error) {
 	}
 
 	return []byte(a.authzUser.data["signature"]), nil
+}
+
+func (a *authzKMSSigner) Alg() string {
+	return ""
 }
 
 type remoteKMS struct {

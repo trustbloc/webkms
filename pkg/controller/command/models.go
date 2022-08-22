@@ -59,6 +59,7 @@ type CreateKeyStoreResponse struct {
 // CreateKeyRequest is a request to create a key.
 type CreateKeyRequest struct {
 	KeyType kms.KeyType `json:"key_type"`
+	Attrs   []string    `json:"attrs,omitempty"`
 }
 
 // CreateKeyResponse is a response for CreateKey request.
@@ -82,6 +83,7 @@ type ImportKeyResponse struct {
 // RotateKeyRequest is a request to rotate a key.
 type RotateKeyRequest struct {
 	KeyType kms.KeyType `json:"key_type"`
+	Attrs   []string    `json:"attrs,omitempty"`
 }
 
 // RotateKeyResponse is a response for RotateKeyRequest request.
@@ -247,4 +249,34 @@ type UnwrapKeyRequest struct {
 // UnwrapKeyResponse is a response for UnwrapKey request.
 type UnwrapKeyResponse struct {
 	Key []byte `json:"key"`
+}
+
+// BlindRequest is a serializable Blind request.
+type BlindRequest struct {
+	Values []map[string]interface{} `json:"values,omitempty"`
+}
+
+// BlindResponse is a serializable Blind response.
+type BlindResponse struct {
+	Blinded [][]byte `json:"blinded"`
+}
+
+// CorrectnessProofResponse is a serializable GetCorrectnessProof response.
+type CorrectnessProofResponse struct {
+	CorrectnessProof []byte `json:"correctness_proof"`
+}
+
+// SignWithSecretsRequest is a serializable SignWithSecrets request.
+type SignWithSecretsRequest struct {
+	Values           map[string]interface{} `json:"values"`
+	Secrets          []byte                 `json:"secrets"`
+	CorrectnessProof []byte                 `json:"correctness_proof"`
+	Nonces           [][]byte               `json:"nonces"`
+	DID              string                 `json:"did"`
+}
+
+// SignWithSecretsResponse is a serializable SignWithSecrets response.
+type SignWithSecretsResponse struct {
+	Signature        []byte `json:"signature"`
+	CorrectnessProof []byte `json:"correctness_proof"`
 }

@@ -11,3 +11,4 @@ coverage.out
 test/bdd/fixtures/keys
 openAPI.yml
 .build/*
+bin/

@@ -24,28 +24,31 @@ import (
 
 // API endpoints.
 const (
-	KeyStoreVarName = "keystore"
-	keyVarName      = "key"
-	BaseV1Path      = "/v1"
-	KeyStorePath    = BaseV1Path + "/keystores"
-	DIDPath         = KeyStorePath + "/did"
-	KeyPath         = KeyStorePath + "/{" + KeyStoreVarName + "}/keys"
-	ExportKeyPath   = KeyPath + "/{" + keyVarName + "}/export"
-	RotateKeyPath   = KeyPath + "/{" + keyVarName + "}/rotate"
-	SignPath        = KeyPath + "/{" + keyVarName + "}/sign"
-	VerifyPath      = KeyPath + "/{" + keyVarName + "}/verify"
-	EncryptPath     = KeyPath + "/{" + keyVarName + "}/encrypt"
-	DecryptPath     = KeyPath + "/{" + keyVarName + "}/decrypt"
-	ComputeMACPath  = KeyPath + "/{" + keyVarName + "}/computemac"
-	VerifyMACPath   = KeyPath + "/{" + keyVarName + "}/verifymac"
-	SignMultiPath   = KeyPath + "/{" + keyVarName + "}/signmulti"
-	VerifyMultiPath = KeyPath + "/{" + keyVarName + "}/verifymulti"
-	DeriveProofPath = KeyPath + "/{" + keyVarName + "}/deriveproof"
-	VerifyProofPath = KeyPath + "/{" + keyVarName + "}/verifyproof"
-	WrapKeyPath     = KeyStorePath + "/{" + KeyStoreVarName + "}/wrap"
-	WrapKeyAEPath   = KeyPath + "/{" + keyVarName + "}/wrap"
-	UnwrapKeyPath   = KeyPath + "/{" + keyVarName + "}/unwrap"
-	HealthCheckPath = "/healthcheck"
+	KeyStoreVarName      = "keystore"
+	keyVarName           = "key"
+	BaseV1Path           = "/v1"
+	KeyStorePath         = BaseV1Path + "/keystores"
+	DIDPath              = KeyStorePath + "/did"
+	KeyPath              = KeyStorePath + "/{" + KeyStoreVarName + "}/keys"
+	ExportKeyPath        = KeyPath + "/{" + keyVarName + "}/export"
+	RotateKeyPath        = KeyPath + "/{" + keyVarName + "}/rotate"
+	SignPath             = KeyPath + "/{" + keyVarName + "}/sign"
+	VerifyPath           = KeyPath + "/{" + keyVarName + "}/verify"
+	EncryptPath          = KeyPath + "/{" + keyVarName + "}/encrypt"
+	DecryptPath          = KeyPath + "/{" + keyVarName + "}/decrypt"
+	ComputeMACPath       = KeyPath + "/{" + keyVarName + "}/computemac"
+	VerifyMACPath        = KeyPath + "/{" + keyVarName + "}/verifymac"
+	SignMultiPath        = KeyPath + "/{" + keyVarName + "}/signmulti"
+	VerifyMultiPath      = KeyPath + "/{" + keyVarName + "}/verifymulti"
+	DeriveProofPath      = KeyPath + "/{" + keyVarName + "}/deriveproof"
+	VerifyProofPath      = KeyPath + "/{" + keyVarName + "}/verifyproof"
+	WrapKeyPath          = KeyStorePath + "/{" + KeyStoreVarName + "}/wrap"
+	WrapKeyAEPath        = KeyPath + "/{" + keyVarName + "}/wrap"
+	UnwrapKeyPath        = KeyPath + "/{" + keyVarName + "}/unwrap"
+	BlindPath            = KeyPath + "/{" + keyVarName + "}/blind"
+	CorrectnessProofPath = KeyPath + "/{" + keyVarName + "}/correctnessproof"
+	SignWithSecretsPath  = KeyPath + "/{" + keyVarName + "}/signwithsecrets"
+	HealthCheckPath      = "/healthcheck"
 )
 
 const (
@@ -77,6 +80,9 @@ type Cmd interface {
 	VerifyProof(w io.Writer, r io.Reader) error
 	WrapKey(w io.Writer, r io.Reader) error
 	UnwrapKey(w io.Writer, r io.Reader) error
+	Blind(w io.Writer, r io.Reader) error
+	GetCorrectnessProof(w io.Writer, r io.Reader) error
+	SignWithSecrets(w io.Writer, r io.Reader) error
 }
 
 // Operation represents REST API controller.
@@ -111,6 +117,11 @@ func (o *Operation) GetRESTHandlers() []Handler {
 		NewHTTPHandler(WrapKeyPath, http.MethodPost, o.WrapKey, command.ActionWrap, AuthZCAP|AuthGNAP),
 		NewHTTPHandler(WrapKeyAEPath, http.MethodPost, o.WrapKeyAE, command.ActionWrap, AuthZCAP|AuthGNAP),
 		NewHTTPHandler(UnwrapKeyPath, http.MethodPost, o.UnwrapKey, command.ActionUnwrap, AuthZCAP|AuthGNAP),
+		NewHTTPHandler(BlindPath, http.MethodPost, o.Blind, command.ActionBlind, AuthZCAP|AuthGNAP),
+		NewHTTPHandler(CorrectnessProofPath, http.MethodGet, o.GetCorrectnessProof,
+			command.ActionCorrectnessProof, AuthZCAP|AuthGNAP),
+		NewHTTPHandler(SignWithSecretsPath, http.MethodPost, o.SignWithSecrets,
+			command.ActionSignWithSecrets, AuthZCAP|AuthGNAP),
 		NewHTTPHandler(HealthCheckPath, http.MethodGet, o.HealthCheck, "", AuthNone),
 	}
 }
@@ -331,6 +342,42 @@ func (o *Operation) WrapKeyAE(rw http.ResponseWriter, req *http.Request) {
 //    default: errorResp
 func (o *Operation) UnwrapKey(rw http.ResponseWriter, req *http.Request) {
 	execute(o.cmd.UnwrapKey, rw, req)
+}
+
+// Blind swagger:route POST /v1/keystores/{key_store_id}/keys/{key_id}/blind crypto blindReq
+//
+// Blind values with CL MasterSecret.
+//
+// Responses:
+//
+//	    200: blindResp
+//	default: errorResp
+func (o *Operation) Blind(rw http.ResponseWriter, req *http.Request) {
+	execute(o.cmd.Blind, rw, req)
+}
+
+// GetCorrectnessProof swagger:route POST /v1/keystores/{key_store_id}/keys/{key_id}/correctnessproof crypto correctnessProofReq
+//
+// Get correctness proof for a CL CredDef key.
+//
+// Responses:
+//
+//	    200: correctnessProofResp
+//	default: errorResp
+func (o *Operation) GetCorrectnessProof(rw http.ResponseWriter, req *http.Request) {
+	execute(o.cmd.GetCorrectnessProof, rw, req)
+}
+
+// SignWithSecrets swagger:route POST /v1/keystores/{key_store_id}/keys/{key_id}/signwithsecrets crypto signWithSecretsReq
+//
+// Generates a signature and related correctness proof for a CL CredDef key using provided values.
+//
+// Responses:
+//
+//	    200: signWithSecretsResp
+//	default: errorResp
+func (o *Operation) SignWithSecrets(rw http.ResponseWriter, req *http.Request) {
+	execute(o.cmd.SignWithSecrets, rw, req)
 }
 
 // HealthCheck swagger:route GET /healthcheck server healthCheckReq
