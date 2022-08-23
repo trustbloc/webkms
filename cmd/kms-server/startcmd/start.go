@@ -422,11 +422,11 @@ func createStoreProvider(typ, url, prefix string, timeout time.Duration) (storag
 }
 
 type kmsProvider struct {
-	store      storage.Provider
+	store      kms.Store
 	secretLock secretlock.Service
 }
 
-func (p kmsProvider) StorageProvider() storage.Provider {
+func (p kmsProvider) StorageProvider() kms.Store {
 	return p.store
 }
 
@@ -440,8 +440,15 @@ func createKMS(store storage.Provider, secretLockParams *secretLockParameters) (
 		return nil, fmt.Errorf("create kms secretlock: %w", err)
 	}
 
+	// TODO (#327): Create our own implementation of the KMS storage interface and pass it in here instead of wrapping
+	//  the Aries storage provider.
+	kmsStore, err := kms.NewAriesProviderWrapper(store)
+	if err != nil {
+		return nil, err
+	}
+
 	return localkms.New(primaryKeyURI, &kmsProvider{
-		store:      store,
+		store:      kmsStore,
 		secretLock: secretLock,
 	})
 }

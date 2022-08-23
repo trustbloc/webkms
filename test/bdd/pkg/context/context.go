@@ -16,7 +16,6 @@ import (
 	"github.com/hyperledger/aries-framework-go/pkg/kms/localkms"
 	"github.com/hyperledger/aries-framework-go/pkg/secretlock"
 	"github.com/hyperledger/aries-framework-go/pkg/secretlock/noop"
-	ariesstorage "github.com/hyperledger/aries-framework-go/spi/storage"
 	tlsutils "github.com/trustbloc/edge-core/pkg/utils/tls"
 
 	"github.com/trustbloc/kms/test/bdd/pkg/auth"
@@ -35,11 +34,11 @@ type BDDContext struct {
 }
 
 type kmsProvider struct {
-	storageProvider   ariesstorage.Provider
+	storageProvider   kms.Store
 	secretLockService secretlock.Service
 }
 
-func (k kmsProvider) StorageProvider() ariesstorage.Provider {
+func (k kmsProvider) StorageProvider() kms.Store {
 	return k.storageProvider
 }
 
@@ -62,9 +61,14 @@ func NewBDDContext(caCertPath string) (*BDDContext, error) {
 		}
 	}
 
+	kmsStore, err := kms.NewAriesProviderWrapper(ariesmemstorage.NewProvider())
+	if err != nil {
+		return nil, err
+	}
+
 	keyManager, err := localkms.New(
 		"local-lock://custom-primary-key",
-		kmsProvider{storageProvider: ariesmemstorage.NewProvider(), secretLockService: &noop.NoLock{}},
+		kmsProvider{storageProvider: kmsStore, secretLockService: &noop.NoLock{}},
 	)
 	if err != nil {
 		return nil, err

@@ -19,6 +19,9 @@ import (
 	"os"
 	"testing"
 
+	"github.com/hyperledger/aries-framework-go/pkg/kms"
+	"github.com/hyperledger/aries-framework-go/pkg/mock/storage"
+
 	"github.com/hyperledger/aries-framework-go/pkg/common/log"
 	"github.com/hyperledger/aries-framework-go/pkg/common/log/mocklogger"
 	logspi "github.com/hyperledger/aries-framework-go/spi/log"
@@ -538,6 +541,26 @@ func TestStartMetrics(t *testing.T) {
 		require.True(t, ok)
 		require.Empty(t, logger.FatalLogContents)
 	})
+}
+
+func TestCreateKMS(t *testing.T) {
+	mockStoreProvider := &storage.MockStoreProvider{
+		FailNamespace: kms.AriesWrapperStoreName,
+		Store: &storage.MockStore{
+			Store: map[string]storage.DBEntry{},
+		},
+	}
+
+	lockKeyFile, lockKeyFileClose := createSecretLockKeyFile()
+
+	defer lockKeyFileClose()
+
+	keyManager, err := createKMS(mockStoreProvider, &secretLockParameters{
+		secretLockType: secretLockTypeLocalOption,
+		localKeyPath:   lockKeyFile,
+	})
+	require.EqualError(t, err, "failed to open store for name space kmsdb")
+	require.Nil(t, keyManager)
 }
 
 func requiredArgs(databaseType string) []string {

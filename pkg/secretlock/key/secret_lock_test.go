@@ -32,7 +32,7 @@ const (
 func TestNew(t *testing.T) {
 	t.Run("Success Encrypt", func(t *testing.T) {
 		provider := &mockProvider{
-			MockStorageProvider: mem.NewProvider(),
+			MockStorageProvider: createAriesStorageWrapper(t, mem.NewProvider()),
 			MockSecretLock:      &noop.NoLock{},
 		}
 
@@ -62,7 +62,7 @@ func TestNew(t *testing.T) {
 
 	t.Run("Success Decrypt", func(t *testing.T) {
 		provider := &mockProvider{
-			MockStorageProvider: mem.NewProvider(),
+			MockStorageProvider: createAriesStorageWrapper(t, mem.NewProvider()),
 			MockSecretLock:      &noop.NoLock{},
 		}
 
@@ -101,7 +101,7 @@ func TestNew(t *testing.T) {
 
 	t.Run("Success user KMS Create/Get Key", func(t *testing.T) {
 		provider := &mockProvider{
-			MockStorageProvider: mem.NewProvider(),
+			MockStorageProvider: createAriesStorageWrapper(t, mem.NewProvider()),
 			MockSecretLock:      &noop.NoLock{},
 		}
 
@@ -125,7 +125,7 @@ func TestNew(t *testing.T) {
 		keyURI := localkeyURIPrefix + keyID
 
 		userKMS, err := localkms.New(keyURI, &mockProvider{
-			MockStorageProvider: mem.NewProvider(),
+			MockStorageProvider: createAriesStorageWrapper(t, mem.NewProvider()),
 			MockSecretLock:      secretLock,
 		})
 		require.NoError(t, err)
@@ -139,7 +139,7 @@ func TestNew(t *testing.T) {
 
 	t.Run("Encrypt error (Invalid key id)", func(t *testing.T) {
 		provider := &mockProvider{
-			MockStorageProvider: mem.NewProvider(),
+			MockStorageProvider: createAriesStorageWrapper(t, mem.NewProvider()),
 			MockSecretLock:      &noop.NoLock{},
 		}
 
@@ -166,7 +166,7 @@ func TestNew(t *testing.T) {
 
 	t.Run("Encrypt error (crypto error)", func(t *testing.T) {
 		provider := &mockProvider{
-			MockStorageProvider: mem.NewProvider(),
+			MockStorageProvider: createAriesStorageWrapper(t, mem.NewProvider()),
 			MockSecretLock:      &noop.NoLock{},
 		}
 
@@ -194,7 +194,7 @@ func TestNew(t *testing.T) {
 
 	t.Run("Decrypt error (Invalid key id)", func(t *testing.T) {
 		provider := &mockProvider{
-			MockStorageProvider: mem.NewProvider(),
+			MockStorageProvider: createAriesStorageWrapper(t, mem.NewProvider()),
 			MockSecretLock:      &noop.NoLock{},
 		}
 
@@ -218,7 +218,7 @@ func TestNew(t *testing.T) {
 
 	t.Run("Decrypt error (Invalid Ciphertext)", func(t *testing.T) {
 		provider := &mockProvider{
-			MockStorageProvider: mem.NewProvider(),
+			MockStorageProvider: createAriesStorageWrapper(t, mem.NewProvider()),
 			MockSecretLock:      &noop.NoLock{},
 		}
 
@@ -263,7 +263,7 @@ func TestNew(t *testing.T) {
 
 	t.Run("Encrypt error (crypto error)", func(t *testing.T) {
 		provider := &mockProvider{
-			MockStorageProvider: mem.NewProvider(),
+			MockStorageProvider: createAriesStorageWrapper(t, mem.NewProvider()),
 			MockSecretLock:      &noop.NoLock{},
 		}
 
@@ -317,14 +317,23 @@ func (s *secretlockProvider) Crypto() ariescrypto.Crypto {
 }
 
 type mockProvider struct {
-	MockStorageProvider ariesstorage.Provider
+	MockStorageProvider kms.Store
 	MockSecretLock      secretlock.Service
 }
 
-func (p *mockProvider) StorageProvider() ariesstorage.Provider {
+func (p *mockProvider) StorageProvider() kms.Store {
 	return p.MockStorageProvider
 }
 
 func (p *mockProvider) SecretLock() secretlock.Service {
 	return p.MockSecretLock
+}
+
+func createAriesStorageWrapper(t *testing.T, provider ariesstorage.Provider) kms.Store {
+	t.Helper()
+
+	storageWrapper, err := kms.NewAriesProviderWrapper(provider)
+	require.NoError(t, err)
+
+	return storageWrapper
 }
