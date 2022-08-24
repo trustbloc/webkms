@@ -122,7 +122,8 @@ func (w *wrappedKMS) PubKeyBytesToHandle(pubKey []byte, kt arieskms.KeyType,
 }
 
 func (w *wrappedKMS) ImportPrivateKey(privateKey interface{}, kt arieskms.KeyType,
-	opts ...arieskms.PrivateKeyOpts) (string, interface{}, error) {
+	opts ...arieskms.PrivateKeyOpts,
+) (string, interface{}, error) {
 	return w.kms.ImportPrivateKey(privateKey, kt, opts...)
 }
 

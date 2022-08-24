@@ -85,6 +85,9 @@ type createKeyReq struct { //nolint:unused,deadcode
 		// A type of key to create. Check https://github.com/hyperledger/aries-framework-go/blob/main/pkg/kms/api.go
 		// for supported key types.
 		KeyType string `json:"key_type"`
+		// Any extra attributes necessary for a key creation. Optional.
+		// required: false
+		Attrs []string `json:"attrs,omitempty"`
 	}
 }
 
@@ -188,6 +191,9 @@ type rotateKeyReq struct { //nolint:unused,deadcode
 		// A type on new key.
 		// required: true
 		KeyType string `json:"key_type"`
+		// Any extra attributes necessary for a key creation. Optional.
+		// required: false
+		Attrs []string `json:"attrs,omitempty"`
 	}
 }
 
@@ -854,6 +860,117 @@ type unwrapKeyResp struct { //nolint:unused,deadcode
 	Body struct {
 		// A base64-encoded unwrapped key.
 		Key string `json:"key"`
+	}
+}
+
+// blindReq model
+//
+// swagger:parameters blindReq
+type blindReq struct { //nolint:unused,deadcode
+	// The key store's ID.
+	//
+	// in: path
+	// required: true
+	KeyStoreID string `json:"key_store_id"`
+
+	// The key's ID.
+	//
+	// in: path
+	// required: true
+	KeyID string `json:"key_id"`
+
+	// in: body
+	Body struct {
+		// Values to blind.
+		Values []map[string]interface{} `json:"values,omitempty"`
+	}
+}
+
+// blindResp model
+//
+// swagger:response blindResp
+type blindResp struct { //nolint:unused,deadcode
+	// in: body
+	Body struct {
+		// Blinded values.
+		Blinded [][]byte `json:"blinded"`
+	}
+}
+
+// correctnessProofReq model
+//
+// swagger:parameters correctnessProofReq
+type correctnessProofReq struct { //nolint:unused,deadcode
+	// The key store's ID.
+	//
+	// in: path
+	// required: true
+	KeyStoreID string `json:"key_store_id"`
+
+	// The key's ID.
+	//
+	// in: path
+	// required: true
+	KeyID string `json:"key_id"`
+}
+
+// correctnessProofResp model
+//
+// swagger:response correctnessProofResp
+type correctnessProofResp struct { //nolint:unused,deadcode
+	// in: body
+	Body struct {
+		// Correctness proof for a CredDef key.
+		CorrectnessProof []byte `json:"correctness_proof"`
+	}
+}
+
+// signWithSecretsReq model
+//
+// swagger:parameters signWithSecretsReq
+type signWithSecretsReq struct { //nolint:unused,deadcode
+	// The key store's ID.
+	//
+	// in: path
+	// required: true
+	KeyStoreID string `json:"key_store_id"`
+
+	// The key's ID.
+	//
+	// in: path
+	// required: true
+	KeyID string `json:"key_id"`
+
+	// in: body
+	Body struct {
+		// Credential Values.
+		Values map[string]interface{} `json:"values"`
+
+		// Blinded secrets.
+		Secrets []byte `json:"secrets"`
+
+		// Blinded secrets correctness proof.
+		CorrectnessProof []byte `json:"correctness_proof"`
+
+		// Nonces (offer and request).
+		Nonces [][]byte `json:"nonces"`
+
+		// DID.
+		DID string `json:"did"`
+	}
+}
+
+// signWithSecretsResp model
+//
+// swagger:response signWithSecretsResp
+type signWithSecretsResp struct { //nolint:unused,deadcode
+	// in: body
+	Body struct {
+		// Credential signature.
+		Signature []byte `json:"signature"`
+
+		// Credential signature's correctness proof.
+		CorrectnessProof []byte `json:"correctness_proof"`
 	}
 }
 

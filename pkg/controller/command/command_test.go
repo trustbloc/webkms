@@ -620,6 +620,36 @@ func TestCommand_CreateKey(t *testing.T) {
 		require.Equal(t, "/key_store_id/keys/key_id", resp.KeyURL)
 	})
 
+	t.Run("Success with attrs", func(t *testing.T) {
+		cmd := createCmd(t, gomock.NewController(t), withKeyManager(&mockkms.KeyManager{
+			CreateKeyID: "key_id",
+		}))
+
+		req, err := json.Marshal(CreateKeyRequest{
+			KeyType: kms.ED25519,
+			// Just fictional parameters to check
+			Attrs: []string{"attr1", "attr2"},
+		})
+		require.NoError(t, err)
+
+		wr, err := json.Marshal(WrappedRequest{
+			KeyStoreID: "key_store_id",
+			Request:    req,
+		})
+		require.NoError(t, err)
+
+		var buf bytes.Buffer
+
+		err = cmd.CreateKey(&buf, bytes.NewBuffer(wr))
+		require.NoError(t, err)
+
+		var resp CreateKeyResponse
+
+		err = json.Unmarshal(buf.Bytes(), &resp)
+		require.NoError(t, err)
+		require.Equal(t, "/key_store_id/keys/key_id", resp.KeyURL)
+	})
+
 	t.Run("Success with EDV storage and Shamir secret lock", func(t *testing.T) {
 		keyStoreData := []byte(`{
 		  "id": "key_store_id",
@@ -1008,6 +1038,37 @@ func TestCommand_RotateKey(t *testing.T) {
 
 		req, err := json.Marshal(RotateKeyRequest{
 			KeyType: kms.ED25519,
+		})
+		require.NoError(t, err)
+
+		wr, err := json.Marshal(WrappedRequest{
+			KeyStoreID: "key_store_id",
+			KeyID:      "key_id",
+			Request:    req,
+		})
+		require.NoError(t, err)
+
+		var buf bytes.Buffer
+
+		err = cmd.RotateKey(&buf, bytes.NewBuffer(wr))
+		require.NoError(t, err)
+
+		var resp RotateKeyResponse
+
+		err = json.Unmarshal(buf.Bytes(), &resp)
+		require.NoError(t, err)
+		require.Contains(t, resp.KeyURL, "rotate_key_id")
+	})
+
+	t.Run("Success with attrs", func(t *testing.T) {
+		cmd := createCmd(t, gomock.NewController(t), withKeyManager(&mockkms.KeyManager{
+			RotateKeyID: "rotate_key_id",
+		}))
+
+		req, err := json.Marshal(RotateKeyRequest{
+			KeyType: kms.ED25519,
+			// Just fictional parameters to check
+			Attrs: []string{"attr1", "attr2"},
 		})
 		require.NoError(t, err)
 
@@ -2022,6 +2083,244 @@ func TestCommand_UnwrapKey(t *testing.T) {
 	})
 }
 
+func TestCommand_Blind(t *testing.T) {
+	t.Run("Success", func(t *testing.T) {
+		blinded := []byte("{attr1:\"blinded\"")
+
+		cmd := createCmd(t, gomock.NewController(t), withCrypto(&mockcrypto.Crypto{
+			BlindValue: [][]byte{blinded},
+		}))
+
+		vals := map[string]interface{}{"attr1": 1}
+
+		req, err := json.Marshal(BlindRequest{
+			Values: []map[string]interface{}{vals},
+		})
+		require.NoError(t, err)
+
+		wr, err := json.Marshal(WrappedRequest{
+			KeyStoreID: "key_store_id",
+			KeyID:      "key_id",
+			Request:    req,
+		})
+		require.NoError(t, err)
+
+		var buf bytes.Buffer
+
+		err = cmd.Blind(&buf, bytes.NewBuffer(wr))
+		require.NoError(t, err)
+
+		var resp BlindResponse
+
+		err = json.Unmarshal(buf.Bytes(), &resp)
+		require.NoError(t, err)
+		require.Equal(t, [][]byte{blinded}, resp.Blinded)
+	})
+
+	t.Run("Fail to blind", func(t *testing.T) {
+		cmd := createCmd(t, gomock.NewController(t), withCrypto(&mockcrypto.Crypto{
+			BlindError: errors.New("blind error"),
+		}))
+
+		vals := map[string]interface{}{"attr1": 1}
+
+		req, err := json.Marshal(BlindRequest{
+			Values: []map[string]interface{}{vals},
+		})
+		require.NoError(t, err)
+
+		wr, err := json.Marshal(WrappedRequest{
+			KeyStoreID: "key_store_id",
+			KeyID:      "key_id",
+			Request:    req,
+		})
+		require.NoError(t, err)
+
+		var buf bytes.Buffer
+
+		err = cmd.Blind(&buf, bytes.NewBuffer(wr))
+		require.EqualError(t, err, "blind: blind error")
+	})
+
+	t.Run("Fail to find a key", func(t *testing.T) {
+		blinded := []byte("{attr1:\"blinded\"")
+
+		cmd := createCmd(t, gomock.NewController(t), withCrypto(&mockcrypto.Crypto{
+			BlindValue: [][]byte{blinded},
+		}))
+
+		vals := map[string]interface{}{"attr1": 1}
+
+		req, err := json.Marshal(BlindRequest{
+			Values: []map[string]interface{}{vals},
+		})
+		require.NoError(t, err)
+
+		wr, err := json.Marshal(WrappedRequest{
+			KeyStoreID: "key_store_id_unknown",
+			KeyID:      "key_id",
+			Request:    req,
+		})
+		require.NoError(t, err)
+
+		var buf bytes.Buffer
+
+		err = cmd.Blind(&buf, bytes.NewBuffer(wr))
+		require.Error(t, err)
+	})
+}
+
+func TestCommand_CorrectnessProof(t *testing.T) {
+	t.Run("Success", func(t *testing.T) {
+		cmd := createCmd(t, gomock.NewController(t), withCrypto(&mockcrypto.Crypto{
+			GetCorrectnessProofValue: []byte("proof"),
+		}))
+
+		wr, err := json.Marshal(WrappedRequest{
+			KeyStoreID: "key_store_id",
+			KeyID:      "key_id",
+		})
+		require.NoError(t, err)
+
+		var buf bytes.Buffer
+
+		err = cmd.GetCorrectnessProof(&buf, bytes.NewBuffer(wr))
+		require.NoError(t, err)
+
+		var resp CorrectnessProofResponse
+
+		err = json.Unmarshal(buf.Bytes(), &resp)
+		require.NoError(t, err)
+		require.Equal(t, []byte("proof"), resp.CorrectnessProof)
+	})
+
+	t.Run("Fail to get correctness proof", func(t *testing.T) {
+		cmd := createCmd(t, gomock.NewController(t), withCrypto(&mockcrypto.Crypto{
+			GetCorrectnessProofError: errors.New("proof error"),
+		}))
+
+		wr, err := json.Marshal(WrappedRequest{
+			KeyStoreID: "key_store_id",
+			KeyID:      "key_id",
+		})
+		require.NoError(t, err)
+
+		var buf bytes.Buffer
+
+		err = cmd.GetCorrectnessProof(&buf, bytes.NewBuffer(wr))
+		require.EqualError(t, err, "get correctness proof: proof error")
+	})
+
+	t.Run("Fail to find a key", func(t *testing.T) {
+		cmd := createCmd(t, gomock.NewController(t), withCrypto(&mockcrypto.Crypto{
+			GetCorrectnessProofValue: []byte("proof"),
+		}))
+
+		wr, err := json.Marshal(WrappedRequest{
+			KeyStoreID: "key_store_id_unknown",
+			KeyID:      "key_id",
+		})
+		require.NoError(t, err)
+
+		var buf bytes.Buffer
+
+		err = cmd.GetCorrectnessProof(&buf, bytes.NewBuffer(wr))
+		require.Error(t, err)
+	})
+}
+
+func TestCommand_SignWithSecrets(t *testing.T) {
+	t.Run("Success", func(t *testing.T) {
+		cmd := createCmd(t, gomock.NewController(t), withCrypto(&mockcrypto.Crypto{
+			SignWithSecretsValue: []byte("signature"),
+			SignWithSecretsProof: []byte("proof"),
+		}))
+
+		req, err := json.Marshal(SignWithSecretsRequest{
+			Values:           map[string]interface{}{"attr1": 1},
+			Secrets:          []byte("secrets"),
+			CorrectnessProof: []byte("proof"),
+			Nonces:           [][]byte{[]byte("nonce1"), []byte("nonce2")},
+			DID:              "did:example:id",
+		})
+		require.NoError(t, err)
+
+		wr, err := json.Marshal(WrappedRequest{
+			KeyStoreID: "key_store_id",
+			KeyID:      "key_id",
+			Request:    req,
+		})
+		require.NoError(t, err)
+
+		var buf bytes.Buffer
+
+		err = cmd.SignWithSecrets(&buf, bytes.NewBuffer(wr))
+		require.NoError(t, err)
+
+		var resp SignWithSecretsResponse
+
+		err = json.Unmarshal(buf.Bytes(), &resp)
+		require.NoError(t, err)
+		require.Equal(t, []byte("signature"), resp.Signature)
+		require.Equal(t, []byte("proof"), resp.CorrectnessProof)
+	})
+
+	t.Run("Fail to sign with secrets", func(t *testing.T) {
+		cmd := createCmd(t, gomock.NewController(t), withCrypto(&mockcrypto.Crypto{
+			SignWithSecretsError: errors.New("sign error"),
+		}))
+
+		req, err := json.Marshal(SignWithSecretsRequest{
+			Values:           map[string]interface{}{"attr1": 1},
+			Secrets:          []byte("secrets"),
+			CorrectnessProof: []byte("proof"),
+			Nonces:           [][]byte{[]byte("nonce1"), []byte("nonce2")},
+			DID:              "did:example:id",
+		})
+		require.NoError(t, err)
+
+		wr, err := json.Marshal(WrappedRequest{
+			KeyStoreID: "key_store_id",
+			KeyID:      "key_id",
+			Request:    req,
+		})
+		require.NoError(t, err)
+
+		var buf bytes.Buffer
+
+		err = cmd.SignWithSecrets(&buf, bytes.NewBuffer(wr))
+		require.EqualError(t, err, "sign with secrets: sign error")
+	})
+
+	t.Run("Fail to find a key", func(t *testing.T) {
+		cmd := createCmd(t, gomock.NewController(t), withCrypto(&mockcrypto.Crypto{
+			SignWithSecretsValue: []byte("signature"),
+			SignWithSecretsProof: []byte("proof"),
+		}))
+
+		req, err := json.Marshal(SignWithSecretsRequest{
+			Values:           map[string]interface{}{"attr1": 1},
+			Secrets:          []byte("secrets"),
+			CorrectnessProof: []byte("proof"),
+			Nonces:           [][]byte{[]byte("nonce1"), []byte("nonce2")},
+			DID:              "did:example:id",
+		})
+		require.NoError(t, err)
+
+		wr, err := json.Marshal(WrappedRequest{
+			KeyStoreID: "key_store_id_unknown",
+			KeyID:      "key_id",
+			Request:    req,
+		})
+		require.NoError(t, err)
+
+		var buf bytes.Buffer
+
+		err = cmd.SignWithSecrets(&buf, bytes.NewBuffer(wr))
+		require.Error(t, err)
+	})
+}
+
 func createCmd(t *testing.T, ctrl *gomock.Controller, opts ...configOption) *Command {
 	t.Helper()
 
@@ -2058,7 +2357,7 @@ func createCmd(t *testing.T, ctrl *gomock.Controller, opts ...configOption) *Com
 	}
 
 	creator := NewMockKeyStoreCreator(ctrl)
-	creator.EXPECT().Create(gomock.Any(), gomock.Any()).Return(config.KMS, nil).Times(1)
+	creator.EXPECT().Create(gomock.Any(), gomock.Any()).Return(config.KMS, nil).AnyTimes()
 
 	config.KeyStoreCreator = creator
 

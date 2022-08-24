@@ -8,28 +8,31 @@ package command
 
 // List of actions supported by KMS.
 const (
-	ActionCreateDID       = "createDID"
-	ActionCreateKeyStore  = "createKeyStore"
-	ActionCreateKey       = "createKey"
-	ActionImportKey       = "importKey"
-	ActionExportKey       = "exportKey"
-	ActionRotateKey       = "rotateKey"
-	ActionSign            = "sign"
-	ActionVerify          = "verify"
-	ActionEncrypt         = "encrypt"
-	ActionDecrypt         = "decrypt"
-	ActionComputeMac      = "computeMAC"
-	ActionVerifyMAC       = "verifyMAC"
-	ActionSignMulti       = "signMulti"
-	ActionVerifyMulti     = "verifyMulti"
-	ActionDeriveProof     = "deriveProof"
-	ActionVerifyProof     = "verifyProof"
-	ActionEasy            = "easy"
-	ActionEasyOpen        = "easyOpen"
-	ActionSealOpen        = "sealOpen"
-	ActionWrap            = "wrap"
-	ActionUnwrap          = "unwrap"
-	ActionStoreCapability = "updateEDVCapability"
+	ActionCreateDID        = "createDID"
+	ActionCreateKeyStore   = "createKeyStore"
+	ActionCreateKey        = "createKey"
+	ActionImportKey        = "importKey"
+	ActionExportKey        = "exportKey"
+	ActionRotateKey        = "rotateKey"
+	ActionSign             = "sign"
+	ActionVerify           = "verify"
+	ActionEncrypt          = "encrypt"
+	ActionDecrypt          = "decrypt"
+	ActionComputeMac       = "computeMAC"
+	ActionVerifyMAC        = "verifyMAC"
+	ActionSignMulti        = "signMulti"
+	ActionVerifyMulti      = "verifyMulti"
+	ActionDeriveProof      = "deriveProof"
+	ActionVerifyProof      = "verifyProof"
+	ActionEasy             = "easy"
+	ActionEasyOpen         = "easyOpen"
+	ActionSealOpen         = "sealOpen"
+	ActionWrap             = "wrap"
+	ActionUnwrap           = "unwrap"
+	ActionBlind            = "blind"
+	ActionCorrectnessProof = "correctnessProof"
+	ActionSignWithSecrets  = "signWithSecrets"
+	ActionStoreCapability  = "updateEDVCapability"
 )
 
 func allActions() []string {
@@ -53,6 +56,9 @@ func allActions() []string {
 		ActionVerifyProof,
 		ActionWrap,
 		ActionUnwrap,
+		ActionBlind,
+		ActionCorrectnessProof,
+		ActionSignWithSecrets,
 		ActionStoreCapability,
 	}
 }

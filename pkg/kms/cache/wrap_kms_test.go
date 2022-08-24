@@ -63,19 +63,26 @@ func TestWrappedKMS_Create(t *testing.T) {
 				t.Errorf("invalid key type: %v", key)
 			}
 			cachedValue = value
-		})
+		}).Times(2)
 
 	cacheProvider := cache.Provider{Cache: c}
 
 	kms := NewMockKeyManager(ctrl)
 
 	kms.EXPECT().Create(gomock.Any()).Return("test_id", "fake_kh", nil).AnyTimes()
+	kms.EXPECT().Create(gomock.Any(), gomock.Any()).Return("test_id+opt", "fake_kh+opt", nil).AnyTimes()
 
 	wk, err := cacheProvider.WrapKMS(kms, 10*time.Second)
 	require.NoError(t, err)
 	require.NotNil(t, wk)
 
 	keyID, kh, err := wk.Create(arieskms.AES256GCM)
+
+	require.NoError(t, err)
+	require.Equal(t, "kms_key_"+keyID, cachedKey)
+	require.Equal(t, cachedValue, kh)
+
+	keyID, kh, err = wk.Create(arieskms.AES256GCM, arieskms.WithAttrs([]string{"attr1"}))
 
 	require.NoError(t, err)
 	require.Equal(t, "kms_key_"+keyID, cachedKey)
