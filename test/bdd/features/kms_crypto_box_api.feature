@@ -9,13 +9,11 @@
 Feature: KMS CryptoBox operations
   Background:
     Given Key Server is running on "localhost" port "4466"
-      And AuthZ Key Server is running on "localhost" port "4455"
       And Hub Auth is running on "auth.trustbloc.local" port "8070"
-      And EDV is running on "localhost" port "8081"
-      And "Alice" wallet has stored secret on Hub Auth
-      And "Bob" wallet has stored secret on Hub Auth
-      And "Alice" has created a data vault on EDV for storing keys
-      And "Bob" has created a data vault on EDV for storing keys
+      And "Alice" has logged into auth server
+      And "Bob" has logged into auth server
+      And "Alice" has created a profile on auth server
+      And "Bob" has created a profile on auth server
 
   Scenario: User A anonymously encrypts (wrap as "easy") a payload for User B, User B decrypts (unwrap as "easy open") it
     Given "Alice" has created a keystore with "ED25519" key on Key Server

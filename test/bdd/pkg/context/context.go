@@ -25,7 +25,6 @@ import (
 type BDDContext struct {
 	KeyServerURL      string
 	AuthZKeyServerURL string
-	EDVServerURL      string
 	HubAuthURL        string
 	LoginConfig       *auth.LoginConfig
 	tlsConfig         *tls.Config
