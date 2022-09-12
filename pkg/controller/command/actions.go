@@ -32,7 +32,6 @@ const (
 	ActionBlind            = "blind"
 	ActionCorrectnessProof = "correctnessProof"
 	ActionSignWithSecrets  = "signWithSecrets"
-	ActionStoreCapability  = "updateEDVCapability"
 )
 
 func allActions() []string {
@@ -59,6 +58,5 @@ func allActions() []string {
 		ActionBlind,
 		ActionCorrectnessProof,
 		ActionSignWithSecrets,
-		ActionStoreCapability,
 	}
 }

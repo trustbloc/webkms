@@ -21,9 +21,7 @@ import (
 	"time"
 
 	"github.com/google/tink/go/keyset"
-	"github.com/hyperledger/aries-framework-go/component/storage/edv"
 	"github.com/hyperledger/aries-framework-go/pkg/crypto"
-	"github.com/hyperledger/aries-framework-go/pkg/doc/jose"
 	"github.com/hyperledger/aries-framework-go/pkg/kms"
 	"github.com/hyperledger/aries-framework-go/pkg/secretlock"
 	"github.com/hyperledger/aries-framework-go/spi/storage"
@@ -32,7 +30,6 @@ import (
 
 	"github.com/trustbloc/kms/pkg/controller/errors"
 	"github.com/trustbloc/kms/pkg/secretlock/key"
-	"github.com/trustbloc/kms/pkg/storage/metrics"
 )
 
 type zcapService interface {
@@ -99,8 +96,6 @@ type Config struct {
 	BaseKeyStoreURL         string
 	ShamirProvider          shamirProvider
 	MainKeyType             kms.KeyType
-	EDVRecipientKeyType     kms.KeyType
-	EDVMACKeyType           kms.KeyType
 	MetricsProvider         metricsProvider
 	CacheProvider           cacheProvider
 	KeyStoreCacheTTL        time.Duration
@@ -108,27 +103,25 @@ type Config struct {
 
 // Command is a controller for commands.
 type Command struct {
-	store               storage.Store
-	keyStorageProvider  storage.Provider
-	kms                 kms.KeyManager // server's key manager
-	crypto              crypto.Crypto
-	zcap                zcapService
-	enableZCAPs         bool
-	vdr                 zcapld.VDRResolver
-	documentLoader      ld.DocumentLoader
-	keyStoreCreator     keyStoreCreator // user's key manager creator
-	cryptoBox           cryptoBoxCreator
-	shamirLock          shamirSecretLockCreator
-	headerSigner        headerSigner
-	tlsConfig           *tls.Config
-	baseKeyStoreURL     string
-	shamirProvider      shamirProvider
-	mainKeyType         kms.KeyType
-	edvRecipientKeyType kms.KeyType
-	edvMACKeyType       kms.KeyType
-	cacheProvider       cacheProvider
-	keyStoreCacheTTL    time.Duration
-	metrics             metricsProvider
+	store              storage.Store
+	keyStorageProvider storage.Provider
+	kms                kms.KeyManager // server's key manager
+	crypto             crypto.Crypto
+	zcap               zcapService
+	enableZCAPs        bool
+	vdr                zcapld.VDRResolver
+	documentLoader     ld.DocumentLoader
+	keyStoreCreator    keyStoreCreator // user's key manager creator
+	cryptoBox          cryptoBoxCreator
+	shamirLock         shamirSecretLockCreator
+	headerSigner       headerSigner
+	tlsConfig          *tls.Config
+	baseKeyStoreURL    string
+	shamirProvider     shamirProvider
+	mainKeyType        kms.KeyType
+	cacheProvider      cacheProvider
+	keyStoreCacheTTL   time.Duration
+	metrics            metricsProvider
 }
 
 // New returns a new instance of Command.
@@ -139,27 +132,25 @@ func New(c *Config) (*Command, error) {
 	}
 
 	return &Command{
-		store:               store,
-		keyStorageProvider:  c.KeyStorageProvider,
-		kms:                 c.KMS,
-		crypto:              c.Crypto,
-		zcap:                c.ZCAPService,
-		enableZCAPs:         c.EnableZCAPs,
-		vdr:                 c.VDRResolver,
-		documentLoader:      c.DocumentLoader,
-		keyStoreCreator:     c.KeyStoreCreator,
-		shamirLock:          c.ShamirSecretLockCreator,
-		cryptoBox:           c.CryptBoxCreator,
-		headerSigner:        c.HeaderSigner,
-		tlsConfig:           c.TLSConfig,
-		baseKeyStoreURL:     c.BaseKeyStoreURL,
-		shamirProvider:      c.ShamirProvider,
-		mainKeyType:         c.MainKeyType,
-		edvRecipientKeyType: c.EDVRecipientKeyType,
-		edvMACKeyType:       c.EDVMACKeyType,
-		cacheProvider:       c.CacheProvider,
-		keyStoreCacheTTL:    c.KeyStoreCacheTTL,
-		metrics:             c.MetricsProvider,
+		store:              store,
+		keyStorageProvider: c.KeyStorageProvider,
+		kms:                c.KMS,
+		crypto:             c.Crypto,
+		zcap:               c.ZCAPService,
+		enableZCAPs:        c.EnableZCAPs,
+		vdr:                c.VDRResolver,
+		documentLoader:     c.DocumentLoader,
+		keyStoreCreator:    c.KeyStoreCreator,
+		shamirLock:         c.ShamirSecretLockCreator,
+		cryptoBox:          c.CryptBoxCreator,
+		headerSigner:       c.HeaderSigner,
+		tlsConfig:          c.TLSConfig,
+		baseKeyStoreURL:    c.BaseKeyStoreURL,
+		shamirProvider:     c.ShamirProvider,
+		mainKeyType:        c.MainKeyType,
+		cacheProvider:      c.CacheProvider,
+		keyStoreCacheTTL:   c.KeyStoreCacheTTL,
+		metrics:            c.MetricsProvider,
 	}, nil
 }
 
@@ -774,10 +765,7 @@ func (c *Command) resolveKeyStore(keyStoreID, user string, secretShare []byte) (
 		return nil, fmt.Errorf("unmarshal key store meta: %w", err)
 	}
 
-	storageProvider, err := c.getStorageProvider(&meta)
-	if err != nil {
-		return nil, err
-	}
+	storageProvider := c.getStorageProvider()
 
 	var secretLock secretlock.Service
 
@@ -812,84 +800,12 @@ func (c *Command) resolveKeyStore(keyStoreID, user string, secretShare []byte) (
 	})
 }
 
-func (c *Command) getStorageProvider(meta *keyStoreMeta) (storage.Provider, error) {
-	var storageProvider storage.Provider
-
-	if meta.EDV.VaultURL != "" {
-		var err error
-
-		storageProvider, err = c.resolveEDVProvider(meta.EDV.VaultURL, meta.EDV.RecipientKeyID, meta.EDV.MACKeyID,
-			meta.EDV.Capability)
-		if err != nil {
-			return nil, fmt.Errorf("resolve edv provider: %w", err)
-		}
-
-		storageProvider = metrics.Wrap(storageProvider, "EDV")
-	} else {
-		storageProvider = c.keyStorageProvider
-	}
+func (c *Command) getStorageProvider() storage.Provider {
+	storageProvider := c.keyStorageProvider
 
 	if c.cacheProvider != nil && c.keyStoreCacheTTL > 0 {
 		storageProvider = c.cacheProvider.Wrap(storageProvider, c.keyStoreCacheTTL)
 	}
 
-	return storageProvider, nil
-}
-
-func (c *Command) resolveEDVProvider(vaultURL, recKeyID, macKeyID string, capability []byte) (storage.Provider, error) {
-	recPubBytes, _, err := c.kms.ExportPubKeyBytes(recKeyID)
-	if err != nil {
-		return nil, fmt.Errorf("get edv recipient key: %w", err)
-	}
-
-	recPub := new(crypto.PublicKey)
-	recPub.KID = recKeyID
-
-	if err = json.Unmarshal(recPubBytes, recPub); err != nil {
-		return nil, fmt.Errorf("unmarshal recipient key bytes to public key: %w", err)
-	}
-
-	macKH, err := c.kms.Get(macKeyID)
-	if err != nil {
-		return nil, fmt.Errorf("get edv mac key handle: %w", err)
-	}
-
-	edvProvider, err := c.createEDVStorageProvider(vaultURL, recPub, macKH, capability)
-	if err != nil {
-		return nil, fmt.Errorf("create edv provider: %w", err)
-	}
-
-	return edvProvider, nil
-}
-
-func (c *Command) createEDVStorageProvider(vaultURL string, recipientPubKey *crypto.PublicKey,
-	macKeyHandle interface{}, capability []byte) (storage.Provider, error) {
-	jweEncrypt, err := jose.NewJWEEncrypt(encAlg, encType, "", "", nil, []*crypto.PublicKey{recipientPubKey}, c.crypto)
-	if err != nil {
-		return nil, fmt.Errorf("create jwe encrypt: %w", err)
-	}
-
-	jweDecrypt := jose.NewJWEDecrypt(nil, c.crypto, c.kms)
-
-	encryptedFormatter := edv.NewEncryptedFormatter(
-		jweEncrypt,
-		jweDecrypt,
-		edv.NewMACCrypto(macKeyHandle, c.crypto),
-		edv.WithDeterministicDocumentIDs(),
-	)
-
-	s := strings.Split(vaultURL, "/")
-
-	edvServerURL := strings.Join(s[:len(s)-1], "/")
-	vaultID := s[len(s)-1]
-
-	return edv.NewRESTProvider(
-		edvServerURL,
-		vaultID,
-		encryptedFormatter,
-		edv.WithTLSConfig(c.tlsConfig),
-		edv.WithHeaders(func(req *http.Request) (*http.Header, error) {
-			return c.headerSigner.SignHeader(req, capability)
-		}),
-	), nil
+	return storageProvider
 }

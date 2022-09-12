@@ -14,7 +14,6 @@ import (
 	"time"
 
 	"github.com/hyperledger/aries-framework-go/pkg/crypto"
-	"github.com/hyperledger/aries-framework-go/pkg/doc/jose"
 	"github.com/hyperledger/aries-framework-go/pkg/kms"
 	"github.com/hyperledger/aries-framework-go/pkg/secretlock"
 	"github.com/hyperledger/aries-framework-go/spi/storage"
@@ -33,18 +32,10 @@ const (
 
 // keyStoreMeta is metadata about user's key store saved in the underlying storage.
 type keyStoreMeta struct {
-	ID         string        `json:"id"`
-	Controller string        `json:"controller"`
-	MainKeyID  string        `json:"main_key_id"`
-	EDV        edvParameters `json:"edv,omitempty"`
-	CreatedAt  time.Time     `json:"created_at"`
-}
-
-type edvParameters struct {
-	VaultURL       string `json:"vault_url"`
-	RecipientKeyID string `json:"recipient_key_id"`
-	MACKeyID       string `json:"mac_key_id"`
-	Capability     []byte `json:"capability"`
+	ID         string    `json:"id"`
+	Controller string    `json:"controller"`
+	MainKeyID  string    `json:"main_key_id"`
+	CreatedAt  time.Time `json:"created_at"`
 }
 
 // CreateKeyStore creates a new key store.
@@ -60,7 +51,7 @@ func (c *Command) CreateKeyStore(w io.Writer, r io.Reader) error { //nolint:funl
 		return fmt.Errorf("validate request: %w", err)
 	}
 
-	kmsStore, edvParams, err := c.createKMSStore(&req)
+	kmsStore, err := c.createKMSStore()
 	if err != nil {
 		return err
 	}
@@ -90,7 +81,6 @@ func (c *Command) CreateKeyStore(w io.Writer, r io.Reader) error { //nolint:funl
 		ID:         xid.New().String(),
 		Controller: req.Controller,
 		MainKeyID:  mainKeyID,
-		EDV:        edvParams,
 		CreatedAt:  time.Now().UTC(),
 	}
 
@@ -127,22 +117,13 @@ func (c *Command) CreateKeyStore(w io.Writer, r io.Reader) error { //nolint:funl
 	})
 }
 
-func (c *Command) createKMSStore(req *CreateKeyStoreRequest) (kms.Store, edvParameters, error) {
+func (c *Command) createKMSStore() (kms.Store, error) {
 	var (
-		edvParams       edvParameters
 		storageProvider storage.Provider
 		err             error
 	)
 
-	if req.EDV != nil { // use EDV for storing user's operational keys
-		storageProvider, edvParams, err = c.prepareEDVProvider(req.EDV.VaultURL, req.EDV.Capability)
-		if err != nil {
-			return nil, edvParameters{}, fmt.Errorf("prepare edv provider: %w", err)
-		}
-	} else {
-		storageProvider = c.keyStorageProvider
-	}
-
+	storageProvider = c.keyStorageProvider
 	if c.cacheProvider != nil && c.keyStoreCacheTTL > 0 {
 		storageProvider = c.cacheProvider.Wrap(storageProvider, c.keyStoreCacheTTL)
 	}
@@ -151,62 +132,10 @@ func (c *Command) createKMSStore(req *CreateKeyStoreRequest) (kms.Store, edvPara
 	//  the Aries storage provider.
 	kmsStore, err := kms.NewAriesProviderWrapper(storageProvider)
 	if err != nil {
-		return nil, edvParameters{}, err
+		return nil, err
 	}
 
-	return kmsStore, edvParams, nil
-}
-
-func (c *Command) prepareEDVProvider(vaultURL string, capability []byte) (storage.Provider, edvParameters, error) {
-	recKID, pub, err := c.createRecipientKey()
-	if err != nil {
-		return nil, edvParameters{}, fmt.Errorf("create edv recipient key: %w", err)
-	}
-
-	macKID, kh, err := c.createMACKey()
-	if err != nil {
-		return nil, edvParameters{}, fmt.Errorf("create edv mac key: %w", err)
-	}
-
-	edvParams := edvParameters{
-		VaultURL:       vaultURL,
-		RecipientKeyID: recKID,
-		MACKeyID:       macKID,
-		Capability:     capability,
-	}
-
-	edvProvider, err := c.createEDVStorageProvider(edvParams.VaultURL, pub, kh, edvParams.Capability)
-	if err != nil {
-		return nil, edvParameters{}, fmt.Errorf("create edv provider: %w", err)
-	}
-
-	return edvProvider, edvParams, nil
-}
-
-func (c *Command) createRecipientKey() (string, *crypto.PublicKey, error) {
-	kid, b, err := c.kms.CreateAndExportPubKeyBytes(c.edvRecipientKeyType)
-	if err != nil {
-		return "", nil, fmt.Errorf("create key: %w", err)
-	}
-
-	pub := new(crypto.PublicKey)
-	pub.KID = kid
-
-	err = json.Unmarshal(b, pub)
-	if err != nil {
-		return "", nil, fmt.Errorf("unmarshal key bytes to public key: %w", err)
-	}
-
-	return kid, pub, nil
-}
-
-func (c *Command) createMACKey() (string, interface{}, error) {
-	kid, kh, err := c.kms.Create(c.edvMACKeyType)
-	if err != nil {
-		return "", nil, fmt.Errorf("create key: %w", err)
-	}
-
-	return kid, kh, nil
+	return kmsStore, nil
 }
 
 func (c *Command) newCompressedZCAP(ctx context.Context, resource, controller string) ([]byte, error) {
@@ -227,11 +156,6 @@ func (c *Command) newCompressedZCAP(ctx context.Context, resource, controller st
 
 	return compressed, nil
 }
-
-const (
-	encAlg  = jose.A256GCM
-	encType = "EDVEncryptedDocument"
-)
 
 func (c *Command) createShamirSecretLock(user string, secretShare []byte) (secretlock.Service, error) {
 	if user == "" {

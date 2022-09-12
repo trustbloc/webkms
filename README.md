@@ -162,18 +162,6 @@ If Shamir secret lock is used, every request that involves User's Key Store is e
 The following databases are supported for the Server DB: MongoDB, CouchDB, and in-memory. You specify a type of the
 database in the `KMS_DATABASE_TYPE` environment variable (`--database-type` flag).
 
-User's Key Store can also use EDV for storing working keys. EDV parameters can be set with `create key store` request:
-
-```json
-{
-  "controller": "did:example:controller",
-  "edv": {
-    "vault_url": "https://edv-host/encrypted-data-vaults/vault-id",
-    "capability": "eyJAY29udGV4dCI6Imh0dHBzOi8vdzNpZC5v..."
-  }
-}
-```
-
 ## Use Cases
 
 Refer [here](docs/use_cases.md) for in-depth description on how lock keys are used in example server's configurations.

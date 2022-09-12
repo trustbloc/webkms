@@ -81,7 +81,6 @@ require (
 	github.com/google/trillian v1.3.14-0.20210520152752-ceda464a95a3 // indirect
 	github.com/google/uuid v1.3.0 // indirect
 	github.com/hyperledger/aries-framework-go-ext/component/vdr/sidetree v1.0.0-rc2.0.20220729203359-da1de2fa21ce // indirect
-	github.com/hyperledger/aries-framework-go/component/storage/edv v0.0.0-20220610133818-119077b0ec85 // indirect
 	github.com/hyperledger/ursa-wrapper-go v0.3.1 // indirect
 	github.com/igor-pavlenko/httpsignatures-go v0.0.23 // indirect
 	github.com/imdario/mergo v0.3.12 // indirect

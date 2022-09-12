@@ -31,14 +31,7 @@ type CreateDIDResponse struct {
 
 // CreateKeyStoreRequest is a request to create user's key store.
 type CreateKeyStoreRequest struct {
-	Controller string      `json:"controller"`
-	EDV        *EDVOptions `json:"edv"`
-}
-
-// EDVOptions represents options for creating data vault on EDV.
-type EDVOptions struct {
-	VaultURL   string `json:"vault_url"`
-	Capability []byte `json:"capability"`
+	Controller string `json:"controller"`
 }
 
 // Validate validates CreateKeyStore request.
