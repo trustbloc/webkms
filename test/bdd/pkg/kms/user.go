@@ -29,14 +29,12 @@ import (
 type user struct {
 	name       string
 	controller string
-	edvDID     string
 
 	keystoreID string
 	keyID      string
 	vaultID    string
 
 	subject     string
-	secretShare []byte
 
 	recipientPubKeys map[string]*publicKeyData
 	response         *response
@@ -46,7 +44,6 @@ type user struct {
 	signer        signer
 	authKMS       kms.KeyManager
 	authCrypto    crypto.Crypto
-	edvCapability *zcapld.Capability
 	kmsCapability *zcapld.Capability
 	disableZCAP   bool
 	accessToken   string
@@ -123,8 +120,8 @@ func (u *user) preparePostRequest(req interface{}, endpoint string) (*http.Reque
 	return request, nil
 }
 
-func (u *user) preparePutRequest(req interface{}, endpoint string) (*http.Request, error) {
-	uri := buildURI(endpoint, u.keystoreID, u.keyID)
+func (u *user) preparePutRequest(req interface{}, endpoint string, keyID string) (*http.Request, error) {
+	uri := buildURI(endpoint, u.keystoreID, keyID)
 
 	payload, err := json.Marshal(req)
 	if err != nil {

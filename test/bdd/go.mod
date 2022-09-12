@@ -25,7 +25,6 @@ require (
 	github.com/trustbloc/auth v0.1.9-0.20220721161924-5a7b16c4282f
 	github.com/trustbloc/auth/spi/gnap v0.0.0-20220721161924-5a7b16c4282f
 	github.com/trustbloc/edge-core v0.1.8
-	github.com/trustbloc/edv v0.1.8
 	github.com/trustbloc/kms v0.1.9-0.20220526151939-d46e46e8f7e1
 	golang.org/x/oauth2 v0.0.0-20220411215720-9780585627b5
 )

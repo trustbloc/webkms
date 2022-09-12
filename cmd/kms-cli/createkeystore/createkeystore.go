@@ -25,12 +25,6 @@ const (
 
 type createKeystoreReq struct {
 	Controller string      `json:"controller"`
-	EDV        *edvOptions `json:"edv"`
-}
-
-type edvOptions struct {
-	VaultURL   string `json:"vault_url"`
-	Capability []byte `json:"capability"`
 }
 
 type createKeyStoreResp struct {

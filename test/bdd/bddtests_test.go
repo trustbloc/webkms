@@ -83,7 +83,7 @@ func runBDDTests(tags, format string) int {
 
 func initializeTestSuite(ctx *godog.TestSuiteContext) {
 	var (
-		dockerComposeUp   = []string{"docker-compose", "-f", composeFilePath, "up", "--force-recreate", "-d"}
+		dockerComposeUp   = []string{"docker-compose", "-f", composeFilePath, "up", "--force-recreate", "-d", "-V"}
 		dockerComposeDown = []string{"docker-compose", "-f", composeFilePath, "down"}
 	)
 

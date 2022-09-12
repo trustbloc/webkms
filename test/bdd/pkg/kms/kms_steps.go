@@ -8,7 +8,6 @@ package kms
 
 import (
 	"bytes"
-	"context"
 	"crypto/ed25519"
 	"crypto/rand"
 	"crypto/tls"
@@ -42,7 +41,6 @@ import (
 
 const (
 	createKeystoreEndpoint = "/v1/keystores"
-	createDIDEndpoint      = "/v1/keystores/did"
 	keysEndpoint           = "/v1/keystores/{keystoreID}/keys"
 	exportKeyEndpoint      = "/v1/keystores/{keystoreID}/keys/{keyID}/export"
 	signEndpoint           = "/v1/keystores/{keystoreID}/keys/{keyID}/sign"
@@ -77,18 +75,13 @@ func (s *Steps) SetContext(ctx *bddcontext.BDDContext) {
 func (s *Steps) RegisterSteps(ctx *godog.ScenarioContext) {
 	// common creation steps
 	ctx.Step(`^Create "([^"]*)" users$`, s.createUsers)
-	ctx.Step(`^Create "([^"]*)" users from prototype "([^"]*)"$`, s.createUsersFromPrototype)
-	ctx.Step(`^"([^"]*)" login with "([^"]*)" and gets "([^"]*)" and "([^"]*)" env$`, s.stressTestLogin)
-	ctx.Step(`^"([^"]*)" wallet has stored secret on Hub Auth$`, s.storeSecretInHubAuth)
-	ctx.Step(`^"([^"]*)" has created a data vault on EDV for storing keys$`, s.createEDVDataVault)
-	ctx.Step(`^"([^"]*)" users has created a data vault on EDV for storing keys$`, s.createEDVDataVaultForMultipleUsers)
+	ctx.Step(`^"([^"]*)" has logged into auth server$`, s.logIntoAuthServer)
+	ctx.Step(`^"([^"]*)" has created a profile on auth server$`, s.createProfileOnAuthServer)
+	ctx.Step(`^"([^"]*)" users has created a profile on auth server$`, s.createProfileOnAuthServerForMultipleUsers)
 	ctx.Step(`^"([^"]*)" has created an empty keystore on Key Server$`, s.createKeystore)
 	ctx.Step(`^"([^"]*)" has created a keystore with "([^"]*)" key on Key Server$`, s.createKeystoreAndKey)
 	ctx.Step(`^"([^"]*)" users request to create a keystore on "([^"]*)" with "([^"]*)" key and sign ([^"]*) times using "([^"]*)" concurrent requests$`, //nolint:lll
 		s.stressTestForMultipleUsers)
-
-	ctx.Step(`^"([^"]*)" requests to authz kms to create a keystore and a key for user "([^"]*)" and sign using "([^"]*)" concurrent requests$`, //nolint:lll
-		s.authStressTestForMultipleUsers)
 
 	// common response checking steps
 	ctx.Step(`^"([^"]*)" gets a response with HTTP status "([^"]*)"$`, s.checkRespStatus)
@@ -139,28 +132,8 @@ func (s *Steps) createKeystoreAndKey(user, keyType string) error {
 
 func (s *Steps) createKeystore(userName string) error {
 	u := s.users[userName]
-
-	if err := s.createDID(u); err != nil {
-		return err
-	}
-
-	edvCapability, err := s.createChainCapability(u)
-	if err != nil {
-		return err
-	}
-
-	capabilityBytes, err := json.Marshal(edvCapability)
-	if err != nil {
-		return err
-	}
-
 	r := &createKeystoreReq{
 		Controller: u.controller,
-		EDV: &edvOptions{
-			// TODO: replace hardcoded URL with the proper s.bddContext.EDVServerURL
-			VaultURL:   "https://edv.trustbloc.local:8081" + edvBasePath + "/" + u.vaultID,
-			Capability: capabilityBytes,
-		},
 	}
 
 	return s.createKeystoreReq(u, r, s.bddContext.KeyServerURL+createKeystoreEndpoint)
@@ -208,59 +181,6 @@ func (s *Steps) createKeystoreReq(u *user, r *createKeystoreReq, endpoint string
 	}
 
 	return nil
-}
-
-func (s *Steps) createDID(u *user) error {
-	uri := buildURI(s.bddContext.KeyServerURL+createDIDEndpoint, u.keystoreID, u.keyID)
-
-	request, err := http.NewRequestWithContext(context.Background(), http.MethodPost, uri, nil)
-	if err != nil {
-		return fmt.Errorf("create DID http request: %w", err)
-	}
-
-	request.Header.Set("Authorization", fmt.Sprintf("Bearer %s", u.accessToken))
-
-	response, err := s.httpClient.Do(request)
-	if err != nil {
-		return fmt.Errorf("http do: %w", err)
-	}
-
-	defer func() {
-		closeErr := response.Body.Close()
-		if closeErr != nil {
-			s.logger.Errorf("Failed to close response body: %s\n", closeErr.Error())
-		}
-	}()
-
-	var resp createDIDResp
-
-	if err := u.processResponse(&resp, response); err != nil {
-		return err
-	}
-
-	u.edvDID = resp.DID
-
-	return nil
-}
-
-func (s *Steps) createChainCapability(u *user) (*zcapld.Capability, error) {
-	loader, err := createJSONLDDocumentLoader(mem.NewProvider())
-	if err != nil {
-		return nil, fmt.Errorf("create document loader: %w", err)
-	}
-
-	return zcapld.NewCapability(
-		&zcapld.Signer{
-			SignatureSuite:     ed25519signature2018.New(suite.WithSigner(u.signer)),
-			SuiteType:          ed25519signature2018.SignatureType,
-			VerificationMethod: u.controller,
-			ProcessorOpts:      []jsonld.ProcessorOpts{jsonld.WithDocumentLoader(loader)},
-		},
-		zcapld.WithParent(u.edvCapability.ID),
-		zcapld.WithInvoker(u.edvDID),
-		zcapld.WithAllowedActions("read", "write"),
-		zcapld.WithInvocationTarget(u.vaultID, edvResource),
-		zcapld.WithCapabilityChain(u.edvCapability.Parent, u.edvCapability.ID))
 }
 
 func (s *Steps) makeCreateKeyReq(userName, endpoint, keyType string) error {
@@ -502,7 +422,7 @@ func (s *Steps) makeImportKeyReq(userName, endpoint, keyID string) error {
 		KeyID:   keyID,
 	}
 
-	request, err := u.preparePutRequest(r, endpoint)
+	request, err := u.preparePutRequest(r, endpoint, keyID)
 	if err != nil {
 		return err
 	}

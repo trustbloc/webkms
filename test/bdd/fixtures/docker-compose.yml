@@ -50,7 +50,6 @@ services:
     command: start
     depends_on:
       - mongodb.example.com
-      - edv.trustbloc.local
     networks:
       - bdd_net
 
@@ -84,7 +83,6 @@ services:
     command: start
     depends_on:
       - mongodb.example.com
-      - edv.trustbloc.local
     networks:
       - bdd_net
 
@@ -101,37 +99,6 @@ services:
     entrypoint: "local-kms"
     volumes:
       - ./aws-config/init:/init/
-    networks:
-      - bdd_net
-
-  authz-kms.trustbloc.local:
-    container_name: authz-kms.trustbloc.local
-    image: ${KMS_SERVER_IMAGE}:latest
-    environment:
-      - KMS_HOST=0.0.0.0:8077
-      - KMS_BASE_URL=https://authz-kms.trustbloc.local:8077
-      - KMS_TLS_CACERTS=/etc/tls/ec-cacert.pem
-      - KMS_TLS_SERVE_CERT=/etc/tls/ec-pubCert.pem
-      - KMS_TLS_SERVE_KEY=/etc/tls/ec-key.pem
-      - KMS_DATABASE_TYPE=mongodb
-      - KMS_DATABASE_URL=mongodb://mongodb.example.com:27017
-      - KMS_DATABASE_PREFIX=authzkms_
-      - KMS_AUTH_SERVER_URL=https://auth.trustbloc.local:8070
-      - KMS_AUTH_SERVER_TOKEN=test_token
-      - KMS_AUTH_DISABLE=true
-      - KMS_GNAP_HTTPSIG_DISABLE=false
-      - KMS_CACHE_ENABLE=true
-      - KMS_LOG_LEVEL=debug
-      - KMS_SECRET_LOCK_TYPE=local
-      - KMS_SECRET_LOCK_KEY_PATH=/etc/tls/secret-lock.key
-    ports:
-      - 8077:8077
-    volumes:
-      - ./keys/tls:/etc/tls
-    command: start
-    depends_on:
-      - mongodb.example.com
-      - edv.trustbloc.local
     networks:
       - bdd_net
 
@@ -165,27 +132,6 @@ services:
     command: start
     depends_on:
       - mongodb.example.com
-      - edv.trustbloc.local
-    networks:
-      - bdd_net
-
-  oathkeeper-auth-keyserver.trustbloc.local:
-    container_name: oathkeeper-auth-keyserver.trustbloc.local
-    image: oryd/oathkeeper:v0.38.4-alpine
-    ports:
-      - 4455:4455
-    command: /bin/sh -c "cp /etc/tls/ec-cacert.pem /usr/local/share/ca-certificates/;update-ca-certificates;oathkeeper serve proxy --config /oathkeeper/config.yaml"
-    user: root
-    entrypoint: ""
-    environment:
-      - LOG_LEVEL=debug
-      - PORT=4455
-      - ISSUER_URL=https://oathkeeper-proxy.trustbloc.local
-      - SERVE_PROXY_TLS_KEY_PATH=/etc/tls/ec-key.pem
-      - SERVE_PROXY_TLS_CERT_PATH=/etc/tls/ec-pubCert.pem
-    volumes:
-      - ./oathkeeper-config/auth-keyserver:/oathkeeper
-      - ./keys/tls:/etc/tls
     networks:
       - bdd_net
 
@@ -206,33 +152,6 @@ services:
     volumes:
       - ./oathkeeper-config/ops-keyserver:/oathkeeper
       - ./keys/tls:/etc/tls
-    networks:
-      - bdd_net
-
-  edv.trustbloc.local:
-    container_name: edv.trustbloc.local
-    image: ${EDV_REST_IMAGE}:${EDV_REST_IMAGE_TAG}
-    environment:
-      - EDV_HOST_URL=0.0.0.0:8081
-      - EDV_TLS_CERT_FILE=/etc/tls/ec-pubCert.pem
-      - EDV_TLS_KEY_FILE=/etc/tls/ec-key.pem
-      - EDV_DATABASE_TYPE=mongodb
-      - EDV_DATABASE_URL=mongodb://mongodb.example.com:27017
-      - EDV_DATABASE_PREFIX=edv_
-      - EDV_LOCALKMS_SECRETS_DATABASE_TYPE=mongodb
-      - EDV_LOCALKMS_SECRETS_DATABASE_URL=mongodb://mongodb.example.com:27017
-      - EDV_LOCALKMS_SECRETS_DATABASE_PREFIX=edv_kms_
-      - EDV_EXTENSIONS=ReturnFullDocumentsOnQuery,Batch
-      - EDV_DATABASE_TIMEOUT=60
-      - EDV_AUTH_ENABLE=true
-      - EDV_LOG_LEVEL=debug
-    ports:
-      - 8081:8081
-    volumes:
-      - ./keys/tls:/etc/tls
-    command: start
-    depends_on:
-      - mongodb.example.com
     networks:
       - bdd_net
 

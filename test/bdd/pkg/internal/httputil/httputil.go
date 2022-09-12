@@ -57,10 +57,6 @@ func DoRequest(ctx context.Context, url string, opts ...Opt) (*Response, error) 
 
 	req.Header.Add(contentType, applicationJSON)
 
-	if op.bearerToken != "" {
-		req.Header.Add(authorization, "Bearer "+op.bearerToken)
-	}
-
 	if op.gnapToken != "" {
 		req.Header.Add(authorization, "GNAP "+op.gnapToken)
 	}
@@ -109,12 +105,6 @@ func DoRequest(ctx context.Context, url string, opts ...Opt) (*Response, error) 
 		}
 	}
 
-	if op.parsedResponse != nil {
-		if err = json.Unmarshal(body, op.parsedResponse); err != nil {
-			return nil, fmt.Errorf("unmarshal response body: %w", err)
-		}
-	}
-
 	return r, nil
 }
 
@@ -131,10 +121,8 @@ type options struct {
 	method         string
 	headers        []string
 	body           io.Reader
-	bearerToken    string
 	gnapToken      string
 	signer         requestSigner
-	parsedResponse interface{}
 }
 
 // Opt configures HTTP request options.
@@ -161,13 +149,6 @@ func WithBody(val []byte) Opt {
 	}
 }
 
-// WithBearerToken specifies an authorization bearer token.
-func WithBearerToken(token string) Opt {
-	return func(o *options) {
-		o.bearerToken = token
-	}
-}
-
 // WithGNAPToken specifies an authorization GNAP token.
 func WithGNAPToken(token string) Opt {
 	return func(o *options) {
@@ -179,12 +160,5 @@ func WithGNAPToken(token string) Opt {
 func WithSigner(signer requestSigner) Opt {
 	return func(o *options) {
 		o.signer = signer
-	}
-}
-
-// WithParsedResponse specifies type to unmarshal response body.
-func WithParsedResponse(r interface{}) Opt {
-	return func(o *options) {
-		o.parsedResponse = r
 	}
 }

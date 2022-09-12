@@ -43,13 +43,9 @@ func (s *Steps) SetContext(ctx *context.BDDContext) {
 // RegisterSteps defines scenario steps.
 func (s *Steps) RegisterSteps(ctx *godog.ScenarioContext) {
 	ctx.Step(`^Key Server is running on "([^"]*)" port "([^"]*)"$`, s.checkKeyServerIsRun)
-	ctx.Step(`^AuthZ Key Server is running on "([^"]*)" port "([^"]*)"$`, s.checkAuthzKeyServerIsRun)
-	ctx.Step(`^EDV is running on "([^"]*)" port "([^"]*)"$`, s.checkEDVServerIsRun)
 	ctx.Step(`^Hub Auth is running on "([^"]*)" port "([^"]*)"$`, s.checkHubAuthIsRun)
 
 	ctx.Step(`^Key Server is running on "([^"]*)" env$`, s.checkKeyServerIsRunEnv)
-	ctx.Step(`^AuthZ Key Server is running on "([^"]*)" env$`, s.checkAuthzKeyServerIsRunEnv)
-	ctx.Step(`^EDV is running on "([^"]*)" env$`, s.checkEDVServerIsRunEnv)
 	ctx.Step(`^Hub Auth is running on "([^"]*)" env$`, s.checkHubAuthIsRunEnv)
 }
 
@@ -60,28 +56,6 @@ func (s *Steps) checkKeyServerIsRun(host string, port int) error {
 	}
 
 	s.bddContext.KeyServerURL = url
-
-	return nil
-}
-
-func (s *Steps) checkAuthzKeyServerIsRun(host string, port int) error {
-	url, err := s.healthCheck(host, port)
-	if err != nil {
-		return err
-	}
-
-	s.bddContext.AuthZKeyServerURL = url
-
-	return nil
-}
-
-func (s *Steps) checkEDVServerIsRun(host string, port int) error {
-	url, err := s.healthCheck(host, port)
-	if err != nil {
-		return err
-	}
-
-	s.bddContext.EDVServerURL = url
 
 	return nil
 }
@@ -110,38 +84,6 @@ func (s *Steps) checkKeyServerIsRunEnv(serverURLEnv string) error {
 	}
 
 	s.bddContext.KeyServerURL = url
-
-	return nil
-}
-
-func (s *Steps) checkAuthzKeyServerIsRunEnv(serverURLEnv string) error {
-	url, err := getServerURL(serverURLEnv)
-	if err != nil {
-		return err
-	}
-
-	err = s.healthCheckURL(url)
-	if err != nil {
-		return err
-	}
-
-	s.bddContext.AuthZKeyServerURL = url
-
-	return nil
-}
-
-func (s *Steps) checkEDVServerIsRunEnv(serverURLEnv string) error {
-	url, err := getServerURL(serverURLEnv)
-	if err != nil {
-		return err
-	}
-
-	err = s.healthCheckURL(url)
-	if err != nil {
-		return err
-	}
-
-	s.bddContext.EDVServerURL = url
 
 	return nil
 }

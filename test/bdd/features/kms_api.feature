@@ -9,13 +9,11 @@
 Feature: KMS and crypto operations
   Background:
     Given Key Server is running on "localhost" port "4466"
-      And AuthZ Key Server is running on "localhost" port "4455"
       And Hub Auth is running on "auth.trustbloc.local" port "8070"
-      And EDV is running on "localhost" port "8081"
-      And "Alice" wallet has stored secret on Hub Auth
-      And "Bob" wallet has stored secret on Hub Auth
-      And "Alice" has created a data vault on EDV for storing keys
-      And "Bob" has created a data vault on EDV for storing keys
+      And "Alice" has logged into auth server
+      And "Bob" has logged into auth server
+      And "Alice" has created a profile on auth server
+      And "Bob" has created a profile on auth server
 
   Scenario: User creates a key
     Given "Alice" has created an empty keystore on Key Server
