@@ -44,15 +44,6 @@ type createKeyStoreReq struct { //nolint:unused,deadcode
 		// Controller of the key store.
 		// required: true
 		Controller string `json:"controller"`
-
-		// Options for EDV-backed key store. If empty, key store is created in server's storage.
-		EDV struct {
-			// Vault URL on EDV server.
-			VaultURL string `json:"vault_url"`
-
-			// Base64-encoded EDV ZCAPs.
-			Capability string `json:"capability"`
-		} `json:"edv"`
 	}
 }
 

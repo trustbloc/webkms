@@ -92,7 +92,7 @@ func Get() *Metrics {
 }
 
 func newMetrics() *Metrics {
-	dbTypes := []string{"CouchDB", "MongoDB", "EDV", "Cache"}
+	dbTypes := []string{"CouchDB", "MongoDB", "Cache"}
 
 	m := &Metrics{
 		cryptoSignTime:              newCryptoSignTime(),

@@ -33,8 +33,6 @@ import (
 	mockcrypto "github.com/hyperledger/aries-framework-go/pkg/mock/crypto"
 	mockkms "github.com/hyperledger/aries-framework-go/pkg/mock/kms"
 	mockstorage "github.com/hyperledger/aries-framework-go/pkg/mock/storage"
-	"github.com/hyperledger/aries-framework-go/pkg/secretlock"
-	"github.com/hyperledger/aries-framework-go/spi/storage"
 	"github.com/stretchr/testify/require"
 	"github.com/trustbloc/edge-core/pkg/zcapld"
 
@@ -103,59 +101,6 @@ func TestCommand_CreateDID(t *testing.T) {
 }
 
 func TestCommand_CreateKeyStore(t *testing.T) {
-	t.Run("Success with EDV storage", func(t *testing.T) {
-		ctrl := gomock.NewController(t)
-
-		cr, err := tinkcrypto.New()
-		require.NoError(t, err)
-
-		km := &mockkms.KeyManager{
-			CrAndExportPubKeyValue: createRecipientPubKey(t),
-		}
-
-		creator := NewMockKeyStoreCreator(ctrl)
-		creator.EXPECT().Create(gomock.Any(), gomock.Any()).Return(nil, nil).Times(1)
-
-		zcap := NewMockZCAPService(ctrl)
-		zcap.EXPECT().NewCapability(context.Background(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).
-			Return(&zcapld.Capability{}, nil).
-			Times(1)
-
-		cache := NewMockCacheProvider(ctrl)
-		cache.EXPECT().Wrap(gomock.Any(), gomock.Any()).Times(1).Return(mem.NewProvider())
-
-		cmd, err := New(&Config{
-			StorageProvider:  mockstorage.NewMockStoreProvider(),
-			KMS:              km,
-			Crypto:           cr,
-			KeyStoreCreator:  creator,
-			ZCAPService:      zcap,
-			EnableZCAPs:      true,
-			CacheProvider:    cache,
-			KeyStoreCacheTTL: 10 * time.Second,
-		})
-		require.NoError(t, err)
-		require.NotNil(t, cmd)
-
-		req, err := json.Marshal(CreateKeyStoreRequest{
-			Controller: "did:example:test",
-			EDV: &EDVOptions{
-				VaultURL: "https://edv-host/encrypted-data-vaults/vault-id",
-			},
-		})
-		require.NoError(t, err)
-
-		wr, err := json.Marshal(WrappedRequest{
-			Request: req,
-		})
-		require.NoError(t, err)
-
-		var buf bytes.Buffer
-
-		err = cmd.CreateKeyStore(&buf, bytes.NewBuffer(wr))
-		require.NoError(t, err)
-	})
-
 	t.Run("Success with Shamir secret lock", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		defer ctrl.Finish()
@@ -243,41 +188,6 @@ func TestCommand_CreateKeyStore(t *testing.T) {
 
 		err = cmd.CreateKeyStore(&buf, bytes.NewBuffer(wr))
 		require.EqualError(t, err, "validate request: validation failed: controller must be non-empty")
-	})
-
-	t.Run("Fail to prepare EDV provider", func(t *testing.T) {
-		cr, err := tinkcrypto.New()
-		require.NoError(t, err)
-
-		km := &mockkms.KeyManager{
-			CrAndExportPubKeyErr: errors.New("create pub key error"),
-		}
-
-		cmd, err := New(&Config{
-			StorageProvider: mockstorage.NewMockStoreProvider(),
-			KMS:             km,
-			Crypto:          cr,
-		})
-		require.NoError(t, err)
-		require.NotNil(t, cmd)
-
-		req, err := json.Marshal(CreateKeyStoreRequest{
-			Controller: "did:example:test",
-			EDV: &EDVOptions{
-				VaultURL: "https://edv-host/encrypted-data-vaults/vault-id",
-			},
-		})
-		require.NoError(t, err)
-
-		wr, err := json.Marshal(WrappedRequest{
-			Request: req,
-		})
-		require.NoError(t, err)
-
-		var buf bytes.Buffer
-
-		err = cmd.CreateKeyStore(&buf, bytes.NewBuffer(wr))
-		require.EqualError(t, err, "prepare edv provider: create edv recipient key: create key: create pub key error")
 	})
 
 	t.Run("Fail to fetch secret share from auth server", func(t *testing.T) {
@@ -635,60 +545,6 @@ func TestCommand_CreateKey(t *testing.T) {
 		wr, err := json.Marshal(WrappedRequest{
 			KeyStoreID: "key_store_id",
 			Request:    req,
-		})
-		require.NoError(t, err)
-
-		var buf bytes.Buffer
-
-		err = cmd.CreateKey(&buf, bytes.NewBuffer(wr))
-		require.NoError(t, err)
-
-		var resp CreateKeyResponse
-
-		err = json.Unmarshal(buf.Bytes(), &resp)
-		require.NoError(t, err)
-		require.Equal(t, "/key_store_id/keys/key_id", resp.KeyURL)
-	})
-
-	t.Run("Success with EDV storage and Shamir secret lock", func(t *testing.T) {
-		keyStoreData := []byte(`{
-		  "id": "key_store_id",
-		  "controller": "controller",
-		  "edv": {
-			"vault_url": "https://edv-host/encrypted-data-vaults/vault-id"
-		  }
-		}`)
-
-		p := mockstorage.NewMockStoreProvider()
-		p.Store.Store["key_store_id"] = mockstorage.DBEntry{Value: keyStoreData}
-
-		km := &mockkms.KeyManager{
-			ExportPubKeyBytesValue: createRecipientPubKey(t),
-			CreateKeyID:            "key_id",
-		}
-
-		ctrl := gomock.NewController(t)
-
-		shamirLockCreator := NewMockShamirSecretLockCreator(ctrl)
-		shamirLockCreator.EXPECT().Create(gomock.Any()).Return(nil, nil).Times(1)
-
-		shamirProvider := NewMockShamirProvider(ctrl)
-		shamirProvider.EXPECT().FetchSecretShare(gomock.Any()).Return([]byte("secret share"), nil).Times(1)
-
-		cmd := createCmd(t, ctrl,
-			withStorageProvider(p), withKeyManager(km), withShamirSecretLockCreator(shamirLockCreator),
-			withShamirProvider(shamirProvider))
-
-		req, err := json.Marshal(CreateKeyRequest{
-			KeyType: kms.ED25519,
-		})
-		require.NoError(t, err)
-
-		wr, err := json.Marshal(WrappedRequest{
-			KeyStoreID:  "key_store_id",
-			User:        "user",
-			SecretShare: []byte("secret share"),
-			Request:     req,
 		})
 		require.NoError(t, err)
 
@@ -2370,12 +2226,6 @@ func createCmd(t *testing.T, ctrl *gomock.Controller, opts ...configOption) *Com
 
 type configOption func(c *Config)
 
-func withStorageProvider(p storage.Provider) configOption {
-	return func(c *Config) {
-		c.StorageProvider = p
-	}
-}
-
 func withKeyManager(km kms.KeyManager) configOption {
 	return func(c *Config) {
 		c.KMS = km
@@ -2395,26 +2245,6 @@ type cryptoBoxCreator interface {
 func withCryptoBoxCreator(creator cryptoBoxCreator) configOption {
 	return func(c *Config) {
 		c.CryptBoxCreator = creator
-	}
-}
-
-type shamirSecretLockCreator interface {
-	Create(secretShares [][]byte) (secretlock.Service, error)
-}
-
-func withShamirSecretLockCreator(creator shamirSecretLockCreator) configOption {
-	return func(c *Config) {
-		c.ShamirSecretLockCreator = creator
-	}
-}
-
-type shamirProvider interface {
-	FetchSecretShare(subject string) ([]byte, error)
-}
-
-func withShamirProvider(provider shamirProvider) configOption {
-	return func(c *Config) {
-		c.ShamirProvider = provider
 	}
 }
 

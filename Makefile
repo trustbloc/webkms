@@ -71,7 +71,6 @@ stress-test:
 	KMS_STRESS_KMS_URL=https://ops-oathkeeper-proxy.dev.trustbloc.dev \
 	KMS_STRESS_AUTH_KMS_URL=https://authz-oathkeeper-proxy.dev.trustbloc.dev \
 	KMS_STRESS_HUB_AUTH_URL=https://hub-auth.dev.trustbloc.dev \
-	KMS_STRESS_EDV_URL=https://edv.dev.trustbloc.dev \
 	SUBJECT=john.smith23140954@example.com \
 	ACCESS_TOKEN=m_QNKTLWFgyFEGPf6dHHs3h3f0TOoJ2ZSlD912u_LKw.6xWwAF61vGM5EHxGuQG9nuwAwd_hNKqMMEe4W2V-V1Q \
 	SECRET_SHARE=dD78WKu9/51CRFVhmzlH7nUYbaZvC5Eb30WNC3rfPjLz \

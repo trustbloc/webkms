@@ -242,8 +242,6 @@ func startServer(srv server, params *serverParameters) error { //nolint:funlen
 		BaseKeyStoreURL:         baseKeyStoreURL,
 		ShamirProvider:          shamirProvider,
 		MainKeyType:             kms.AES256GCMType,
-		EDVRecipientKeyType:     kms.NISTP256ECDHKW,
-		EDVMACKeyType:           kms.HMACSHA256Tag256,
 		KeyStoreCacheTTL:        params.keyStoreCacheTTL,
 		MetricsProvider:         metrics.Get(),
 	}
