@@ -236,7 +236,7 @@ func startServer(srv server, params *serverParameters) error { //nolint:funlen
 		ShamirSecretLockCreator: &shamirSecretLockCreator{},
 		CryptBoxCreator:         &cryptoBoxCreator{},
 		ZCAPService:             zcapService,
-		EnableZCAPs:             !params.disableAuth,
+		EnableZCAPs:             params.authType.HasFlag(rest.AuthZCAP),
 		HeaderSigner:            zcapService,
 		TLSConfig:               tlsConfig,
 		BaseKeyStoreURL:         baseKeyStoreURL,
@@ -271,7 +271,7 @@ func startServer(srv server, params *serverParameters) error { //nolint:funlen
 		gnapRSClient          *rs.Client
 	)
 
-	if !params.disableAuth {
+	if params.authType.HasFlag(rest.AuthGNAP)  {
 		privateJWK, publicJWK, err = createGNAPSigningJWK(params.gnapSigningKeyPath)
 		if err != nil {
 			return fmt.Errorf("create gnap signing jwk: %w", err)
@@ -294,18 +294,19 @@ func startServer(srv server, params *serverParameters) error { //nolint:funlen
 	for _, h := range rest.New(cmd).GetRESTHandlers() {
 		var handler http.Handler = h.Handler()
 
-		if !params.disableAuth && !h.Auth().HasFlag(rest.AuthNone) {
+		if !params.authType.HasFlag(rest.AuthNone) && !h.Auth().HasFlag(rest.AuthNone) {
 			middlewares := make([]authmw.Middleware, 0)
 
-			if h.Auth().HasFlag(rest.AuthOAuth2) {
-				middlewares = append(middlewares, &oauthmw.Middleware{})
+			if params.authType.HasFlag(rest.AuthZCAP)  {
+				if h.Auth().HasFlag(rest.AuthOAuth2) {
+					middlewares = append(middlewares, &oauthmw.Middleware{})
+				}
+				if h.Auth().HasFlag(rest.AuthZCAP) {
+					middlewares = append(middlewares, &zcapmw.Middleware{Config: zcapConfig, Action: h.Action()})
+				}
 			}
 
-			if h.Auth().HasFlag(rest.AuthZCAP) {
-				middlewares = append(middlewares, &zcapmw.Middleware{Config: zcapConfig, Action: h.Action()})
-			}
-
-			if h.Auth().HasFlag(rest.AuthGNAP) {
+			if params.authType.HasFlag(rest.AuthGNAP) && h.Auth().HasFlag(rest.AuthGNAP) {
 				gmw, err := gnapmw.NewMiddleware(
 					gnapRSClient,
 					publicJWK,

@@ -512,6 +512,47 @@ func TestStartCmdWithKMSCacheTTLParam(t *testing.T) {
 	})
 }
 
+func TestStartCmdWithAuthTypeParam(t *testing.T) {
+	t.Run("Success with ZCAP and GNAP set", func(t *testing.T) {
+		startCmd, err := Cmd(&mockServer{})
+		require.NoError(t, err)
+
+		args := requiredArgs(storageTypeMemOption)
+		args = append(args, "--"+authTypeFlagName, "ZCAP,GNAP")
+
+		startCmd.SetArgs(args)
+
+		err = startCmd.Execute()
+		require.NoError(t, err)
+	})
+
+	t.Run("Success with none set", func(t *testing.T) {
+		startCmd, err := Cmd(&mockServer{})
+		require.NoError(t, err)
+
+		args := requiredArgs(storageTypeMemOption)
+		args = append(args, "--"+authTypeFlagName, "")
+
+		startCmd.SetArgs(args)
+
+		err = startCmd.Execute()
+		require.NoError(t, err)
+	})
+
+	t.Run("Fail with unknown auth type", func(t *testing.T) {
+		startCmd, err := Cmd(&mockServer{})
+		require.NoError(t, err)
+
+		args := requiredArgs(storageTypeMemOption)
+		args = append(args, "--"+authTypeFlagName, "some-unknown-auth-type")
+
+		startCmd.SetArgs(args)
+
+		err = startCmd.Execute()
+		require.Error(t, err)
+	})
+}
+
 func TestStartKMSService(t *testing.T) {
 	const invalidStorageOption = "invalid"
 
@@ -620,7 +661,7 @@ func setEnvVars(t *testing.T) {
 	err = os.Setenv(secretLockKeyPathEnvKey, secretLockKeyFile)
 	require.NoError(t, err)
 
-	err = os.Setenv(disableAuthEnvKey, "true")
+	err = os.Setenv(authTypeEnvKey, "")
 	require.NoError(t, err)
 }
 
@@ -639,7 +680,7 @@ func unsetEnvVars(t *testing.T) {
 	err = os.Unsetenv(secretLockKeyPathEnvKey)
 	require.NoError(t, err)
 
-	err = os.Unsetenv(disableAuthEnvKey)
+	err = os.Unsetenv(authTypeEnvKey)
 	require.NoError(t, err)
 }
 
