@@ -14,9 +14,14 @@ import (
 	"time"
 
 	"github.com/spf13/cobra"
+
+	"github.com/trustbloc/kms/pkg/controller/rest"
 )
 
 const (
+	gnapAuthType = "gnap"
+	zcapAuthType = "zcap"
+
 	commonEnvVarUsageText = "Alternatively, this can be set with the following environment variable: "
 
 	hostEnvKey    = "KMS_HOST"
@@ -107,10 +112,13 @@ const (
 	shamirSecretCacheTTLFlagUsage = "An optional value cache TTL (time to live) for keys in server kms. Defaults to 10m if " +
 		"caching is enabled. If set to 0, keys are never cached. " + commonEnvVarUsageText + shamirSecretCacheTTLEnvKey
 
-	disableAuthEnvKey    = "KMS_AUTH_DISABLE"
-	disableAuthFlagName  = "disable-auth"
-	disableAuthFlagUsage = "Disables authorization. Possible values: [true] [false]. Defaults to false. " +
-		commonEnvVarUsageText + disableAuthEnvKey
+	authTypeEnvKey    = "KMS_AUTH_TYPE"
+	authTypeFlagName  = "auth-type"
+	authTypeFlagUsage = "Comma-separated list of the types of authorization to enable. " +
+		"Possible values [GNAP] [ZCAP]. " +
+		"If GNAP and ZCAP are both enabled, then a client may authorize themselves with either one. " +
+		"If no options are specified, then no authorization will be required. Defaults to 'ZCAP,GNAP'. " +
+		commonEnvVarUsageText + authTypeEnvKey
 
 	disableHTTPSIGEnvKey    = "KMS_GNAP_HTTPSIG_DISABLE"
 	disableHTTPSIGFlagName  = "disable-HTTPSIG"
@@ -184,7 +192,7 @@ type serverParameters struct {
 	kmsCacheTTL          time.Duration
 	shamirSecretCacheTTL time.Duration
 	enableCache          bool
-	disableAuth          bool
+	authType             rest.AuthMethod
 	disableHTTPSIG       bool
 	enableCORS           bool
 	logLevel             string
@@ -226,7 +234,6 @@ func getParameters(cmd *cobra.Command) (*serverParameters, error) { //nolint:fun
 	kmsCacheTTLStr := getUserSetVarOptional(cmd, kmsCacheTTLFlagName, kmsCacheTTLEnvKey)
 	shamirSecretCacheTTLStr := getUserSetVarOptional(cmd, shamirSecretCacheTTLFlagName, shamirSecretCacheTTLEnvKey)
 	enableCacheStr := getUserSetVarOptional(cmd, enableCacheFlagName, enableCacheEnvKey)
-	disableAuthStr := getUserSetVarOptional(cmd, disableAuthFlagName, disableAuthEnvKey)
 	disableHTTPSIGStr := getUserSetVarOptional(cmd, disableHTTPSIGFlagName, disableHTTPSIGEnvKey)
 	enableCORSStr := getUserSetVarOptional(cmd, enableCORSFlagName, enableCORSEnvKey)
 	logLevel := getUserSetVarOptional(cmd, logLevelFlagName, logLevelEnvKey)
@@ -271,9 +278,9 @@ func getParameters(cmd *cobra.Command) (*serverParameters, error) { //nolint:fun
 		return nil, fmt.Errorf("parse enableCache: %w", err)
 	}
 
-	disableAuth, err := strconv.ParseBool(disableAuthStr)
+	authType, err := getAuthTypeParameter(cmd)
 	if err != nil {
-		return nil, fmt.Errorf("parse disableAuth: %w", err)
+		return nil, err
 	}
 
 	disableHTTPSIG, err := strconv.ParseBool(disableHTTPSIGStr)
@@ -312,7 +319,7 @@ func getParameters(cmd *cobra.Command) (*serverParameters, error) { //nolint:fun
 		kmsCacheTTL:          kmsCacheTTL,
 		shamirSecretCacheTTL: shamirSecretCacheTTL,
 		enableCache:          enableCache,
-		disableAuth:          disableAuth,
+		authType:             authType,
 		disableHTTPSIG:       disableHTTPSIG,
 		enableCORS:           enableCORS,
 		logLevel:             logLevel,
@@ -401,6 +408,33 @@ func getSecretLockParameters(cmd *cobra.Command) (*secretLockParameters, error) 
 	}, nil
 }
 
+func getAuthTypeParameter(cmd *cobra.Command) (rest.AuthMethod, error) {
+	var result rest.AuthMethod
+	value, err := getUserSetVar(cmd, authTypeFlagName, authTypeEnvKey, false)
+	if err != nil {
+		return rest.AuthNone, err
+	}
+	if value == "" {
+		return rest.AuthNone, nil
+	}
+
+	authTypes := strings.Split(value, ",")
+
+	for _, authType := range authTypes {
+		authType = strings.ToLower(strings.Trim(authType, " "))
+		switch authType {
+		case gnapAuthType:
+			result |= rest.AuthGNAP
+		case zcapAuthType:
+			result |= rest.AuthZCAP
+		default:
+			return rest.AuthNone, fmt.Errorf("%s is not a valid authorization type", authType)
+		}
+	}
+
+	return result, nil
+}
+
 func createFlags(startCmd *cobra.Command) {
 	startCmd.Flags().String(hostFlagName, "", hostFlagUsage)
 	startCmd.Flags().String(hostMetricsFlagName, "", hostMetricsFlagUsage)
@@ -420,7 +454,7 @@ func createFlags(startCmd *cobra.Command) {
 	startCmd.Flags().String(kmsCacheTTLFlagName, "10m", kmsCacheTTLFlagUsage)
 	startCmd.Flags().String(shamirSecretCacheTTLFlagName, "10m", shamirSecretCacheTTLFlagUsage)
 	startCmd.Flags().String(enableCacheFlagName, "true", enableCacheFlagUsage)
-	startCmd.Flags().String(disableAuthFlagName, "false", disableAuthFlagUsage)
+	startCmd.Flags().String(authTypeFlagName, "GNAP,ZCAP", authTypeFlagUsage)
 	startCmd.Flags().String(disableHTTPSIGFlagName, "false", disableHTTPSIGFlagUsage)
 	startCmd.Flags().String(enableCORSFlagName, "false", enableCORSFlagUsage)
 	startCmd.Flags().String(logLevelFlagName, "info", logLevelFlagUsage)

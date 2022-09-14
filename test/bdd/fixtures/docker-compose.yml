@@ -115,7 +115,7 @@ services:
       - KMS_DATABASE_TYPE=mongodb
       - KMS_DATABASE_URL=mongodb://mongodb.example.com:27017
       - KMS_DATABASE_PREFIX=orbkms_
-      - KMS_AUTH_DISABLE=true
+      - KMS_AUTH_TYPE=
       - KMS_GNAP_HTTPSIG_DISABLE=false
       - KMS_CACHE_ENABLE=true
       - KMS_LOG_LEVEL=debug

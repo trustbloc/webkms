@@ -68,7 +68,7 @@ $ ./build/bin/kms-server start --host localhost:8076 --database-type mongodb --d
 | --shamir-secret-cache-ttl    | KMS_SHAMIR_SECRET_CACHE_TTL    | An optional value for Shamir secrets cache TTL. Defaults to 10m if caching is enabled. If set to 0, keys are never cached.                | 
 | --kms-cache-ttl              | KMS_KMS_CACHE_TTL              | An optional value for cache TTL for keys stored in server kms. Defaults to 10m if caching is enabled. If set to 0, keys are never cached. |
 | --enable-cors                | KMS_CORS_ENABLE                | Enables CORS. Possible values: [true] [false]. Defaults to false.                                                                         |
-| --disable-auth               | KMS_AUTH_DISABLE               | Disables authorization. Possible values: [true] [false]. Defaults to false.                                                               |
+| --auth-type                  | KMS_AUTH_TYPE                  | Comma-separated list of the types of authorization to enable. Possible values [GNAP] [ZCAP]. Defaults to 'ZCAP,GNAP'.                     |
 | --log-level                  | KMS_LOG_LEVEL                  | Logging level. Supported options: critical, error, warning, info, debug. Defaults to info.                                                |
 
 ## Running tests
