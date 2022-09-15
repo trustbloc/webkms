@@ -98,10 +98,12 @@ mock-login-consent-docker:
 	@echo "Building mock login consent server"
 	@cd test/bdd/mock/loginconsent && docker build -f image/Dockerfile --build-arg GO_VER=$(GO_VER) --build-arg ALPINE_VER=$(ALPINE_VER) -t mockloginconsent:latest .
 
+# TODO (#334): frapsoft/openssl only has an amd64 version. While this does work under amd64 and arm64 Mac OS currently,
+#               we should add an arm64 version for systems that can only run arm64 code.
 .PHONY: generate-test-keys
 generate-test-keys:
 	@mkdir -p ./test/bdd/fixtures/keys/tls
-	@docker run -i --rm \
+	@docker run -i  --platform linux/amd64 --rm \
 		-v $(abspath .):/opt/workspace/kms \
 		--entrypoint "/opt/workspace/kms/scripts/generate_test_keys.sh" \
 		frapsoft/openssl
