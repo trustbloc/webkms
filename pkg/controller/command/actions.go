@@ -8,7 +8,6 @@ package command
 
 // List of actions supported by KMS.
 const (
-	ActionCreateDID        = "createDID"
 	ActionCreateKeyStore   = "createKeyStore"
 	ActionCreateKey        = "createKey"
 	ActionImportKey        = "importKey"

@@ -34,7 +34,7 @@ type user struct {
 	keyID      string
 	vaultID    string
 
-	subject     string
+	subject string
 
 	recipientPubKeys map[string]*publicKeyData
 	response         *response

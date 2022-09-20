@@ -28,9 +28,7 @@ func TestMiddleware(t *testing.T) {
 			h := &handler{}
 
 			config := newConfig()
-			mwFactory := Middleware{Config: config, Action: "createKey"}
-
-			mw := mwFactory.Middleware()(h)
+			mw := Middleware(config, "createKey", h)
 			require.IsType(t, &mwHandler{}, mw)
 			(mw).(*mwHandler).routeFunc = func(r *http.Request) namer {
 				return &mockNamer{name: r.URL.Path}
@@ -55,9 +53,7 @@ func TestMiddleware(t *testing.T) {
 			h := &handler{}
 
 			config := newConfig()
-			mwFactory := Middleware{Config: config, Action: ""}
-
-			mw := mwFactory.Middleware()(h)
+			mw := Middleware(config, "", h)
 			require.IsType(t, &mwHandler{}, mw)
 			(mw).(*mwHandler).routeFunc = func(r *http.Request) namer {
 				return &mockNamer{name: r.URL.Path}
@@ -71,18 +67,6 @@ func TestMiddleware(t *testing.T) {
 			require.Equal(t, http.StatusBadRequest, response.StatusCode) // we're not sending zcaps
 
 			require.Len(t, h.requestsCaptured, 0) // we're not sending zcaps
-		})
-
-		t.Run("should handle request with Capability-Invocation header", func(t *testing.T) {
-			config := newConfig()
-			mwFactory := Middleware{Config: config, Action: "createKey"}
-
-			req, err := http.NewRequestWithContext(context.Background(), "", "", http.NoBody)
-			require.NoError(t, err)
-
-			req.Header.Add("Capability-Invocation", "zcap")
-
-			require.True(t, mwFactory.Accept(req))
 		})
 	})
 }
@@ -157,21 +141,12 @@ func newConfig() *ZCAPConfig {
 }
 
 type mockAuthService struct {
-	createDIDKeyFunc func() (string, error)
 	newCapabilityVal *zcapld.Capability
 	newCapabilityErr error
 	keyManager       arieskms.KeyManager
 	crpto            crypto.Crypto
 	resolveVal       *zcapld.Capability
 	resolveErr       error
-}
-
-func (m *mockAuthService) CreateDIDKey(context.Context) (string, error) {
-	if m.createDIDKeyFunc != nil {
-		return m.createDIDKeyFunc()
-	}
-
-	return "", nil
 }
 
 func (m *mockAuthService) NewCapability(context.Context, ...zcapld.CapabilityOption) (*zcapld.Capability, error) {

@@ -59,9 +59,7 @@ import (
 
 	"github.com/trustbloc/kms/pkg/controller/command"
 	"github.com/trustbloc/kms/pkg/controller/mw"
-	"github.com/trustbloc/kms/pkg/controller/mw/authmw"
 	"github.com/trustbloc/kms/pkg/controller/mw/authmw/gnapmw"
-	"github.com/trustbloc/kms/pkg/controller/mw/authmw/oauthmw"
 	"github.com/trustbloc/kms/pkg/controller/mw/authmw/zcapmw"
 	"github.com/trustbloc/kms/pkg/controller/rest"
 	kmscache "github.com/trustbloc/kms/pkg/kms/cache"
@@ -236,7 +234,7 @@ func startServer(srv server, params *serverParameters) error { //nolint:funlen
 		ShamirSecretLockCreator: &shamirSecretLockCreator{},
 		CryptBoxCreator:         &cryptoBoxCreator{},
 		ZCAPService:             zcapService,
-		EnableZCAPs:             params.authType.HasFlag(rest.AuthZCAP),
+		EnableZCAPs:             params.serverAuthType.HasFlag(rest.AuthZCAP),
 		HeaderSigner:            zcapService,
 		TLSConfig:               tlsConfig,
 		BaseKeyStoreURL:         baseKeyStoreURL,
@@ -271,7 +269,7 @@ func startServer(srv server, params *serverParameters) error { //nolint:funlen
 		gnapRSClient          *rs.Client
 	)
 
-	if params.authType.HasFlag(rest.AuthGNAP)  {
+	if params.serverAuthType.HasFlag(rest.AuthGNAP) {
 		privateJWK, publicJWK, err = createGNAPSigningJWK(params.gnapSigningKeyPath)
 		if err != nil {
 			return fmt.Errorf("create gnap signing jwk: %w", err)
@@ -294,36 +292,23 @@ func startServer(srv server, params *serverParameters) error { //nolint:funlen
 	for _, h := range rest.New(cmd).GetRESTHandlers() {
 		var handler http.Handler = h.Handler()
 
-		if !params.authType.HasFlag(rest.AuthNone) && !h.Auth().HasFlag(rest.AuthNone) {
-			middlewares := make([]authmw.Middleware, 0)
-
-			if params.authType.HasFlag(rest.AuthZCAP)  {
-				if h.Auth().HasFlag(rest.AuthOAuth2) {
-					middlewares = append(middlewares, &oauthmw.Middleware{})
-				}
-				if h.Auth().HasFlag(rest.AuthZCAP) {
-					middlewares = append(middlewares, &zcapmw.Middleware{Config: zcapConfig, Action: h.Action()})
-				}
-			}
-
-			if params.authType.HasFlag(rest.AuthGNAP) && h.Auth().HasFlag(rest.AuthGNAP) {
-				gmw, err := gnapmw.NewMiddleware(
-					gnapRSClient,
-					publicJWK,
-					createGNAPVerifier,
-					params.baseURL,
-					params.disableHTTPSIG,
-				)
-				if err != nil {
-					return fmt.Errorf("new gnap middleware: %w", err)
-				}
-
-				middlewares = append(middlewares, gmw)
-			}
-
-			handler = authmw.Wrap(middlewares...)(handler)
+		if params.serverAuthType.HasFlag(rest.AuthZCAP) && h.Auth().HasFlag(rest.AuthZCAP) {
+			handler = zcapmw.Middleware(zcapConfig, h.Action(), handler)
 		}
 
+		if params.serverAuthType.HasFlag(rest.AuthGNAP) && h.Auth().HasFlag(rest.AuthGNAP) {
+			middleware, err := gnapmw.NewMiddleware(
+				gnapRSClient,
+				publicJWK,
+				createGNAPVerifier,
+				params.baseURL,
+				params.disableHTTPSIG,
+			)
+			if err != nil {
+				return fmt.Errorf("new gnap middleware: %w", err)
+			}
+			handler = middleware.Middleware(handler)
+		}
 		router.Handle(h.Path(), handler).Methods(h.Method())
 	}
 

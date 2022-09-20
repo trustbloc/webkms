@@ -29,38 +29,26 @@ import (
 	. "github.com/trustbloc/kms/pkg/controller/rest"
 )
 
-func TestOperation_CreateDID(t *testing.T) {
-	t.Run("Success", func(t *testing.T) {
-		cmd := NewMockCmd(gomock.NewController(t))
-
-		cmd.EXPECT().CreateDID(gomock.Any(), gomock.Any()).Do(func(_ io.Writer, r io.Reader) {
-			require.NoError(t, unwrapRequest(r, nil))
-		}).Return(nil).Times(1)
-
-		op := New(cmd)
-
-		require.Equal(t, http.StatusOK, handleRequest(t, op, DIDPath, http.MethodPost, bytes.NewReader(nil)))
-	})
-
+func TestOperation_CommandFailure(t *testing.T) {
 	t.Run("Fail to read request body", func(t *testing.T) {
 		cmd := NewMockCmd(gomock.NewController(t))
 
 		op := New(cmd)
 
 		require.Equal(t, http.StatusInternalServerError,
-			handleRequest(t, op, DIDPath, http.MethodPost, &failingReader{}))
+			handleRequest(t, op, KeyStorePath, http.MethodPost, &failingReader{}))
 	})
 
 	t.Run("Fail to execute command", func(t *testing.T) {
 		cmd := NewMockCmd(gomock.NewController(t))
 
-		cmd.EXPECT().CreateDID(gomock.Any(), gomock.Any()).Do(func(_ io.Writer, r io.Reader) {}).
+		cmd.EXPECT().CreateKeyStore(gomock.Any(), gomock.Any()).Do(func(_ io.Writer, r io.Reader) {}).
 			Return(errors.New("command error"))
 
 		op := New(cmd)
 
 		require.Equal(t, http.StatusInternalServerError,
-			handleRequest(t, op, DIDPath, http.MethodPost, bytes.NewReader(nil)))
+			handleRequest(t, op, KeyStorePath, http.MethodPost, bytes.NewReader(nil)))
 	})
 }
 

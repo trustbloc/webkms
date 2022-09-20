@@ -115,9 +115,8 @@ const (
 	authTypeEnvKey    = "KMS_AUTH_TYPE"
 	authTypeFlagName  = "auth-type"
 	authTypeFlagUsage = "Comma-separated list of the types of authorization to enable. " +
-		"Possible values [GNAP] [ZCAP]. " +
-		"If GNAP and ZCAP are both enabled, then a client may authorize themselves with either one. " +
-		"If no options are specified, then no authorization will be required. Defaults to 'ZCAP,GNAP'. " +
+		"Possible values [GNAP] [ZCAP], only one of them can be set" +
+		"If no options are specified, then no authorization will be required. Defaults to 'ZCAP'. " +
 		commonEnvVarUsageText + authTypeEnvKey
 
 	disableHTTPSIGEnvKey    = "KMS_GNAP_HTTPSIG_DISABLE"
@@ -192,7 +191,7 @@ type serverParameters struct {
 	kmsCacheTTL          time.Duration
 	shamirSecretCacheTTL time.Duration
 	enableCache          bool
-	authType             rest.AuthMethod
+	serverAuthType       rest.AuthMethod
 	disableHTTPSIG       bool
 	enableCORS           bool
 	logLevel             string
@@ -278,7 +277,7 @@ func getParameters(cmd *cobra.Command) (*serverParameters, error) { //nolint:fun
 		return nil, fmt.Errorf("parse enableCache: %w", err)
 	}
 
-	authType, err := getAuthTypeParameter(cmd)
+	serverAuthType, err := getAuthTypeParameter(cmd)
 	if err != nil {
 		return nil, err
 	}
@@ -319,7 +318,7 @@ func getParameters(cmd *cobra.Command) (*serverParameters, error) { //nolint:fun
 		kmsCacheTTL:          kmsCacheTTL,
 		shamirSecretCacheTTL: shamirSecretCacheTTL,
 		enableCache:          enableCache,
-		authType:             authType,
+		serverAuthType:       serverAuthType,
 		disableHTTPSIG:       disableHTTPSIG,
 		enableCORS:           enableCORS,
 		logLevel:             logLevel,
@@ -417,19 +416,14 @@ func getAuthTypeParameter(cmd *cobra.Command) (rest.AuthMethod, error) {
 	if value == "" {
 		return rest.AuthNone, nil
 	}
-
-	authTypes := strings.Split(value, ",")
-
-	for _, authType := range authTypes {
-		authType = strings.ToLower(strings.Trim(authType, " "))
-		switch authType {
-		case gnapAuthType:
-			result |= rest.AuthGNAP
-		case zcapAuthType:
-			result |= rest.AuthZCAP
-		default:
-			return rest.AuthNone, fmt.Errorf("%s is not a valid authorization type", authType)
-		}
+	authType := strings.ToLower(strings.Trim(value, " "))
+	switch authType {
+	case gnapAuthType:
+		result = rest.AuthGNAP
+	case zcapAuthType:
+		result = rest.AuthZCAP
+	default:
+		return rest.AuthNone, fmt.Errorf("%s is not a valid authorization type", authType)
 	}
 
 	return result, nil
@@ -454,7 +448,7 @@ func createFlags(startCmd *cobra.Command) {
 	startCmd.Flags().String(kmsCacheTTLFlagName, "10m", kmsCacheTTLFlagUsage)
 	startCmd.Flags().String(shamirSecretCacheTTLFlagName, "10m", shamirSecretCacheTTLFlagUsage)
 	startCmd.Flags().String(enableCacheFlagName, "true", enableCacheFlagUsage)
-	startCmd.Flags().String(authTypeFlagName, "GNAP,ZCAP", authTypeFlagUsage)
+	startCmd.Flags().String(authTypeFlagName, "ZCAP", authTypeFlagUsage)
 	startCmd.Flags().String(disableHTTPSIGFlagName, "false", disableHTTPSIGFlagUsage)
 	startCmd.Flags().String(enableCORSFlagName, "false", enableCORSFlagUsage)
 	startCmd.Flags().String(logLevelFlagName, "info", logLevelFlagUsage)

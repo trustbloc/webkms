@@ -30,8 +30,6 @@ type AuthMethod int
 const (
 	// AuthNone defines that auth is not handled by the service.
 	AuthNone AuthMethod = 1 << iota
-	// AuthOAuth2 defines OAuth2 as a supported auth method for the handler.
-	AuthOAuth2
 	// AuthZCAP defines ZCAP as a supported auth method for the handler.
 	AuthZCAP
 	// AuthGNAP defines GNAP as a supported auth method for the handler.

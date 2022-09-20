@@ -75,34 +75,18 @@ type HTTPHandler interface {
 	http.Handler
 }
 
-// Accept checks if the request can be handled by the GNAP middleware.
-func (mw *Middleware) Accept(req *http.Request) bool {
-	v := req.Header.Values("Authorization")
-	for _, h := range v {
-		if strings.Contains(h, gnapToken) {
-			logger.Debugf("Accept: %v is true", v)
-
-			return true
-		}
-	}
-
-	return false
-}
-
 // Middleware returns middleware func.
-func (mw *Middleware) Middleware() func(http.Handler) http.Handler {
-	return func(next http.Handler) http.Handler {
-		return &gnapHandler{
-			client: mw.client,
-			clientKey: &gnap.ClientKey{
-				Proof: proofType,
-				JWK:   *mw.rsPubKey,
-			},
-			createVerifier: mw.createVerifier,
-			disableHTTPSIG: mw.disableHTTPSIG,
-			externalURL:    mw.externalURL,
-			next:           next,
-		}
+func (mw *Middleware) Middleware(next http.Handler) http.Handler {
+	return &gnapHandler{
+		client: mw.client,
+		clientKey: &gnap.ClientKey{
+			Proof: proofType,
+			JWK:   *mw.rsPubKey,
+		},
+		createVerifier: mw.createVerifier,
+		disableHTTPSIG: mw.disableHTTPSIG,
+		externalURL:    mw.externalURL,
+		next:           next,
 	}
 }
 

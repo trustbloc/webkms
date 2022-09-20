@@ -123,6 +123,7 @@ func TestStartCmdWithMissingArg(t *testing.T) {
 			"--" + databaseTypeFlagName, storageTypeMemOption,
 			"--" + secretLockTypeFlagName, secretLockTypeLocalOption,
 			"--" + secretLockKeyPathFlagName, secretLockKeyFile,
+			"--" + authTypeFlagName, gnapAuthType,
 			"--" + gnapSigningKeyPathFlagName, gnapSigningKeyFile,
 		}
 		startCmd.SetArgs(args)
@@ -130,6 +131,24 @@ func TestStartCmdWithMissingArg(t *testing.T) {
 		err = startCmd.Execute()
 		require.Error(t, err)
 		require.Equal(t, "create gnap rs client: gnap introspect client: missing Resource Server URL", err.Error())
+	})
+
+	t.Run("wrong gnap-signing-key path", func(t *testing.T) {
+		startCmd, err := Cmd(&mockServer{})
+		require.NoError(t, err)
+
+		args := []string{
+			"--" + databaseTypeFlagName, storageTypeMemOption,
+			"--" + secretLockTypeFlagName, secretLockTypeLocalOption,
+			"--" + secretLockKeyPathFlagName, secretLockKeyFile,
+			"--" + authTypeFlagName, gnapAuthType,
+			"--" + gnapSigningKeyPathFlagName, "/non-existent/path",
+		}
+		startCmd.SetArgs(args)
+
+		err = startCmd.Execute()
+		require.Error(t, err)
+		require.Equal(t, "create gnap signing jwk: read file: open /non-existent/path: no such file or directory", err.Error())
 	})
 }
 
@@ -513,12 +532,25 @@ func TestStartCmdWithKMSCacheTTLParam(t *testing.T) {
 }
 
 func TestStartCmdWithAuthTypeParam(t *testing.T) {
-	t.Run("Success with ZCAP and GNAP set", func(t *testing.T) {
+	t.Run("Success with ZCAP set", func(t *testing.T) {
 		startCmd, err := Cmd(&mockServer{})
 		require.NoError(t, err)
 
 		args := requiredArgs(storageTypeMemOption)
-		args = append(args, "--"+authTypeFlagName, "ZCAP,GNAP")
+		args = append(args, "--"+authTypeFlagName, "ZCAP")
+
+		startCmd.SetArgs(args)
+
+		err = startCmd.Execute()
+		require.NoError(t, err)
+	})
+
+	t.Run("Success with GNAP set", func(t *testing.T) {
+		startCmd, err := Cmd(&mockServer{})
+		require.NoError(t, err)
+
+		args := requiredArgs(storageTypeMemOption)
+		args = append(args, "--"+authTypeFlagName, "GNAP")
 
 		startCmd.SetArgs(args)
 
@@ -537,6 +569,19 @@ func TestStartCmdWithAuthTypeParam(t *testing.T) {
 
 		err = startCmd.Execute()
 		require.NoError(t, err)
+	})
+
+	t.Run("Fail with both ZCAP and GNAP set", func(t *testing.T) {
+		startCmd, err := Cmd(&mockServer{})
+		require.NoError(t, err)
+
+		args := requiredArgs(storageTypeMemOption)
+		args = append(args, "--"+authTypeFlagName, "ZCAP,GNAP")
+
+		startCmd.SetArgs(args)
+
+		err = startCmd.Execute()
+		require.Error(t, err)
 	})
 
 	t.Run("Fail with unknown auth type", func(t *testing.T) {

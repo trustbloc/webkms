@@ -37,7 +37,6 @@ type CapabilityResolver = zcapld.CapabilityResolver
 type VDRResolver = zcapld.VDRResolver
 
 type authService interface {
-	CreateDIDKey(context.Context) (string, error)
 	NewCapability(ctx context.Context, options ...zcapld.CapabilityOption) (*zcapld.Capability, error)
 	KMS() kms.KeyManager
 	Crypto() crypto.Crypto
@@ -54,35 +53,20 @@ type ZCAPConfig struct {
 	ResourceIDQueryParam string
 }
 
-// Middleware is a zcapld auth middleware.
-type Middleware struct {
-	Config *ZCAPConfig
-	Action string
-}
-
-// Accept checks if middleware can handle auth for the given request.
-func (mw *Middleware) Accept(req *http.Request) bool {
-	headerValues := req.Header.Values("Capability-Invocation")
-
-	return len(headerValues) > 0
-}
-
 // Middleware returns middleware func.
-func (mw *Middleware) Middleware() func(http.Handler) http.Handler {
-	return func(next http.Handler) http.Handler {
-		return &mwHandler{
-			next:                 next,
-			zcaps:                &capabilityResolverMetrics{wrapped: mw.Config.AuthService},
-			keys:                 mw.Config.AuthService.KMS(),
-			crpto:                mw.Config.AuthService.Crypto(),
-			jsonLDLoader:         &documentLoaderMetrics{wrapped: mw.Config.JSONLDLoader},
-			logger:               mw.Config.Logger,
-			routeFunc:            (&muxNamer{}).GetName,
-			vdrResolver:          &vdrResolverMetrics{wrapped: mw.Config.VDRResolver},
-			baseResourceURL:      mw.Config.BaseResourceURL,
-			resourceIDQueryParam: mw.Config.ResourceIDQueryParam,
-			handlerAction:        mw.Action,
-		}
+func Middleware(config *ZCAPConfig, action string, next http.Handler) http.Handler {
+	return &mwHandler{
+		next:                 next,
+		zcaps:                &capabilityResolverMetrics{wrapped: config.AuthService},
+		keys:                 config.AuthService.KMS(),
+		crpto:                config.AuthService.Crypto(),
+		jsonLDLoader:         &documentLoaderMetrics{wrapped: config.JSONLDLoader},
+		logger:               config.Logger,
+		routeFunc:            (&muxNamer{}).GetName,
+		vdrResolver:          &vdrResolverMetrics{wrapped: config.VDRResolver},
+		baseResourceURL:      config.BaseResourceURL,
+		resourceIDQueryParam: config.ResourceIDQueryParam,
+		handlerAction:        action,
 	}
 }
 

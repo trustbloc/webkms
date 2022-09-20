@@ -10,21 +10,6 @@ import (
 	"time"
 )
 
-// createDIDReq model
-//
-// swagger:parameters createDIDReq
-type createDIDReq struct{} //nolint:unused,deadcode
-
-// createDIDResp model
-//
-// swagger:response createDIDResp
-type createDIDResp struct { //nolint:unused,deadcode
-	// in: body
-	Body struct {
-		DID string `json:"did"`
-	}
-}
-
 // createKeyStoreReq model
 //
 // swagger:parameters createKeyStoreReq

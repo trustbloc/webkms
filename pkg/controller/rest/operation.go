@@ -62,7 +62,6 @@ var logger = log.New("controller/rest")
 
 // Cmd defines command methods.
 type Cmd interface {
-	CreateDID(w io.Writer, r io.Reader) error
 	CreateKeyStore(w io.Writer, r io.Reader) error
 	CreateKey(w io.Writer, r io.Reader) error
 	ExportKey(w io.Writer, r io.Reader) error
@@ -98,8 +97,7 @@ func New(cmd Cmd) *Operation {
 // GetRESTHandlers returns list of all handlers supported by this controller.
 func (o *Operation) GetRESTHandlers() []Handler {
 	return []Handler{
-		NewHTTPHandler(DIDPath, http.MethodPost, o.CreateDID, command.ActionCreateDID, AuthOAuth2),
-		NewHTTPHandler(KeyStorePath, http.MethodPost, o.CreateKeyStore, command.ActionCreateKeyStore, AuthOAuth2|AuthGNAP), //nolint:lll
+		NewHTTPHandler(KeyStorePath, http.MethodPost, o.CreateKeyStore, command.ActionCreateKeyStore, AuthGNAP),
 		NewHTTPHandler(KeyPath, http.MethodPost, o.CreateKey, command.ActionCreateKey, AuthZCAP|AuthGNAP),
 		NewHTTPHandler(KeyPath, http.MethodPut, o.ImportKey, command.ActionImportKey, AuthZCAP|AuthGNAP),
 		NewHTTPHandler(ExportKeyPath, http.MethodGet, o.ExportKey, command.ActionExportKey, AuthZCAP|AuthGNAP),
@@ -124,17 +122,6 @@ func (o *Operation) GetRESTHandlers() []Handler {
 			command.ActionSignWithSecrets, AuthZCAP|AuthGNAP),
 		NewHTTPHandler(HealthCheckPath, http.MethodGet, o.HealthCheck, "", AuthNone),
 	}
-}
-
-// CreateDID swagger:route POST /v1/keystores/did kms createDIDReq
-//
-// Creates a DID.
-//
-// Responses:
-//        201: createDIDResp
-//    default: errorResp
-func (o *Operation) CreateDID(rw http.ResponseWriter, req *http.Request) {
-	execute(o.cmd.CreateDID, rw, req)
 }
 
 // CreateKeyStore swagger:route POST /v1/keystores kms createKeyStoreReq

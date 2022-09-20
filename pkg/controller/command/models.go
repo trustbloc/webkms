@@ -24,11 +24,6 @@ type WrappedRequest struct {
 	Request     []byte `json:"request"`
 }
 
-// CreateDIDResponse is a response for CreateDID request.
-type CreateDIDResponse struct {
-	DID string `json:"did"`
-}
-
 // CreateKeyStoreRequest is a request to create user's key store.
 type CreateKeyStoreRequest struct {
 	Controller string `json:"controller"`
