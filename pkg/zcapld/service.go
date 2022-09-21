@@ -56,16 +56,6 @@ func New(keyManager kms.KeyManager, crypto cryptoapi.Crypto, sp storage.Provider
 	}, nil
 }
 
-// CreateDIDKey create did key.
-func (s *Service) CreateDIDKey(ctx context.Context) (string, error) {
-	signer, err := signature.NewCryptoSigner(s.crypto, s.keyManager, kms.ED25519)
-	if err != nil {
-		return "", fmt.Errorf("failed to create crypto signer: %w", err)
-	}
-
-	return didKeyURL(signer.PublicKeyBytes()), nil
-}
-
 // SignHeader sign header.
 func (s *Service) SignHeader(req *http.Request, capabilityBytes []byte) (*http.Header, error) {
 	capability, err := zcapld.ParseCapability(capabilityBytes)

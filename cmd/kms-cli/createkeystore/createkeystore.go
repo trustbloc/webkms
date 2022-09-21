@@ -24,7 +24,7 @@ const (
 )
 
 type createKeystoreReq struct {
-	Controller string      `json:"controller"`
+	Controller string `json:"controller"`
 }
 
 type createKeyStoreResp struct {

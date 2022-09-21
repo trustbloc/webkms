@@ -9,7 +9,6 @@ package zcapld_test
 import (
 	"encoding/json"
 	"errors"
-	"fmt"
 	"net/http"
 	"testing"
 
@@ -37,38 +36,6 @@ func TestNew(t *testing.T) {
 		)
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "failed to open store")
-	})
-}
-
-func TestService_CreateDIDKey(t *testing.T) {
-	t.Run("test error from create did key", func(t *testing.T) {
-		svc, err := zcapld.New(
-			&mockkms.KeyManager{CreateKeyErr: fmt.Errorf("failed to create")},
-			&mockcrypto.Crypto{},
-			&mockstorage.MockStoreProvider{},
-			createTestDocumentLoader(t),
-		)
-		require.NoError(t, err)
-
-		didKey, err := svc.CreateDIDKey(context.Background())
-		require.Error(t, err)
-		require.Contains(t, err.Error(), "failed to create")
-		require.Empty(t, didKey)
-	})
-
-	t.Run("test success", func(t *testing.T) {
-		svc, err := zcapld.New(
-			&mockkms.KeyManager{},
-			&mockcrypto.Crypto{},
-			&mockstorage.MockStoreProvider{},
-			createTestDocumentLoader(t),
-		)
-
-		require.NoError(t, err)
-
-		didKey, err := svc.CreateDIDKey(context.Background())
-		require.NoError(t, err)
-		require.NotEmpty(t, didKey)
 	})
 }
 

@@ -35,8 +35,7 @@ import (
 )
 
 const (
-	httpSigAlgorithm = "ECDSA-SHA256"
-	proofType        = "httpsig"
+	proofType = "httpsig"
 )
 
 const (

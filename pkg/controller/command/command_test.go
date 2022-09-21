@@ -52,54 +52,6 @@ func TestNew(t *testing.T) {
 	})
 }
 
-func TestCommand_CreateDID(t *testing.T) {
-	t.Run("Success", func(t *testing.T) {
-		ctrl := gomock.NewController(t)
-
-		zcap := NewMockZCAPService(ctrl)
-		zcap.EXPECT().CreateDIDKey(context.Background()).Return("did:example:test", nil)
-
-		cmd, err := New(&Config{
-			StorageProvider: mockstorage.NewMockStoreProvider(),
-			ZCAPService:     zcap,
-			EnableZCAPs:     true,
-		})
-		require.NoError(t, err)
-		require.NotNil(t, cmd)
-
-		var buf bytes.Buffer
-
-		err = cmd.CreateDID(&buf, nil)
-		require.NoError(t, err)
-
-		var resp CreateDIDResponse
-
-		err = json.Unmarshal(buf.Bytes(), &resp)
-		require.NoError(t, err)
-		require.Equal(t, "did:example:test", resp.DID)
-	})
-
-	t.Run("Fail to create a did:key", func(t *testing.T) {
-		ctrl := gomock.NewController(t)
-
-		zcap := NewMockZCAPService(ctrl)
-		zcap.EXPECT().CreateDIDKey(context.Background()).Return("", errors.New("create did key error"))
-
-		cmd, err := New(&Config{
-			StorageProvider: mockstorage.NewMockStoreProvider(),
-			ZCAPService:     zcap,
-			EnableZCAPs:     true,
-		})
-		require.NoError(t, err)
-		require.NotNil(t, cmd)
-
-		var buf bytes.Buffer
-
-		err = cmd.CreateDID(&buf, nil)
-		require.EqualError(t, err, "create did:key: create did key error")
-	})
-}
-
 func TestCommand_CreateKeyStore(t *testing.T) {
 	t.Run("Success with Shamir secret lock", func(t *testing.T) {
 		ctrl := gomock.NewController(t)

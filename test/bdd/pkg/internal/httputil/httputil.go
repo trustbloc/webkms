@@ -117,12 +117,12 @@ type requestSigner interface {
 }
 
 type options struct {
-	httpClient     *http.Client
-	method         string
-	headers        []string
-	body           io.Reader
-	gnapToken      string
-	signer         requestSigner
+	httpClient *http.Client
+	method     string
+	headers    []string
+	body       io.Reader
+	gnapToken  string
+	signer     requestSigner
 }
 
 // Opt configures HTTP request options.

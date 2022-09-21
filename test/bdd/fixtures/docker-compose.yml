@@ -40,8 +40,7 @@ services:
       - KMS_SECRET_LOCK_AWS_ENDPOINT=http://aws-kms.trustbloc.local:8020
       - AWS_ACCESS_KEY_ID=mock
       - AWS_SECRET_ACCESS_KEY=mock
-      - KMS_GNAP_SIGNING_KEY=/etc/gnap-priv-key.pem
-      - KMS_AUTH_SERVER_URL=https://auth.trustbloc.local:8070
+      - KMS_AUTH_TYPE=ZCAP
     ports:
       - 8074:8074
       - 48831:48831
@@ -73,8 +72,7 @@ services:
       - KMS_SECRET_LOCK_AWS_ENDPOINT=http://aws-kms.trustbloc.local:8020
       - AWS_ACCESS_KEY_ID=mock
       - AWS_SECRET_ACCESS_KEY=mock
-      - KMS_GNAP_SIGNING_KEY=/etc/gnap-priv-key.pem
-      - KMS_AUTH_SERVER_URL=https://auth.trustbloc.local:8070
+      - KMS_AUTH_TYPE=ZCAP
     ports:
       - 8075:8075
       - 48832:48832
@@ -134,6 +132,41 @@ services:
       - mongodb.example.com
     networks:
       - bdd_net
+
+  gnap-kms.trustbloc.local:
+    container_name: gnap-kms.trustbloc.local
+    image: ${KMS_SERVER_IMAGE}:latest
+    environment:
+      - KMS_HOST=0.0.0.0:8079
+      - KMS_METRICS_HOST=0.0.0.0:48834
+      - KMS_BASE_URL=https://kms.trustbloc.local:8079
+      - KMS_TLS_CACERTS=/etc/tls/ec-cacert.pem
+      - KMS_TLS_SERVE_CERT=/etc/tls/ec-pubCert.pem
+      - KMS_TLS_SERVE_KEY=/etc/tls/ec-key.pem
+      - KMS_DATABASE_TYPE=mongodb
+      - KMS_DATABASE_URL=mongodb://mongodb.example.com:27017
+      - KMS_DATABASE_PREFIX=gnapkms_
+      - KMS_CACHE_ENABLE=true
+      - KMS_LOG_LEVEL=debug
+      - KMS_SECRET_LOCK_TYPE=aws
+      - KMS_SECRET_LOCK_AWS_KEY_URI=aws-kms://arn:aws:kms:ca-central-1:111122223333:key/bc436485-5092-42b8-92a3-0aa8b93536dc
+      - KMS_SECRET_LOCK_AWS_ENDPOINT=http://aws-kms.trustbloc.local:8020
+      - AWS_ACCESS_KEY_ID=mock
+      - AWS_SECRET_ACCESS_KEY=mock
+      - KMS_AUTH_TYPE=GNAP
+      - KMS_GNAP_SIGNING_KEY=/etc/gnap-priv-key.pem
+      - KMS_AUTH_SERVER_URL=https://auth.trustbloc.local:8070
+    ports:
+      - 8079:8079
+      - 48834:48834
+    volumes:
+      - ./keys:/etc
+    command: start
+    depends_on:
+      - mongodb.example.com
+    networks:
+      - bdd_net
+
 
   oathkeeper-ops-keyserver.trustbloc.local:
     container_name: oathkeeper-ops-keyserver.trustbloc.local

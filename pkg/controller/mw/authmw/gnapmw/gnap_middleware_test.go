@@ -15,7 +15,6 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
-	"strings"
 	"testing"
 
 	"github.com/golang/mock/gomock"
@@ -26,50 +25,6 @@ import (
 
 	"github.com/trustbloc/kms/pkg/controller/mw/authmw/gnapmw"
 )
-
-func TestAccept(t *testing.T) {
-	tests := []struct {
-		name     string
-		headers  []string
-		accepted bool
-	}{
-		{
-			"no authorization header",
-			[]string{},
-			false,
-		},
-		{
-			"bearer token",
-			[]string{"Authorization: Bearer token"},
-			false,
-		},
-		{
-			"gnap token",
-			[]string{"Authorization: GNAP token"},
-			true,
-		},
-		{
-			"multiple authorization headers",
-			[]string{"Authorization: GNAP token", "Authorization: Bearer token"},
-			true,
-		},
-	}
-
-	mw := gnapmw.Middleware{}
-
-	for _, tt := range tests {
-		req, err := http.NewRequestWithContext(context.Background(), "", "", http.NoBody)
-		require.NoError(t, err)
-
-		for _, header := range tt.headers {
-			v := strings.Split(header, ":")
-
-			req.Header.Add(v[0], v[1])
-		}
-
-		require.Equal(t, tt.accepted, mw.Accept(req))
-	}
-}
 
 type gnapRSClientTest interface {
 	Introspect(req *gnap.IntrospectRequest) (*gnap.IntrospectResponse, error)
@@ -162,7 +117,7 @@ func TestMiddleware(t *testing.T) {
 
 		rr := httptest.NewRecorder()
 
-		mw.Middleware()(next).ServeHTTP(rr, req)
+		mw.Middleware(next).ServeHTTP(rr, req)
 
 		require.Equal(t, http.StatusOK, rr.Code)
 	})
@@ -214,7 +169,7 @@ func TestMiddleware(t *testing.T) {
 
 		rr := httptest.NewRecorder()
 
-		mw.Middleware()(next).ServeHTTP(rr, req)
+		mw.Middleware(next).ServeHTTP(rr, req)
 
 		require.Equal(t, http.StatusOK, rr.Code)
 	})
@@ -264,7 +219,7 @@ func TestMiddleware(t *testing.T) {
 
 		rr := httptest.NewRecorder()
 
-		mw.Middleware()(next).ServeHTTP(rr, req)
+		mw.Middleware(next).ServeHTTP(rr, req)
 
 		require.Equal(t, http.StatusUnauthorized, rr.Code)
 	})
@@ -293,7 +248,7 @@ func TestMiddleware(t *testing.T) {
 
 		rr := httptest.NewRecorder()
 
-		mw.Middleware()(next).ServeHTTP(rr, req)
+		mw.Middleware(next).ServeHTTP(rr, req)
 
 		require.Equal(t, http.StatusUnauthorized, rr.Code)
 	})
@@ -322,7 +277,7 @@ func TestMiddleware(t *testing.T) {
 
 		rr := httptest.NewRecorder()
 
-		mw.Middleware()(next).ServeHTTP(rr, req)
+		mw.Middleware(next).ServeHTTP(rr, req)
 
 		require.Equal(t, http.StatusInternalServerError, rr.Code)
 	})
@@ -351,7 +306,7 @@ func TestMiddleware(t *testing.T) {
 
 		rr := httptest.NewRecorder()
 
-		mw.Middleware()(next).ServeHTTP(rr, req)
+		mw.Middleware(next).ServeHTTP(rr, req)
 
 		require.Equal(t, http.StatusUnauthorized, rr.Code)
 	})

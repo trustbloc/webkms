@@ -33,7 +33,6 @@ import (
 )
 
 type zcapService interface {
-	CreateDIDKey(context.Context) (string, error)
 	NewCapability(ctx context.Context, options ...zcapld.CapabilityOption) (*zcapld.Capability, error)
 	KMS() kms.KeyManager
 	Crypto() crypto.Crypto
@@ -152,16 +151,6 @@ func New(c *Config) (*Command, error) {
 		keyStoreCacheTTL:   c.KeyStoreCacheTTL,
 		metrics:            c.MetricsProvider,
 	}, nil
-}
-
-// CreateDID creates a new DID.
-func (c *Command) CreateDID(w io.Writer, _ io.Reader) error {
-	didKey, err := c.zcap.CreateDIDKey(context.Background())
-	if err != nil {
-		return fmt.Errorf("create did:key: %w", err)
-	}
-
-	return json.NewEncoder(w).Encode(CreateDIDResponse{DID: didKey})
 }
 
 // CreateKey creates a new key.
