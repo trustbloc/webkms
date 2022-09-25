@@ -182,10 +182,30 @@ func (s *Service) Create(kt arieskms.KeyType) (string, interface{}, error) {
 	return *result.KeyMetadata.KeyId, *result.KeyMetadata.KeyId, nil
 }
 
+// CreateAndExportPubKeyBytes create and export key.
+func (s *Service) CreateAndExportPubKeyBytes(kt arieskms.KeyType, opts ...arieskms.KeyOpts) (string, []byte, error) {
+	keyID, _, err := s.Create(kt)
+	if err != nil {
+		return "", nil, err
+	}
+
+	pubKeyBytes, _, err := s.ExportPubKeyBytes(keyID)
+	if err != nil {
+		return "", nil, err
+	}
+
+	return keyID, pubKeyBytes, nil
+}
+
 // ImportPrivateKey private key.
 func (s *Service) ImportPrivateKey(privKey interface{}, kt arieskms.KeyType,
 	opts ...arieskms.PrivateKeyOpts) (string, interface{}, error) {
 	return "", nil, fmt.Errorf("not implemented")
+}
+
+// SignMulti sign multi.
+func (s *Service) SignMulti(messages [][]byte, kh interface{}) ([]byte, error) {
+	return nil, fmt.Errorf("not implemented")
 }
 
 func getKeyID(keyURI string) (string, error) {

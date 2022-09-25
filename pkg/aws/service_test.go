@@ -187,6 +187,57 @@ func TestGet(t *testing.T) {
 	})
 }
 
+func TestCreateAndPubKeyBytes(t *testing.T) {
+	t.Run("success", func(t *testing.T) {
+		endpoint := localhost
+		awsSession, err := session.NewSession(&aws.Config{
+			Endpoint:                      &endpoint,
+			Region:                        aws.String("ca"),
+			CredentialsChainVerboseErrors: aws.Bool(true),
+		})
+		require.NoError(t, err)
+
+		keyID := "aws-kms://arn:aws:kms:ca-central-1:111122223333:key/800d5768-3fd7-4edd-a4b8-4c81c3e4c147"
+
+		svc := New(awsSession, &mockMetrics{}, "")
+
+		svc.client = &mockAWSClient{
+			getPublicKeyFunc: func(input *kms.GetPublicKeyInput) (*kms.GetPublicKeyOutput, error) {
+				signingAlgo := "ECDSA_SHA_256"
+
+				return &kms.GetPublicKeyOutput{
+					PublicKey:         []byte("publickey"),
+					SigningAlgorithms: []*string{&signingAlgo},
+				}, nil
+			},
+			createKeyFunc: func(input *kms.CreateKeyInput) (req *request.Request, output *kms.CreateKeyOutput) {
+				return nil, &kms.CreateKeyOutput{KeyMetadata: &kms.KeyMetadata{KeyId: &keyID}}
+			},
+		}
+
+		keyID, publicKey, err := svc.CreateAndExportPubKeyBytes(arieskms.ECDSAP256DER)
+		require.NoError(t, err)
+		require.Contains(t, string(publicKey), "publickey")
+		require.Contains(t, keyID, keyID)
+	})
+}
+
+func TestSignMulti(t *testing.T) {
+	endpoint := localhost
+	awsSession, err := session.NewSession(&aws.Config{
+		Endpoint:                      &endpoint,
+		Region:                        aws.String("ca"),
+		CredentialsChainVerboseErrors: aws.Bool(true),
+	})
+	require.NoError(t, err)
+
+	svc := New(awsSession, &mockMetrics{}, "")
+
+	_, err = svc.SignMulti(nil, nil)
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "not implemented")
+}
+
 func TestPubKeyBytes(t *testing.T) {
 	t.Run("success", func(t *testing.T) {
 		endpoint := localhost
