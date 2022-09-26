@@ -13,7 +13,6 @@ import (
 	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/request"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/kms"
 	arieskms "github.com/hyperledger/aries-framework-go/pkg/kms"
@@ -24,7 +23,7 @@ type awsClient interface {
 	GetPublicKey(input *kms.GetPublicKeyInput) (*kms.GetPublicKeyOutput, error)
 	Verify(input *kms.VerifyInput) (*kms.VerifyOutput, error)
 	DescribeKey(input *kms.DescribeKeyInput) (*kms.DescribeKeyOutput, error)
-	CreateKeyRequest(input *kms.CreateKeyInput) (req *request.Request, output *kms.CreateKeyOutput)
+	CreateKey(input *kms.CreateKeyInput) (*kms.CreateKeyOutput, error)
 }
 
 type metricsProvider interface {
@@ -60,10 +59,14 @@ func (s *Service) Sign(msg []byte, kh interface{}) ([]byte, error) {
 	startTime := time.Now()
 
 	defer func() {
-		s.metrics.SignTime(time.Since(startTime))
+		if s.metrics != nil {
+			s.metrics.SignTime(time.Since(startTime))
+		}
 	}()
 
-	s.metrics.SignCount()
+	if s.metrics != nil {
+		s.metrics.SignCount()
+	}
 
 	keyID, err := getKeyID(kh.(string))
 	if err != nil {
@@ -110,10 +113,14 @@ func (s *Service) ExportPubKeyBytes(keyURI string) ([]byte, arieskms.KeyType, er
 	startTime := time.Now()
 
 	defer func() {
-		s.metrics.ExportPublicKeyTime(time.Since(startTime))
+		if s.metrics != nil {
+			s.metrics.ExportPublicKeyTime(time.Since(startTime))
+		}
 	}()
 
-	s.metrics.ExportPublicKeyCount()
+	if s.metrics != nil {
+		s.metrics.ExportPublicKeyCount()
+	}
 
 	keyID, err := getKeyID(keyURI)
 	if err != nil {
@@ -137,10 +144,14 @@ func (s *Service) Verify(signature, msg []byte, kh interface{}) error {
 	startTime := time.Now()
 
 	defer func() {
-		s.metrics.VerifyTime(time.Since(startTime))
+		if s.metrics != nil {
+			s.metrics.VerifyTime(time.Since(startTime))
+		}
 	}()
 
-	s.metrics.VerifyCount()
+	if s.metrics != nil {
+		s.metrics.VerifyCount()
+	}
 
 	keyID, err := getKeyID(kh.(string))
 	if err != nil {
@@ -177,7 +188,10 @@ func (s *Service) Create(kt arieskms.KeyType) (string, interface{}, error) {
 		return "", nil, fmt.Errorf("key not supported %s", kt)
 	}
 
-	_, result := s.client.CreateKeyRequest(&kms.CreateKeyInput{KeySpec: &keySpec, KeyUsage: &keyUsage})
+	result, err := s.client.CreateKey(&kms.CreateKeyInput{KeySpec: &keySpec, KeyUsage: &keyUsage})
+	if err != nil {
+		return "", nil, err
+	}
 
 	return *result.KeyMetadata.KeyId, *result.KeyMetadata.KeyId, nil
 }
@@ -209,6 +223,10 @@ func (s *Service) SignMulti(messages [][]byte, kh interface{}) ([]byte, error) {
 }
 
 func getKeyID(keyURI string) (string, error) {
+	if !strings.Contains(keyURI, "aws-kms") {
+		return keyURI, nil
+	}
+
 	// keyURI must have the following format: 'aws-kms://arn:<partition>:kms:<region>:[:path]'.
 	// See http://docs.aws.amazon.com/general/latest/gr/aws-arns-and-namespaces.html.
 	re1 := regexp.MustCompile(`aws-kms://arn:(aws[a-zA-Z0-9-_]*):kms:([a-z0-9-]+):([a-z0-9-]+):key/(.+)`)
