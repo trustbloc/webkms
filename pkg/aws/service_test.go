@@ -12,7 +12,6 @@ import (
 	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/request"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/kms"
 	arieskms "github.com/hyperledger/aries-framework-go/pkg/kms"
@@ -79,7 +78,7 @@ func TestSign(t *testing.T) {
 
 		svc := New(awsSession, &mockMetrics{}, "")
 
-		_, err = svc.Sign([]byte("msg"), "key1")
+		_, err = svc.Sign([]byte("msg"), "aws-kms://arn:aws:kms:key1")
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "extracting key id from URI failed")
 	})
@@ -142,9 +141,8 @@ func TestCreate(t *testing.T) {
 
 		keyID := "key1"
 
-		svc.client = &mockAWSClient{createKeyFunc: func(input *kms.CreateKeyInput) (req *request.Request,
-			output *kms.CreateKeyOutput) {
-			return nil, &kms.CreateKeyOutput{KeyMetadata: &kms.KeyMetadata{KeyId: &keyID}}
+		svc.client = &mockAWSClient{createKeyFunc: func(input *kms.CreateKeyInput) (*kms.CreateKeyOutput, error) {
+			return &kms.CreateKeyOutput{KeyMetadata: &kms.KeyMetadata{KeyId: &keyID}}, nil
 		}}
 
 		result, _, err := svc.Create(arieskms.ECDSAP256DER)
@@ -210,8 +208,8 @@ func TestCreateAndPubKeyBytes(t *testing.T) {
 					SigningAlgorithms: []*string{&signingAlgo},
 				}, nil
 			},
-			createKeyFunc: func(input *kms.CreateKeyInput) (req *request.Request, output *kms.CreateKeyOutput) {
-				return nil, &kms.CreateKeyOutput{KeyMetadata: &kms.KeyMetadata{KeyId: &keyID}}
+			createKeyFunc: func(input *kms.CreateKeyInput) (*kms.CreateKeyOutput, error) {
+				return &kms.CreateKeyOutput{KeyMetadata: &kms.KeyMetadata{KeyId: &keyID}}, nil
 			},
 		}
 
@@ -298,7 +296,7 @@ func TestPubKeyBytes(t *testing.T) {
 
 		svc := New(awsSession, &mockMetrics{}, "")
 
-		_, _, err = svc.ExportPubKeyBytes("key1")
+		_, _, err = svc.ExportPubKeyBytes("aws-kms://arn:aws:kms:key1")
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "extracting key id from URI failed")
 	})
@@ -357,7 +355,7 @@ func TestVerify(t *testing.T) {
 
 		svc := New(awsSession, &mockMetrics{}, "")
 
-		err = svc.Verify([]byte("sign"), []byte("msg"), "key1")
+		err = svc.Verify([]byte("sign"), []byte("msg"), "aws-kms://arn:aws:kms:key1")
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "extracting key id from URI failed")
 	})
@@ -368,7 +366,7 @@ type mockAWSClient struct {
 	getPublicKeyFunc func(input *kms.GetPublicKeyInput) (*kms.GetPublicKeyOutput, error)
 	verifyFunc       func(input *kms.VerifyInput) (*kms.VerifyOutput, error)
 	describeKeyFunc  func(input *kms.DescribeKeyInput) (*kms.DescribeKeyOutput, error)
-	createKeyFunc    func(input *kms.CreateKeyInput) (req *request.Request, output *kms.CreateKeyOutput)
+	createKeyFunc    func(input *kms.CreateKeyInput) (*kms.CreateKeyOutput, error)
 }
 
 func (m *mockAWSClient) Sign(input *kms.SignInput) (*kms.SignOutput, error) {
@@ -403,13 +401,12 @@ func (m *mockAWSClient) DescribeKey(input *kms.DescribeKeyInput) (*kms.DescribeK
 	return nil, nil //nolint:nilnil
 }
 
-func (m *mockAWSClient) CreateKeyRequest(input *kms.CreateKeyInput) (req *request.Request,
-	output *kms.CreateKeyOutput) {
+func (m *mockAWSClient) CreateKey(input *kms.CreateKeyInput) (*kms.CreateKeyOutput, error) {
 	if m.createKeyFunc != nil {
 		return m.createKeyFunc(input)
 	}
 
-	return nil, nil
+	return nil, nil //nolint:nilnil
 }
 
 type mockMetrics struct{}
