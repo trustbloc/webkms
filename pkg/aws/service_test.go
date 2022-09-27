@@ -38,6 +38,12 @@ func TestSign(t *testing.T) {
 			return &kms.SignOutput{
 				Signature: []byte("data"),
 			}, nil
+		}, describeKeyFunc: func(input *kms.DescribeKeyInput) (*kms.DescribeKeyOutput, error) {
+			return &kms.DescribeKeyOutput{
+				KeyMetadata: &kms.KeyMetadata{
+					SigningAlgorithms: []*string{aws.String("ECDSA_SHA_256")},
+				},
+			}, nil
 		}}
 
 		signature, err := svc.Sign([]byte("msg"),
@@ -59,6 +65,12 @@ func TestSign(t *testing.T) {
 
 		svc.client = &mockAWSClient{signFunc: func(input *kms.SignInput) (*kms.SignOutput, error) {
 			return nil, fmt.Errorf("failed to sign")
+		}, describeKeyFunc: func(input *kms.DescribeKeyInput) (*kms.DescribeKeyOutput, error) {
+			return &kms.DescribeKeyOutput{
+				KeyMetadata: &kms.KeyMetadata{
+					SigningAlgorithms: []*string{aws.String("ECDSA_SHA_256")},
+				},
+			}, nil
 		}}
 
 		_, err = svc.Sign([]byte("msg"),
@@ -316,6 +328,12 @@ func TestVerify(t *testing.T) {
 
 		svc.client = &mockAWSClient{verifyFunc: func(input *kms.VerifyInput) (*kms.VerifyOutput, error) {
 			return &kms.VerifyOutput{}, nil
+		}, describeKeyFunc: func(input *kms.DescribeKeyInput) (*kms.DescribeKeyOutput, error) {
+			return &kms.DescribeKeyOutput{
+				KeyMetadata: &kms.KeyMetadata{
+					SigningAlgorithms: []*string{aws.String("ECDSA_SHA_256")},
+				},
+			}, nil
 		}}
 
 		err = svc.Verify([]byte("sign"), []byte("data"),
@@ -336,6 +354,12 @@ func TestVerify(t *testing.T) {
 
 		svc.client = &mockAWSClient{verifyFunc: func(input *kms.VerifyInput) (*kms.VerifyOutput, error) {
 			return nil, fmt.Errorf("failed to verify")
+		}, describeKeyFunc: func(input *kms.DescribeKeyInput) (*kms.DescribeKeyOutput, error) {
+			return &kms.DescribeKeyOutput{
+				KeyMetadata: &kms.KeyMetadata{
+					SigningAlgorithms: []*string{aws.String("ECDSA_SHA_256")},
+				},
+			}, nil
 		}}
 
 		err = svc.Verify([]byte("data"), []byte("msg"),

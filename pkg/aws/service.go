@@ -73,11 +73,16 @@ func (s *Service) Sign(msg []byte, kh interface{}) ([]byte, error) {
 		return nil, err
 	}
 
+	describeKey, err := s.client.DescribeKey(&kms.DescribeKeyInput{KeyId: &keyID})
+	if err != nil {
+		return nil, err
+	}
+
 	input := &kms.SignInput{
 		KeyId:            aws.String(keyID),
 		Message:          msg,
 		MessageType:      aws.String("RAW"),
-		SigningAlgorithm: aws.String("ECDSA_SHA_256"),
+		SigningAlgorithm: describeKey.KeyMetadata.SigningAlgorithms[0],
 	}
 
 	result, err := s.client.Sign(input)
@@ -158,12 +163,17 @@ func (s *Service) Verify(signature, msg []byte, kh interface{}) error {
 		return err
 	}
 
+	describeKey, err := s.client.DescribeKey(&kms.DescribeKeyInput{KeyId: &keyID})
+	if err != nil {
+		return err
+	}
+
 	input := &kms.VerifyInput{
 		KeyId:            aws.String(keyID),
 		Message:          msg,
 		MessageType:      aws.String("RAW"),
 		Signature:        signature,
-		SigningAlgorithm: aws.String("ECDSA_SHA_256"),
+		SigningAlgorithm: describeKey.KeyMetadata.SigningAlgorithms[0],
 	}
 
 	_, err = s.client.Verify(input)
@@ -184,6 +194,8 @@ func (s *Service) Create(kt arieskms.KeyType) (string, interface{}, error) {
 		keySpec = kms.KeySpecEccNistP384
 	case arieskms.ECDSAP521DER, arieskms.NISTP521ECDHKW:
 		keySpec = kms.KeySpecEccNistP521
+	case arieskms.ECDSASecp256k1IEEEP1363:
+		keySpec = kms.KeySpecEccSecgP256k1
 	default:
 		return "", nil, fmt.Errorf("key not supported %s", kt)
 	}
