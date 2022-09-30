@@ -167,27 +167,6 @@ services:
     networks:
       - bdd_net
 
-
-  oathkeeper-ops-keyserver.trustbloc.local:
-    container_name: oathkeeper-ops-keyserver.trustbloc.local
-    image: oryd/oathkeeper:v0.38.4-alpine
-    ports:
-      - 4466:4466
-    command: /bin/sh -c "cp /etc/tls/ec-cacert.pem /usr/local/share/ca-certificates/;update-ca-certificates;oathkeeper serve proxy --config /oathkeeper/config.yaml"
-    user: root
-    entrypoint: ""
-    environment:
-      - LOG_LEVEL=debug
-      - PORT=4466
-      - ISSUER_URL=https://oathkeeper-proxy.trustbloc.local
-      - SERVE_PROXY_TLS_KEY_PATH=/etc/tls/ec-key.pem
-      - SERVE_PROXY_TLS_CERT_PATH=/etc/tls/ec-pubCert.pem
-    volumes:
-      - ./oathkeeper-config/ops-keyserver:/oathkeeper
-      - ./keys/tls:/etc/tls
-    networks:
-      - bdd_net
-
   auth.trustbloc.local:
     container_name: auth.trustbloc.local
     image: ${AUTH_REST_IMAGE}:${AUTH_REST_IMAGE_TAG}

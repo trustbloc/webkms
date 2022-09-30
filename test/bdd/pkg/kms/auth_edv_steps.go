@@ -10,36 +10,16 @@ import (
 	"fmt"
 	kmsapi "github.com/hyperledger/aries-framework-go/pkg/kms"
 	"github.com/hyperledger/aries-framework-go/pkg/vdr/fingerprint"
-
-	"github.com/trustbloc/kms/test/bdd/pkg/auth"
 )
 
-func (s *Steps) logIntoAuthServer(userName string) error {
+func (s *Steps) configureZCAPAuth(userName string) error {
 	u := &user{
 		name: userName,
 	}
 	s.users[userName] = u
 
-	login := auth.NewAuthLogin(s.bddContext.LoginConfig, s.bddContext.TLSConfig())
-
-	loggedWallet, accessToken, err := login.WalletLogin()
-	if err != nil {
-		return err
-	}
-
-	u.subject = loggedWallet.UserData.Sub
-	u.accessToken = accessToken
-
-	return nil
-}
-
-func (s *Steps) createProfileOnAuthServer(userName string) error {
-	u := s.users[userName]
-
 	authUser := &user{
 		name:        userName,
-		subject:     u.subject,
-		accessToken: u.accessToken,
 	}
 
 	c, err := s.prepareAuthConfig(authUser)

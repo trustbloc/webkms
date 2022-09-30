@@ -20,7 +20,6 @@ import (
 	"github.com/trustbloc/edge-core/pkg/log"
 	"github.com/trustbloc/edge-core/pkg/zcapld"
 
-	"github.com/trustbloc/kms/test/bdd/pkg/auth"
 	"github.com/trustbloc/kms/test/bdd/pkg/context"
 	"github.com/trustbloc/kms/test/bdd/pkg/internal/bddutil"
 )
@@ -63,19 +62,12 @@ func (s *Steps) RegisterSteps(ctx *godog.ScenarioContext) {
 }
 
 func (s *Steps) sendCreateKeystoreRequest(endpoint string) error {
-	login := auth.NewAuthLogin(s.bddContext.LoginConfig, s.bddContext.TLSConfig())
-
-	_, accessToken, err := login.WalletLogin()
-	if err != nil {
-		return fmt.Errorf("failed to login auth: %w", err)
-	}
-
 	body := bytes.NewBuffer([]byte(createKeystoreReq))
 
 	resp, err := bddutil.HTTPDo(
 		http.MethodPost,
 		endpoint,
-		headers(accessToken),
+		headers(),
 		body, s.bddContext.TLSConfig(),
 	)
 	if err != nil {
@@ -145,9 +137,8 @@ func (s *Steps) checkResponse(status string) error {
 	return nil
 }
 
-func headers(token string) map[string]string {
+func headers() map[string]string {
 	return map[string]string{
 		"Content-Type":  contentType,
-		"Authorization": fmt.Sprintf("Bearer %s", token),
 	}
 }

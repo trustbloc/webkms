@@ -9,7 +9,6 @@
 Feature: Keystore management operations
 
   Scenario: User creates a keystore
-    Given Key Server is running on "localhost" port "4466"
-    And   Hub Auth is running on "auth.trustbloc.local" port "8070"
-    When  user makes an HTTP POST to "https://localhost:4466/v1/keystores" to create a keystore
+    Given Key Server is running on "localhost" port "8076"
+    When  user makes an HTTP POST to "https://localhost:8076/v1/keystores" to create a keystore
     Then  user gets a response with HTTP status "200 OK" and valid key store URL and root capabilities
