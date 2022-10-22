@@ -42,6 +42,7 @@ func TestSign(t *testing.T) {
 			return &kms.DescribeKeyOutput{
 				KeyMetadata: &kms.KeyMetadata{
 					SigningAlgorithms: []*string{aws.String("ECDSA_SHA_256")},
+					KeySpec:           aws.String(kms.KeySpecEccNistP256),
 				},
 			}, nil
 		}}
@@ -309,77 +310,6 @@ func TestPubKeyBytes(t *testing.T) {
 		svc := New(awsSession, &mockMetrics{}, "")
 
 		_, _, err = svc.ExportPubKeyBytes("aws-kms://arn:aws:kms:key1")
-		require.Error(t, err)
-		require.Contains(t, err.Error(), "extracting key id from URI failed")
-	})
-}
-
-func TestVerify(t *testing.T) {
-	t.Run("success", func(t *testing.T) {
-		endpoint := localhost
-		awsSession, err := session.NewSession(&aws.Config{
-			Endpoint:                      &endpoint,
-			Region:                        aws.String("ca"),
-			CredentialsChainVerboseErrors: aws.Bool(true),
-		})
-		require.NoError(t, err)
-
-		svc := New(awsSession, &mockMetrics{}, "")
-
-		svc.client = &mockAWSClient{verifyFunc: func(input *kms.VerifyInput) (*kms.VerifyOutput, error) {
-			return &kms.VerifyOutput{}, nil
-		}, describeKeyFunc: func(input *kms.DescribeKeyInput) (*kms.DescribeKeyOutput, error) {
-			return &kms.DescribeKeyOutput{
-				KeyMetadata: &kms.KeyMetadata{
-					SigningAlgorithms: []*string{aws.String("ECDSA_SHA_256")},
-				},
-			}, nil
-		}}
-
-		err = svc.Verify([]byte("sign"), []byte("data"),
-			"aws-kms://arn:aws:kms:ca-central-1:111122223333:key/800d5768-3fd7-4edd-a4b8-4c81c3e4c147")
-		require.NoError(t, err)
-	})
-
-	t.Run("failed to verify", func(t *testing.T) {
-		endpoint := localhost
-		awsSession, err := session.NewSession(&aws.Config{
-			Endpoint:                      &endpoint,
-			Region:                        aws.String("ca"),
-			CredentialsChainVerboseErrors: aws.Bool(true),
-		})
-		require.NoError(t, err)
-
-		svc := New(awsSession, &mockMetrics{}, "")
-
-		svc.client = &mockAWSClient{verifyFunc: func(input *kms.VerifyInput) (*kms.VerifyOutput, error) {
-			return nil, fmt.Errorf("failed to verify")
-		}, describeKeyFunc: func(input *kms.DescribeKeyInput) (*kms.DescribeKeyOutput, error) {
-			return &kms.DescribeKeyOutput{
-				KeyMetadata: &kms.KeyMetadata{
-					SigningAlgorithms: []*string{aws.String("ECDSA_SHA_256")},
-				},
-			}, nil
-		}}
-
-		err = svc.Verify([]byte("data"), []byte("msg"),
-			"aws-kms://arn:aws:kms:ca-central-1:111122223333:key/800d5768-3fd7-4edd-a4b8-4c81c3e4c147")
-		require.Error(t, err)
-		require.Contains(t, err.Error(), "failed to verify")
-	})
-
-	t.Run("failed to parse key id", func(t *testing.T) {
-		endpoint := localhost
-		awsSession, err := session.NewSession(&aws.Config{
-			Endpoint:                      &endpoint,
-			Region:                        aws.String("ca"),
-			CredentialsChainVerboseErrors: aws.Bool(true),
-		})
-		require.NoError(t, err)
-
-		svc := New(awsSession, &mockMetrics{}, "")
-
-		err = svc.Verify([]byte("sign"), []byte("msg"), "aws-kms://arn:aws:kms:key1")
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "extracting key id from URI failed")
 	})
