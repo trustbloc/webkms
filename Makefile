@@ -53,7 +53,7 @@ build-kms-cli-binaries:
 	@docker run -i --rm \
 		-v $(abspath .):/opt/workspace/kms \
 		--entrypoint "/opt/workspace/kms/scripts/build-cli.sh" \
-		ghcr.io/gythialy/golang-cross:latest
+		ghcr.io/gythialy/golang-cross:go-1.18
 
 .PHONY: extract-kms-cli-binaries
 extract-kms-cli-binaries:

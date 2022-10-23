@@ -48,21 +48,6 @@ func (s *Steps) createUsers(usersNumberEnv string) error {
 	return nil
 }
 
-func (s *Steps) createProfileOnAuthServerForMultipleUsers(usersNumberEnv string) error {
-	usersNumber, err := getUsersNumber(usersNumberEnv)
-	if err != nil {
-		return err
-	}
-
-	for i := 0; i < usersNumber; i++ {
-		err = s.createProfileOnAuthServer(fmt.Sprintf(userNameTplt, i))
-		if err != nil {
-			return err
-		}
-	}
-
-	return nil
-}
 
 //nolint:funlen,gocyclo
 func (s *Steps) stressTestForMultipleUsers(

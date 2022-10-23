@@ -14,7 +14,6 @@ import (
 	"github.com/cucumber/godog"
 	"github.com/trustbloc/edge-core/pkg/log"
 
-	"github.com/trustbloc/kms/test/bdd/pkg/auth"
 	"github.com/trustbloc/kms/test/bdd/pkg/context"
 	"github.com/trustbloc/kms/test/bdd/pkg/internal/bddutil"
 )
@@ -43,10 +42,7 @@ func (s *Steps) SetContext(ctx *context.BDDContext) {
 // RegisterSteps defines scenario steps.
 func (s *Steps) RegisterSteps(ctx *godog.ScenarioContext) {
 	ctx.Step(`^Key Server is running on "([^"]*)" port "([^"]*)"$`, s.checkKeyServerIsRun)
-	ctx.Step(`^Hub Auth is running on "([^"]*)" port "([^"]*)"$`, s.checkHubAuthIsRun)
-
 	ctx.Step(`^Key Server is running on "([^"]*)" env$`, s.checkKeyServerIsRunEnv)
-	ctx.Step(`^Hub Auth is running on "([^"]*)" env$`, s.checkHubAuthIsRunEnv)
 }
 
 func (s *Steps) checkKeyServerIsRun(host string, port int) error {
@@ -56,18 +52,6 @@ func (s *Steps) checkKeyServerIsRun(host string, port int) error {
 	}
 
 	s.bddContext.KeyServerURL = url
-
-	return nil
-}
-
-func (s *Steps) checkHubAuthIsRun(host string, port int) error {
-	url, err := s.healthCheck(host, port)
-	if err != nil {
-		return err
-	}
-
-	s.bddContext.HubAuthURL = url
-	s.bddContext.LoginConfig = auth.CreateDefaultConfig(url)
 
 	return nil
 }

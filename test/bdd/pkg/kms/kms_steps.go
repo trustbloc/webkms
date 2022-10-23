@@ -75,9 +75,7 @@ func (s *Steps) SetContext(ctx *bddcontext.BDDContext) {
 func (s *Steps) RegisterSteps(ctx *godog.ScenarioContext) {
 	// common creation steps
 	ctx.Step(`^Create "([^"]*)" users$`, s.createUsers)
-	ctx.Step(`^"([^"]*)" has logged into auth server$`, s.logIntoAuthServer)
-	ctx.Step(`^"([^"]*)" has created a profile on auth server$`, s.createProfileOnAuthServer)
-	ctx.Step(`^"([^"]*)" users has created a profile on auth server$`, s.createProfileOnAuthServerForMultipleUsers)
+	ctx.Step(`^"([^"]*)" has configured ZCAP authentication$`, s.configureZCAPAuth)
 	ctx.Step(`^"([^"]*)" has created an empty keystore on Key Server$`, s.createKeystore)
 	ctx.Step(`^"([^"]*)" has created a keystore with "([^"]*)" key on Key Server$`, s.createKeystoreAndKey)
 	ctx.Step(`^"([^"]*)" users request to create a keystore on "([^"]*)" with "([^"]*)" key and sign ([^"]*) times using "([^"]*)" concurrent requests$`, //nolint:lll
@@ -144,8 +142,6 @@ func (s *Steps) createKeystoreReq(u *user, r *createKeystoreReq, endpoint string
 	if err != nil {
 		return err
 	}
-
-	request.Header.Set("Authorization", fmt.Sprintf("Bearer %s", u.accessToken))
 
 	response, err := s.httpClient.Do(request)
 	if err != nil {

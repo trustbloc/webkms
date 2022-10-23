@@ -34,8 +34,6 @@ type user struct {
 	keyID      string
 	vaultID    string
 
-	subject string
-
 	recipientPubKeys map[string]*publicKeyData
 	response         *response
 	data             map[string]string
@@ -46,7 +44,6 @@ type user struct {
 	authCrypto    crypto.Crypto
 	kmsCapability *zcapld.Capability
 	disableZCAP   bool
-	accessToken   string
 }
 
 type publicKeyData struct {
