@@ -31,6 +31,7 @@ type awsClient interface {
 	Verify(input *kms.VerifyInput) (*kms.VerifyOutput, error)
 	DescribeKey(input *kms.DescribeKeyInput) (*kms.DescribeKeyOutput, error)
 	CreateKey(input *kms.CreateKeyInput) (*kms.CreateKeyOutput, error)
+	CreateAlias(input *kms.CreateAliasInput) (*kms.CreateAliasOutput, error)
 }
 
 type metricsProvider interface {
@@ -48,6 +49,7 @@ type ecdsaSignature struct {
 
 // Service aws kms.
 type Service struct {
+	options          *opts
 	client           awsClient
 	metrics          metricsProvider
 	healthCheckKeyID string
@@ -73,8 +75,14 @@ var keySpecToCurve = map[string]elliptic.Curve{
 }
 
 // New return aws service.
-func New(awsSession *session.Session, metrics metricsProvider, healthCheckKeyID string) *Service {
-	return &Service{client: kms.New(awsSession), metrics: metrics, healthCheckKeyID: healthCheckKeyID}
+func New(awsSession *session.Session, metrics metricsProvider, healthCheckKeyID string, opts ...Opts) *Service {
+	options := NewOpts()
+
+	for _, opt := range opts {
+		opt(options)
+	}
+
+	return &Service{options: options, client: kms.New(awsSession), metrics: metrics, healthCheckKeyID: healthCheckKeyID}
 }
 
 // Sign data.
@@ -224,6 +232,17 @@ func (s *Service) Create(kt arieskms.KeyType) (string, interface{}, error) {
 	result, err := s.client.CreateKey(&kms.CreateKeyInput{KeySpec: &keySpec, KeyUsage: &keyUsage})
 	if err != nil {
 		return "", nil, err
+	}
+
+	aliasPrefix := s.options.KeyAliasPrefix()
+	if strings.TrimSpace(aliasPrefix) != "" {
+		aliasName := fmt.Sprintf("%s.%s", aliasPrefix, *result.KeyMetadata.KeyId)
+
+		_, err = s.client.CreateAlias(&kms.CreateAliasInput{AliasName: &aliasName, TargetKeyId: result.KeyMetadata.KeyId})
+		if err != nil {
+			return "", nil, err
+		}
+
 	}
 
 	return *result.KeyMetadata.KeyId, *result.KeyMetadata.KeyId, nil
