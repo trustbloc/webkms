@@ -25,7 +25,7 @@ import (
 	"github.com/minio/sha256-simd"
 )
 
-type awsClient interface {
+type awsClient interface { //nolint:dupl
 	Sign(input *kms.SignInput) (*kms.SignOutput, error)
 	GetPublicKey(input *kms.GetPublicKeyInput) (*kms.GetPublicKeyOutput, error)
 	Verify(input *kms.VerifyInput) (*kms.VerifyOutput, error)
@@ -76,7 +76,7 @@ var keySpecToCurve = map[string]elliptic.Curve{
 
 // New return aws service.
 func New(awsSession *session.Session, metrics metricsProvider, healthCheckKeyID string, opts ...Opts) *Service {
-	options := NewOpts()
+	options := newOpts()
 
 	for _, opt := range opts {
 		opt(options)
@@ -242,7 +242,6 @@ func (s *Service) Create(kt arieskms.KeyType) (string, interface{}, error) {
 		if err != nil {
 			return "", nil, err
 		}
-
 	}
 
 	return *result.KeyMetadata.KeyId, *result.KeyMetadata.KeyId, nil
