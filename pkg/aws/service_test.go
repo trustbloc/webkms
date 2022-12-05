@@ -30,9 +30,10 @@ func TestSign(t *testing.T) {
 			Region:                        aws.String("ca"),
 			CredentialsChainVerboseErrors: aws.Bool(true),
 		})
+
 		require.NoError(t, err)
 
-		svc := New(awsSession, &mockMetrics{}, "")
+		svc := New(awsSession, &mockMetrics{}, "", []Opts{}...)
 
 		svc.client = &mockAWSClient{signFunc: func(input *kms.SignInput) (*kms.SignOutput, error) {
 			return &kms.SignOutput{
@@ -62,7 +63,7 @@ func TestSign(t *testing.T) {
 		})
 		require.NoError(t, err)
 
-		svc := New(awsSession, &mockMetrics{}, "")
+		svc := New(awsSession, &mockMetrics{}, "", []Opts{}...)
 
 		svc.client = &mockAWSClient{signFunc: func(input *kms.SignInput) (*kms.SignOutput, error) {
 			return nil, fmt.Errorf("failed to sign")
@@ -89,7 +90,7 @@ func TestSign(t *testing.T) {
 		})
 		require.NoError(t, err)
 
-		svc := New(awsSession, &mockMetrics{}, "")
+		svc := New(awsSession, &mockMetrics{}, "", []Opts{}...)
 
 		_, err = svc.Sign([]byte("msg"), "aws-kms://arn:aws:kms:key1")
 		require.Error(t, err)
@@ -108,7 +109,8 @@ func TestHealthCheck(t *testing.T) {
 		require.NoError(t, err)
 
 		svc := New(awsSession, &mockMetrics{},
-			"aws-kms://arn:aws:kms:ca-central-1:111122223333:key/800d5768-3fd7-4edd-a4b8-4c81c3e4c147")
+			"aws-kms://arn:aws:kms:ca-central-1:111122223333:key/800d5768-3fd7-4edd-a4b8-4c81c3e4c147",
+			[]Opts{}...)
 
 		svc.client = &mockAWSClient{describeKeyFunc: func(input *kms.DescribeKeyInput) (*kms.DescribeKeyOutput, error) {
 			return &kms.DescribeKeyOutput{}, nil
@@ -128,7 +130,8 @@ func TestHealthCheck(t *testing.T) {
 		require.NoError(t, err)
 
 		svc := New(awsSession, &mockMetrics{},
-			"aws-kms://arn:aws:kms:ca-central-1:111122223333:key/800d5768-3fd7-4edd-a4b8-4c81c3e4c147")
+			"aws-kms://arn:aws:kms:ca-central-1:111122223333:key/800d5768-3fd7-4edd-a4b8-4c81c3e4c147",
+			[]Opts{}...)
 
 		svc.client = &mockAWSClient{describeKeyFunc: func(input *kms.DescribeKeyInput) (*kms.DescribeKeyOutput, error) {
 			return nil, fmt.Errorf("failed to list keys")
@@ -150,13 +153,40 @@ func TestCreate(t *testing.T) {
 		})
 		require.NoError(t, err)
 
-		svc := New(awsSession, &mockMetrics{}, "")
+		svc := New(awsSession, &mockMetrics{}, "", []Opts{}...)
 
 		keyID := "key1"
 
 		svc.client = &mockAWSClient{createKeyFunc: func(input *kms.CreateKeyInput) (*kms.CreateKeyOutput, error) {
 			return &kms.CreateKeyOutput{KeyMetadata: &kms.KeyMetadata{KeyId: &keyID}}, nil
 		}}
+
+		result, _, err := svc.Create(arieskms.ECDSAP256DER)
+		require.NoError(t, err)
+		require.Contains(t, result, keyID)
+	})
+
+	t.Run("success: with key alias prefix", func(t *testing.T) {
+		endpoint := localhost
+		awsSession, err := session.NewSession(&aws.Config{
+			Endpoint:                      &endpoint,
+			Region:                        aws.String("ca"),
+			CredentialsChainVerboseErrors: aws.Bool(true),
+		})
+		require.NoError(t, err)
+
+		svc := New(awsSession, &mockMetrics{}, "", WithKeyAliasPrefix("dummyKeyAlias"))
+
+		keyID := "key1"
+
+		svc.client = &mockAWSClient{
+			createKeyFunc: func(input *kms.CreateKeyInput) (*kms.CreateKeyOutput, error) {
+				return &kms.CreateKeyOutput{KeyMetadata: &kms.KeyMetadata{KeyId: &keyID}}, nil
+			},
+			createAliasFunc: func(input *kms.CreateAliasInput) (*kms.CreateAliasOutput, error) {
+				return &kms.CreateAliasOutput{}, nil
+			},
+		}
 
 		result, _, err := svc.Create(arieskms.ECDSAP256DER)
 		require.NoError(t, err)
@@ -172,7 +202,7 @@ func TestCreate(t *testing.T) {
 		})
 		require.NoError(t, err)
 
-		svc := New(awsSession, &mockMetrics{}, "")
+		svc := New(awsSession, &mockMetrics{}, "", []Opts{}...)
 
 		_, _, err = svc.Create(arieskms.ED25519)
 		require.Error(t, err)
@@ -190,7 +220,7 @@ func TestGet(t *testing.T) {
 		})
 		require.NoError(t, err)
 
-		svc := New(awsSession, &mockMetrics{}, "")
+		svc := New(awsSession, &mockMetrics{}, "", []Opts{}...)
 
 		keyID, err := svc.Get("key1")
 		require.NoError(t, err)
@@ -210,7 +240,7 @@ func TestCreateAndPubKeyBytes(t *testing.T) {
 
 		keyID := "aws-kms://arn:aws:kms:ca-central-1:111122223333:key/800d5768-3fd7-4edd-a4b8-4c81c3e4c147"
 
-		svc := New(awsSession, &mockMetrics{}, "")
+		svc := New(awsSession, &mockMetrics{}, "", []Opts{}...)
 
 		svc.client = &mockAWSClient{
 			getPublicKeyFunc: func(input *kms.GetPublicKeyInput) (*kms.GetPublicKeyOutput, error) {
@@ -242,7 +272,7 @@ func TestSignMulti(t *testing.T) {
 	})
 	require.NoError(t, err)
 
-	svc := New(awsSession, &mockMetrics{}, "")
+	svc := New(awsSession, &mockMetrics{}, "", []Opts{}...)
 
 	_, err = svc.SignMulti(nil, nil)
 	require.Error(t, err)
@@ -259,7 +289,7 @@ func TestPubKeyBytes(t *testing.T) {
 		})
 		require.NoError(t, err)
 
-		svc := New(awsSession, &mockMetrics{}, "")
+		svc := New(awsSession, &mockMetrics{}, "", []Opts{}...)
 
 		svc.client = &mockAWSClient{getPublicKeyFunc: func(input *kms.GetPublicKeyInput) (*kms.GetPublicKeyOutput, error) {
 			signingAlgo := "ECDSA_SHA_256"
@@ -286,7 +316,7 @@ func TestPubKeyBytes(t *testing.T) {
 		})
 		require.NoError(t, err)
 
-		svc := New(awsSession, &mockMetrics{}, "")
+		svc := New(awsSession, &mockMetrics{}, "", []Opts{}...)
 
 		svc.client = &mockAWSClient{getPublicKeyFunc: func(input *kms.GetPublicKeyInput) (*kms.GetPublicKeyOutput, error) {
 			return nil, fmt.Errorf("failed to export public key")
@@ -307,7 +337,7 @@ func TestPubKeyBytes(t *testing.T) {
 		})
 		require.NoError(t, err)
 
-		svc := New(awsSession, &mockMetrics{}, "")
+		svc := New(awsSession, &mockMetrics{}, "", []Opts{}...)
 
 		_, _, err = svc.ExportPubKeyBytes("aws-kms://arn:aws:kms:key1")
 		require.Error(t, err)
@@ -321,6 +351,7 @@ type mockAWSClient struct {
 	verifyFunc       func(input *kms.VerifyInput) (*kms.VerifyOutput, error)
 	describeKeyFunc  func(input *kms.DescribeKeyInput) (*kms.DescribeKeyOutput, error)
 	createKeyFunc    func(input *kms.CreateKeyInput) (*kms.CreateKeyOutput, error)
+	createAliasFunc  func(input *kms.CreateAliasInput) (*kms.CreateAliasOutput, error)
 }
 
 func (m *mockAWSClient) Sign(input *kms.SignInput) (*kms.SignOutput, error) {
@@ -358,6 +389,14 @@ func (m *mockAWSClient) DescribeKey(input *kms.DescribeKeyInput) (*kms.DescribeK
 func (m *mockAWSClient) CreateKey(input *kms.CreateKeyInput) (*kms.CreateKeyOutput, error) {
 	if m.createKeyFunc != nil {
 		return m.createKeyFunc(input)
+	}
+
+	return nil, nil //nolint:nilnil
+}
+
+func (m *mockAWSClient) CreateAlias(input *kms.CreateAliasInput) (*kms.CreateAliasOutput, error) {
+	if m.createAliasFunc != nil {
+		return m.createAliasFunc(input)
 	}
 
 	return nil, nil //nolint:nilnil
