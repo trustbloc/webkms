@@ -242,6 +242,8 @@ func (s *Service) Create(kt arieskms.KeyType) (string, interface{}, error) {
 		if err != nil {
 			return "", nil, err
 		}
+
+		return aliasName, aliasName, nil
 	}
 
 	return *result.KeyMetadata.KeyId, *result.KeyMetadata.KeyId, nil
