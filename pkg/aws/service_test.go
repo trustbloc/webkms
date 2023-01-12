@@ -33,7 +33,7 @@ func TestSign(t *testing.T) {
 
 		require.NoError(t, err)
 
-		svc := New(awsSession, &mockMetrics{}, "", []Opts{}...)
+		svc := New(awsSession, nil, &mockMetrics{}, "", []Opts{}...)
 
 		svc.client = &mockAWSClient{signFunc: func(input *kms.SignInput) (*kms.SignOutput, error) {
 			return &kms.SignOutput{
@@ -63,7 +63,7 @@ func TestSign(t *testing.T) {
 		})
 		require.NoError(t, err)
 
-		svc := New(awsSession, &mockMetrics{}, "", []Opts{}...)
+		svc := New(awsSession, nil, &mockMetrics{}, "", []Opts{}...)
 
 		svc.client = &mockAWSClient{signFunc: func(input *kms.SignInput) (*kms.SignOutput, error) {
 			return nil, fmt.Errorf("failed to sign")
@@ -90,7 +90,7 @@ func TestSign(t *testing.T) {
 		})
 		require.NoError(t, err)
 
-		svc := New(awsSession, &mockMetrics{}, "", []Opts{}...)
+		svc := New(awsSession, nil, &mockMetrics{}, "", []Opts{}...)
 
 		_, err = svc.Sign([]byte("msg"), "aws-kms://arn:aws:kms:key1")
 		require.Error(t, err)
@@ -108,7 +108,7 @@ func TestHealthCheck(t *testing.T) {
 		})
 		require.NoError(t, err)
 
-		svc := New(awsSession, &mockMetrics{},
+		svc := New(awsSession, nil, &mockMetrics{},
 			"aws-kms://arn:aws:kms:ca-central-1:111122223333:key/800d5768-3fd7-4edd-a4b8-4c81c3e4c147",
 			[]Opts{}...)
 
@@ -129,7 +129,7 @@ func TestHealthCheck(t *testing.T) {
 		})
 		require.NoError(t, err)
 
-		svc := New(awsSession, &mockMetrics{},
+		svc := New(awsSession, nil, &mockMetrics{},
 			"aws-kms://arn:aws:kms:ca-central-1:111122223333:key/800d5768-3fd7-4edd-a4b8-4c81c3e4c147",
 			[]Opts{}...)
 
@@ -153,7 +153,7 @@ func TestCreate(t *testing.T) {
 		})
 		require.NoError(t, err)
 
-		svc := New(awsSession, &mockMetrics{}, "", []Opts{}...)
+		svc := New(awsSession, nil, &mockMetrics{}, "", []Opts{}...)
 
 		keyID := "key1"
 
@@ -175,7 +175,7 @@ func TestCreate(t *testing.T) {
 		})
 		require.NoError(t, err)
 
-		svc := New(awsSession, &mockMetrics{}, "", WithKeyAliasPrefix("dummyKeyAlias"))
+		svc := New(awsSession, nil, &mockMetrics{}, "", WithKeyAliasPrefix("dummyKeyAlias"))
 
 		keyID := "key1"
 
@@ -202,7 +202,7 @@ func TestCreate(t *testing.T) {
 		})
 		require.NoError(t, err)
 
-		svc := New(awsSession, &mockMetrics{}, "", []Opts{}...)
+		svc := New(awsSession, nil, &mockMetrics{}, "", []Opts{}...)
 
 		_, _, err = svc.Create(arieskms.ED25519)
 		require.Error(t, err)
@@ -220,7 +220,7 @@ func TestGet(t *testing.T) {
 		})
 		require.NoError(t, err)
 
-		svc := New(awsSession, &mockMetrics{}, "", []Opts{}...)
+		svc := New(awsSession, nil, &mockMetrics{}, "", []Opts{}...)
 
 		keyID, err := svc.Get("key1")
 		require.NoError(t, err)
@@ -240,7 +240,7 @@ func TestCreateAndPubKeyBytes(t *testing.T) {
 
 		keyID := "aws-kms://arn:aws:kms:ca-central-1:111122223333:key/800d5768-3fd7-4edd-a4b8-4c81c3e4c147"
 
-		svc := New(awsSession, &mockMetrics{}, "", []Opts{}...)
+		svc := New(awsSession, nil, &mockMetrics{}, "", []Opts{}...)
 
 		svc.client = &mockAWSClient{
 			getPublicKeyFunc: func(input *kms.GetPublicKeyInput) (*kms.GetPublicKeyOutput, error) {
@@ -272,7 +272,7 @@ func TestSignMulti(t *testing.T) {
 	})
 	require.NoError(t, err)
 
-	svc := New(awsSession, &mockMetrics{}, "", []Opts{}...)
+	svc := New(awsSession, nil, &mockMetrics{}, "", []Opts{}...)
 
 	_, err = svc.SignMulti(nil, nil)
 	require.Error(t, err)
@@ -289,7 +289,7 @@ func TestPubKeyBytes(t *testing.T) {
 		})
 		require.NoError(t, err)
 
-		svc := New(awsSession, &mockMetrics{}, "", []Opts{}...)
+		svc := New(awsSession, nil, &mockMetrics{}, "", []Opts{}...)
 
 		svc.client = &mockAWSClient{getPublicKeyFunc: func(input *kms.GetPublicKeyInput) (*kms.GetPublicKeyOutput, error) {
 			signingAlgo := "ECDSA_SHA_256"
@@ -316,7 +316,7 @@ func TestPubKeyBytes(t *testing.T) {
 		})
 		require.NoError(t, err)
 
-		svc := New(awsSession, &mockMetrics{}, "", []Opts{}...)
+		svc := New(awsSession, nil, &mockMetrics{}, "", []Opts{}...)
 
 		svc.client = &mockAWSClient{getPublicKeyFunc: func(input *kms.GetPublicKeyInput) (*kms.GetPublicKeyOutput, error) {
 			return nil, fmt.Errorf("failed to export public key")
@@ -337,7 +337,7 @@ func TestPubKeyBytes(t *testing.T) {
 		})
 		require.NoError(t, err)
 
-		svc := New(awsSession, &mockMetrics{}, "", []Opts{}...)
+		svc := New(awsSession, nil, &mockMetrics{}, "", []Opts{}...)
 
 		_, _, err = svc.ExportPubKeyBytes("aws-kms://arn:aws:kms:key1")
 		require.Error(t, err)

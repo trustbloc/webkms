@@ -8,6 +8,7 @@ package aws
 
 import (
 	"crypto/elliptic"
+	"crypto/sha256"
 	"crypto/sha512"
 	"encoding/asn1"
 	"fmt"
@@ -22,7 +23,6 @@ import (
 	"github.com/aws/aws-sdk-go/service/kms"
 	"github.com/btcsuite/btcd/btcec"
 	arieskms "github.com/hyperledger/aries-framework-go/pkg/kms"
-	"github.com/minio/sha256-simd"
 )
 
 type awsClient interface { //nolint:dupl
@@ -75,14 +75,20 @@ var keySpecToCurve = map[string]elliptic.Curve{
 }
 
 // New return aws service.
-func New(awsSession *session.Session, metrics metricsProvider, healthCheckKeyID string, opts ...Opts) *Service {
+func New(awsSession *session.Session, awsConfig *aws.Config, metrics metricsProvider,
+	healthCheckKeyID string, opts ...Opts) *Service {
 	options := newOpts()
 
 	for _, opt := range opts {
 		opt(options)
 	}
 
-	return &Service{options: options, client: kms.New(awsSession), metrics: metrics, healthCheckKeyID: healthCheckKeyID}
+	return &Service{
+		options:          options,
+		client:           kms.New(awsSession, awsConfig),
+		metrics:          metrics,
+		healthCheckKeyID: healthCheckKeyID,
+	}
 }
 
 // Sign data.
