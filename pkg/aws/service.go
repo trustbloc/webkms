@@ -277,7 +277,7 @@ func (s *Service) getKeyID(keyURI string) (string, error) {
 	if !strings.Contains(keyURI, "aws-kms") {
 		aliasPrefix := s.options.KeyAliasPrefix()
 		if strings.TrimSpace(aliasPrefix) != "" && !strings.Contains(keyURI, "alias") {
-			return fmt.Sprintf("alias/%s_%s", aliasPrefix, keyURI), nil
+			return fmt.Sprintf("alias/%s-%s", aliasPrefix, keyURI), nil
 		}
 
 		return keyURI, nil
