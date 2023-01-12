@@ -236,7 +236,7 @@ func (s *Service) Create(kt arieskms.KeyType) (string, interface{}, error) {
 
 	aliasPrefix := s.options.KeyAliasPrefix()
 	if strings.TrimSpace(aliasPrefix) != "" {
-		aliasName := fmt.Sprintf("alias/%s_%s", aliasPrefix, *result.KeyMetadata.KeyId)
+		aliasName := fmt.Sprintf("alias/%s-%s", aliasPrefix, *result.KeyMetadata.KeyId)
 
 		_, err = s.client.CreateAlias(&kms.CreateAliasInput{AliasName: &aliasName, TargetKeyId: result.KeyMetadata.KeyId})
 		if err != nil {
