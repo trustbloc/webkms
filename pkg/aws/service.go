@@ -99,7 +99,7 @@ func (s *Service) Sign(msg []byte, kh interface{}) ([]byte, error) { //nolint: f
 		s.metrics.SignCount()
 	}
 
-	keyID, err := getKeyID(kh.(string))
+	keyID, err := s.getKeyID(kh.(string))
 	if err != nil {
 		return nil, err
 	}
@@ -161,7 +161,7 @@ func (s *Service) Get(keyID string) (interface{}, error) {
 
 // HealthCheck check kms.
 func (s *Service) HealthCheck() error {
-	keyID, err := getKeyID(s.healthCheckKeyID)
+	keyID, err := s.getKeyID(s.healthCheckKeyID)
 	if err != nil {
 		return err
 	}
@@ -188,7 +188,7 @@ func (s *Service) ExportPubKeyBytes(keyURI string) ([]byte, arieskms.KeyType, er
 		s.metrics.ExportPublicKeyCount()
 	}
 
-	keyID, err := getKeyID(keyURI)
+	keyID, err := s.getKeyID(keyURI)
 	if err != nil {
 		return nil, "", err
 	}
@@ -242,8 +242,6 @@ func (s *Service) Create(kt arieskms.KeyType) (string, interface{}, error) {
 		if err != nil {
 			return "", nil, err
 		}
-
-		return aliasName, aliasName, nil
 	}
 
 	return *result.KeyMetadata.KeyId, *result.KeyMetadata.KeyId, nil
@@ -275,8 +273,13 @@ func (s *Service) SignMulti(messages [][]byte, kh interface{}) ([]byte, error) {
 	return nil, fmt.Errorf("not implemented")
 }
 
-func getKeyID(keyURI string) (string, error) {
+func (s *Service) getKeyID(keyURI string) (string, error) {
 	if !strings.Contains(keyURI, "aws-kms") {
+		aliasPrefix := s.options.KeyAliasPrefix()
+		if strings.TrimSpace(aliasPrefix) != "" && !strings.Contains(keyURI, "alias") {
+			return fmt.Sprintf("alias/%s_%s", aliasPrefix, keyURI), nil
+		}
+
 		return keyURI, nil
 	}
 
