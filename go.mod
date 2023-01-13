@@ -8,6 +8,7 @@ go 1.18
 
 require (
 	github.com/aws/aws-sdk-go v1.43.9
+	github.com/aws/aws-sdk-go-v2/service/kms v1.20.0
 	github.com/btcsuite/btcd v0.22.1
 	github.com/golang/mock v1.6.0
 	github.com/google/tink/go v1.7.0
@@ -16,7 +17,6 @@ require (
 	github.com/hyperledger/aries-framework-go/component/storageutil v0.0.0-20220610133818-119077b0ec85
 	github.com/hyperledger/aries-framework-go/spi v0.0.0-20221025204933-b807371b6f1e
 	github.com/igor-pavlenko/httpsignatures-go v0.0.23
-	github.com/minio/sha256-simd v0.1.1
 	github.com/piprate/json-gold v0.4.2
 	github.com/prometheus/client_golang v1.11.0
 	github.com/rs/xid v1.3.0
@@ -29,6 +29,10 @@ require (
 
 require (
 	github.com/VictoriaMetrics/fastcache v1.5.7 // indirect
+	github.com/aws/aws-sdk-go-v2 v1.17.3 // indirect
+	github.com/aws/aws-sdk-go-v2/internal/configsources v1.1.27 // indirect
+	github.com/aws/aws-sdk-go-v2/internal/endpoints/v2 v2.4.21 // indirect
+	github.com/aws/smithy-go v1.13.5 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/bluele/gcache v0.0.2 // indirect
 	github.com/btcsuite/btcutil v1.0.3-0.20201208143702-a53e38424cce // indirect
@@ -45,6 +49,7 @@ require (
 	github.com/kilic/bls12-381 v0.1.1-0.20210503002446-7b7597926c69 // indirect
 	github.com/matttproud/golang_protobuf_extensions v1.0.1 // indirect
 	github.com/minio/blake2b-simd v0.0.0-20160723061019-3f5f724cb5b1 // indirect
+	github.com/minio/sha256-simd v0.1.1 // indirect
 	github.com/mitchellh/mapstructure v1.5.0 // indirect
 	github.com/mr-tron/base58 v1.2.0 // indirect
 	github.com/multiformats/go-base32 v0.1.0 // indirect
