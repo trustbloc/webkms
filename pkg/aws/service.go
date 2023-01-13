@@ -288,11 +288,6 @@ func (s *Service) SignMulti(messages [][]byte, kh interface{}) ([]byte, error) {
 
 func (s *Service) getKeyID(keyURI string) (string, error) {
 	if !strings.Contains(keyURI, "aws-kms") {
-		aliasPrefix := s.options.KeyAliasPrefix()
-		if strings.TrimSpace(aliasPrefix) != "" && !strings.Contains(keyURI, "alias") {
-			return fmt.Sprintf("alias/%s-%s", aliasPrefix, keyURI), nil
-		}
-
 		return keyURI, nil
 	}
 
