@@ -7,6 +7,7 @@ SPDX-License-Identifier: Apache-2.0
 package aws
 
 import (
+	"context"
 	"crypto/elliptic"
 	"crypto/sha256"
 	"crypto/sha512"
@@ -18,20 +19,24 @@ import (
 	"strings"
 	"time"
 
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/session"
-	"github.com/aws/aws-sdk-go/service/kms"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/service/kms"
+	"github.com/aws/aws-sdk-go-v2/service/kms/types"
 	"github.com/btcsuite/btcd/btcec"
 	arieskms "github.com/hyperledger/aries-framework-go/pkg/kms"
 )
 
 type awsClient interface { //nolint:dupl
-	Sign(input *kms.SignInput) (*kms.SignOutput, error)
-	GetPublicKey(input *kms.GetPublicKeyInput) (*kms.GetPublicKeyOutput, error)
-	Verify(input *kms.VerifyInput) (*kms.VerifyOutput, error)
-	DescribeKey(input *kms.DescribeKeyInput) (*kms.DescribeKeyOutput, error)
-	CreateKey(input *kms.CreateKeyInput) (*kms.CreateKeyOutput, error)
-	CreateAlias(input *kms.CreateAliasInput) (*kms.CreateAliasOutput, error)
+	Sign(ctx context.Context, params *kms.SignInput, optFns ...func(*kms.Options)) (*kms.SignOutput, error)
+	GetPublicKey(ctx context.Context, params *kms.GetPublicKeyInput,
+		optFns ...func(*kms.Options)) (*kms.GetPublicKeyOutput, error)
+	Verify(ctx context.Context, params *kms.VerifyInput, optFns ...func(*kms.Options)) (*kms.VerifyOutput, error)
+	DescribeKey(ctx context.Context, params *kms.DescribeKeyInput,
+		optFns ...func(*kms.Options)) (*kms.DescribeKeyOutput, error)
+	CreateKey(ctx context.Context, params *kms.CreateKeyInput,
+		optFns ...func(*kms.Options)) (*kms.CreateKeyOutput, error)
+	CreateAlias(ctx context.Context, params *kms.CreateAliasInput,
+		optFns ...func(*kms.Options)) (*kms.CreateAliasOutput, error)
 }
 
 type metricsProvider interface {
@@ -63,19 +68,19 @@ const (
 )
 
 // nolint: gochecknoglobals
-var kmsKeyTypes = map[string]arieskms.KeyType{
+var kmsKeyTypes = map[types.SigningAlgorithmSpec]arieskms.KeyType{
 	signingAlgorithmEcdsaSha256: arieskms.ECDSAP256DER,
 	signingAlgorithmEcdsaSha384: arieskms.ECDSAP384DER,
 	signingAlgorithmEcdsaSha512: arieskms.ECDSAP521DER,
 }
 
 // nolint: gochecknoglobals
-var keySpecToCurve = map[string]elliptic.Curve{
-	kms.KeySpecEccSecgP256k1: btcec.S256(),
+var keySpecToCurve = map[types.KeySpec]elliptic.Curve{
+	types.KeySpecEccSecgP256k1: btcec.S256(),
 }
 
 // New return aws service.
-func New(awsSession *session.Session, awsConfig *aws.Config, metrics metricsProvider,
+func New(awsConfig *aws.Config, metrics metricsProvider,
 	healthCheckKeyID string, opts ...Opts) *Service {
 	options := newOpts()
 
@@ -85,7 +90,7 @@ func New(awsSession *session.Session, awsConfig *aws.Config, metrics metricsProv
 
 	return &Service{
 		options:          options,
-		client:           kms.New(awsSession, awsConfig),
+		client:           kms.NewFromConfig(*awsConfig),
 		metrics:          metrics,
 		healthCheckKeyID: healthCheckKeyID,
 	}
@@ -110,12 +115,12 @@ func (s *Service) Sign(msg []byte, kh interface{}) ([]byte, error) { //nolint: f
 		return nil, err
 	}
 
-	describeKey, err := s.client.DescribeKey(&kms.DescribeKeyInput{KeyId: &keyID})
+	describeKey, err := s.client.DescribeKey(context.Background(), &kms.DescribeKeyInput{KeyId: &keyID})
 	if err != nil {
 		return nil, err
 	}
 
-	digest, err := hashMessage(msg, *describeKey.KeyMetadata.SigningAlgorithms[0])
+	digest, err := hashMessage(msg, describeKey.KeyMetadata.SigningAlgorithms[0])
 	if err != nil {
 		return nil, err
 	}
@@ -123,16 +128,16 @@ func (s *Service) Sign(msg []byte, kh interface{}) ([]byte, error) { //nolint: f
 	input := &kms.SignInput{
 		KeyId:            aws.String(keyID),
 		Message:          digest,
-		MessageType:      aws.String("DIGEST"),
+		MessageType:      types.MessageTypeDigest,
 		SigningAlgorithm: describeKey.KeyMetadata.SigningAlgorithms[0],
 	}
 
-	result, err := s.client.Sign(input)
+	result, err := s.client.Sign(context.Background(), input)
 	if err != nil {
 		return nil, err
 	}
 
-	if *describeKey.KeyMetadata.KeySpec == kms.KeySpecEccSecgP256k1 {
+	if describeKey.KeyMetadata.KeySpec == types.KeySpecEccSecgP256k1 {
 		signature := ecdsaSignature{}
 
 		_, err = asn1.Unmarshal(result.Signature, &signature)
@@ -140,7 +145,7 @@ func (s *Service) Sign(msg []byte, kh interface{}) ([]byte, error) { //nolint: f
 			return nil, err
 		}
 
-		curveBits := keySpecToCurve[*describeKey.KeyMetadata.KeySpec].Params().BitSize
+		curveBits := keySpecToCurve[describeKey.KeyMetadata.KeySpec].Params().BitSize
 
 		keyBytes := curveBits / bitSize
 		if curveBits%bitSize > 0 {
@@ -172,7 +177,7 @@ func (s *Service) HealthCheck() error {
 		return err
 	}
 
-	_, err = s.client.DescribeKey(&kms.DescribeKeyInput{KeyId: &keyID})
+	_, err = s.client.DescribeKey(context.Background(), &kms.DescribeKeyInput{KeyId: &keyID})
 	if err != nil {
 		return err
 	}
@@ -203,12 +208,12 @@ func (s *Service) ExportPubKeyBytes(keyURI string) ([]byte, arieskms.KeyType, er
 		KeyId: aws.String(keyID),
 	}
 
-	result, err := s.client.GetPublicKey(input)
+	result, err := s.client.GetPublicKey(context.Background(), input)
 	if err != nil {
 		return nil, "", err
 	}
 
-	return result.PublicKey, kmsKeyTypes[*result.SigningAlgorithms[0]], nil
+	return result.PublicKey, kmsKeyTypes[result.SigningAlgorithms[0]], nil
 }
 
 // Verify signature.
@@ -218,24 +223,25 @@ func (s *Service) Verify(signature, msg []byte, kh interface{}) error {
 
 // Create key.
 func (s *Service) Create(kt arieskms.KeyType) (string, interface{}, error) {
-	keyUsage := kms.KeyUsageTypeSignVerify
+	keyUsage := types.KeyUsageTypeSignVerify
 
-	keySpec := ""
+	var keySpec types.KeySpec
 
 	switch string(kt) {
 	case arieskms.ECDSAP256DER:
-		keySpec = kms.KeySpecEccNistP256
+		keySpec = types.KeySpecEccNistP256
 	case arieskms.ECDSAP384DER:
-		keySpec = kms.KeySpecEccNistP384
+		keySpec = types.KeySpecEccNistP384
 	case arieskms.ECDSAP521DER:
-		keySpec = kms.KeySpecEccNistP521
+		keySpec = types.KeySpecEccNistP521
 	case arieskms.ECDSASecp256k1DER:
-		keySpec = kms.KeySpecEccSecgP256k1
+		keySpec = types.KeySpecEccSecgP256k1
 	default:
 		return "", nil, fmt.Errorf("key not supported %s", kt)
 	}
 
-	result, err := s.client.CreateKey(&kms.CreateKeyInput{KeySpec: &keySpec, KeyUsage: &keyUsage})
+	result, err := s.client.CreateKey(context.Background(),
+		&kms.CreateKeyInput{KeySpec: keySpec, KeyUsage: keyUsage})
 	if err != nil {
 		return "", nil, err
 	}
@@ -244,7 +250,8 @@ func (s *Service) Create(kt arieskms.KeyType) (string, interface{}, error) {
 	if strings.TrimSpace(aliasPrefix) != "" {
 		aliasName := fmt.Sprintf("alias/%s-%s", aliasPrefix, *result.KeyMetadata.KeyId)
 
-		_, err = s.client.CreateAlias(&kms.CreateAliasInput{AliasName: &aliasName, TargetKeyId: result.KeyMetadata.KeyId})
+		_, err = s.client.CreateAlias(context.Background(),
+			&kms.CreateAliasInput{AliasName: &aliasName, TargetKeyId: result.KeyMetadata.KeyId})
 		if err != nil {
 			return "", nil, err
 		}
@@ -308,10 +315,10 @@ func (s *Service) getKeyID(keyURI string) (string, error) {
 	return r[4], nil
 }
 
-func hashMessage(message []byte, algorithm string) ([]byte, error) {
+func hashMessage(message []byte, algorithm types.SigningAlgorithmSpec) ([]byte, error) {
 	var digest hash.Hash
 
-	switch algorithm {
+	switch algorithm { //nolint: exhaustive
 	case signingAlgorithmEcdsaSha256:
 		digest = sha256.New()
 	case signingAlgorithmEcdsaSha384:
