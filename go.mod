@@ -8,6 +8,7 @@ go 1.18
 
 require (
 	github.com/aws/aws-sdk-go v1.43.9
+	github.com/aws/aws-sdk-go-v2 v1.17.3
 	github.com/aws/aws-sdk-go-v2/service/kms v1.20.0
 	github.com/btcsuite/btcd v0.22.1
 	github.com/golang/mock v1.6.0
@@ -18,7 +19,7 @@ require (
 	github.com/hyperledger/aries-framework-go/spi v0.0.0-20221025204933-b807371b6f1e
 	github.com/igor-pavlenko/httpsignatures-go v0.0.23
 	github.com/piprate/json-gold v0.4.2
-	github.com/prometheus/client_golang v1.11.0
+	github.com/prometheus/client_golang v1.11.1
 	github.com/rs/xid v1.3.0
 	github.com/square/go-jose/v3 v3.0.0-20200630053402-0a67ce9b0693
 	github.com/stretchr/testify v1.8.1
@@ -29,7 +30,6 @@ require (
 
 require (
 	github.com/VictoriaMetrics/fastcache v1.5.7 // indirect
-	github.com/aws/aws-sdk-go-v2 v1.17.3 // indirect
 	github.com/aws/aws-sdk-go-v2/internal/configsources v1.1.27 // indirect
 	github.com/aws/aws-sdk-go-v2/internal/endpoints/v2 v2.4.21 // indirect
 	github.com/aws/smithy-go v1.13.5 // indirect
