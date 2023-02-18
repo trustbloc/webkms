@@ -8,6 +8,7 @@ go 1.18
 
 require (
 	github.com/aws/aws-sdk-go v1.43.9
+	github.com/aws/aws-sdk-go-v2 v1.17.3
 	github.com/aws/aws-sdk-go-v2/service/kms v1.20.0
 	github.com/btcsuite/btcd v0.22.1
 	github.com/golang/mock v1.6.0
@@ -24,12 +25,11 @@ require (
 	github.com/stretchr/testify v1.8.1
 	github.com/trustbloc/auth/spi/gnap v0.0.0-20220721161924-5a7b16c4282f
 	github.com/trustbloc/edge-core v0.1.8
-	golang.org/x/net v0.1.0
+	golang.org/x/net v0.7.0
 )
 
 require (
 	github.com/VictoriaMetrics/fastcache v1.5.7 // indirect
-	github.com/aws/aws-sdk-go-v2 v1.17.3 // indirect
 	github.com/aws/aws-sdk-go-v2/internal/configsources v1.1.27 // indirect
 	github.com/aws/aws-sdk-go-v2/internal/endpoints/v2 v2.4.21 // indirect
 	github.com/aws/smithy-go v1.13.5 // indirect
@@ -70,7 +70,7 @@ require (
 	github.com/xeipuuv/gojsonreference v0.0.0-20180127040603-bd5ef7bd5415 // indirect
 	github.com/xeipuuv/gojsonschema v1.2.0 // indirect
 	golang.org/x/crypto v0.1.0 // indirect
-	golang.org/x/sys v0.1.0 // indirect
+	golang.org/x/sys v0.5.0 // indirect
 	google.golang.org/protobuf v1.28.1 // indirect
 	gopkg.in/check.v1 v1.0.0-20200227125254-8fa46927fb4f // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect
