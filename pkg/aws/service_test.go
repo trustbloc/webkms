@@ -136,11 +136,6 @@ func TestCreate(t *testing.T) {
 
 		svc := New(awsConfig, metric, "", WithAWSClient(client))
 
-		//svc.client = &mockAWSClient{createKeyFunc: func(ctx context.Context, params *kms.CreateKeyInput,
-		//	optFns ...func(*kms.Options)) (*kms.CreateKeyOutput, error) {
-		//	return &kms.CreateKeyOutput{KeyMetadata: &types.KeyMetadata{KeyId: &keyID}}, nil
-		//}}
-
 		result, _, err := svc.Create(arieskms.ECDSAP256DER)
 		require.NoError(t, err)
 		require.Contains(t, result, keyID)
@@ -212,20 +207,6 @@ func TestCreateAndPubKeyBytes(t *testing.T) {
 			Return(&kms.CreateKeyOutput{KeyMetadata: &types.KeyMetadata{KeyId: &keyID}}, nil)
 		svc := New(&awsConfig, metric, "", WithAWSClient(client))
 
-		//svc.client = &mockAWSClient{
-		//	getPublicKeyFunc: func(ctx context.Context, params *kms.GetPublicKeyInput,
-		//		optFns ...func(*kms.Options)) (*kms.GetPublicKeyOutput, error) {
-		//		return &kms.GetPublicKeyOutput{
-		//			PublicKey:         []byte("publickey"),
-		//			SigningAlgorithms: []types.SigningAlgorithmSpec{types.SigningAlgorithmSpecEcdsaSha256},
-		//		}, nil
-		//	},
-		//	createKeyFunc: func(ctx context.Context, params *kms.CreateKeyInput,
-		//		optFns ...func(*kms.Options)) (*kms.CreateKeyOutput, error) {
-		//		return &kms.CreateKeyOutput{KeyMetadata: &types.KeyMetadata{KeyId: &keyID}}, nil
-		//	},
-		//}
-
 		keyID, publicKey, err := svc.CreateAndExportPubKeyBytes(arieskms.ECDSAP256DER)
 		require.NoError(t, err)
 		require.Contains(t, string(publicKey), "publickey")
@@ -264,14 +245,6 @@ func TestPubKeyBytes(t *testing.T) {
 			}, nil)
 		svc := New(awsConfig, metric, "", WithAWSClient(client))
 
-		//svc.client = &mockAWSClient{getPublicKeyFunc: func(ctx context.Context, params *kms.GetPublicKeyInput,
-		//	optFns ...func(*kms.Options)) (*kms.GetPublicKeyOutput, error) {
-		//	return &kms.GetPublicKeyOutput{
-		//		PublicKey:         []byte("publickey"),
-		//		SigningAlgorithms: []types.SigningAlgorithmSpec{types.SigningAlgorithmSpecEcdsaSha256},
-		//	}, nil
-		//}}
-
 		keyID, keyType, err := svc.ExportPubKeyBytes(
 			"aws-kms://arn:aws:kms:ca-central-1:111122223333:key/800d5768-3fd7-4edd-a4b8-4c81c3e4c147")
 		require.NoError(t, err)
@@ -288,11 +261,6 @@ func TestPubKeyBytes(t *testing.T) {
 		client.EXPECT().GetPublicKey(gomock.Any(), gomock.Any(), gomock.Any()).
 			Return(nil, fmt.Errorf("failed to export public key"))
 		svc := New(awsConfig, metric, "", WithAWSClient(client))
-
-		//svc.client = &mockAWSClient{getPublicKeyFunc: func(ctx context.Context, params *kms.GetPublicKeyInput,
-		//	optFns ...func(*kms.Options)) (*kms.GetPublicKeyOutput, error) {
-		//	return nil, fmt.Errorf("failed to export public key")
-		//}}
 
 		_, _, err := svc.ExportPubKeyBytes(
 			"aws-kms://arn:aws:kms:ca-central-1:111122223333:key/800d5768-3fd7-4edd-a4b8-4c81c3e4c147")
