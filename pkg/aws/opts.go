@@ -36,7 +36,7 @@ func WithKeyAliasPrefix(prefix string) Opts {
 	return func(opts *opts) { opts.keyAliasPrefix = prefix }
 }
 
-// WithAWSClient sets custom aws client
+// WithAWSClient sets custom AWS client.
 func WithAWSClient(client awsClient) Opts {
 	return func(opts *opts) { opts.awsClient = client }
 }

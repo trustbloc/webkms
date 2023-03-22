@@ -29,7 +29,7 @@ import (
 	arieskms "github.com/hyperledger/aries-framework-go/pkg/kms"
 )
 
-type awsClient interface { //nolint:dupl
+type awsClient interface {
 	Sign(ctx context.Context, params *kms.SignInput, optFns ...func(*kms.Options)) (*kms.SignOutput, error)
 	GetPublicKey(ctx context.Context, params *kms.GetPublicKeyInput,
 		optFns ...func(*kms.Options)) (*kms.GetPublicKeyOutput, error)
@@ -90,6 +90,10 @@ var keySpecToCurve = map[types.KeySpec]elliptic.Curve{
 	types.KeySpecEccSecgP256k1: btcec.S256(),
 }
 
+const (
+	defaultNonceLength = 16
+)
+
 // New return aws service.
 func New(
 	awsConfig *aws.Config,
@@ -102,6 +106,7 @@ func New(
 	for _, opt := range opts {
 		opt(options)
 	}
+
 	client := options.awsClient
 	if client == nil {
 		client = kms.NewFromConfig(*awsConfig)
@@ -113,7 +118,7 @@ func New(
 		metrics:          metrics,
 		healthCheckKeyID: healthCheckKeyID,
 		encryptionAlgo:   types.EncryptionAlgorithmSpecRsaesOaepSha256,
-		nonceLength:      16,
+		nonceLength:      defaultNonceLength,
 	}
 }
 
@@ -403,7 +408,7 @@ func (s *Service) getKeyID(keyURI string) (string, error) {
 
 func generateNonce(length int) []byte {
 	key := make([]byte, length)
-	_, _ = rand.Read(key)
+	_, _ = rand.Read(key) //nolint: errcheck
 
 	return key
 }
