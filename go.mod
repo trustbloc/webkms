@@ -10,7 +10,6 @@ require (
 	github.com/aws/aws-sdk-go v1.43.9
 	github.com/aws/aws-sdk-go-v2 v1.17.3
 	github.com/aws/aws-sdk-go-v2/service/kms v1.20.0
-	github.com/btcsuite/btcd v0.22.1
 	github.com/golang/mock v1.6.0
 	github.com/google/tink/go v1.7.0
 	github.com/gorilla/mux v1.8.0
