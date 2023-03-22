@@ -4,11 +4,14 @@ Copyright SecureKey Technologies Inc. All Rights Reserved.
 SPDX-License-Identifier: Apache-2.0
 */
 
+//go:generate mockgen -destination service_mocks.go -package aws -source=service.go
+
 package aws
 
 import (
 	"context"
 	"crypto/elliptic"
+	"crypto/rand"
 	"crypto/sha256"
 	"crypto/sha512"
 	"encoding/asn1"
@@ -37,11 +40,17 @@ type awsClient interface { //nolint:dupl
 		optFns ...func(*kms.Options)) (*kms.CreateKeyOutput, error)
 	CreateAlias(ctx context.Context, params *kms.CreateAliasInput,
 		optFns ...func(*kms.Options)) (*kms.CreateAliasOutput, error)
+	Encrypt(ctx context.Context, params *kms.EncryptInput, optFns ...func(*kms.Options)) (*kms.EncryptOutput, error)
+	Decrypt(ctx context.Context, params *kms.DecryptInput, optFns ...func(*kms.Options)) (*kms.DecryptOutput, error)
 }
 
 type metricsProvider interface {
 	SignCount()
+	EncryptCount()
+	DecryptCount()
 	SignTime(value time.Duration)
+	EncryptTime(value time.Duration)
+	DecryptTime(value time.Duration)
 	ExportPublicKeyCount()
 	ExportPublicKeyTime(value time.Duration)
 	VerifyCount()
@@ -58,6 +67,8 @@ type Service struct {
 	client           awsClient
 	metrics          metricsProvider
 	healthCheckKeyID string
+	encryptionAlgo   types.EncryptionAlgorithmSpec
+	nonceLength      int
 }
 
 const (
@@ -80,20 +91,100 @@ var keySpecToCurve = map[types.KeySpec]elliptic.Curve{
 }
 
 // New return aws service.
-func New(awsConfig *aws.Config, metrics metricsProvider,
-	healthCheckKeyID string, opts ...Opts) *Service {
+func New(
+	awsConfig *aws.Config,
+	metrics metricsProvider,
+	healthCheckKeyID string,
+	opts ...Opts,
+) *Service {
 	options := newOpts()
 
 	for _, opt := range opts {
 		opt(options)
 	}
+	client := options.awsClient
+	if client == nil {
+		client = kms.NewFromConfig(*awsConfig)
+	}
 
 	return &Service{
 		options:          options,
-		client:           kms.NewFromConfig(*awsConfig),
+		client:           client,
 		metrics:          metrics,
 		healthCheckKeyID: healthCheckKeyID,
+		encryptionAlgo:   types.EncryptionAlgorithmSpecRsaesOaepSha256,
+		nonceLength:      16,
 	}
+}
+
+// Decrypt data.
+func (s *Service) Decrypt(_, aad, _ []byte, kh interface{}) ([]byte, error) {
+	startTime := time.Now()
+
+	defer func() {
+		if s.metrics != nil {
+			s.metrics.DecryptTime(time.Since(startTime))
+		}
+	}()
+
+	if s.metrics != nil {
+		s.metrics.DecryptCount()
+	}
+
+	keyID, err := s.getKeyID(kh.(string))
+	if err != nil {
+		return nil, err
+	}
+
+	input := &kms.DecryptInput{
+		CiphertextBlob:      aad,
+		EncryptionAlgorithm: s.encryptionAlgo,
+		KeyId:               aws.String(keyID),
+	}
+
+	resp, err := s.client.Decrypt(context.Background(), input)
+	if err != nil {
+		return nil, err
+	}
+
+	return resp.Plaintext, nil
+}
+
+// Encrypt data.
+func (s *Service) Encrypt(
+	msg []byte,
+	_ []byte,
+	kh interface{},
+) ([]byte, []byte, error) {
+	startTime := time.Now()
+
+	defer func() {
+		if s.metrics != nil {
+			s.metrics.EncryptTime(time.Since(startTime))
+		}
+	}()
+
+	if s.metrics != nil {
+		s.metrics.EncryptCount()
+	}
+
+	keyID, err := s.getKeyID(kh.(string))
+	if err != nil {
+		return nil, nil, err
+	}
+
+	input := &kms.EncryptInput{
+		KeyId:               aws.String(keyID),
+		Plaintext:           msg,
+		EncryptionAlgorithm: s.encryptionAlgo,
+	}
+
+	resp, err := s.client.Encrypt(context.Background(), input)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	return resp.CiphertextBlob, generateNonce(s.nonceLength), nil
 }
 
 // Sign data.
@@ -308,6 +399,13 @@ func (s *Service) getKeyID(keyURI string) (string, error) {
 	}
 
 	return r[4], nil
+}
+
+func generateNonce(length int) []byte {
+	key := make([]byte, length)
+	_, _ = rand.Read(key)
+
+	return key
 }
 
 func hashMessage(message []byte, algorithm types.SigningAlgorithmSpec) ([]byte, error) {
