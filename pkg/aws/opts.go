@@ -12,6 +12,7 @@ import (
 
 type opts struct {
 	keyAliasPrefix string
+	awsClient      awsClient
 }
 
 // NewOpts create new opts populated with environment variable.
@@ -33,4 +34,9 @@ type Opts func(opts *opts)
 // WithKeyAliasPrefix sets the given prefix in the returns Opts.
 func WithKeyAliasPrefix(prefix string) Opts {
 	return func(opts *opts) { opts.keyAliasPrefix = prefix }
+}
+
+// WithAWSClient sets custom aws client
+func WithAWSClient(client awsClient) Opts {
+	return func(opts *opts) { opts.awsClient = client }
 }
