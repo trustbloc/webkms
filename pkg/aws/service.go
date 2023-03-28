@@ -112,12 +112,17 @@ func New(
 		client = kms.NewFromConfig(*awsConfig)
 	}
 
+	algo := types.EncryptionAlgorithmSpecSymmetricDefault
+	if options.encryptionAlgorithm != "" {
+		algo = types.EncryptionAlgorithmSpec(options.encryptionAlgorithm)
+	}
+
 	return &Service{
 		options:          options,
 		client:           client,
 		metrics:          metrics,
 		healthCheckKeyID: healthCheckKeyID,
-		encryptionAlgo:   types.EncryptionAlgorithmSpecRsaesOaepSha256,
+		encryptionAlgo:   algo,
 		nonceLength:      defaultNonceLength,
 	}
 }

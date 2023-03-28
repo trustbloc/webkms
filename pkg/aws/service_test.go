@@ -381,7 +381,10 @@ func TestDecrypt(t *testing.T) {
 
 		client := NewMockawsClient(gomock.NewController(t))
 
-		svc := New(awsConfig, metric, "", WithAWSClient(client))
+		svc := New(awsConfig, metric, "",
+			WithAWSClient(client),
+			WithEncryptionAlgorithm("RSAES_OAEP_SHA_256"),
+		)
 		encrypted := generateNonce(64)
 		decrypted := generateNonce(128)
 
@@ -391,6 +394,7 @@ func TestDecrypt(t *testing.T) {
 				params *kms.DecryptInput,
 				optFns ...func(*kms.Options),
 			) (*kms.DecryptOutput, error) {
+				assert.Equal(t, params.EncryptionAlgorithm, types.EncryptionAlgorithmSpec("RSAES_OAEP_SHA_256"))
 				assert.Equal(t, "alias/800d5768-3fd7-4edd-a4b8-4c81c3e4c147", *params.KeyId)
 				assert.Equal(t, encrypted, params.CiphertextBlob)
 				assert.Equal(t, svc.encryptionAlgo, params.EncryptionAlgorithm)
@@ -427,6 +431,8 @@ func TestDecrypt(t *testing.T) {
 				params *kms.DecryptInput,
 				optFns ...func(*kms.Options),
 			) (*kms.DecryptOutput, error) {
+				assert.Equal(t, params.EncryptionAlgorithm, types.EncryptionAlgorithmSpec("SYMMETRIC_DEFAULT"))
+
 				return nil, errors.New("encryption err")
 			})
 
