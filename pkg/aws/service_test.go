@@ -432,7 +432,7 @@ func TestDecrypt(t *testing.T) {
 				optFns ...func(*kms.Options),
 			) (*kms.DecryptOutput, error) {
 				assert.Equal(t, params.EncryptionAlgorithm, types.EncryptionAlgorithmSpec("SYMMETRIC_DEFAULT"))
-				
+
 				return nil, errors.New("encryption err")
 			})
 
