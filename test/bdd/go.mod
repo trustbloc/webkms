@@ -100,7 +100,7 @@ require (
 	github.com/multiformats/go-varint v0.0.6 // indirect
 	github.com/oklog/ulid v1.3.1 // indirect
 	github.com/opencontainers/image-spec v1.0.3-0.20211202183452-c5a74bcca799 // indirect
-	github.com/opencontainers/runc v1.1.2 // indirect
+	github.com/opencontainers/runc v1.1.5 // indirect
 	github.com/opentracing/opentracing-go v1.2.0 // indirect
 	github.com/ory/hydra-client-go v1.10.6 // indirect
 	github.com/piprate/json-gold v0.4.2 // indirect
