@@ -9,6 +9,6 @@ build/
 gomocks_test.go
 coverage.out
 test/bdd/fixtures/keys
-openAPI.yml
+/test/bdd/fixtures/specs
 .build/*
 bin/
