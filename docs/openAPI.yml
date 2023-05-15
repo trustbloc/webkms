@@ -1,0 +1,1206 @@
+#
+# Copyright SecureKey Technologies Inc. All Rights Reserved.
+#
+# SPDX-License-Identifier: Apache-2.0
+#
+
+info:
+  license:
+    name: 'SPDX-License-Identifier: Apache-2.0'
+  title: TrustBloc KMS - APIs for Key Management and Crypto operations.
+  version: v1.0.0-rc1
+consumes:
+- application/json
+definitions:
+  ErrorResponse:
+    properties:
+      message:
+        type: string
+        x-go-name: Message
+    title: ErrorResponse is an error response model.
+    type: object
+    x-go-package: github.com/trustbloc/kms/pkg/controller/rest
+  publicKey:
+    properties:
+      curve:
+        description: Curve.
+        type: string
+        x-go-name: Curve
+      kid:
+        description: Key ID.
+        type: string
+        x-go-name: KID
+      type:
+        description: Key type.
+        type: string
+        x-go-name: Type
+      x:
+        description: A base64-encoded X.
+        type: string
+        x-go-name: X
+      "y":
+        description: A base64-encoded Y.
+        type: string
+        x-go-name: "Y"
+    required:
+    - kid
+    - x
+    - "y"
+    - curve
+    - type
+    type: object
+    x-go-package: github.com/trustbloc/kms/pkg/controller/rest
+  wrappedKey:
+    properties:
+      alg:
+        description: Algorithm.
+        type: string
+        x-go-name: Alg
+      apu:
+        description: A base64-encoded APU.
+        type: string
+        x-go-name: APU
+      apv:
+        description: A base64-encoded APV.
+        type: string
+        x-go-name: APV
+      encryptedcek:
+        description: A base64-encoded encrypted CEK.
+        type: string
+        x-go-name: EncryptedCEK
+      epk:
+        $ref: '#/definitions/publicKey'
+      kid:
+        description: Key ID.
+        type: string
+        x-go-name: KID
+    required:
+    - kid
+    - encryptedcek
+    - epk
+    - alg
+    - apu
+    - apv
+    type: object
+    x-go-package: github.com/trustbloc/kms/pkg/controller/rest
+paths:
+  /healthcheck:
+    get:
+      operationId: healthCheckReq
+      responses:
+        "200":
+          $ref: '#/responses/healthCheckResp'
+        default:
+          $ref: '#/responses/errorResp'
+      summary: Returns a health check status.
+      tags:
+      - server
+  /v1/keystores:
+    post:
+      operationId: createKeyStoreReq
+      parameters:
+      - description: |-
+          The header with a user (subject) to use for fetching secret share from Auth server.
+
+          Auth-User header
+        in: query
+        name: Auth-User
+        type: string
+        x-go-name: AuthUser
+      - description: |-
+          The header with a secret share for Shamir secret lock.
+
+          Secret-Share header
+        in: query
+        name: Secret-Share
+        type: string
+        x-go-name: SecretShare
+      - in: body
+        name: Body
+        schema:
+          properties:
+            controller:
+              description: Controller of the key store.
+              type: string
+              x-go-name: Controller
+          required:
+          - controller
+          type: object
+      responses:
+        "201":
+          $ref: '#/responses/createKeyStoreResp'
+        default:
+          $ref: '#/responses/errorResp'
+      summary: Creates a new key store.
+      tags:
+      - kms
+  /v1/keystores/{key_store_id}/keys:
+    post:
+      operationId: createKeyReq
+      parameters:
+      - description: The key store's ID.
+        in: path
+        name: key_store_id
+        required: true
+        type: string
+        x-go-name: KeyStoreID
+      - in: body
+        name: Body
+        schema:
+          properties:
+            attrs:
+              description: Any extra attributes necessary for a key creation. Optional.
+              items:
+                type: string
+              type: array
+              x-go-name: Attrs
+            key_type:
+              description: |-
+                A type of key to create. Check https://github.com/hyperledger/aries-framework-go/blob/main/pkg/kms/api.go
+                for supported key types.
+              type: string
+              x-go-name: KeyType
+          type: object
+      responses:
+        "201":
+          $ref: '#/responses/createKeyResp'
+        default:
+          $ref: '#/responses/errorResp'
+      summary: Creates a new key.
+      tags:
+      - kms
+    put:
+      operationId: importKeyReq
+      parameters:
+      - description: The key store's ID.
+        in: path
+        name: key_store_id
+        required: true
+        type: string
+        x-go-name: KeyStoreID
+      - in: body
+        name: Body
+        schema:
+          properties:
+            key:
+              description: A base64-encoded key to import.
+              type: string
+              x-go-name: Key
+            key_id:
+              description: An optional key ID to associate imported key with.
+              type: string
+              x-go-name: KeyID
+            key_type:
+              description: A type of key to be imported.
+              type: string
+              x-go-name: KeyType
+          required:
+          - key
+          - key_type
+          type: object
+      responses:
+        "201":
+          $ref: '#/responses/importKeyResp'
+        default:
+          $ref: '#/responses/errorResp'
+      summary: Imports a private key.
+      tags:
+      - kms
+  /v1/keystores/{key_store_id}/keys/{key_id}:
+    get:
+      operationId: exportKeyReq
+      parameters:
+      - description: The key store's ID.
+        in: path
+        name: key_store_id
+        required: true
+        type: string
+        x-go-name: KeyStoreID
+      - description: The key's ID.
+        in: path
+        name: key_id
+        required: true
+        type: string
+        x-go-name: KeyID
+      responses:
+        "200":
+          $ref: '#/responses/exportKeyResp'
+        default:
+          $ref: '#/responses/errorResp'
+      summary: Exports a public key.
+      tags:
+      - kms
+  /v1/keystores/{key_store_id}/keys/{key_id}/blind:
+    post:
+      operationId: blindReq
+      parameters:
+      - description: The key store's ID.
+        in: path
+        name: key_store_id
+        required: true
+        type: string
+        x-go-name: KeyStoreID
+      - description: The key's ID.
+        in: path
+        name: key_id
+        required: true
+        type: string
+        x-go-name: KeyID
+      - in: body
+        name: Body
+        schema:
+          properties:
+            values:
+              description: Values to blind.
+              items:
+                additionalProperties:
+                  type: object
+                type: object
+              type: array
+              x-go-name: Values
+          type: object
+      responses:
+        "200":
+          $ref: '#/responses/blindResp'
+        default:
+          $ref: '#/responses/errorResp'
+      summary: Blind values with CL MasterSecret.
+      tags:
+      - crypto
+  /v1/keystores/{key_store_id}/keys/{key_id}/computemac:
+    post:
+      description: |-
+        MAC provides symmetric message authentication. Computed authentication tag for given data allows the recipient
+        to verify that data are from the expected sender and have not been modified.
+      operationId: computeMACReq
+      parameters:
+      - description: The key store's ID.
+        in: path
+        name: key_store_id
+        required: true
+        type: string
+        x-go-name: KeyStoreID
+      - description: The key's ID.
+        in: path
+        name: key_id
+        required: true
+        type: string
+        x-go-name: KeyID
+      - in: body
+        name: Body
+        schema:
+          properties:
+            data:
+              description: A base64-encoded data to compute MAC for.
+              type: string
+              x-go-name: Data
+          required:
+          - data
+          type: object
+      responses:
+        "200":
+          $ref: '#/responses/computeMACResp'
+        default:
+          $ref: '#/responses/errorResp'
+      summary: Computes message authentication code (MAC) for data.
+      tags:
+      - crypto
+  /v1/keystores/{key_store_id}/keys/{key_id}/correctnessproof:
+    post:
+      operationId: correctnessProofReq
+      parameters:
+      - description: The key store's ID.
+        in: path
+        name: key_store_id
+        required: true
+        type: string
+        x-go-name: KeyStoreID
+      - description: The key's ID.
+        in: path
+        name: key_id
+        required: true
+        type: string
+        x-go-name: KeyID
+      responses:
+        "200":
+          $ref: '#/responses/correctnessProofResp'
+        default:
+          $ref: '#/responses/errorResp'
+      summary: Get correctness proof for a CL CredDef key.
+      tags:
+      - crypto
+  /v1/keystores/{key_store_id}/keys/{key_id}/decrypt:
+    post:
+      description: |-
+        The decryption verifies the authenticity and integrity of the associated data, but there are no guarantees with
+        regard to secrecy of that data.
+      operationId: decryptReq
+      parameters:
+      - description: The key store's ID.
+        in: path
+        name: key_store_id
+        required: true
+        type: string
+        x-go-name: KeyStoreID
+      - description: The key's ID.
+        in: path
+        name: key_id
+        required: true
+        type: string
+        x-go-name: KeyID
+      - in: body
+        name: Body
+        schema:
+          properties:
+            associated_data:
+              description: |-
+                A base64-encoded associated data to be authenticated. For successful decryption it must be the same as
+                associated data used during encryption.
+              type: string
+              x-go-name: AssociatedData
+            ciphertext:
+              description: A base64-encoded ciphertext to be decrypted.
+              type: string
+              x-go-name: Ciphertext
+            nonce:
+              description: A base64-encoded nonce.
+              type: string
+              x-go-name: Nonce
+          required:
+          - ciphertext
+          - nonce
+          type: object
+      responses:
+        "200":
+          $ref: '#/responses/decryptResp'
+        default:
+          $ref: '#/responses/errorResp'
+      summary: Decrypts a ciphertext with associated authenticated data.
+      tags:
+      - crypto
+  /v1/keystores/{key_store_id}/keys/{key_id}/deriveproof:
+    post:
+      operationId: deriveProofReq
+      parameters:
+      - description: The key store's ID.
+        in: path
+        name: key_store_id
+        required: true
+        type: string
+        x-go-name: KeyStoreID
+      - description: The key's ID.
+        in: path
+        name: key_id
+        required: true
+        type: string
+        x-go-name: KeyID
+      - in: body
+        name: Body
+        schema:
+          properties:
+            messages:
+              description: Base64-encoded messages.
+              items:
+                type: string
+              type: array
+              x-go-name: Messages
+            nonce:
+              description: A base64-encoded nonce.
+              type: string
+              x-go-name: Nonce
+            revealed_indexes:
+              description: A vector of revealed messages.
+              items:
+                format: int64
+                type: integer
+              type: array
+              x-go-name: RevealedIndexes
+            signature:
+              description: A base64-encoded signature.
+              type: string
+              x-go-name: Signature
+          required:
+          - messages
+          - signature
+          - nonce
+          - revealed_indexes
+          type: object
+      responses:
+        "200":
+          $ref: '#/responses/deriveProofResp'
+        default:
+          $ref: '#/responses/errorResp'
+      summary: Creates a BBS+ signature proof for a list of revealed messages.
+      tags:
+      - crypto
+  /v1/keystores/{key_store_id}/keys/{key_id}/encrypt:
+    post:
+      description: |-
+        Encryption with associated data ensures authenticity (who the sender is) and integrity (the data has not been
+        tampered with) of that data, but not its secrecy.
+      operationId: encryptReq
+      parameters:
+      - description: The key store's ID.
+        in: path
+        name: key_store_id
+        required: true
+        type: string
+        x-go-name: KeyStoreID
+      - description: The key's ID.
+        in: path
+        name: key_id
+        required: true
+        type: string
+        x-go-name: KeyID
+      - in: body
+        name: Body
+        schema:
+          properties:
+            associated_data:
+              description: |-
+                A base64-encoded associated data to be authenticated, but not encrypted.
+                Associated data is optional, so this parameter can be nil.
+              type: string
+              x-go-name: AssociatedData
+            message:
+              description: A base64-encoded plaintext to be encrypted.
+              type: string
+              x-go-name: Message
+          required:
+          - message
+          type: object
+      responses:
+        "200":
+          $ref: '#/responses/encryptResp'
+        default:
+          $ref: '#/responses/errorResp'
+      summary: Encrypts a message with associated authenticated data.
+      tags:
+      - crypto
+  /v1/keystores/{key_store_id}/keys/{key_id}/rotate:
+    post:
+      operationId: rotateKeyReq
+      parameters:
+      - description: The key store's ID.
+        in: path
+        name: key_store_id
+        required: true
+        type: string
+        x-go-name: KeyStoreID
+      - description: The key's ID.
+        in: path
+        name: key_id
+        required: true
+        type: string
+        x-go-name: KeyID
+      - in: body
+        name: Body
+        schema:
+          properties:
+            attrs:
+              description: Any extra attributes necessary for a key creation. Optional.
+              items:
+                type: string
+              type: array
+              x-go-name: Attrs
+            key_type:
+              description: A type on new key.
+              type: string
+              x-go-name: KeyType
+          required:
+          - key_type
+          type: object
+      responses:
+        "200":
+          $ref: '#/responses/rotateKeyResp'
+        default:
+          $ref: '#/responses/errorResp'
+      summary: Rotate the key.
+      tags:
+      - kms
+  /v1/keystores/{key_store_id}/keys/{key_id}/sign:
+    post:
+      operationId: signReq
+      parameters:
+      - description: The key store's ID.
+        in: path
+        name: key_store_id
+        required: true
+        type: string
+        x-go-name: KeyStoreID
+      - description: The key's ID.
+        in: path
+        name: key_id
+        required: true
+        type: string
+        x-go-name: KeyID
+      - in: body
+        name: Body
+        schema:
+          properties:
+            message:
+              description: A base64-encoded message to sign.
+              type: string
+              x-go-name: Message
+          type: object
+      responses:
+        "200":
+          $ref: '#/responses/signResp'
+        default:
+          $ref: '#/responses/errorResp'
+      summary: Signs a message.
+      tags:
+      - crypto
+  /v1/keystores/{key_store_id}/keys/{key_id}/signmulti:
+    post:
+      operationId: signMultiReq
+      parameters:
+      - description: The key store's ID.
+        in: path
+        name: key_store_id
+        required: true
+        type: string
+        x-go-name: KeyStoreID
+      - description: The key's ID.
+        in: path
+        name: key_id
+        required: true
+        type: string
+        x-go-name: KeyID
+      - in: body
+        name: Body
+        schema:
+          properties:
+            messages:
+              description: Base64-encoded messages to sign.
+              items:
+                type: string
+              type: array
+              x-go-name: Messages
+          type: object
+      responses:
+        "200":
+          $ref: '#/responses/signMultiResp'
+        default:
+          $ref: '#/responses/errorResp'
+      summary: Creates a BBS+ signature of messages.
+      tags:
+      - crypto
+  /v1/keystores/{key_store_id}/keys/{key_id}/signwithsecrets:
+    post:
+      operationId: signWithSecretsReq
+      parameters:
+      - description: The key store's ID.
+        in: path
+        name: key_store_id
+        required: true
+        type: string
+        x-go-name: KeyStoreID
+      - description: The key's ID.
+        in: path
+        name: key_id
+        required: true
+        type: string
+        x-go-name: KeyID
+      - in: body
+        name: Body
+        schema:
+          properties:
+            correctness_proof:
+              description: Blinded secrets correctness proof.
+              items:
+                format: uint8
+                type: integer
+              type: array
+              x-go-name: CorrectnessProof
+            did:
+              description: DID.
+              type: string
+              x-go-name: DID
+            nonces:
+              description: Nonces (offer and request).
+              items:
+                items:
+                  format: uint8
+                  type: integer
+                type: array
+              type: array
+              x-go-name: Nonces
+            secrets:
+              description: Blinded secrets.
+              items:
+                format: uint8
+                type: integer
+              type: array
+              x-go-name: Secrets
+            values:
+              additionalProperties:
+                type: object
+              description: Credential Values.
+              type: object
+              x-go-name: Values
+          type: object
+      responses:
+        "200":
+          $ref: '#/responses/signWithSecretsResp'
+        default:
+          $ref: '#/responses/errorResp'
+      summary: Generates a signature and related correctness proof for a CL CredDef
+        key using provided values.
+      tags:
+      - crypto
+  /v1/keystores/{key_store_id}/keys/{key_id}/unwrap:
+    post:
+      operationId: unwrapKeyReq
+      parameters:
+      - description: The key store's ID.
+        in: path
+        name: key_store_id
+        required: true
+        type: string
+        x-go-name: KeyStoreID
+      - description: The key's ID.
+        in: path
+        name: key_id
+        required: true
+        type: string
+        x-go-name: KeyID
+      - in: body
+        name: Body
+        schema:
+          properties:
+            sender_pub_key:
+              $ref: '#/definitions/publicKey'
+            tag:
+              description: A base64-encoded authentication tag.
+              type: string
+              x-go-name: Tag
+            wrapped_key:
+              $ref: '#/definitions/wrappedKey'
+          required:
+          - wrapped_key
+          - sender_pub_key
+          - tag
+          type: object
+      responses:
+        "200":
+          $ref: '#/responses/unwrapKeyResp'
+        default:
+          $ref: '#/responses/errorResp'
+      summary: Unwraps a wrapped key.
+      tags:
+      - crypto
+  /v1/keystores/{key_store_id}/keys/{key_id}/verify:
+    post:
+      operationId: verifyReq
+      parameters:
+      - description: The key store's ID.
+        in: path
+        name: key_store_id
+        required: true
+        type: string
+        x-go-name: KeyStoreID
+      - description: The key's ID.
+        in: path
+        name: key_id
+        required: true
+        type: string
+        x-go-name: KeyID
+      - in: body
+        name: Body
+        schema:
+          properties:
+            message:
+              description: A base64-encoded message.
+              type: string
+              x-go-name: Message
+            signature:
+              description: A base64-encoded signature.
+              type: string
+              x-go-name: Signature
+          type: object
+      responses:
+        "200":
+          $ref: '#/responses/verifyResp'
+        default:
+          $ref: '#/responses/errorResp'
+      summary: Verifies a signature.
+      tags:
+      - crypto
+  /v1/keystores/{key_store_id}/keys/{key_id}/verifymac:
+    post:
+      operationId: verifyMACReq
+      parameters:
+      - description: The key store's ID.
+        in: path
+        name: key_store_id
+        required: true
+        type: string
+        x-go-name: KeyStoreID
+      - description: The key's ID.
+        in: path
+        name: key_id
+        required: true
+        type: string
+        x-go-name: KeyID
+      - in: body
+        name: Body
+        schema:
+          properties:
+            data:
+              description: A base64-encoded data the MAC was computed for.
+              type: string
+              x-go-name: Data
+            mac:
+              description: A base64-encoded MAC for data.
+              type: string
+              x-go-name: MAC
+          required:
+          - mac
+          - data
+          type: object
+      responses:
+        "200":
+          $ref: '#/responses/verifyMACResp'
+        default:
+          $ref: '#/responses/errorResp'
+      summary: Verifies whether MAC is a correct authentication code for data.
+      tags:
+      - crypto
+  /v1/keystores/{key_store_id}/keys/{key_id}/verifymulti:
+    post:
+      operationId: verifyMultiReq
+      parameters:
+      - description: The key store's ID.
+        in: path
+        name: key_store_id
+        required: true
+        type: string
+        x-go-name: KeyStoreID
+      - description: The key's ID.
+        in: path
+        name: key_id
+        required: true
+        type: string
+        x-go-name: KeyID
+      - in: body
+        name: Body
+        schema:
+          properties:
+            messages:
+              description: Base64-encoded messages to verify.
+              items:
+                type: string
+              type: array
+              x-go-name: Messages
+            signature:
+              description: A base64-encoded signature.
+              type: string
+              x-go-name: Signature
+          type: object
+      responses:
+        "200":
+          $ref: '#/responses/verifyMultiResp'
+        default:
+          $ref: '#/responses/errorResp'
+      summary: Verifies a signature of messages (BBS+).
+      tags:
+      - crypto
+  /v1/keystores/{key_store_id}/keys/{key_id}/verifyproof:
+    post:
+      operationId: verifyProofReq
+      parameters:
+      - description: The key store's ID.
+        in: path
+        name: key_store_id
+        required: true
+        type: string
+        x-go-name: KeyStoreID
+      - description: The key's ID.
+        in: path
+        name: key_id
+        required: true
+        type: string
+        x-go-name: KeyID
+      - in: body
+        name: Body
+        schema:
+          properties:
+            messages:
+              description: Base64-encoded messages.
+              items:
+                type: string
+              type: array
+              x-go-name: Messages
+            nonce:
+              description: A base64-encoded nonce.
+              type: string
+              x-go-name: Nonce
+            proof:
+              description: A base64-encoded proof.
+              type: string
+              x-go-name: Proof
+          required:
+          - proof
+          - messages
+          - nonce
+          type: object
+      responses:
+        "200":
+          $ref: '#/responses/verifyProofResp'
+        default:
+          $ref: '#/responses/errorResp'
+      summary: Verifies a BBS+ signature proof for revealed messages.
+      tags:
+      - crypto
+  /v1/keystores/{key_store_id}/keys/{key_id}/wrap:
+    post:
+      operationId: wrapKeyAEReq
+      parameters:
+      - description: The key store's ID.
+        in: path
+        name: key_store_id
+        required: true
+        type: string
+        x-go-name: KeyStoreID
+      - description: The key's ID.
+        in: path
+        name: key_id
+        required: true
+        type: string
+        x-go-name: KeyID
+      - in: body
+        name: Body
+        schema:
+          properties:
+            apu:
+              description: A base64-encoded APU.
+              type: string
+              x-go-name: APU
+            apv:
+              description: A base64-encoded APV.
+              type: string
+              x-go-name: APV
+            cek:
+              description: A base64-encoded CEK.
+              type: string
+              x-go-name: CEK
+            recipient_pub_key:
+              $ref: '#/definitions/publicKey'
+            tag:
+              description: A base64-encoded authentication tag.
+              type: string
+              x-go-name: Tag
+          required:
+          - cek
+          - apu
+          - apv
+          - recipient_pub_key
+          - tag
+          type: object
+      responses:
+        "200":
+          $ref: '#/responses/wrapKeyResp'
+        default:
+          $ref: '#/responses/errorResp'
+      summary: Wraps CEK using ECDH-1PU key wrapping (Authcrypt).
+      tags:
+      - crypto
+  /v1/keystores/{key_store_id}/wrap:
+    post:
+      operationId: wrapKeyReq
+      parameters:
+      - description: The key store's ID.
+        in: path
+        name: key_store_id
+        required: true
+        type: string
+        x-go-name: KeyStoreID
+      - in: body
+        name: Body
+        schema:
+          properties:
+            apu:
+              description: A base64-encoded APU.
+              type: string
+              x-go-name: APU
+            apv:
+              description: A base64-encoded APV.
+              type: string
+              x-go-name: APV
+            cek:
+              description: A base64-encoded CEK.
+              type: string
+              x-go-name: CEK
+            recipient_pub_key:
+              $ref: '#/definitions/publicKey'
+          required:
+          - cek
+          - apu
+          - apv
+          - recipient_pub_key
+          type: object
+      responses:
+        "200":
+          $ref: '#/responses/wrapKeyResp'
+        default:
+          $ref: '#/responses/errorResp'
+      summary: Wraps CEK using ECDH-ES key wrapping (Anoncrypt).
+      tags:
+      - crypto
+produces:
+- application/json
+responses:
+  blindResp:
+    description: blindResp model
+    schema:
+      properties:
+        blinded:
+          description: Blinded values.
+          items:
+            items:
+              format: uint8
+              type: integer
+            type: array
+          type: array
+          x-go-name: Blinded
+      type: object
+  computeMACResp:
+    description: computeMACResp model
+    schema:
+      properties:
+        mac:
+          description: A base64-encoded MAC.
+          type: string
+          x-go-name: MAC
+      type: object
+  correctnessProofResp:
+    description: correctnessProofResp model
+    schema:
+      properties:
+        correctness_proof:
+          description: Correctness proof for a CredDef key.
+          items:
+            format: uint8
+            type: integer
+          type: array
+          x-go-name: CorrectnessProof
+      type: object
+  createKeyResp:
+    description: createKeyResp model
+    schema:
+      properties:
+        key_url:
+          description: URL to created key.
+          type: string
+          x-go-name: KeyURL
+        public_key:
+          description: A base64-encoded public key. It is empty if key is symmetric.
+          type: string
+          x-go-name: PublicKey
+      type: object
+  createKeyStoreResp:
+    description: createKeyStoreResp model
+    schema:
+      properties:
+        capability:
+          description: Base64-encoded root ZCAPs for key store.
+          type: string
+          x-go-name: Capability
+        key_store_url:
+          description: Key store URL.
+          type: string
+          x-go-name: KeyStoreURL
+      type: object
+  decryptResp:
+    description: decryptResp model
+    schema:
+      properties:
+        plaintext:
+          description: A base64-encoded plaintext.
+          type: string
+          x-go-name: Plaintext
+      type: object
+  deriveProofResp:
+    description: deriveProofResp model
+    schema:
+      properties:
+        proof:
+          description: A base64-encoded BBS+ signature proof.
+          type: string
+          x-go-name: Proof
+      type: object
+  easyOpenResp:
+    description: easyOpenResp model
+    schema:
+      properties:
+        plaintext:
+          description: A base64-encoded plaintext.
+          type: string
+          x-go-name: Plaintext
+      type: object
+  easyResp:
+    description: easyResp model
+    schema:
+      properties:
+        ciphertext:
+          description: A base64-encoded ciphertext.
+          type: string
+          x-go-name: Ciphertext
+      type: object
+  encryptResp:
+    description: encryptResp model
+    schema:
+      properties:
+        ciphertext:
+          description: A base64-encoded ciphertext.
+          type: string
+          x-go-name: Ciphertext
+        nonce:
+          description: A base64-encoded nonce.
+          type: string
+          x-go-name: Nonce
+      type: object
+  errorResp:
+    description: errorResp model
+    schema:
+      $ref: '#/definitions/ErrorResponse'
+  exportKeyResp:
+    description: exportKeyResp model
+    schema:
+      properties:
+        public_key:
+          description: A base64-encoded public key.
+          type: string
+          x-go-name: PublicKey
+      type: object
+  healthCheckResp:
+    description: healthCheckResp model
+    schema:
+      properties:
+        current_time:
+          format: date-time
+          type: string
+          x-go-name: CurrentTime
+        status:
+          type: string
+          x-go-name: Status
+      type: object
+  importKeyResp:
+    description: importKeyResp model
+    schema:
+      properties:
+        key_url:
+          description: URL of imported key.
+          type: string
+          x-go-name: KeyURL
+      type: object
+  rotateKeyResp:
+    description: rotateKeyResp model
+    schema:
+      properties:
+        key_url:
+          description: URL of rotated key.
+          type: string
+          x-go-name: KeyURL
+      type: object
+  sealOpenResp:
+    description: sealOpenResp model
+    schema:
+      properties:
+        plaintext:
+          description: A base64-encoded plaintext.
+          type: string
+          x-go-name: Plaintext
+      type: object
+  signMultiResp:
+    description: signMultiResp model
+    schema:
+      properties:
+        signature:
+          description: A base64-encoded signature.
+          type: string
+          x-go-name: Signature
+      type: object
+  signResp:
+    description: signResp model
+    schema:
+      properties:
+        signature:
+          description: A base64-encoded signature.
+          type: string
+          x-go-name: Signature
+      type: object
+  signWithSecretsResp:
+    description: signWithSecretsResp model
+    schema:
+      properties:
+        correctness_proof:
+          description: Credential signature's correctness proof.
+          items:
+            format: uint8
+            type: integer
+          type: array
+          x-go-name: CorrectnessProof
+        signature:
+          description: Credential signature.
+          items:
+            format: uint8
+            type: integer
+          type: array
+          x-go-name: Signature
+      type: object
+  unwrapKeyResp:
+    description: unwrapKeyResp model
+    schema:
+      properties:
+        key:
+          description: A base64-encoded unwrapped key.
+          type: string
+          x-go-name: Key
+      type: object
+  verifyMACResp:
+    description: verifyMACResp model
+  verifyMultiResp:
+    description: verifyMultiResp model
+  verifyProofResp:
+    description: verifyProofResp model
+  verifyResp:
+    description: verifyResp model
+  wrapKeyResp:
+    description: wrapKeyResp model
+    schema:
+      properties:
+        alg:
+          description: Algorithm.
+          type: string
+          x-go-name: Alg
+        apu:
+          description: A base64-encoded APU.
+          type: string
+          x-go-name: APU
+        apv:
+          description: A base64-encoded APV.
+          type: string
+          x-go-name: APV
+        encryptedcek:
+          description: A base64-encoded encrypted CEK.
+          type: string
+          x-go-name: EncryptedCEK
+        epk:
+          $ref: '#/definitions/publicKey'
+        kid:
+          description: Key ID.
+          type: string
+          x-go-name: KID
+      required:
+      - kid
+      - encryptedcek
+      - epk
+      - alg
+      - apu
+      - apv
+      type: object
+schemes:
+- http
+swagger: "2.0"

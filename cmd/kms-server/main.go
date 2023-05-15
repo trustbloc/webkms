@@ -4,10 +4,10 @@ Copyright SecureKey Technologies Inc. All Rights Reserved.
 SPDX-License-Identifier: Apache-2.0
 */
 
-// Package kms-server for key management and crypto operations.
+// Package kms-server TrustBloc KMS - APIs for Key Management and Crypto operations.
 //
 //     Schemes: http
-//     Version: 0.1.8
+//     Version: v1.0.0-rc1
 //     License: SPDX-License-Identifier: Apache-2.0
 //
 //     Consumes:
